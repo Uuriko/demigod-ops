@@ -302,7 +302,7 @@ function alignHomeLowerNav(html) {
 const HOME_BUY_HREF = BUY_HREF;
 const HOME_BUY_PILL = `<a class="pill primary buy-dasha" href="${HOME_BUY_HREF}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a>`;
 const HOME_CARNIVAL_HIDE = '#lobby,#remix,#stills,#oss,#voice,.poster-grid,#token h2,#token .section-title,#token .assoc,#token .disclaimer,#token .poster,#token .tape{display:none!important}';
-const HOME_FOLD_CSS = '#simp,#token,main.dasha>section{content-visibility:auto;contain-intrinsic-size:auto 720px}';
+const HOME_FOLD_CSS = '#simp,#faucet,#token,main.dasha>section{content-visibility:auto;contain-intrinsic-size:auto 720px}';
 const HOME_SCROLL_CSS = 'html{scroll-behavior:auto!important}.dasha{overflow-x:visible!important}#token,#token *{view-timeline:none!important;animation-timeline:none!important;scroll-timeline:none!important}';
 const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer{display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + HOME_SCROLL_CSS + HOME_CARNIVAL_HIDE + HOME_FOLD_CSS + AWARD_SLIM_CSS + AWARD_CROP_CSS + AWARD_ROOM_CSS + AWARD_FOOT_CSS;
 
@@ -353,10 +353,39 @@ function ensureHomeSimpMount(html) {
   return page.slice(0, at) + mount + page.slice(at);
 }
 
+function faucetStillUrl() {
+  return 'https://lobby.getdasha.com/client/faucet.png';
+}
+
+/** Same picture + dest + send mount as /faucet. */
+function faucetMountHtml() {
+  const still = faucetStillUrl();
+  return `<div id="dasha-faucet" data-faucet-still="${still}" data-faucet-still-sri="${FAUCET_STILL_SRI}"></div>
+<noscript>
+<img class="faucet-hero" src="${still}" integrity="${FAUCET_STILL_SRI}" crossorigin="anonymous" alt="">
+</noscript>
+${faucetClientScript()}`;
+}
+
+function ensureHomeFaucetMount(html) {
+  const page = String(html || '');
+  if (/id=["']dasha-faucet["']/i.test(page)) return page;
+  const mount = `<div id="faucet">${faucetMountHtml()}</div>`;
+  const script = page.match(/simp-board\.js[\s\S]*?<\/script>/i);
+  if (script) {
+    const at = page.indexOf(script[0]) + script[0].length;
+    return page.slice(0, at) + mount + page.slice(at);
+  }
+  const hero = page.match(/<header\b[^>]*\bdasha-hero\b[^>]*>[\s\S]*?<\/header>/i);
+  if (!hero) return page;
+  const at = page.indexOf(hero[0]) + hero[0].length;
+  return page.slice(0, at) + mount + page.slice(at);
+}
+
 function injectHomeReveal(html) {
   const page = String(html || '');
   if (/id=["']dasha-home-reveal["']/i.test(page)) return page;
-  const tag = `<noscript><style>#simp,#token{opacity:1;transform:none}</style></noscript><script id="dasha-home-reveal">(function(){var nodes=document.querySelectorAll('#simp,#token');if(!nodes.length)return;if(!window.IntersectionObserver||(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)){for(var i=0;i<nodes.length;i++)nodes[i].classList.add('is-in');return}var io=new IntersectionObserver(function(ents){ents.forEach(function(e){if(e.isIntersecting){e.target.classList.add('is-in');io.unobserve(e.target)}})},{threshold:.12,rootMargin:'0px 0px -8% 0px'});for(var j=0;j<nodes.length;j++)io.observe(nodes[j])})();</script>`;
+  const tag = `<noscript><style>#simp,#faucet,#token{opacity:1;transform:none}</style></noscript><script id="dasha-home-reveal">(function(){var nodes=document.querySelectorAll('#simp,#faucet,#token');if(!nodes.length)return;if(!window.IntersectionObserver||(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)){for(var i=0;i<nodes.length;i++)nodes[i].classList.add('is-in');return}var io=new IntersectionObserver(function(ents){ents.forEach(function(e){if(e.isIntersecting){e.target.classList.add('is-in');io.unobserve(e.target)}})},{threshold:.12,rootMargin:'0px 0px -8% 0px'});for(var j=0;j<nodes.length;j++)io.observe(nodes[j])})();</script>`;
   return /<\/body>/i.test(page) ? page.replace(/<\/body>/i, `${tag}</body>`) : page + tag;
 }
 
@@ -368,7 +397,10 @@ export function rewriteHomeFirstViewport(html) {
   page = page.replace(/<section\b[^>]*\bid=["']dasha-lock["'][^>]*>[\s\S]*?<\/section>/gi, '');
   page = injectHomeCalmCss(page);
   page = ensureHomeBuyPill(page);
-  if (/<header\b[^>]*\bdasha-hero\b/i.test(page)) page = ensureHomeSimpMount(page);
+  if (/<header\b[^>]*\bdasha-hero\b/i.test(page)) {
+    page = ensureHomeSimpMount(page);
+    page = ensureHomeFaucetMount(page);
+  }
   page = ensureHomeAwardChrome(page);
   page = injectHomeReveal(page);
   return rewriteLeftoverLobbyHrefs(alignHomeLowerNav(page));
@@ -1107,7 +1139,6 @@ function faucetClientScript() {
 
 /** Worker-owned /faucet. Picture, dest, send. */
 export function faucetPageHtml() {
-  const still = 'https://lobby.getdasha.com/client/faucet.png';
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Faucet — getdasha.com</title>
 <link rel="canonical" href="https://www.getdasha.com/faucet">
 <meta name="description" content="Faucet">
@@ -1116,11 +1147,7 @@ export function faucetPageHtml() {
 <body>
 ${cropTicksHtml()}
 ${hamburgerHtml({ path: '/faucet' })}
-<div id="dasha-faucet" data-faucet-still="${still}" data-faucet-still-sri="${FAUCET_STILL_SRI}"></div>
-<noscript>
-<img class="faucet-hero" src="${still}" integrity="${FAUCET_STILL_SRI}" crossorigin="anonymous" alt="">
-</noscript>
-${faucetClientScript()}
+${faucetMountHtml()}
 ${siteFooter('/faucet')}
 </body></html>`;
 }

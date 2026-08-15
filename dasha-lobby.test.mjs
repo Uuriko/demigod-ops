@@ -187,6 +187,7 @@ assert(worker.includes('injectDanceDock') && worker.includes('client/dasha-dance
 assert(worker.includes('GRAPH_PAGE = GRAPH_PAGE_HTML'), '/graph must not grow the dance dock');
 assert(worker.includes("path === '/' || path === '/lobby' || path === '/studio' || path === '/dasha'"), 'dock rooms are / /lobby /studio /dasha only');
 assert(worker.includes('ensureHomeSimpMount') && worker.includes('injectHomeReveal'), 'home rewrite remounts the pretty board below the hero');
+assert(worker.includes('ensureHomeFaucetMount') && worker.includes('faucetMountHtml'), 'home remounts the live faucet toy after the board');
 assert(!worker.includes('ensureHomeSimpHop') && !worker.includes('dasha-simp-hop'), 'home #simp is the board, not a hop-only paragraph');
 assert(!worker.includes('class="dasha-quiz" data-simp-api'), 'home mount is not quiz chrome');
 assert(worker.includes('stripLobbySimpQuiz') && worker.includes('stripLobbySimpQuiz(LOBBY_PAGE_HTML)'), 'first-party /lobby must not mount the quiz');
@@ -1507,7 +1508,8 @@ try {
     assert.match(css, /content-visibility:\s*auto/, `${label} must skip paint on below-fold rooms`);
     assert.match(css, /content:"\[01\]"/, `${label} must number the hero room`);
     assert.match(css, /#simp::before\{content:"\[02\]"/, `${label} must number the board room`);
-    assert.match(css, /#token::before\{content:"\[03\]"/, `${label} must number the mint band`);
+    assert.match(css, /#faucet::before\{content:"\[03\]"/, `${label} must number the faucet room`);
+    assert.match(css, /#token::before\{content:"\[04\]"/, `${label} must number the mint band`);
     assert.match(css, /#lobby,#remix,#stills,#oss,#voice/, `${label} must hide leftover carnival`);
     assert.match(css, /scroll-behavior:auto/, `${label} must kill smooth-scroll`);
     assert.match(css, /\.dasha\{overflow-x:visible/, `${label} must drop the overflow-x trap`);
@@ -1540,8 +1542,15 @@ try {
     assert.match(html, /id="simp"/, `${label} must keep a #simp room`);
     assert.match(html, /id="dasha-simp-board"/, `${label} #simp remounts the pretty board`);
     assert.match(html, /simp-board\.js/, `${label} must load the board client below the hero`);
+    assert.match(html, /id="faucet"/, `${label} must keep a #faucet room`);
+    assert.match(html, /id="dasha-faucet"/, `${label} #faucet remounts the live faucet toy`);
+    assert.match(html, /client\/faucet\.js/, `${label} must load faucet.js`);
+    assert.match(html, /client\/faucet\.png/, `${label} must reuse faucet.png`);
     assert.ok(html.indexOf('dasha-hero') < html.indexOf('dasha-simp-board'), `${label} board lives below the hero`);
-    assert.doesNotMatch(hero, /id="dasha-simp-board"|simp-board\.js|class="dasha-quiz"/, `${label} hero first paint is not the board`);
+    assert.ok(html.indexOf('dasha-simp-board') < html.indexOf('dasha-faucet'), `${label} faucet lives after the board`);
+    assert.ok(html.indexOf('dasha-faucet') < html.indexOf('id="token"'), `${label} faucet lives before the mint band`);
+    assert.doesNotMatch(hero, /id="dasha-simp-board"|simp-board\.js|class="dasha-quiz"|dasha-faucet|faucet\.js/, `${label} hero first paint is not the board or faucet`);
+    assert.doesNotMatch(html, /not an airdrop|free money|official faucet/i, `${label} must not invent faucet disclaimer copy`);
     assert.doesNotMatch(html, /dasha-x-gate|CONNECT X\?|First visit|openHomeGate/i, `${label} must not paint a first-visit X gate`);
     assert.equal([...html.matchAll(/class="dasha-quiz"/g)].length, 0, `${label} must not mount quiz chrome on home`);
     assert.match(html, /id="dasha-home-reveal"/, `${label} must reveal rooms once`);
@@ -1558,6 +1567,7 @@ try {
     assert.match(lowerNav, /href="\/simp">Simp</, `${label} lower nav must include Simp`);
     assert.match(lowerNav, /href="\/chess">Chess</, `${label} lower nav must include Chess`);
     assert.doesNotMatch(lowerNav, /href="\/graph"/, `${label} lower nav must not door to shelved /graph`);
+    assert.match(lowerNav, /href="\/faucet">Faucet</, `${label} lower nav must include Faucet`);
     assert.match(lowerNav, /href="\/verse">Verse</, `${label} lower nav must include Verse`);
     assert.match(lowerNav, /href="\/bounties">Bounties</, `${label} lower nav must include Bounties`);
     assert.doesNotMatch(lowerNav, /#token|\/forum|buy-dasha/i, `${label} lower nav must not grow a Buy pill or Forum`);
@@ -1575,6 +1585,8 @@ try {
   assert.match(injected, /class="dasha-crop"/, 'home rewrite must add crop marks');
   assert.match(injected.match(/<header class="dasha-slim">[\s\S]*?<\/header>/)?.[0] || '', /href="\/chess">Chess</, 'home hamburger must include Chess');
   assert.match(injected.match(/<header class="dasha-slim">[\s\S]*?<\/header>/)?.[0] || '', /href="\/simp">Simp</, 'home hamburger must include Simp');
+  assert.match(injected.match(/<header class="dasha-slim">[\s\S]*?<\/header>/)?.[0] || '', /href="\/faucet">Faucet</, 'home hamburger must include Faucet');
+  assert.match(injected.match(/<footer class="dasha-foot">[\s\S]*?<\/footer>/)?.[0] || '', /href="\/faucet">Faucet</, 'home footer must include Faucet');
   assert.doesNotMatch(injected.match(/<header class="dasha-slim">[\s\S]*?<\/header>/)?.[0] || '', /\/airdrop|\/graph/, 'home hamburger must hide dead and shelved doors');
   assert.doesNotMatch(injected, /dasha-next|Next up/, 'next-up stays off home first paint');
   assert.doesNotMatch(injected, /dasha-dance/, 'home rewrite must not stuff the dancer into the first viewport');

@@ -275,6 +275,8 @@ const { magnetPageHtml } = await import('./dasha-magnet-pages.mjs');
 const pageHtml = workerModule.faucetPageHtml();
 assert.match(pageHtml, /<link rel="canonical" href="https:\/\/www\.getdasha\.com\/faucet">/);
 assert.match(pageHtml, /id="dasha-faucet"/);
+assert.match(workerSrc, /function ensureHomeFaucetMount/);
+assert.match(workerSrc, /function faucetMountHtml/);
 assert.match(pageHtml, /<noscript>[\s\S]*client\/faucet\.png[\s\S]*<\/noscript>/);
 assert.doesNotMatch(pageHtml.replace(/<noscript>[\s\S]*?<\/noscript>/, ''), /<h1>Faucet<\/h1>/);
 assert.match(pageHtml, /class="dasha-slim[\s"]/);

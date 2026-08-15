@@ -149,9 +149,10 @@ Visible four. Violet is technical only. No sixth hex.
 **Home rooms (native scroll — 2026-08-15):**
 1. `[01]` hero (existing `header.dasha-hero`). First paint unchanged.
 2. `[02]` `#simp` is the pretty board: top 10 rows plus a Show more button that reveals the rest. Load `simp-board.js` on `/`. Do not mount `openHomeGate` on home. First paint stays headline + Buy + her — no modal, no blur, no FIRST VISIT / CONNECT X? overlay. After scroll into `#simp` (IntersectionObserver or ~85vh, once per session), unlinked visitors who have not dismissed `dasha_x_gate_v1` see a small Connect X card (acid button + Not now). Linked visitors never see it. Quiet Connect X stays on the board. Take the quiz is an acid button (ink type, hard hot offset, min 48px) on home and `/simp`.
-3. `[03]` only if it earns the fold: a tight mint/buy band (`#token`). Hide leftover carnival (poster grid, extra CTAs, lecture) with `display:none` — do not delete Webflow nodes.
-4. Numbered rail is tiny acid Arial (`[01]`–`[0n]`). IntersectionObserver fade/up once (opacity + 12–20px). `prefers-reduced-motion`: no translate, instant opacity.
-5. Native scroll only. No Lenis, no Locomotive, no scroll-snap, no wheel `preventDefault`, no GSAP ScrollTrigger that owns the scrollbar. Kill `html{scroll-behavior:smooth}` and the `#token` view-timeline toy. `.dasha` must not trap `overflow-x`.
+3. `[03]` `#faucet` is the live faucet toy (`#dasha-faucet` + `faucet.js` + `faucet.png`). Picture + dest + send. Almost no words. Do not invent a second faucet or disclaimer copy. `/faucet` stays.
+4. `[04]` only if it earns the fold: a tight mint/buy band (`#token`). Hide leftover carnival (poster grid, extra CTAs, lecture) with `display:none` — do not delete Webflow nodes.
+5. Numbered rail is tiny acid Arial (`[01]`–`[0n]`). IntersectionObserver fade/up once (opacity + 12–20px). `prefers-reduced-motion`: no translate, instant opacity.
+6. Native scroll only. No Lenis, no Locomotive, no scroll-snap, no wheel `preventDefault`, no GSAP ScrollTrigger that owns the scrollbar. Kill `html{scroll-behavior:smooth}` and the `#token` view-timeline toy. `.dasha` must not trap `overflow-x`.
 
 **Simp board (home top 10 + `/simp` full):**
 1. A row is three columns: `#12` · `@handle` · `48`. Acid rank, paper handle, quiet number. Hairline paper/18 divider. Matching `.simp-row` / `.simp-rank` / `.simp-handle` / `.simp-pts` CSS. No RANK/CONTRIBUTOR/SCORE headers, no cards, no pills, no “pts”, no badges, no Breakdown, no “linked” badge, no evidence link, no holder-checked, no privacy lecture, no cream leftover, no violet on gate/share cards.
@@ -222,7 +223,7 @@ Use these as **aesthetic references**, not product pledges:
 
 | Surface | Job | Culture hooks |
 |---------|-----|----------------|
-| Home `/` | First viewport: headline + Buy $dasha + the dancer. No modal. Then `[02]` pretty board (top 10 + Show more, Connect X + Take the quiz) + `[03]` mint band. Native scroll. | Slim hamburger + readable footer list every live room. Forum is not a door. `/rally` and `/graph` 308 home. |
+| Home `/` | First viewport: headline + Buy $dasha + the dancer. No modal. Then `[02]` pretty board (top 10 + Show more, Connect X + Take the quiz) + `[03]` faucet toy + `[04]` mint band. Native scroll. | Slim hamburger + readable footer list every live room. Forum is not a door. `/rally` and `/graph` 308 home. |
 | Studio `/studio` | Meme generator | Topbar + footer @dash_eats; **no remote photo strip** (canvas is palette-only by gate) |
 | Desk `/dasha` | Mint, chart, neutral share pack | **Primary photo surface**: pbs avatar→X, culture tape strip, CA post |
 | How-to-buy `/how-to-buy` | Buy ladder (prepared; may be 404 live) | Source post + @dash_eats footer/nav |
@@ -234,7 +235,7 @@ Use these as **aesthetic references**, not product pledges:
 - [x] Direct link to `https://x.com/dash_eats` on home + studio + desk (disk prepared)  
 - [x] Home first viewport: headline + Buy $dasha + the dancer. No ticker, quiz, posters, or association lecture in that viewport  
 - [x] `#dasha-home-cta` 100vh decoy deleted even when live wraps the page in `#dasha-home`  
-- [x] Home rooms: `[01]` hero · `[02]` pretty board (top 10 + Show more) · `[03]` mint. Native scroll. Dancer pauses during scroll. Dock only on `/` `/lobby` `/studio` `/dasha`  
+- [x] Home rooms: `[01]` hero · `[02]` pretty board (top 10 + Show more) · `[03]` faucet toy · `[04]` mint. Native scroll. Dancer pauses during scroll. Dock only on `/` `/lobby` `/studio` `/dasha`  
 - [x] Board row is three columns (`#12` · `@handle` · `48`) with matching CSS. Home loads `simp-board.js` below the hero; no first-visit X gate  
 - [x] Connect X is a quiet board button. Take the quiz is an acid button on home and `/simp`  
 - [x] Menu + footer share `DASHA_ROOMS` (includes Chess). Footer is paper on ink, 48px taps, padded above the dock. Graph stays hidden  
