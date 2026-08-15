@@ -24,6 +24,7 @@ import {
   bytesOnCurve,
   claimCooldown,
   classifyDest,
+  classifyDestLive,
   encodeCreateAtaIdempotent,
   encodeTransferChecked,
   faucetAmountRaw,
@@ -40,10 +41,12 @@ import {
   notConfigured,
   parseFaucetKeypair,
   parseRentExemption,
+  parseSiwsMessage,
   preflightFaucet,
   sendFaucetTransfer,
   siwsDomainOk,
   siwsMessageDomain,
+  siwsSignedMessageOk,
   solscanUrl,
   utcDay,
 } from './dasha-faucet.mjs';
@@ -82,7 +85,10 @@ assert.equal(parseRentExemption(2039280), 2039280);
 assert.equal(parseRentExemption(null), null);
 
 assert.match(sitemap, /<loc>https:\/\/www\.getdasha\.com\/faucet<\/loc>/);
-assert.doesNotMatch(sitemap, /\/earn<\/loc>|\/airdrop<\/loc>|\/claim-rewards<\/loc>/);
+assert.match(sitemap, /<loc>https:\/\/www\.getdasha\.com\/airdrop<\/loc>/);
+assert.match(sitemap, /<loc>https:\/\/www\.getdasha\.com\/earn<\/loc>/);
+assert.match(sitemap, /<loc>https:\/\/www\.getdasha\.com\/claim<\/loc>/);
+assert.doesNotMatch(sitemap, /\/claim-rewards<\/loc>/);
 
 assert.match(clientSrc, /global\.DashaFaucet/);
 assert.match(clientSrc, /a tiny sample for newbies\. not an airdrop\. not earn\./);
@@ -94,6 +100,17 @@ assert.match(clientSrc, /solana:signIn|signIn/);
 assert.match(clientSrc, /we will not ask for a phrase/i);
 assert.match(clientSrc, /MATCH, not verified/);
 assert.match(clientSrc, /dasha-x-linked/);
+assert.match(clientSrc, /signedMessage/);
+assert.match(clientSrc, /dasha-faucet-static/);
+assert.match(clientSrc, /waiting for the chain\. no fake bar\./);
+assert.match(clientSrc, /looking for an airdrop\?/);
+assert.match(clientSrc, /looking to earn\?/);
+assert.match(clientSrc, /got a sample of \$dasha\. not an airdrop\. not earn\./);
+assert.match(clientSrc, /IS_WALLET/);
+assert.match(clientSrc, /NOT THIS TOKEN/);
+assert.match(clientSrc, /bull\.jpg|weekend\.jpg|chart\.jpg|profile\.jpg/);
+assert.match(clientSrc, /body: '\{\}'/);
+assert.doesNotMatch(clientSrc, /body: JSON\.stringify\(\{[^}]*\b(mint|amountRaw|amount)\b/);
 assert.match(clientSrc, /credentials:\s*'include'/);
 assert.match(clientSrc, /\/oauth\/x\/start/);
 assert.match(clientSrc, /\/faucet\/wallet\/challenge/);
@@ -122,9 +139,11 @@ assert.doesNotMatch(faucetSrc, /HELIUS_|payTo/);
 assert.doesNotMatch(faucetSrc + clientSrc + workerSrc, /DwpCrg5qfCMW11a9FYFsAR9ZYQUYKNhfLdnzpci7sYgb/);
 assert.match(workerSrc, /X-Dasha-Edge': 'faucet'/);
 assert.match(workerSrc, /href="\/faucet">Faucet/);
-assert.doesNotMatch(workerSrc, /isExactPath\(url\.pathname, '\/earn'\)/);
-assert.doesNotMatch(workerSrc, /isExactPath\(url\.pathname, '\/airdrop'\)/);
+assert.match(workerSrc, /href="\/airdrop">Airdrop/);
+assert.match(workerSrc, /href="\/earn">Earn/);
+assert.match(workerSrc, /magnetRoute/);
 assert.doesNotMatch(workerSrc, /isExactPath\(url\.pathname, '\/claim-rewards'\)/);
+assert.doesNotMatch(faucetSrc + clientSrc + workerSrc, /claim your allocation|earn \$dasha|free money/i);
 
 const ix = encodeTransferChecked({
   source: '11111111111111111111111111111112',
@@ -196,6 +215,10 @@ assert.equal(claimCooldown(null, now), null);
 const cool = claimCooldown({ dest: destWallet.address, signature: 'realSig', amountRaw: DEFAULT_AMOUNT_RAW, ts: now }, now + 1000);
 assert.equal(cool.signature, 'realSig');
 assert.ok(cool.nextAt > now);
+const stuck = claimCooldown({ dest: destWallet.address, signature: 'heldSig', pending: true, ts: now - (16 * 60_000) }, now);
+assert.equal(stuck.pending, true);
+assert.equal(stuck.signature, 'heldSig');
+assert.equal(claimCooldown({ dest: destWallet.address, pending: true, ts: now - (16 * 60_000) }, now), null);
 
 function memoryFaucet(env) {
   const shards = new Map();
@@ -228,6 +251,7 @@ assert.equal(FAUCET_CLIENT_SRI, faucetSri, 'FAUCET_CLIENT_SRI must hash served c
 const pageHtml = workerModule.faucetPageHtml();
 assert.match(pageHtml, /<link rel="canonical" href="https:\/\/www\.getdasha\.com\/faucet">/);
 assert.match(pageHtml, /id="dasha-faucet"/);
+assert.match(pageHtml, /id="dasha-faucet-static"/);
 assert.ok(pageHtml.includes(mint));
 assert.match(pageHtml, /Arial Black/);
 assert.match(pageHtml, /client\/faucet\.js/);
@@ -251,11 +275,29 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
   const hold = await workerModule.default.fetch(new Request(`https://${host}/simp/hold`), {});
   assert.equal(hold.status, 501);
   assert.deepEqual(await hold.json(), { configured: false, error: 'not_configured' });
-  for (const banned of ['/earn', '/airdrop', '/claim-rewards', '/claim', '/drop', '/free']) {
+  for (const banned of ['/claim-rewards', '/drop', '/free']) {
     const miss = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${banned}`), {});
     assert.notEqual(miss.headers.get('x-dasha-edge'), 'faucet', banned);
     assert.ok(miss.status === 404 || miss.status === 308, `${banned} must not be a faucet route`);
   }
+  for (const [path, edge] of [['/airdrop', 'airdrop'], ['/earn', 'earn'], ['/claim', 'claim']]) {
+    const room = await workerModule.default.fetch(new Request(`https://${host}${path}`), {});
+    assert.equal(room.status, 200, `${host} ${path}`);
+    assert.equal(room.headers.get('x-dasha-edge'), edge);
+    const html = await room.text();
+    assert.match(html, /not an airdrop|does not pay you to click|the only send is the \/faucet sample/i);
+    assert.doesNotMatch(html, /claim your allocation|earn \$dasha|\$[0-9]|fake txid|txid/i);
+    assert.doesNotMatch(html, /<form[\s\S]*method=["']post["']/i);
+    assert.doesNotMatch(html, /\bInter\b|Geist|fonts\.googleapis|system-ui/);
+  }
+  const aliasAir = await workerModule.default.fetch(new Request(`https://${host}/airdrops`), {});
+  assert.ok(aliasAir.status === 200 || aliasAir.status === 308, `${host} /airdrops`);
+  if (aliasAir.status === 308) {
+    const hop = await workerModule.default.fetch(new Request(aliasAir.headers.get('location')), {});
+    assert.equal(hop.status, 200);
+  }
+  const aliasEarn = await workerModule.default.fetch(new Request(`https://${host}/rewards`), {});
+  assert.ok(aliasEarn.status === 200 || aliasEarn.status === 308, `${host} /rewards`);
 }
 
 const js = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/client/faucet.js'), {});
@@ -312,6 +354,25 @@ const noX = await workerModule.default.fetch(new Request('https://lobby.getdasha
 }), funded);
 assert.equal(noX.status, 401);
 
+const nativeFetch = globalThis.fetch;
+function classifyFetch(destWalletAccount = null) {
+  return async (input, init) => {
+    const body = typeof init?.body === 'string' ? init.body : '';
+    const parsed = body.startsWith('[') ? JSON.parse(body || '[]') : [JSON.parse(body || '{"method":""}')];
+    const out = parsed.map((row) => {
+      if (row.method === 'getAccountInfo') {
+        const addr = row.params?.[0];
+        if (addr === destAta.address) return { jsonrpc: '2.0', id: row.id, result: { value: null } };
+        if (addr === mint) return { jsonrpc: '2.0', id: row.id, result: { value: { owner: TOKEN_PROGRAM, space: 82 } } };
+        return { jsonrpc: '2.0', id: row.id, result: { value: destWalletAccount } };
+      }
+      return { jsonrpc: '2.0', id: row.id, error: { message: 'unexpected' } };
+    });
+    return new Response(JSON.stringify(body.startsWith('[') ? out : out[0]), { headers: { 'Content-Type': 'application/json' } });
+  };
+}
+globalThis.fetch = classifyFetch();
+
 const offCurve = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/wallet/verify', {
   method: 'POST',
   headers: {
@@ -322,6 +383,7 @@ const offCurve = await workerModule.default.fetch(new Request('https://lobby.get
   body: JSON.stringify({ dest: destAta.address, last4: last4(destAta.address), paste: true }),
 }), funded);
 assert.equal(offCurve.status, 400);
+assert.equal((await offCurve.json()).error, 'dest_pda');
 
 const pasteOk = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/wallet/verify', {
   method: 'POST',
@@ -335,8 +397,39 @@ const pasteOk = await workerModule.default.fetch(new Request('https://lobby.getd
 assert.equal(pasteOk.status, 200);
 const pasteBody = await pasteOk.json();
 assert.equal(pasteBody.dest, destWallet.address);
+assert.equal(pasteBody.kind, 'IS_WALLET');
 assert.equal(JSON.stringify(pasteBody).includes('fx1'), false);
 assert.equal(assertPublicSafe(pasteBody).ok, true);
+
+globalThis.fetch = classifyFetch({ owner: TOKEN_PROGRAM, space: 165 });
+const tokenVerify = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/wallet/verify', {
+  method: 'POST',
+  headers: {
+    Origin: 'https://www.getdasha.com',
+    Cookie: `__Host-dasha_x=${sessionToken}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ dest: destWallet.address, last4: last4(destWallet.address), paste: true }),
+}), funded);
+assert.equal(tokenVerify.status, 400);
+assert.equal((await tokenVerify.json()).error, 'dest_token');
+const destCheck = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/dest-check', {
+  method: 'POST',
+  headers: { Origin: 'https://www.getdasha.com', 'Content-Type': 'application/json' },
+  body: JSON.stringify({ dest: destWallet.address }),
+}), funded);
+assert.equal(destCheck.status, 400);
+assert.equal((await destCheck.json()).error, 'dest_token');
+globalThis.fetch = classifyFetch();
+await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/wallet/verify', {
+  method: 'POST',
+  headers: {
+    Origin: 'https://www.getdasha.com',
+    Cookie: `__Host-dasha_x=${sessionToken}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ dest: destWallet.address, last4: last4(destWallet.address), paste: true }),
+}), funded);
 
 const challenge = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/wallet/challenge', {
   method: 'POST',
@@ -402,6 +495,12 @@ assert.equal(faucetWalletMessage({
 assert.equal(siwsDomainOk(''), false);
 assert.equal(siwsDomainOk(null), false);
 assert.equal(siwsDomainOk('evil.com'), false);
+assert.equal(siwsSignedMessageOk({
+  message: `www.getdasha.com wants you to sign in with your Solana account:\n${destWallet.address}\n\nDest-proof\n\nURI: https://www.getdasha.com/\nVersion: 1\nChain ID: mainnet\nNonce: aabbcc\nIssued At: 2026-08-15T00:00:00.000Z\nExpiration Time: 2026-08-15T00:05:00.000Z\nRequest ID: faucet_dest`,
+  publicKey: destWallet.address,
+  nonce: 'aabbcc',
+}), true);
+assert.equal(parseSiwsMessage('wants you to sign in with your Solana account:\naddr\n\nNonce: x\nRequest ID: faucet_dest').domain, '');
 assert.equal(siwsDomainOk('getdasha.com'), true);
 assert.equal(siwsDomainOk('lobby.getdasha.com'), true);
 assert.equal(siwsMessageDomain('not a siws message'), '');
@@ -465,7 +564,6 @@ assert.equal(evilVerify.status, 400);
 assert.equal((await evilVerify.json()).error, 'siws_domain');
 
 let sawHoldCheck = false;
-const nativeFetch = globalThis.fetch;
 function rpcMock({
   sol = ATA_RENT_LAMPORTS + FEE_LAMPORTS + 1,
   tokens = String(DEFAULT_AMOUNT_RAW),
@@ -475,6 +573,8 @@ function rpcMock({
   rent = ATA_RENT_LAMPORTS,
   sendCount = { n: 0 },
   fail = '',
+  sigStatus = 'confirmed',
+  sendWait = null,
 } = {}) {
   return async (input, init) => {
     const body = typeof init?.body === 'string' ? init.body : '';
@@ -503,6 +603,10 @@ function rpcMock({
         }
         return { jsonrpc: '2.0', id: row.id, result: { value: destExists ? { lamports: ATA_RENT_LAMPORTS } : null } };
       }
+      if (row.method === 'simulateTransaction') {
+        if (fail === 'simulate') return { jsonrpc: '2.0', id: row.id, result: { value: { err: 'InstructionError' } } };
+        return { jsonrpc: '2.0', id: row.id, result: { value: { err: null } } };
+      }
       if (row.method === 'sendTransaction') {
         sendCount.n++;
         const raw = row.params[0];
@@ -511,6 +615,9 @@ function rpcMock({
         return { jsonrpc: '2.0', id: row.id, result: sig };
       }
       if (row.method === 'getSignatureStatuses') {
+        if (sigStatus === 'dropped') return { jsonrpc: '2.0', id: row.id, result: { value: [null] } };
+        if (sigStatus === 'pending') return { jsonrpc: '2.0', id: row.id, result: { value: [{ confirmationStatus: 'processed' }] } };
+        if (sigStatus === 'failed') return { jsonrpc: '2.0', id: row.id, result: { value: [{ err: { InstructionError: [0, 'Custom'] } }] } };
         return { jsonrpc: '2.0', id: row.id, result: { value: [{ confirmationStatus: 'confirmed' }] } };
       }
       if (row.method === 'getMinimumBalanceForRentExemption') {
@@ -520,7 +627,11 @@ function rpcMock({
       return { jsonrpc: '2.0', id: row.id, error: { message: 'unexpected' } };
     };
     if (fail === 'rpc') throw new Error('network');
-    const out = parsedBody.map(reply);
+    const out = [];
+    for (const row of parsedBody) {
+      if (row.method === 'sendTransaction' && sendWait) await sendWait;
+      out.push(reply(row));
+    }
     return new Response(JSON.stringify(body.startsWith('[') ? out : out[0]), { headers: { 'Content-Type': 'application/json' } });
   };
 }
@@ -673,6 +784,7 @@ const capEnv = {
 };
 const capA = await createSessionToken(capEnv, { xId: 'fx-cap-a', handle: 'capa' });
 const capB = await createSessionToken(capEnv, { xId: 'fx-cap-b', handle: 'capb' });
+globalThis.fetch = classifyFetch();
 await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/wallet/verify', {
   method: 'POST',
   headers: {
@@ -731,6 +843,7 @@ const floorEnv = {
   FAUCET_SOL_FLOOR_LAMPORTS: '10000000',
 };
 const floorTok = await createSessionToken(floorEnv, { xId: 'fx-floor', handle: 'floor' });
+globalThis.fetch = classifyFetch();
 await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/wallet/verify', {
   method: 'POST',
   headers: {
@@ -859,6 +972,162 @@ try {
 } finally {
   globalThis.fetch = nativeFetch;
 }
+
+const raceEnv = {
+  ...env,
+  FAUCET: memoryFaucet(env),
+  FAUCET_KEYPAIR: treasury.json,
+};
+const raceTok = await createSessionToken(raceEnv, { xId: 'fx-race', handle: 'race' });
+globalThis.fetch = classifyFetch();
+await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/wallet/verify', {
+  method: 'POST',
+  headers: {
+    Origin: 'https://www.getdasha.com',
+    Cookie: `__Host-dasha_x=${raceTok}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ dest: destWallet.address, last4: last4(destWallet.address), paste: true }),
+}), raceEnv);
+let releaseSend;
+const sendGate = new Promise((resolve) => { releaseSend = resolve; });
+const raceSend = { n: 0 };
+globalThis.fetch = rpcMock({ sendCount: raceSend, sendWait: sendGate });
+try {
+  const claimInit = {
+    method: 'POST',
+    headers: {
+      Origin: 'https://www.getdasha.com',
+      Cookie: `__Host-dasha_x=${raceTok}`,
+      'Content-Type': 'application/json',
+      'CF-Connecting-IP': '203.0.113.40',
+    },
+    body: '{}',
+  };
+  const racing = Promise.all([
+    workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/claim', claimInit), raceEnv),
+    workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/claim', claimInit), raceEnv),
+  ]);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  releaseSend();
+  const [raceA, raceB] = await racing;
+  const raceStatuses = [raceA.status, raceB.status].sort();
+  assert.equal(raceSend.n, 1, 'overlapping claims must send once');
+  assert.ok(raceStatuses.includes(200));
+  assert.ok(raceStatuses.includes(409) || raceStatuses.includes(429));
+} finally {
+  globalThis.fetch = nativeFetch;
+}
+
+const heldEnv = {
+  ...env,
+  FAUCET: memoryFaucet(env),
+  FAUCET_KEYPAIR: treasury.json,
+};
+const heldTok = await createSessionToken(heldEnv, { xId: 'fx-held', handle: 'held' });
+globalThis.fetch = classifyFetch();
+await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/wallet/verify', {
+  method: 'POST',
+  headers: {
+    Origin: 'https://www.getdasha.com',
+    Cookie: `__Host-dasha_x=${heldTok}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ dest: destWallet.address, last4: last4(destWallet.address), paste: true }),
+}), heldEnv);
+await heldEnv.FAUCET.get(heldEnv.FAUCET.idFromName('x:fx-held')).fetch(new Request('https://faucet.internal/faucetClaim%3Afx-held', {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    value: {
+      dest: destWallet.address,
+      signature: 'heldSigheldSigheldSigheldSigheldSigheldSig12',
+      pending: true,
+      ts: Date.now() - (20 * 60_000),
+      amountRaw: DEFAULT_AMOUNT_RAW,
+    },
+  }),
+}));
+const heldSend = { n: 0 };
+globalThis.fetch = rpcMock({ sendCount: heldSend, sigStatus: 'pending' });
+try {
+  const heldClaim = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/claim', {
+    method: 'POST',
+    headers: {
+      Origin: 'https://www.getdasha.com',
+      Cookie: `__Host-dasha_x=${heldTok}`,
+      'Content-Type': 'application/json',
+      'CF-Connecting-IP': '203.0.113.41',
+    },
+    body: '{}',
+  }), heldEnv);
+  assert.notEqual(heldClaim.status, 200);
+  assert.equal(heldSend.n, 0);
+  const heldBody = await heldClaim.json();
+  assert.equal(heldBody.error, 'confirming');
+  assert.ok(heldBody.signature);
+} finally {
+  globalThis.fetch = nativeFetch;
+}
+
+const dropEnv = {
+  ...env,
+  FAUCET: memoryFaucet(env),
+  FAUCET_KEYPAIR: treasury.json,
+};
+const dropTok = await createSessionToken(dropEnv, { xId: 'fx-drop', handle: 'drop' });
+globalThis.fetch = classifyFetch();
+await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/wallet/verify', {
+  method: 'POST',
+  headers: {
+    Origin: 'https://www.getdasha.com',
+    Cookie: `__Host-dasha_x=${dropTok}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ dest: destWallet.address, last4: last4(destWallet.address), paste: true }),
+}), dropEnv);
+await dropEnv.FAUCET.get(dropEnv.FAUCET.idFromName('x:fx-drop')).fetch(new Request('https://faucet.internal/faucetClaim%3Afx-drop', {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    value: {
+      dest: destWallet.address,
+      signature: 'deadSigdeadSigdeadSigdeadSigdeadSigdeadSig12',
+      pending: true,
+      ts: Date.now(),
+      amountRaw: DEFAULT_AMOUNT_RAW,
+    },
+  }),
+}));
+const dropSend = { n: 0 };
+globalThis.fetch = rpcMock({ sendCount: dropSend, sigStatus: 'dropped' });
+try {
+  const dropClaim = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/claim', {
+    method: 'POST',
+    headers: {
+      Origin: 'https://www.getdasha.com',
+      Cookie: `__Host-dasha_x=${dropTok}`,
+      'Content-Type': 'application/json',
+      'CF-Connecting-IP': '203.0.113.42',
+    },
+    body: '{}',
+  }), dropEnv);
+  const dropBody = await dropClaim.json();
+  assert.notEqual(dropBody.ok, true);
+  assert.notEqual(dropBody.error, 'already claimed');
+  assert.equal(dropSend.n, 0);
+  const dropRow = await dropEnv.FAUCET.get(dropEnv.FAUCET.idFromName('x:fx-drop')).fetch(new Request('https://faucet.internal/faucetClaim%3Afx-drop'));
+  const dropVal = (await dropRow.json()).value;
+  assert.ok(!dropVal || dropVal.pending || !dropVal.signature || dropVal.signature !== 'deadSigdeadSigdeadSigdeadSigdeadSigdeadSig12' || dropVal.pending === true);
+  assert.ok(!(dropVal && dropVal.signature && !dropVal.pending && dropVal.signature.startsWith('deadSig')));
+} finally {
+  globalThis.fetch = nativeFetch;
+}
+
+globalThis.fetch = classifyFetch();
+const liveClass = await classifyDestLive(['https://api.mainnet-beta.solana.com'], destAta.address);
+assert.equal(liveClass.error, 'dest_pda');
+globalThis.fetch = nativeFetch;
 
 assert.equal(sawHoldCheck, false);
 assert.ok(!faucetSrc.includes('walletHoldsDasha'));

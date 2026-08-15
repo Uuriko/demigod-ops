@@ -1,5 +1,5 @@
 /**
- * Dasha /faucet client — one card, acid bar, no N-of-M.
+ * Dasha /faucet client — quiz-ticket cards, acid bar = card progress.
  * Tiny sample. Not an airdrop. Not earn.
  */
 (function (global) {
@@ -11,6 +11,8 @@
   var MINT_SOURCE = 'https://x.com/dash_eats/status/2085405228078432279';
   var NOT_DEV = 'https://x.com/dash_eats/status/2085532923063853316';
   var DEFAULT_API = 'https://lobby.getdasha.com';
+  var STILLS = ['bull.jpg', 'weekend.jpg', 'chart.jpg', 'profile.jpg'];
+  var SHARE = 'got a sample of $dasha. not an airdrop. not earn. ' + MINT;
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -39,12 +41,16 @@
 
   function css() {
     return '#dasha-faucet,.faucet-root{color:#f4eddb;font:16px/1.45 Arial,Helvetica,sans-serif}' +
-      '.faucet-root h1,.faucet-root h2,.faucet-go{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}' +
+      '.faucet-root h1,.faucet-root h2,.faucet-go,.faucet-match{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}' +
       '.faucet-root h1{margin:0 0 .4rem;font-size:clamp(2.6rem,10vw,5rem);line-height:.9;text-transform:uppercase}' +
       '.faucet-lede{color:rgba(244,237,219,.7);max-width:46ch}' +
-      '.faucet-card{display:grid;gap:14px}' +
+      '.faucet-ticket{display:grid;gap:14px;padding:16px;border:2px dashed #dfff00;background:#120e12;box-shadow:6px 6px 0 #ff3b81}' +
+      '.faucet-still{width:100%;height:140px;object-fit:cover;border:1px solid #dfff00}' +
       '.faucet-bar{height:4px;background:#2a2428}.faucet-fill{display:block;height:100%;background:#dfff00}' +
       '.faucet-q{margin:0;font-size:clamp(26px,5vw,42px);line-height:1.08;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}' +
+      '.faucet-match{margin:0;font-size:clamp(3rem,14vw,7rem);line-height:.85;color:#dfff00;text-transform:uppercase}' +
+      '.faucet-stamp{display:inline-flex;align-items:center;min-height:36px;padding:0 10px;border:2px solid #dfff00;color:#dfff00;font-weight:900;letter-spacing:.06em}' +
+      '.faucet-stamp.is-no{border-color:#ff3b81;color:#ff3b81}' +
       '.faucet-go,.faucet-choice{min-height:48px;min-width:48px;padding:0 16px;border:1px solid #dfff00;background:#dfff00;color:#070608;font:inherit;font-weight:900;text-transform:uppercase;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}' +
       '.faucet-choice{background:#070608;color:#f4eddb;width:100%;text-align:left}' +
       '.faucet-ca,.faucet-mono{font:15px/1.4 Fragment Mono,ui-monospace,Menlo,Consolas,monospace;word-break:break-all;user-select:all;color:#7c4dff}' +
@@ -84,6 +90,18 @@
     root.appendChild(box);
   }
 
+  function quietHops(root) {
+    var box = el('p', 'faucet-lede', '');
+    var air = el('a', '', 'looking for an airdrop?');
+    air.href = '/airdrop';
+    var earn = el('a', '', 'looking to earn?');
+    earn.href = '/earn';
+    box.appendChild(air);
+    box.appendChild(document.createTextNode(' · '));
+    box.appendChild(earn);
+    root.appendChild(box);
+  }
+
   function mintBlock(root) {
     var code = el('code', 'faucet-ca', MINT);
     root.appendChild(code);
@@ -101,14 +119,34 @@
     root.appendChild(src);
   }
 
+  function still(n) {
+    var img = el('img', 'faucet-still', '');
+    img.src = 'https://lobby.getdasha.com/simp/photo/' + STILLS[n % STILLS.length];
+    img.alt = '';
+    return img;
+  }
+
+  function stamp(kind) {
+    if (kind === 'IS_WALLET') return el('p', 'faucet-stamp', 'IS_WALLET');
+    var no = el('p', 'faucet-stamp is-no', 'NOT THIS TOKEN');
+    return no;
+  }
+
+  function hideLeftover() {
+    var node = document.getElementById('dasha-faucet-static');
+    if (node) node.hidden = true;
+  }
+
   function mount(root) {
     if (!root) return null;
+    hideLeftover();
     var base = apiBase(root);
     root.innerHTML = '';
     root.classList.add('faucet-root');
     var style = document.createElement('style');
     style.textContent = css();
     root.appendChild(style);
+    root.appendChild(el('h1', '', 'Faucet'));
     var live = el('p', 'faucet-lede', '');
     live.setAttribute('role', 'status');
     live.setAttribute('aria-live', 'polite');
@@ -116,7 +154,9 @@
     root.appendChild(stage);
     root.appendChild(live);
 
-    var state = { card: 0, me: null, status: null, dest: '', siwsDown: false };
+    var state = { card: 0, me: null, status: null, dest: '', kind: '', siwsDown: false, sent: null };
+    var xPopup = null;
+    var xTimer = 0;
 
     function bar(n) {
       var wrap = el('div', 'faucet-bar');
@@ -126,85 +166,110 @@
       return wrap;
     }
 
+    function ticket(n) {
+      var card = el('div', 'faucet-ticket');
+      card.appendChild(bar(n));
+      card.appendChild(still(n));
+      return card;
+    }
+
+    function shareBlock(box) {
+      var btn = el('button', 'faucet-go', 'Copy share');
+      btn.type = 'button';
+      btn.addEventListener('click', function () { copyText(SHARE, btn); });
+      box.appendChild(btn);
+    }
+
+    function solscanLink(sig, href) {
+      var a = el('a', 'faucet-go', 'Solscan');
+      a.href = href || ('https://solscan.io/tx/' + sig);
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      return a;
+    }
+
     function paint() {
       stage.innerHTML = '';
       if (state.status && state.status.configured === false) {
-        stage.appendChild(el('h2', 'faucet-q', 'Not funded yet'));
-        stage.appendChild(el('p', '', 'a tiny sample for newbies. not an airdrop. not earn.'));
-        stage.appendChild(el('p', 'faucet-lede', 'Agents do not claim this faucet.'));
-        stage.appendChild(el('p', 'faucet-lede', 'The treasury key is not set. JSON writes return 501. This page is honest about that.'));
-        mintBlock(stage);
-        hops(stage);
+        var empty = ticket(0);
+        empty.appendChild(el('h2', 'faucet-q', 'Not funded yet'));
+        empty.appendChild(el('p', '', 'a tiny sample for newbies. not an airdrop. not earn.'));
+        empty.appendChild(el('p', 'faucet-lede', 'Agents do not claim this faucet.'));
+        empty.appendChild(el('p', 'faucet-lede', 'The treasury key is not set. JSON writes return 501. This page is honest about that.'));
+        mintBlock(empty);
+        hops(empty);
+        quietHops(empty);
+        stage.appendChild(empty);
         live.textContent = 'not funded yet';
         return;
       }
       if (state.me && state.me.claimed) {
-        stage.appendChild(el('h2', 'faucet-q', 'Already claimed'));
+        var claimed = ticket(5);
+        claimed.appendChild(el('h2', 'faucet-q', 'Already claimed'));
         if (state.me.signature) {
-          var a = el('a', 'faucet-go', 'Solscan');
-          a.href = 'https://solscan.io/tx/' + state.me.signature;
-          a.target = '_blank';
-          a.rel = 'noopener noreferrer';
-          stage.appendChild(a);
-          stage.appendChild(el('p', 'faucet-mono', state.me.signature));
+          claimed.appendChild(solscanLink(state.me.signature));
+          claimed.appendChild(el('p', 'faucet-mono', state.me.signature));
         }
-        if (state.me.nextAt) stage.appendChild(el('p', 'faucet-lede', 'Next at ' + new Date(state.me.nextAt).toISOString()));
-        hops(stage);
+        if (state.me.nextAt) claimed.appendChild(el('p', 'faucet-lede', 'Next at ' + new Date(state.me.nextAt).toISOString()));
+        shareBlock(claimed);
+        hops(claimed);
+        quietHops(claimed);
+        stage.appendChild(claimed);
         live.textContent = 'one per linked X / 30 days';
         return;
       }
       if (state.card === 0) {
-        stage.appendChild(bar(0));
-        stage.appendChild(el('h2', 'faucet-q', 'What this is'));
-        stage.appendChild(el('p', '', 'a tiny sample for newbies. not an airdrop. not earn.'));
-        stage.appendChild(el('p', 'faucet-lede', 'Agents do not claim this faucet.'));
-        stage.appendChild(el('p', 'faucet-lede', 'Not official. Not advice. She is not the dev. Association is not endorsement.'));
-        mintBlock(stage);
+        var intro = ticket(0);
+        intro.appendChild(el('h2', 'faucet-q', 'What this is'));
+        intro.appendChild(el('p', '', 'a tiny sample for newbies. not an airdrop. not earn.'));
+        intro.appendChild(el('p', 'faucet-lede', 'Agents do not claim this faucet.'));
+        intro.appendChild(el('p', 'faucet-lede', 'Not official. Not advice. She is not the dev. Association is not endorsement.'));
+        mintBlock(intro);
         var nd = el('a', '', 'she is not the dev');
         nd.href = NOT_DEV;
         nd.target = '_blank';
         nd.rel = 'noopener noreferrer';
         var p = el('p', 'faucet-lede', '');
         p.appendChild(nd);
-        stage.appendChild(p);
+        intro.appendChild(p);
+        quietHops(intro);
         var go = el('button', 'faucet-go', 'Continue');
         go.type = 'button';
         go.addEventListener('click', function () { state.card = 1; paint(); });
-        stage.appendChild(go);
+        intro.appendChild(go);
+        stage.appendChild(intro);
         return;
       }
       if (state.card === 1) {
-        stage.appendChild(bar(1));
-        stage.appendChild(el('h2', 'faucet-q', 'Connect X'));
-        stage.appendChild(el('p', '', 'One linked X account. One sample / 30 days. No referrals.'));
+        var xCard = ticket(1);
+        xCard.appendChild(el('h2', 'faucet-q', 'Connect X'));
+        xCard.appendChild(el('p', '', 'One linked X account. One sample / 30 days. No referrals.'));
         if (state.me && state.me.linked) {
           live.textContent = 'X linked.';
           var next = el('button', 'faucet-go', 'Continue');
           next.type = 'button';
           next.addEventListener('click', function () { state.card = 2; paint(); });
-          stage.appendChild(next);
+          xCard.appendChild(next);
+          stage.appendChild(xCard);
           return;
         }
         var btn = el('button', 'faucet-go', 'Connect X');
         btn.type = 'button';
-        btn.addEventListener('click', function () {
-          var w = window.open(base + '/oauth/x/start?return=/faucet', 'dasha_x', 'width=520,height=700');
-          if (!w) live.textContent = 'Allow popups to link X.';
-          else live.textContent = 'Complete X link in the popup…';
-        });
-        stage.appendChild(btn);
+        btn.addEventListener('click', function () { startX(); });
+        xCard.appendChild(btn);
+        stage.appendChild(xCard);
         return;
       }
       if (state.card === 2) {
-        stage.appendChild(bar(2));
-        stage.appendChild(el('h2', 'faucet-q', 'Destination'));
-        stage.appendChild(el('p', 'faucet-warn', 'This is your receive address. We will not ask for a phrase.'));
-        stage.appendChild(el('p', 'faucet-lede', 'SIWS is dest-proof, not a claim-airdrop signature.'));
+        var destCard = ticket(2);
+        destCard.appendChild(el('h2', 'faucet-q', 'Destination'));
+        destCard.appendChild(el('p', 'faucet-warn', 'This is your receive address. We will not ask for a phrase.'));
+        destCard.appendChild(el('p', 'faucet-lede', 'SIWS is dest-proof, not a claim-airdrop signature.'));
         var siws = el('button', 'faucet-go', 'Sign with wallet');
         siws.type = 'button';
         siws.addEventListener('click', function () { bindSiws(siws); });
-        stage.appendChild(siws);
-        stage.appendChild(el('p', 'faucet-lede', 'Or paste. Check the last 4.'));
+        destCard.appendChild(siws);
+        destCard.appendChild(el('p', 'faucet-lede', 'Or paste. Check the last 4.'));
         var input = el('input', '', '');
         input.placeholder = 'Solana address';
         input.autocomplete = 'off';
@@ -216,46 +281,55 @@
         var paste = el('button', 'faucet-go', 'Use pasted address');
         paste.type = 'button';
         paste.addEventListener('click', function () { bindPaste(input.value, last.value); });
-        stage.appendChild(input);
-        stage.appendChild(last);
-        stage.appendChild(paste);
+        destCard.appendChild(input);
+        destCard.appendChild(last);
+        destCard.appendChild(paste);
+        stage.appendChild(destCard);
         return;
       }
       if (state.card === 3) {
         var raw = state.status && state.status.amountRaw != null ? state.status.amountRaw : 100000000;
         var ui = state.status && state.status.amountUi != null ? state.status.amountUi : 100;
-        stage.appendChild(bar(3));
-        stage.appendChild(el('h2', 'faucet-q', 'Confirm'));
-        stage.appendChild(el('p', '', ui + ' $dasha'));
-        stage.appendChild(el('p', 'faucet-mono', 'raw ' + raw));
-        stage.appendChild(el('p', 'faucet-ca', MINT));
-        stage.appendChild(el('p', 'faucet-lede', '1 / 30 days. Treasury pays current ATA rent if this wallet has no $dasha ATA yet.'));
-        stage.appendChild(el('p', 'faucet-mono', state.dest));
-        var go = el('button', 'faucet-go', 'Send sample');
-        go.type = 'button';
-        go.addEventListener('click', function () { state.card = 4; paint(); claim(); });
-        stage.appendChild(go);
+        var four = String(state.dest || '').slice(-4);
+        var confirm = ticket(3);
+        confirm.appendChild(el('h2', 'faucet-q', 'Confirm'));
+        confirm.appendChild(el('p', 'faucet-match', four + ' MATCH'));
+        confirm.appendChild(el('p', 'faucet-ca', state.dest));
+        confirm.appendChild(stamp(state.kind || 'IS_WALLET'));
+        confirm.appendChild(el('p', '', ui + ' $dasha'));
+        confirm.appendChild(el('p', 'faucet-mono', 'raw ' + raw));
+        confirm.appendChild(el('p', 'faucet-ca', MINT));
+        confirm.appendChild(el('p', 'faucet-lede', '1 / 30 days. Treasury pays current ATA rent if this wallet has no $dasha ATA yet.'));
+        var send = el('button', 'faucet-go', 'Send sample');
+        send.type = 'button';
+        send.addEventListener('click', function () { state.card = 4; paint(); claim(); });
+        confirm.appendChild(send);
+        stage.appendChild(confirm);
         return;
       }
       if (state.card === 4) {
-        stage.appendChild(bar(4));
-        stage.appendChild(el('h2', 'faucet-q', 'Sending'));
-        stage.appendChild(el('p', '', 'Waiting for the chain. No fake bar.'));
+        var sending = ticket(4);
+        sending.appendChild(el('h2', 'faucet-q', 'Sending'));
+        sending.appendChild(el('p', '', 'waiting for the chain. no fake bar.'));
+        if (state.sent && state.sent.signature) {
+          sending.appendChild(solscanLink(state.sent.signature, state.sent.solscan));
+          sending.appendChild(el('p', 'faucet-mono', state.sent.signature));
+        }
+        stage.appendChild(sending);
         live.textContent = 'waiting for JSON';
         return;
       }
       if (state.card === 5) {
-        stage.appendChild(bar(5));
-        stage.appendChild(el('h2', 'faucet-q', 'Sent'));
+        var sent = ticket(5);
+        sent.appendChild(el('h2', 'faucet-q', 'Sent'));
         if (state.sent && state.sent.solscan) {
-          var link = el('a', 'faucet-go', 'Solscan');
-          link.href = state.sent.solscan;
-          link.target = '_blank';
-          link.rel = 'noopener noreferrer';
-          stage.appendChild(link);
-          stage.appendChild(el('p', 'faucet-mono', state.sent.signature));
+          sent.appendChild(solscanLink(state.sent.signature, state.sent.solscan));
+          sent.appendChild(el('p', 'faucet-mono', state.sent.signature));
         }
-        hops(stage);
+        shareBlock(sent);
+        hops(sent);
+        quietHops(sent);
+        stage.appendChild(sent);
         live.textContent = 'sample sent';
       }
     }
@@ -266,6 +340,12 @@
       if (feat && typeof feat.signIn === 'function') return function (input) { return feat.signIn(input); };
       if (typeof feat === 'function') return feat;
       return null;
+    }
+
+    function decodeSignedMessage(value) {
+      if (value == null) return '';
+      if (typeof value === 'string') return value;
+      try { return new TextDecoder().decode(value instanceof Uint8Array ? value : new Uint8Array(value)); } catch (e) { return ''; }
     }
 
     function bindSiws(btn) {
@@ -306,20 +386,31 @@
             var signature = out && (out.signature || out);
             if (signature && signature.signature) signature = signature.signature;
             if (!signature) throw new Error('wallet returned an incomplete signature');
+            var signedMessage = decodeSignedMessage(out && out.signedMessage) || challenge.message;
             return fetchJson(base + '/faucet/wallet/verify', {
               method: 'POST',
               credentials: 'include',
               mode: 'cors',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ challenge: challenge.challenge, publicKey: pair.publicKey, signature: toBase58(signature) })
+              body: JSON.stringify({
+                challenge: challenge.challenge,
+                publicKey: pair.publicKey,
+                signature: toBase58(signature),
+                signedMessage: signedMessage
+              })
             });
           });
         })
         .then(function (res) {
           btn.disabled = false;
           if (!res) return;
-          if (!res.data || !res.data.ok) throw new Error((res.data && res.data.error) || 'verify failed');
+          if (!res.data || !res.data.ok) {
+            live.textContent = (res.data && res.data.error) || 'verify failed';
+            if (res.data && res.data.error === 'dest_token') stage.appendChild(stamp('token'));
+            return;
+          }
           state.dest = res.data.dest;
+          state.kind = res.data.kind || 'IS_WALLET';
           state.card = 3;
           paint();
         })
@@ -341,9 +432,14 @@
       }).then(function (res) {
         if (!res.data || !res.data.ok) {
           live.textContent = (res.data && res.data.error) || 'paste rejected';
+          if (res.data && (res.data.error === 'dest_token' || res.data.error === 'dest_mint')) {
+            var card = stage.querySelector('.faucet-ticket') || stage;
+            card.appendChild(stamp('token'));
+          }
           return;
         }
         state.dest = res.data.dest;
+        state.kind = res.data.kind || 'IS_WALLET';
         state.card = 3;
         paint();
       }).catch(function () { live.textContent = 'paste failed'; });
@@ -361,6 +457,13 @@
           state.sent = res.data;
           state.card = 5;
           paint();
+          return;
+        }
+        if (res.data && res.data.error === 'confirming' && res.data.signature) {
+          state.sent = res.data;
+          state.card = 4;
+          paint();
+          live.textContent = 'waiting for the chain. no fake bar.';
           return;
         }
         state.card = 3;
@@ -397,15 +500,55 @@
       return out || '1';
     }
 
-    function onX(ev) {
-      if (!ev || !ev.data || ev.data.type !== 'dasha-x-linked') return;
-      fetchJson(base + '/faucet/me', { credentials: 'include', mode: 'cors' }).then(function (res) {
+    function refreshMe() {
+      return fetchJson(base + '/faucet/me', { credentials: 'include', mode: 'cors' }).then(function (res) {
         state.me = res.data || {};
-        if (state.me.linked && state.card === 1) state.card = 2;
+        if (state.me.dest) state.dest = state.me.dest;
+        if (state.me.linked && state.card === 1) {
+          stopXPoll();
+          state.card = 2;
+        }
         paint();
+        return state.me;
       });
     }
+
+    function stopXPoll() {
+      if (xTimer) {
+        clearInterval(xTimer);
+        xTimer = 0;
+      }
+      xPopup = null;
+    }
+
+    function startX() {
+      xPopup = window.open(base + '/oauth/x/start?return=/faucet', 'dasha_x', 'width=520,height=700');
+      if (!xPopup) {
+        live.textContent = 'Allow popups to link X.';
+        return;
+      }
+      live.textContent = 'Complete X link in the popup…';
+      if (xTimer) clearInterval(xTimer);
+      xTimer = setInterval(function () {
+        if (xPopup && xPopup.closed) {
+          stopXPoll();
+          refreshMe();
+          return;
+        }
+        refreshMe();
+      }, 2000);
+    }
+
+    function onX(ev) {
+      if (!ev || !ev.data || ev.data.type !== 'dasha-x-linked') return;
+      refreshMe();
+    }
+    function onVis() {
+      if (xPopup && !xPopup.closed) refreshMe();
+    }
     window.addEventListener('message', onX);
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('focus', onVis);
 
     Promise.all([
       fetchJson(base + '/faucet/status', { credentials: 'include', mode: 'cors' }),
@@ -421,12 +564,21 @@
       paint();
     });
 
-    return { destroy: function () { window.removeEventListener('message', onX); root.innerHTML = ''; } };
+    return {
+      destroy: function () {
+        stopXPoll();
+        window.removeEventListener('message', onX);
+        document.removeEventListener('visibilitychange', onVis);
+        window.removeEventListener('focus', onVis);
+        root.innerHTML = '';
+      }
+    };
   }
 
   var api = { mount: mount, MINT: MINT };
   global.DashaFaucet = api;
   function boot() {
+    hideLeftover();
     var root = document.getElementById('dasha-faucet');
     if (root && !root.getAttribute('data-faucet-mounted')) {
       root.setAttribute('data-faucet-mounted', '1');

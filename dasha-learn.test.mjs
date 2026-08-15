@@ -26,7 +26,7 @@ assert.doesNotMatch(
 );
 
 assert.match(sitemap, /<loc>https:\/\/www\.getdasha\.com\/learn<\/loc>/);
-assert.doesNotMatch(sitemap, /\/hold|\/academy|\/university|\/earn<\/loc>/);
+assert.doesNotMatch(sitemap, /\/hold|\/academy|\/university<\/loc>/);
 
 assert.match(clientSrc, /global\.DashaLearn/);
 assert.match(clientSrc, /MATCH/);
@@ -63,7 +63,8 @@ assert.match(workerSrc, /\/simp\/learn/);
 assert.doesNotMatch(workerSrc, /isExactPath\(url\.pathname, '\/hold'\)/);
 assert.doesNotMatch(workerSrc, /isExactPath\(url\.pathname, '\/academy'\)/);
 assert.doesNotMatch(workerSrc, /isExactPath\(url\.pathname, '\/university'\)/);
-assert.doesNotMatch(workerSrc, /isExactPath\(url\.pathname, '\/earn'\)/);
+assert.match(workerSrc, /id="dasha-learn-static"/);
+assert.match(clientSrc, /dasha-learn-static/);
 
 const { LEARN_CLIENT_JS, LEARN_CLIENT_SRI } = await import('./dasha-lobby-static-gen.mjs');
 const learnSri = `sha384-${createHash('sha384').update(LEARN_CLIENT_JS).digest('base64')}`;

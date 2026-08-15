@@ -102,6 +102,7 @@ import {
   isFaucetApiPath,
   isFaucetPagePath,
 } from './dasha-faucet.mjs';
+import { magnetPageHtml, magnetRoute } from './dasha-magnet-pages.mjs';
 import {
   applyGraphHighlight,
   dropGraphHighlight,
@@ -441,7 +442,7 @@ export function injectBountiesBoard(html, feed) {
 }
 
 const PRIVACY_A = '<a href="/privacy">Privacy</a>';
-const WORKER_SITE_FOOTER = '<footer><p><a href="/studio">Studio</a> · <a href="/lobby">Lobby</a> · <a href="/simp">Simp</a> · <a href="/learn">Learn</a> · <a href="/faucet">Faucet</a> · <a href="/graph">Graph</a> · <a href="/verse">Verse</a> · <a href="/bounties">Bounties</a> · <a href="/how-to-buy">How to buy</a> · <a href="/privacy">Privacy</a></p></footer>';
+const WORKER_SITE_FOOTER = '<footer><p><a href="/studio">Studio</a> · <a href="/lobby">Lobby</a> · <a href="/simp">Simp</a> · <a href="/learn">Learn</a> · <a href="/faucet">Faucet</a> · <a href="/airdrop">Airdrop</a> · <a href="/earn">Earn</a> · <a href="/graph">Graph</a> · <a href="/verse">Verse</a> · <a href="/bounties">Bounties</a> · <a href="/how-to-buy">How to buy</a> · <a href="/privacy">Privacy</a></p></footer>';
 
 /** Add one visible Privacy link to an existing footer, nav, lobby header, or bounties board. */
 export function ensurePrivacyLink(html) {
@@ -954,9 +955,11 @@ export function learnPageHtml({ track = '', mod = '' } = {}) {
 <meta name="theme-color" content="#070608">
 <style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}h1{margin:0 0 .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(2.6rem,10vw,5rem);line-height:.9;text-transform:uppercase}a{color:var(--acid)}.learn-go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-decoration:none;text-transform:uppercase}#dasha-learn{margin-top:1rem}.learn-ca{display:block;margin:12px 0;padding:12px;border:1px solid rgba(244,237,219,.18);font-family:ui-monospace,Menlo,Consolas,monospace;word-break:break-all;user-select:all}footer{margin-top:36px;color:rgba(244,237,219,.62)}footer a{color:var(--acid)}@media(prefers-reduced-motion:reduce)*{transition:none!important;animation:none!important}</style>
 <body>
+<div id="dasha-learn-static">
 <h1>Learn</h1>
 <p>${lede}</p>
 <code class="learn-ca">${escapeHtml('53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump')}</code>
+</div>
 ${hop}
 <div id="dasha-learn" data-track="${escapeHtml(track)}" data-mod="${escapeHtml(mod)}"></div>
 <script type="application/json" id="dasha-learn-bank">${bank}</script>
@@ -978,14 +981,30 @@ export function faucetPageHtml() {
 <meta name="theme-color" content="#070608">
 <style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}h1{margin:0 0 .5rem;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900;font-size:clamp(2.6rem,10vw,5rem);line-height:.9;text-transform:uppercase}a{color:var(--acid)}.faucet-ca{display:block;margin:12px 0;padding:12px;border:1px solid #7c4dff;font-family:Fragment Mono,ui-monospace,Menlo,Consolas,monospace;word-break:break-all;user-select:all}footer{margin-top:36px;color:rgba(244,237,219,.62)}footer a{color:var(--acid)}@media(prefers-reduced-motion:reduce)*{transition:none!important;animation:none!important}</style>
 <body>
+<div id="dasha-faucet-static">
 <h1>Faucet</h1>
 <p>a tiny sample for newbies. not an airdrop. not earn. Agents do not claim this faucet.</p>
 <code class="faucet-ca">${escapeHtml('53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump')}</code>
+</div>
 <div id="dasha-faucet"></div>
 <noscript><p>Needs JavaScript.</p></noscript>
 ${faucetClientScript()}
 ${WORKER_SITE_FOOTER}
 </body></html>`;
+}
+
+function magnetPageResponse(request, route) {
+  if (route.redirect) {
+    return Response.redirect(`https://www.getdasha.com${route.canonical}`, 308);
+  }
+  return new Response(request.method === 'HEAD' ? null : magnetPageHtml(route.kind, WORKER_SITE_FOOTER), {
+    status: 200,
+    headers: htmlHeaders({
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=120',
+      'X-Dasha-Edge': route.kind,
+    }),
+  });
 }
 
 function faucetPageResponse(request) {
@@ -3530,6 +3549,10 @@ async function productEdge(request, url, env) {
   if ((request.method === 'GET' || request.method === 'HEAD') && isFaucetPagePath(url.pathname)) {
     return faucetPageResponse(request);
   }
+  const productMagnet = magnetRoute(url.pathname);
+  if ((request.method === 'GET' || request.method === 'HEAD') && productMagnet) {
+    return magnetPageResponse(request, productMagnet);
+  }
   if (isFaucetApiPath(url.pathname)) {
     const origin = request.headers.get('Origin');
     const allowedOrigin = origin && originAllowed(origin, env.ALLOWED_ORIGINS || '') ? origin : env.ALLOW_ANY_ORIGIN ? origin || '*' : null;
@@ -3734,6 +3757,10 @@ export default {
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && isFaucetPagePath(url.pathname)) {
       return faucetPageResponse(request);
+    }
+    const lobbyMagnet = magnetRoute(url.pathname);
+    if ((request.method === 'GET' || request.method === 'HEAD') && lobbyMagnet) {
+      return magnetPageResponse(request, lobbyMagnet);
     }
     if (isFaucetApiPath(url.pathname)) {
       const faucetRes = await faucetApiResponse(request, env, allowedOrigin);

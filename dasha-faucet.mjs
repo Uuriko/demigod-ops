@@ -27,6 +27,8 @@ export const DEFAULT_RENT_ATA_COUNT = 20;
 export const FEE_LAMPORTS = 5_000;
 export const COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
 export const PENDING_MS = 15 * 60_000;
+export const CONFIRM_TRIES = 4;
+export const CONFIRM_WAIT_MS = 400;
 export const MINT_SOURCE = 'https://x.com/dash_eats/status/2085405228078432279';
 export const NOT_DEV = 'https://x.com/dash_eats/status/2085532923063853316';
 
@@ -124,6 +126,33 @@ export function siwsMessageDomain(message) {
   return match ? match[1] : '';
 }
 
+export function parseSiwsMessage(message) {
+  const text = String(message || '');
+  const lines = text.split('\n');
+  const field = (name) => {
+    const prefix = `${name}: `;
+    const line = lines.find((row) => row.startsWith(prefix));
+    return line ? line.slice(prefix.length).trim() : '';
+  };
+  return {
+    domain: siwsMessageDomain(text),
+    address: (lines[1] || '').trim(),
+    nonce: field('Nonce'),
+    requestId: field('Request ID'),
+    uri: field('URI'),
+  };
+}
+
+export function siwsSignedMessageOk({ message, publicKey, nonce }) {
+  const fields = parseSiwsMessage(message);
+  return Boolean(
+    siwsDomainOk(fields.domain)
+    && fields.requestId === 'faucet_dest'
+    && fields.address === publicKey
+    && fields.nonce === nonce,
+  );
+}
+
 export function faucetWalletMessage({ handle, publicKey, nonce, issuedAt, expiresAt, domain, uri }) {
   if (!siwsDomainOk(domain)) return null;
   return walletMessage({
@@ -176,6 +205,26 @@ export function classifyDest({ address, account, onCurve }) {
     return { ok: false, kind: accountDataLen(account) === 82 ? 'mint' : 'token', error: accountDataLen(account) === 82 ? 'dest_mint' : 'dest_token' };
   }
   return { ok: false, kind: 'other', error: 'dest_not_wallet' };
+}
+
+export async function classifyDestLive(endpoints, dest) {
+  if (!isValidSolanaAddress(dest) || dest === SYSTEM_PROGRAM) {
+    return { ok: false, status: 400, kind: 'invalid', error: 'dest_not_wallet' };
+  }
+  if (dest === MINT) return { ok: false, status: 400, kind: 'mint', error: 'dest_mint' };
+  let destInfo;
+  try {
+    destInfo = await rpcOne(endpoints, 'getAccountInfo', [dest, { encoding: 'base64' }]);
+  } catch {
+    return { ok: false, status: 503, error: 'rpc_unavailable' };
+  }
+  const destClass = classifyDest({
+    address: dest,
+    account: destInfo?.value ?? null,
+    onCurve: isOnCurveAddress(dest),
+  });
+  if (!destClass.ok) return { ok: false, status: 400, kind: destClass.kind, error: destClass.error };
+  return { ok: true, status: 200, kind: destClass.kind, unfunded: destClass.unfunded };
 }
 
 export function last4(addr) {
@@ -250,6 +299,15 @@ export async function hashIp(ip) {
 
 export function claimCooldown(row, now = Date.now()) {
   if (!row || !Number(row.ts)) return null;
+  if (row.pending && row.signature) {
+    return {
+      pending: true,
+      signature: row.signature,
+      dest: row.dest || null,
+      amountRaw: row.amountRaw,
+      nextAt: Number(row.ts) + PENDING_MS,
+    };
+  }
   if (row.pending && !row.signature) {
     if (now - Number(row.ts) < PENDING_MS) return { pending: true, nextAt: Number(row.ts) + PENDING_MS };
     return null;
@@ -258,6 +316,19 @@ export function claimCooldown(row, now = Date.now()) {
   const nextAt = Number(row.ts) + COOLDOWN_MS;
   if (now < nextAt) return { nextAt, signature: row.signature, dest: row.dest || null, amountRaw: row.amountRaw };
   return null;
+}
+
+export function readSignatureStatus(result) {
+  const row = Array.isArray(result?.value) ? result.value[0] : result?.value;
+  if (row == null) return { state: 'absent' };
+  if (row.err) return { state: 'failed', err: row.err };
+  const status = row.confirmationStatus;
+  if (status === 'confirmed' || status === 'finalized') return { state: 'confirmed' };
+  return { state: 'pending' };
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export async function sha256(parts) {
@@ -542,21 +613,28 @@ export async function sendFaucetTransfer({ endpoints, keypair, dest, amountRaw, 
     }),
   ];
   const signed = await signLegacyTx({ keypair, instructions, recentBlockhash: ready.blockhash });
+  let raw;
+  try {
+    raw = btoa(String.fromCharCode(...signed.tx));
+    const sim = await rpcOne(endpoints, 'simulateTransaction', [raw, {
+      encoding: 'base64',
+      sigVerify: false,
+      commitment: 'confirmed',
+      replaceRecentBlockhash: true,
+    }]);
+    if (sim?.err || sim?.value?.err) return { ok: false, status: 503, error: 'rpc_unavailable' };
+  } catch {
+    return { ok: false, status: 503, error: 'rpc_unavailable' };
+  }
   let sig;
   try {
-    const raw = btoa(String.fromCharCode(...signed.tx));
     sig = await rpcOne(endpoints, 'sendTransaction', [raw, { encoding: 'base64', preflightCommitment: 'confirmed' }]);
   } catch {
     return { ok: false, status: 503, error: 'rpc_unavailable' };
   }
   if (typeof sig !== 'string' || sig.length < 32) return { ok: false, status: 503, error: 'rpc_unavailable' };
-  try {
-    await rpcOne(endpoints, 'getSignatureStatuses', [[sig], { searchTransactionHistory: true }]);
-  } catch {
-    /* signature is real; confirm is best-effort */
-  }
-  return {
-    ok: true,
+  const confirmed = await confirmFaucetSignature(endpoints, sig);
+  const sent = {
     signature: sig,
     dest,
     amountRaw,
@@ -564,6 +642,31 @@ export async function sendFaucetTransfer({ endpoints, keypair, dest, amountRaw, 
     mint: MINT,
     solscan: solscanUrl(sig),
   };
+  if (confirmed.state === 'confirmed') return { ok: true, ...sent };
+  if (confirmed.state === 'failed') return { ok: false, status: 503, error: 'rpc_unavailable', ...sent, dropped: false };
+  if (confirmed.state === 'dropped') return { ok: false, status: 503, error: 'rpc_unavailable', ...sent, dropped: true };
+  return { ok: false, status: 202, error: 'confirming', ...sent };
+}
+
+export async function confirmFaucetSignature(endpoints, sig, { tries = CONFIRM_TRIES, waitMs = CONFIRM_WAIT_MS, retry = false } = {}) {
+  let last = { state: 'pending' };
+  for (let i = 0; i < tries; i++) {
+    if (i) await sleep(waitMs);
+    last = await signatureOutcome(endpoints, sig, { retry });
+    if (last.state === 'confirmed' || last.state === 'failed' || last.state === 'dropped') return last;
+  }
+  return last;
+}
+
+export async function signatureOutcome(endpoints, sig, { retry = false } = {}) {
+  try {
+    const result = await rpcOne(endpoints, 'getSignatureStatuses', [[sig], { searchTransactionHistory: true }]);
+    const read = readSignatureStatus(result);
+    if (read.state === 'absent') return { state: retry ? 'dropped' : 'pending' };
+    return read;
+  } catch {
+    return { state: 'pending' };
+  }
 }
 
 function faucetStub(env, kind, id) {
@@ -601,15 +704,110 @@ async function rentOp(env, op, body) {
   return res.json().catch(() => ({ ok: false, error: 'faucet_paused' }));
 }
 
+async function claimOp(env, kind, id, op, body) {
+  const stub = faucetStub(env, kind, id);
+  if (!stub) throw new Error('faucet store missing');
+  const res = await stub.fetch(new Request(`https://faucet.internal/${op}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }));
+  return res.json().catch(() => ({ ok: false, error: 'faucet store missing' }));
+}
+
 export class DashaFaucet {
   constructor(state, env) {
     this.state = state;
     this.env = env;
+    this.tail = Promise.resolve();
   }
 
   async fetch(request) {
+    let release;
+    const prev = this.tail;
+    this.tail = new Promise((resolve) => { release = resolve; });
+    await prev;
+    try {
+      return await this.handle(request);
+    } finally {
+      release();
+    }
+  }
+
+  async handle(request) {
     const url = new URL(request.url);
     const key = decodeURIComponent(url.pathname.replace(/^\//, ''));
+    if (request.method === 'POST' && (key === 'claim-begin' || key === 'claim-bind-sig' || key === 'claim-finish' || key === 'claim-release')) {
+      const body = await request.json().catch(() => ({}));
+      const storeKey = String(body.key || '');
+      if (!storeKey || storeKey.length > 200) return Response.json({ ok: false, error: 'bad key' }, { status: 400 });
+      const row = (await this.state.storage.get(storeKey)) || null;
+      if (key === 'claim-begin') {
+        const blocked = claimCooldown(row);
+        if (blocked?.pending && blocked.signature) {
+          return Response.json({
+            ok: false,
+            error: 'confirming',
+            signature: blocked.signature,
+            dest: blocked.dest,
+            nextAt: blocked.nextAt,
+          });
+        }
+        if (blocked?.pending) return Response.json({ ok: false, error: 'claim already sending', nextAt: blocked.nextAt });
+        if (blocked?.signature) {
+          return Response.json({
+            ok: false,
+            error: 'already claimed',
+            nextAt: blocked.nextAt,
+            signature: blocked.signature,
+            dest: blocked.dest,
+          });
+        }
+        const pending = {
+          dest: body.dest || row?.dest || null,
+          amountRaw: body.amountRaw,
+          ts: Date.now(),
+          ipHash: body.ipHash || row?.ipHash || null,
+          pending: true,
+        };
+        await this.state.storage.put(storeKey, pending);
+        return Response.json({ ok: true, pending: true });
+      }
+      if (key === 'claim-bind-sig') {
+        if (!row?.pending) return Response.json({ ok: false, error: 'not pending' });
+        if (row.signature && row.signature !== body.signature) return Response.json({ ok: false, error: 'sig mismatch' });
+        if (typeof body.signature !== 'string' || body.signature.length < 32) {
+          return Response.json({ ok: false, error: 'bad signature' }, { status: 400 });
+        }
+        await this.state.storage.put(storeKey, {
+          dest: body.dest || row.dest,
+          amountRaw: body.amountRaw ?? row.amountRaw,
+          ts: row.ts || Date.now(),
+          ipHash: body.ipHash || row.ipHash || null,
+          signature: body.signature,
+          pending: true,
+        });
+        return Response.json({ ok: true, pending: true, signature: body.signature });
+      }
+      if (key === 'claim-finish') {
+        if (typeof body.signature !== 'string' || body.signature.length < 32) {
+          return Response.json({ ok: false, error: 'bad signature' }, { status: 400 });
+        }
+        await this.state.storage.put(storeKey, {
+          dest: body.dest || row?.dest,
+          signature: body.signature,
+          amountRaw: body.amountRaw ?? row?.amountRaw,
+          ts: Date.now(),
+          ipHash: body.ipHash || row?.ipHash || null,
+        });
+        return Response.json({ ok: true });
+      }
+      if (body.dropped !== true && row?.signature && row.pending) {
+        return Response.json({ ok: false, error: 'has signature' });
+      }
+      await this.state.storage.delete(storeKey);
+      return Response.json({ ok: true, released: true });
+    }
     if (request.method === 'POST' && (key === 'rent-reserve' || key === 'rent-release')) {
       const body = await request.json().catch(() => ({}));
       const day = String(body.day || '');
@@ -740,6 +938,19 @@ export async function handleFaucetApi(request, env, { json, allowedOrigin, endpo
     return json({ ok: true, message, challenge, expiresAt, siws }, 200, allowedOrigin, cred);
   }
 
+  if (path === '/faucet/dest-check') {
+    if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405, allowedOrigin, cred);
+    if (!allowedOrigin) return json({ error: 'origin required' }, 403, null);
+    if (!configured) return failUnconfigured();
+    const dest = String((await requestJson(request)).dest || '');
+    const destClass = await classifyDestLive(endpoints, dest);
+    return json({
+      ok: destClass.ok,
+      kind: destClass.kind || null,
+      ...(destClass.error ? { error: destClass.error } : {}),
+    }, destClass.status, allowedOrigin, cred);
+  }
+
   if (path === '/faucet/wallet/verify') {
     if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405, allowedOrigin, cred);
     if (!allowedOrigin) return json({ error: 'origin required' }, 403, null);
@@ -750,10 +961,11 @@ export async function handleFaucetApi(request, env, { json, allowedOrigin, endpo
     const xId = String(session.xId);
     if (body.paste || body.last4) {
       const dest = String(body.dest || body.publicKey || '');
-      if (!faucetDestOk(dest)) return json({ error: 'valid Solana address required' }, 400, allowedOrigin, cred);
       if (last4(dest) !== String(body.last4 || '')) return json({ error: 'last-4 does not match' }, 400, allowedOrigin, cred);
-      await faucetWrite(env, 'x', xId, `faucetDest:${xId}`, { dest, method: 'paste', ts: Date.now() });
-      return json({ ok: true, dest, method: 'paste' }, 200, allowedOrigin, cred);
+      const destClass = await classifyDestLive(endpoints, dest);
+      if (!destClass.ok) return json({ error: destClass.error }, destClass.status, allowedOrigin, cred);
+      await faucetWrite(env, 'x', xId, `faucetDest:${xId}`, { dest, method: 'paste', kind: destClass.kind, ts: Date.now() });
+      return json({ ok: true, dest, method: 'paste', kind: destClass.kind }, 200, allowedOrigin, cred);
     }
     if (!env.LOBBY_SESSION_SECRET) return json({ configured: false, error: 'not_configured' }, 501, allowedOrigin, cred);
     const challenge = await verifyPayload(env.LOBBY_SESSION_SECRET, body.challenge);
@@ -766,19 +978,24 @@ export async function handleFaucetApi(request, env, { json, allowedOrigin, endpo
     ) {
       return json({ error: 'invalid faucet challenge' }, 401, allowedOrigin, cred);
     }
-    if (!siwsDomainOk(siwsMessageDomain(challenge.message))) {
+    const payload = String(body.signedMessage || challenge.message || '');
+    if (!siwsDomainOk(siwsMessageDomain(payload))) {
       return json({ error: 'siws_domain' }, 400, allowedOrigin, cred);
     }
-    if (!faucetDestOk(body.publicKey)) return json({ error: 'valid Solana address required' }, 400, allowedOrigin, cred);
-    const signatureOk = await verifyEd25519(challenge.message, body.publicKey, body.signature).catch(() => false);
+    if (!siwsSignedMessageOk({ message: payload, publicKey: body.publicKey, nonce: challenge.nonce })) {
+      return json({ error: 'invalid faucet challenge' }, 401, allowedOrigin, cred);
+    }
+    const destClass = await classifyDestLive(endpoints, body.publicKey);
+    if (!destClass.ok) return json({ error: destClass.error }, destClass.status, allowedOrigin, cred);
+    const signatureOk = await verifyEd25519(payload, body.publicKey, body.signature).catch(() => false);
     if (!signatureOk) return json({ error: 'invalid wallet signature' }, 400, allowedOrigin, cred);
     const pending = await faucetRead(env, 'x', xId, `faucetSiws:${xId}`);
     if (!pending || pending.nonce !== challenge.nonce || pending.exp < Date.now()) {
       return json({ error: 'faucet challenge already used' }, 409, allowedOrigin, cred);
     }
-    await faucetWrite(env, 'x', xId, `faucetDest:${xId}`, { dest: body.publicKey, method: 'siws', ts: Date.now() });
+    await faucetWrite(env, 'x', xId, `faucetDest:${xId}`, { dest: body.publicKey, method: 'siws', kind: destClass.kind, ts: Date.now() });
     await faucetWrite(env, 'x', xId, `faucetSiws:${xId}`, { nonce: pending.nonce, exp: 0 });
-    return json({ ok: true, dest: body.publicKey, method: 'siws' }, 200, allowedOrigin, cred);
+    return json({ ok: true, dest: body.publicKey, method: 'siws', kind: destClass.kind }, 200, allowedOrigin, cred);
   }
 
   if (path === '/faucet/claim') {
@@ -791,19 +1008,70 @@ export async function handleFaucetApi(request, env, { json, allowedOrigin, endpo
     const destRow = await faucetRead(env, 'x', xId, `faucetDest:${xId}`);
     const dest = destRow?.dest;
     if (!faucetDestOk(dest)) return json({ error: 'bind a destination first' }, 400, allowedOrigin, cred);
-    const claim = await faucetRead(env, 'x', xId, `faucetClaim:${xId}`);
-    const xBlock = claimCooldown(claim);
-    if (xBlock?.pending) return json({ error: 'claim already sending', nextAt: xBlock.nextAt }, 409, allowedOrigin, cred);
-    if (xBlock?.signature) return json({ error: 'already claimed', nextAt: xBlock.nextAt, signature: xBlock.signature, dest: xBlock.dest }, 429, allowedOrigin, cred);
-    const ipHash = await hashIp(clientIp(request));
-    const ipRow = await faucetRead(env, 'ip', ipHash, `faucetIp:${ipHash}`);
-    if (ipRow?.ts && Date.now() < Number(ipRow.ts) + COOLDOWN_MS) {
-      return json({ error: 'already claimed', nextAt: Number(ipRow.ts) + COOLDOWN_MS }, 429, allowedOrigin, cred);
-    }
     const keypair = parseFaucetKeypair(env.FAUCET_KEYPAIR);
     const amountRaw = faucetAmountRaw(env);
+    const ipHash = await hashIp(clientIp(request));
+    const xKey = `faucetClaim:${xId}`;
+    const ipKey = `faucetIp:${ipHash}`;
+    const begun = await claimOp(env, 'x', xId, 'claim-begin', { key: xKey, dest, amountRaw, ipHash });
+    if (begun?.error === 'already claimed') {
+      return json({ error: 'already claimed', nextAt: begun.nextAt, signature: begun.signature, dest: begun.dest }, 429, allowedOrigin, cred);
+    }
+    if (begun?.error === 'claim already sending') {
+      return json({ error: 'claim already sending', nextAt: begun.nextAt }, 409, allowedOrigin, cred);
+    }
+    if (begun?.error === 'confirming' && begun.signature) {
+      const outcome = await signatureOutcome(endpoints, begun.signature, { retry: true });
+      if (outcome.state === 'confirmed') {
+        await claimOp(env, 'x', xId, 'claim-finish', {
+          key: xKey, dest: begun.dest || dest, signature: begun.signature, amountRaw, ipHash,
+        });
+        await claimOp(env, 'ip', ipHash, 'claim-finish', {
+          key: ipKey, dest: begun.dest || dest, signature: begun.signature, amountRaw, ipHash,
+        });
+        return json({
+          error: 'already claimed',
+          signature: begun.signature,
+          dest: begun.dest || dest,
+          solscan: solscanUrl(begun.signature),
+        }, 429, allowedOrigin, cred);
+      }
+      if (outcome.state === 'dropped' || outcome.state === 'failed') {
+        await claimOp(env, 'x', xId, 'claim-release', { key: xKey, dropped: true });
+        return json({ error: 'rpc_unavailable' }, 503, allowedOrigin, cred);
+      }
+      return json({
+        ok: false,
+        error: 'confirming',
+        signature: begun.signature,
+        solscan: solscanUrl(begun.signature),
+      }, 202, allowedOrigin, cred);
+    }
+    if (!begun?.ok) return json({ error: begun?.error || 'claim already sending' }, 409, allowedOrigin, cred);
+
+    const ipBegun = await claimOp(env, 'ip', ipHash, 'claim-begin', { key: ipKey, dest, amountRaw, ipHash });
+    if (!ipBegun?.ok) {
+      await claimOp(env, 'x', xId, 'claim-release', { key: xKey });
+      if (ipBegun?.error === 'already claimed') {
+        return json({ error: 'already claimed', nextAt: ipBegun.nextAt, signature: ipBegun.signature }, 429, allowedOrigin, cred);
+      }
+      if (ipBegun?.error === 'confirming' && ipBegun.signature) {
+        return json({
+          ok: false,
+          error: 'confirming',
+          signature: ipBegun.signature,
+          solscan: solscanUrl(ipBegun.signature),
+        }, 202, allowedOrigin, cred);
+      }
+      return json({ error: ipBegun?.error || 'claim already sending' }, 409, allowedOrigin, cred);
+    }
+
     const ready = await preflightFaucet({ endpoints, treasury: keypair, dest, amountRaw, env });
-    if (!ready.ok) return json({ error: ready.error }, ready.status, allowedOrigin, cred);
+    if (!ready.ok) {
+      await claimOp(env, 'x', xId, 'claim-release', { key: xKey });
+      await claimOp(env, 'ip', ipHash, 'claim-release', { key: ipKey });
+      return json({ error: ready.error }, ready.status, allowedOrigin, cred);
+    }
     const rentAdd = ready.destExists ? 0 : ready.rentLamports;
     const day = utcDay();
     if (rentAdd > 0) {
@@ -812,28 +1080,55 @@ export async function handleFaucetApi(request, env, { json, allowedOrigin, endpo
         add: rentAdd,
         cap: faucetRentCapLamports(env, ready.rentLamports),
       });
-      if (!reserved?.ok) return json({ error: 'faucet_paused' }, 503, allowedOrigin, cred);
+      if (!reserved?.ok) {
+        await claimOp(env, 'x', xId, 'claim-release', { key: xKey });
+        await claimOp(env, 'ip', ipHash, 'claim-release', { key: ipKey });
+        return json({ error: 'faucet_paused' }, 503, allowedOrigin, cred);
+      }
     }
-    const pending = { dest, amountRaw, ts: Date.now(), ipHash, pending: true };
-    await faucetWrite(env, 'x', xId, `faucetClaim:${xId}`, pending);
     const sent = await sendFaucetTransfer({ endpoints, keypair, dest, amountRaw, preflight: ready });
-    if (!sent.ok) {
-      await faucetWrite(env, 'x', xId, `faucetClaim:${xId}`, { ...pending, pending: false, ts: 0 });
-      if (rentAdd > 0) await rentOp(env, 'rent-release', { day, add: rentAdd });
-      return json({ error: sent.error }, sent.status, allowedOrigin, cred);
+    if (sent.signature) {
+      await claimOp(env, 'x', xId, 'claim-bind-sig', {
+        key: xKey, dest, amountRaw, ipHash, signature: sent.signature,
+      });
+      await claimOp(env, 'ip', ipHash, 'claim-bind-sig', {
+        key: ipKey, dest, amountRaw, ipHash, signature: sent.signature,
+      });
     }
-    const done = { dest, signature: sent.signature, amountRaw, ts: Date.now(), ipHash };
-    await faucetWrite(env, 'x', xId, `faucetClaim:${xId}`, done);
-    await faucetWrite(env, 'ip', ipHash, `faucetIp:${ipHash}`, { ts: done.ts });
-    return json({
-      ok: true,
-      signature: sent.signature,
-      dest,
-      amountRaw,
-      amountUi: sent.amountUi,
-      mint: MINT,
-      solscan: sent.solscan,
-    }, 200, allowedOrigin, cred);
+    if (sent.ok) {
+      await claimOp(env, 'x', xId, 'claim-finish', {
+        key: xKey, dest, signature: sent.signature, amountRaw, ipHash,
+      });
+      await claimOp(env, 'ip', ipHash, 'claim-finish', {
+        key: ipKey, dest, signature: sent.signature, amountRaw, ipHash,
+      });
+      return json({
+        ok: true,
+        signature: sent.signature,
+        dest,
+        amountRaw,
+        amountUi: sent.amountUi,
+        mint: MINT,
+        solscan: sent.solscan,
+      }, 200, allowedOrigin, cred);
+    }
+    if (sent.error === 'confirming' && sent.signature) {
+      return json({
+        ok: false,
+        error: 'confirming',
+        signature: sent.signature,
+        solscan: sent.solscan,
+      }, 202, allowedOrigin, cred);
+    }
+    if (sent.signature) {
+      await claimOp(env, 'x', xId, 'claim-release', { key: xKey, dropped: sent.dropped === true || sent.error !== 'confirming' });
+      await claimOp(env, 'ip', ipHash, 'claim-release', { key: ipKey, dropped: sent.dropped === true || sent.error !== 'confirming' });
+    } else {
+      await claimOp(env, 'x', xId, 'claim-release', { key: xKey });
+      await claimOp(env, 'ip', ipHash, 'claim-release', { key: ipKey });
+    }
+    if (rentAdd > 0) await rentOp(env, 'rent-release', { day, add: rentAdd });
+    return json({ error: sent.error }, sent.status || 503, allowedOrigin, cred);
   }
 
   return null;
@@ -843,7 +1138,7 @@ export function isFaucetApiPath(pathname) {
   const path = String(pathname || '').replace(/\/$/, '');
   return path === '/faucet/status' || path === '/faucet/me'
     || path === '/faucet/wallet/challenge' || path === '/faucet/wallet/verify'
-    || path === '/faucet/claim';
+    || path === '/faucet/dest-check' || path === '/faucet/claim';
 }
 
 export function isFaucetPagePath(pathname) {

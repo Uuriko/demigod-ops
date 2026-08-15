@@ -208,8 +208,9 @@ function fastGate() {
     if (/<a\b[^>]*href=["']https:\/\/(?:www\.)?dexscreener\.com/i.test(html)) fail(`${name} links the stale Dexscreener profile`);
   }
   if (desk.includes('/how-to-buy')) fail('desk links unpublished how-to-buy');
+  const workerHonesty = new Set(['/learn', '/faucet', '/airdrop', '/earn', '/claim']);
   for (const match of sitemap.matchAll(/<loc>https:\/\/www\.getdasha\.com(\/[^<]*)<\/loc>/g)) {
-    if (match[1] !== '/' && !landing.includes(`href="${match[1]}"`)) fail(`landing orphaned sitemap route ${match[1]}`);
+    if (match[1] !== '/' && !workerHonesty.has(match[1]) && !landing.includes(`href="${match[1]}"`)) fail(`landing orphaned sitemap route ${match[1]}`);
   }
   if (!landing.includes('jup.ag/swap')) fail('landing lost Jupiter path');
   if (/plugin\.jup\.ag|loadJupiter|window\.Jupiter/.test(landing)) fail('landing regained embedded swap plugin');

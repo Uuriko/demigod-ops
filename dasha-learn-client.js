@@ -191,6 +191,8 @@
   function mount(root, opts) {
     opts = opts || {};
     if (!root) return null;
+    var leftover = document.getElementById('dasha-learn-static');
+    if (leftover) leftover.hidden = true;
     var base = apiBase(root);
     var pack = bankFrom(root) || opts.bank || {};
     var modules = pack.modules || [];

@@ -183,6 +183,7 @@ function build() {
     'dasha-learn-adapt.mjs',
     'dasha-learn-bank.mjs',
     'dasha-faucet.mjs',
+    'dasha-magnet-pages.mjs',
   ].map(file => readFileSync(join(root, file), 'utf8')).join('\n');
   const wrangler = readFileSync(join(root, 'dasha-lobby-wrangler.jsonc'), 'utf8');
   const hash = createHash('sha256')
