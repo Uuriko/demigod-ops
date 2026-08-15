@@ -282,6 +282,19 @@ assert.doesNotMatch(QUIZ_QUESTIONS.flatMap(question => [question.prompt, ...ques
 assert.equal(walkIds(0).ids[0], 'sailor-fuku');
 assert.equal(walkIds(1).ids[0], 'tatu-theme');
 assert.equal(walkIds(2).ids[0], 'minsk-vegas');
+{
+  const seeded = startQuizAttempt({ now, seed: 'scary-cap' });
+  assert.equal(seeded.current, 'scary-cap');
+  assert.equal(seeded.lane, 'Cinema obsessive');
+  assert.equal(seeded.position, 1);
+  const shown = questionForAttempt(seeded);
+  assert.equal(shown.question.id, 'scary-cap');
+  assert.equal(shown.progress.current, 2);
+  const next = answerQuizAttempt(seeded, QUIZ_QUESTIONS.find(question => question.id === 'scary-cap').answer, { now });
+  assert.equal(diffOfTier(QUIZ_QUESTIONS.find(question => question.id === next.question.id).tier), 'easy', 'seeded start still serves a second easy');
+  assert.equal(startQuizAttempt({ now, seed: 'white-lotus' }).current, 'route', 'mid seeds must not skip the first two easy');
+  assert.equal(startQuizAttempt({ now }).current, 'route');
+}
 assert.ok(quizDone.quiz.copy.split(/[.!?]+\s/).filter(Boolean).length >= 2, 'result copy must be 2–3 sentences');
 assert.equal(quizDone.quiz.share, `${quizDone.quiz.title} · ${quizDone.quiz.lane}`);
 assert.doesNotMatch(quizDone.quiz.share, /\d+\/\d+/);

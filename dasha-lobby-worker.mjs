@@ -117,6 +117,7 @@ import {
   AWARD_CROP_CSS,
   AWARD_RAIL_CSS,
   AWARD_ROOM_CSS,
+  AWARD_INK_CSS,
   AWARD_SLIM_CSS,
   BUY_HREF,
   cropTicksHtml,
@@ -336,7 +337,7 @@ const HOME_BUY_PILL = `<a class="pill primary buy-dasha" href="${HOME_BUY_HREF}"
 const HOME_CARNIVAL_HIDE = '#lobby,#remix,#oss,#voice,.poster-grid,#token h2,#token .section-title,#token .assoc,#token .disclaimer,#token .poster,#token .tape,.dasha-hero .micro{display:none!important}';
 const HOME_FOLD_CSS = '#grwm,#dasha-tape,#stills,#simp,#chess,#faucet,#token,main.dasha>section{content-visibility:auto;contain-intrinsic-size:auto 720px}';
 const HOME_SCROLL_CSS = 'html{scroll-behavior:auto!important}.dasha{overflow-x:visible!important}#token,#token *{view-timeline:none!important;animation-timeline:none!important;scroll-timeline:none!important}';
-const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer,footer:not(.dasha-foot){display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + HOME_SCROLL_CSS + HOME_CARNIVAL_HIDE + HOME_FOLD_CSS + AWARD_SLIM_CSS + AWARD_CROP_CSS + AWARD_ROOM_CSS + AWARD_FOOT_CSS + AWARD_BTN_CSS;
+const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer,footer:not(.dasha-foot){display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + HOME_SCROLL_CSS + HOME_CARNIVAL_HIDE + HOME_FOLD_CSS + AWARD_SLIM_CSS + AWARD_CROP_CSS + AWARD_INK_CSS + AWARD_ROOM_CSS + AWARD_FOOT_CSS + AWARD_BTN_CSS;
 
 function injectHomeCalmCss(html) {
   const page = String(html || '');
@@ -424,14 +425,23 @@ function ensureHomeTapeMount(html) {
   return page.slice(0, at) + mount + page.slice(at);
 }
 
-const HOME_STILL_NAMES = ['scary', 'berlinale', 'cotton', 'hero', 'press', 'bull', 'profile', 'weekend', 'public', 'chart'];
+const HOME_STILLS = [
+  ['scary', 'scary-cap'],
+  ['berlinale', 'berlinale'],
+  ['cotton', 'sailor-fuku'],
+  ['hero', 'comfry-job'],
+  ['press', 'wobble-sxsw'],
+  ['bull', ''],
+  ['profile', ''],
+  ['weekend', 'minsk-vegas'],
+];
 
 /** First-party stills below the tape. Almost no words. Not in the hero. */
 function stillsMountHtml() {
-  const figs = HOME_STILL_NAMES.map((name) =>
-    `<figure class="still"><img src="/simp/photo/${name}.jpg" alt="Dasha" width="400" height="500" loading="lazy" decoding="async"></figure>`
+  const figs = HOME_STILLS.map(([name, quiz]) =>
+    `<figure class="still"${quiz ? ` data-quiz="${quiz}"` : ''} tabindex="0"><img src="/simp/photo/${name}.jpg" alt="Dasha" width="400" height="500" loading="lazy" decoding="async"></figure>`
   ).join('');
-  return `<section id="stills" aria-label="Stills"><style>#stills .stills-grid{display:flex;gap:8px;margin:0;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}#stills figure{flex:0 0 min(68vw,220px);margin:0;scroll-snap-align:start}#stills img{display:block;width:100%;height:280px;object-fit:cover;background:#160f1d}</style><div class="stills-grid">${figs}</div></section>`;
+  return `<section id="stills" aria-label="Stills"><style>#stills .stills-grid{display:flex;gap:8px;margin:0;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}#stills .still{flex:0 0 min(68vw,220px);margin:0;scroll-snap-align:start;content-visibility:auto;contain-intrinsic-size:220px 280px;cursor:pointer;transition:transform .35s cubic-bezier(.2,0,.2,1)}#stills .still:hover,#stills .still:focus-visible{transform:rotate(-1.4deg) scale(1.03)}#stills .still:nth-child(even):hover,#stills .still:nth-child(even):focus-visible{transform:rotate(1.4deg) scale(1.03)}#stills img{display:block;width:100%;height:280px;object-fit:cover;background:#160f1d}#stills .still-zoom{padding:0;border:2px solid #dfff00;background:#070608;max-width:min(92vw,720px)}#stills .still-zoom img{width:100%;height:auto;max-height:88svh;object-fit:contain}#stills .still-zoom::backdrop{background:#070608}#stills .still-zoom button{min-height:48px;width:100%;border:0;background:#dfff00;color:#070608;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif}@media(prefers-reduced-motion:reduce){#stills .still:hover,#stills .still:focus-visible{transform:none}}</style><div class="stills-grid">${figs}</div><dialog class="still-zoom" aria-label="Still"><img alt="Dasha"><form method="dialog"><button type="submit">Close</button></form></dialog><script>(function(){var root=document.getElementById('stills');if(!root)return;var grid=root.querySelector('.stills-grid');var zoom=root.querySelector('dialog');var zimg=zoom&&zoom.querySelector('img');function enlarge(src){if(!zoom||!zimg)return;zimg.src=src;if(zoom.showModal)zoom.showModal();else zoom.setAttribute('open','')}if(zoom)zoom.addEventListener('click',function(e){if(e.target===zoom&&zoom.close)zoom.close()});function go(fig){var seed=fig.getAttribute('data-quiz');var img=fig.querySelector('img');if(seed){document.dispatchEvent(new CustomEvent('dasha-still-quiz',{detail:{seed:seed}}));return}if(img)enlarge(img.src)}if(!grid)return;grid.addEventListener('click',function(e){var fig=e.target.closest('.still');if(fig)go(fig)});grid.addEventListener('keydown',function(e){if(e.key!=='Enter'&&e.key!==' ')return;var fig=e.target.closest('.still');if(!fig)return;e.preventDefault();go(fig)});if(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)return;grid.addEventListener('wheel',function(e){if(Math.abs(e.deltaY)<=Math.abs(e.deltaX))return;if(grid.scrollWidth<=grid.clientWidth)return;e.preventDefault();grid.scrollLeft+=e.deltaY},{passive:false})})();</script></section>`;
 }
 
 function stripLeftoverStills(html) {
@@ -2160,7 +2170,7 @@ export class DashaLobby {
       if (input?.action === 'start') {
         const cutoff = Date.now() - 60 * 60_000;
         for (const [key, attempt] of Object.entries(this.simpQuizAttempts)) if (key.startsWith('anon:') && Number(attempt?.updatedAt) < cutoff) delete this.simpQuizAttempts[key];
-        const attempt = startQuizAttempt({ practice: false });
+        const attempt = startQuizAttempt({ practice: false, seed: typeof input?.seed === 'string' ? input.seed : undefined });
         const key = xId || `anon:${randomUrlToken(9)}`;
         this.simpQuizAttempts[key] = attempt;
         this.simpQuizMetrics[completed ? 'replays' : 'starts']++;

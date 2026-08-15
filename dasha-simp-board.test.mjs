@@ -180,6 +180,10 @@ assert(client.includes('function startQuiz') && !/function startQuiz\(\) \{[\s\S
 assert(!client.includes('You cannot play until you connect X') && !client.includes('X is required. No anonymous play.'), 'quiz must not lecture the X gate');
 assert(client.includes('function showSharePush') && client.includes('dasha-share-push'), 'finish must open a share popup');
 assert(client.includes('Copy link') && client.includes("Share on X"), 'share popup must show copy and tweet');
+assert(client.includes("el('button', '', 'Retake')") && !client.includes("el('button', 'ghost', 'Retake')"), 'share Retake is acid, not ghost');
+assert(client.includes('dasha-still-quiz') && client.includes('body.seed = seed'), 'a still can start a seeded quiz');
+assert(client.includes('dasha-ink-cut') && client.includes("there === '/simp'"), 'client ink-cut covers / ↔ /simp when view transitions are missing');
+assert(client.includes('.simp-quiz-active .simp-quiz-title{display:none}'), 'active quiz hides the lecture title');
 assert(worker.includes('anon:${') || worker.includes("anon:"), 'worker must start an anonymous quiz');
 assert(client.includes('sendQuizCard') && client.includes('Share result'), 'result share must offer image-first Share result');
 assert(client.includes("navigator.canShare({ files: [file] })"), 'native image share path must stay wired');

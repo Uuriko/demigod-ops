@@ -429,8 +429,8 @@ export const publicQuestion = (question, extra = {}) => ({
   choices: question.choices,
   media: publicMedia(question, extra.avoidSrc),
 });
-export function startQuizAttempt({ now = Date.now(), practice = false } = {}) {
-  return {
+export function startQuizAttempt({ now = Date.now(), practice = false, seed } = {}) {
+  const attempt = {
     version: QUIZ_VERSION,
     current: 'route',
     position: 0,
@@ -447,6 +447,11 @@ export function startQuizAttempt({ now = Date.now(), practice = false } = {}) {
     startedAt: now,
     updatedAt: now,
   };
+  const item = !practice && typeof seed === 'string' ? bank.get(seed) : null;
+  const laneIndex = item && item.answer != null && (item.diff || diffOfTier(item.tier)) === 'easy' ? LANE_KEYS.indexOf(item.lane) : -1;
+  if (laneIndex < 0) return attempt;
+  const routed = answerQuizAttempt(attempt, laneIndex, { now });
+  return routed.ok && routed.attempt ? { ...routed.attempt, current: seed } : attempt;
 }
 export function questionForAttempt(attempt) {
   const question = attempt?.version === QUIZ_VERSION ? bank.get(attempt.current) : null;

@@ -72,6 +72,9 @@ assert.doesNotMatch(chessPage, /\/airdrop|\/earn|\/claim|\/graph/, 'chess chrome
   assert.doesNotMatch(AWARD_BTN_CSS, /color:#fff|color:white/i, 'no white type on buttons');
   assert.doesNotMatch(AWARD_BTN_CSS, /\.simp-/, 'shared lock stays off leftover Simp CSS');
   assert.match(AWARD_CHROME_CSS, /background:#dfff00!important;color:#070608!important/, 'chrome ships the button lock');
+  assert.match(AWARD_CHROME_CSS, /@view-transition\{navigation:auto\}/, 'chrome ships the / ↔ /simp ink cut');
+  assert.match(AWARD_CHROME_CSS, /animation-duration:200ms/, 'ink cut stays in the 160–240ms window');
+  assert.match(ham, /dasha-ink-cut/, 'slim bar ships the ink overlay fallback');
   assert.match(studioEmbed, /\.btn\.primary\{background:var\(--acid\);border-color:var\(--acid\);color:var\(--ink\)/, 'studio primary is acid fill + ink type');
   assert.match(studioEmbed, /\.btn\{[\s\S]*?background:transparent;color:var\(--paper\)/, 'studio ghost is paper on ink');
   assert.match(studioEmbed, /\.chip\{min-height:48px[\s\S]*?color:var\(--paper\)/, 'studio chips are 48px paper on ink');
@@ -237,6 +240,12 @@ assert.ok((await stat(new URL('./dasha-worker-assets/client/grwm.mp4', root))).s
 assert.ok((await stat(new URL('./dasha-worker-assets/client/grwm-loop.mp4', root))).size > 1000, 'grwm-loop.mp4 must exist');
 assert.ok((await stat(new URL('./dasha-worker-assets/client/grwm.jpg', root))).size > 1000, 'grwm.jpg must exist');
 assert(worker.includes('overflow-x:auto') && worker.includes('scroll-snap-type:x mandatory'), 'stills strip is a horizontal flick');
+assert(worker.includes('data-quiz="${quiz}"') && worker.includes('dasha-still-quiz') && worker.includes("'scary-cap'"), 'a still can jump into a matching quiz question');
+assert.match(worker, /#stills \.still:hover,#stills \.still:focus-visible\{transform:rotate/, 'stills tilt on hover/focus');
+{
+  const stillsFn = worker.slice(worker.indexOf('function stillsMountHtml'), worker.indexOf('function stripLeftoverStills'));
+  assert.doesNotMatch(stillsFn, /archive|sweet|media\.jpg|public\.jpg|chart\.jpg/, 'stills skip leftover / non-Dasha / duplicate frames');
+}
 assert(worker.includes('Needs JavaScript.'), 'www /simp noscript must not dump the bank');
 assert(worker.includes('isBountiesJsonPath') && worker.includes('BOUNTIES_FEED_PAGE'), '/bounties.json stays the listings feed');
 assert(worker.includes("pathname.replace(/\\/$/, '') === '/simp/hold'") && worker.includes("error: 'not_configured'"), 'hold stays a not_configured stub');
@@ -1466,6 +1475,8 @@ try {
     assert.match(css, /a\[href\^="\/studio#"\]/, `${label} must hide studio-hash CTAs`);
     assert.match(css, /footer:not\(\.dasha-foot\)/, `${label} must hide leftover Studio/How to buy/Desk footer`);
     assert.match(css, /content-visibility:\s*auto/, `${label} must skip paint on below-fold rooms`);
+    assert.match(css, /@view-transition\{navigation:auto\}/, `${label} home gets the ink cut`);
+    assert.match(css, /animation-duration:200ms/, `${label} ink cut stays in the 160–240ms window`);
     assert.match(css, /content:"\[01\]"/, `${label} must number the hero room`);
     assert.match(css, /#grwm::before\{content:"\[02\]"/, `${label} must number GRWM`);
     assert.match(css, /#dasha-tape::before\{content:"\[03\]"/, `${label} must number the live chart`);
@@ -1535,6 +1546,8 @@ try {
     assert.ok(html.indexOf('dasha-tape') < html.indexOf('id="stills"'), `${label} stills live below the chart`);
     assert.ok(html.indexOf('id="stills"') < html.indexOf('dasha-simp-board'), `${label} stills live above the board`);
     assert.match(html, /class="stills-grid"/, `${label} stills are a quiet first-party flick`);
+    assert.match(html, /data-quiz="scary-cap"/, `${label} SCARY still seeds the cap question`);
+    assert.doesNotMatch(html.match(/<section id="stills"[\s\S]*?<\/section>/)?.[0] || '', /photo\/(?:archive|sweet|public|chart)\.jpg/, `${label} stills skip leftover frames`);
     assert.match(html, /id="grwm"/, `${label} GRWM sits after the hero`);
     assert.match(html, /grwm-loop\.mp4/, `${label} GRWM loop is first-party`);
     assert.match(html, /\/simp\/photo\/scary\.jpg/, `${label} stills include the SCARY cap`);

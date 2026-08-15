@@ -12,7 +12,7 @@ export const AWARD_SLIM_CSS = '.dasha-slim{display:flex;align-items:center;gap:.
 
 export const AWARD_CROP_CSS = '.dasha-crop{position:fixed;inset:10px;z-index:80;pointer-events:none}.dasha-crop i{position:absolute;width:12px;height:12px;border-style:solid;border-color:#dfff00}.dasha-crop i:nth-child(1){top:0;left:0;border-width:2px 0 0 2px}.dasha-crop i:nth-child(2){top:0;right:0;border-width:2px 2px 0 0}.dasha-crop i:nth-child(3){bottom:0;left:0;border-width:0 0 2px 2px}.dasha-crop i:nth-child(4){bottom:0;right:0;border-width:0 2px 2px 0}';
 
-export const AWARD_INK_CSS = '@media(prefers-reduced-motion:no-preference){@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:180ms}}';
+export const AWARD_INK_CSS = 'html,body{background:#070608}@media(prefers-reduced-motion:no-preference){@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:200ms;animation-timing-function:cubic-bezier(.2,0,.2,1)}::view-transition-group(root){background:#070608}}.dasha-ink-cut{position:fixed;inset:0;z-index:90;background:#070608;pointer-events:none;opacity:0;transition:opacity .2s cubic-bezier(.2,0,.2,1)}.dasha-ink-cut.is-on{opacity:1}@media(prefers-reduced-motion:reduce){.dasha-ink-cut,.dasha-ink-cut.is-on{opacity:0;transition:none}}';
 
 export const AWARD_DOCK_CSS = '';
 
@@ -48,7 +48,7 @@ export function hamburgerHtml({ buy = true, buyId = '' } = {}) {
   const buyA = buy
     ? `<a class="buy-dasha"${id} href="${BUY_HREF}" target="_blank" rel="noopener noreferrer">Buy $dasha</a>`
     : '';
-  return `<header class="dasha-slim"><a class="dasha-word" href="${WORDMARK_HREF}">$dasha</a>${buyA}</header>`;
+  return `<header class="dasha-slim"><a class="dasha-word" href="${WORDMARK_HREF}">$dasha</a>${buyA}</header><div class="dasha-ink-cut" hidden aria-hidden="true"></div>`;
 }
 
 export function cropTicksHtml() {
