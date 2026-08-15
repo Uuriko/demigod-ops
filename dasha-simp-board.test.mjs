@@ -51,7 +51,8 @@ assert(client.includes('Share on X') && client.includes('shareBoardOnX') && clie
 assert(client.includes('showJoinSuccess') && client.includes('Make a meme') && client.includes('Open lobby'), 'post-join success CTAs missing');
 assert(client.includes('dasha-x-chip') && client.includes('paintLinkedChip'), 'nav linked-identity chip missing');
 assert(!client.includes('Save score card') && !client.includes("a.download = 'dasha-simp-"), 'score download path must be gone');
-assert(client.includes("setAttribute('aria-hidden'") || client.includes('aria-hidden'), 'quiz media should be aria-hidden');
+assert(client.includes('simp-quiz-media') && client.includes('data.question.media'), 'every quiz step must render question media');
+assert(client.indexOf("qimg.className = 'simp-quiz-media'") < client.indexOf("el('h4','simp-quiz-question'"), 'media must sit above the prompt');
 assert(client.includes('paintLinkedChip') && client.includes('dasha-x-chip'), 'linked identity chip helpers missing');
 assert(score.includes('QUIZ_LANES') && client.includes('result.lane'), 'lane-specific result identity missing');
 assert(!client.includes('Replay for fun') && !client.includes('leaderboard score unchanged'), 'unscored for-fun replay must be gone');
@@ -65,11 +66,7 @@ assert(quizSmoke.includes("args.has('--live-write')") && !quizSmoke.includes("co
 assert(!worker.includes('simpQuizMetrics[xId]'), 'quiz metrics must not be keyed by X identity');
 assert(worker.includes("input?.event !== 'share'") && worker.includes('countQuizResult'), 'decision-grade quiz metrics must come from server transitions, not client event claims');
 assert(!/trackQuiz\('(start|retake|reach|answer|complete|result)'/.test(client), 'client must not submit authoritative quiz funnel events');
-assert(
-  (client.includes('link X only to reveal') || client.includes('link X to save score')) &&
-    worker.includes("input?.action === 'finalize'"),
-  'OAuth must happen at result reveal',
-);
+assert(client.includes('Connect X to play') && worker.includes("error: 'link X to take the quiz'"), 'quiz start must require linked X');
 assert(client.includes('650') && client.includes('1100') && !client.includes("'Pause'"), 'feedback should advance briskly without an extra pause control');
 assert(client.includes('quizAnswerBusy'), 'double-tap answer guard missing');
 assert(client.includes('retakeQuiz') && client.includes("role','progressbar"), 'retake helper + quiet progress bar missing');
@@ -84,6 +81,8 @@ assert.equal(shareCard.readUInt32BE(20), 628);
 assert(shareCard.length <= 2_000_000, 'result card exceeds internal X image-card budget');
 assert(worker.includes("path.startsWith('/simp/result/')") && client.includes('challengeId'), 'challenge entry flow missing');
 assert(client.includes('/simp/photo/') && worker.includes("url.pathname.startsWith('/simp/photo/')"), 'local quiz media missing');
+assert(score.includes('function publicMedia') && score.includes('media: publicMedia'), 'publicQuestion must attach media');
+assert(score.includes("kind: 'image'") && score.includes("alt: 'Dasha'"), 'public media must be first-party stills with a non-spoiler alt');
 assert(worker.includes("url.pathname.startsWith('/simp/card/')") && worker.includes("max-age=86400"), 'share-card asset route/cache missing');
 assert(worker.includes("headers.set('Access-Control-Allow-Origin', '*')") && worker.includes("headers.set('Cross-Origin-Resource-Policy', 'cross-origin')"), 'quiz media must remain canvas-safe across product subdomains');
 for (const metric of ['reached', 'answers', 'lanes', 'tiers', 'elapsed']) assert(worker.includes(metric), `missing aggregate metric ${metric}`);
@@ -109,7 +108,7 @@ assert(client.includes('simp-quiz-active') && client.includes('simp-quiz-open'),
 assert(client.includes('is-selected') && client.includes('color:var(--paper'), 'quiz selection or readable contrast missing');
 assert(client.includes("event.key === 'Escape'") && client.includes('quizBtn.focus()'), 'focused quiz must close accessibly and restore focus');
 assert(client.includes('question.tabIndex = -1') && client.includes('question.focus({ preventScroll: true })'), 'each question must retain focus so desktop number keys work');
-assert(client.includes('max-height:min(300px,32svh)'), 'quiz photos must fit short mobile viewports');
+assert(client.includes('max-height:min(56svh,480px)') && client.includes('width:100%'), 'quiz photos must be full-width and still fit the viewport');
 assert(client.includes('align-content:start'), 'active quiz must top-align on short mobile screens');
 assert(client.includes("scrollIntoView({ behavior: 'smooth', block: 'start' })"), 'quiz start must scroll into view');
 assert(client.includes('is-correct') && client.includes('is-wrong'), 'correct and incorrect feedback states missing');
@@ -236,6 +235,12 @@ try {
   await page.route('https://www.getdasha.com/__simp_share_test*', (route) =>
     route.fulfill({ contentType: 'text/html', body: '<div id="dasha-simp-board"></div>' }),
   );
+  await page.route('https://www.getdasha.com/simp/photo/**', (route) =>
+    route.fulfill({
+      contentType: 'image/jpeg',
+      body: quizPhoto,
+    }),
+  );
   await page.route('https://lobby.getdasha.com/simp/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path.startsWith('/simp/photo/')) {
@@ -252,7 +257,7 @@ try {
     }); }
     if (path === '/simp/quiz' && route.request().method() === 'POST') return route.fulfill({
       contentType: 'application/json',
-      body: JSON.stringify({ ok: true, attemptId: 'attempt123', progress: { current: 1 }, question: { prompt: 'A real challenge starts where?', choices: ['At question one', 'On a blank homepage'] } }),
+      body: JSON.stringify({ ok: true, attemptId: 'attempt123', progress: { current: 1 }, question: { prompt: 'A real challenge starts where?', choices: ['At question one', 'On a blank homepage'], media: { src: '/simp/photo/weekend.jpg', kind: 'image', alt: 'Dasha' } } }),
       headers: { 'Access-Control-Allow-Origin': 'https://www.getdasha.com', 'Access-Control-Allow-Credentials': 'true' },
     });
     const data = path === '/simp/board'
@@ -285,30 +290,30 @@ try {
   });
   await page.addScriptTag({ content: client });
   await page.getByRole('button', { name: 'Share your quiz result' }).click();
-  const preview = page.getByAltText('Dasha simp quiz result card preview');
-  await preview.waitFor();
-  assert.deepEqual(await preview.evaluate(async (image) => { await image.decode(); return [image.naturalWidth, image.naturalHeight]; }), [1200, 675]);
-  await page.getByRole('button', { name: 'Share quiz result card with image' }).first().click();
+  const push = page.locator('#dasha-share-push');
+  await push.waitFor();
+  assert.match(await push.locator('.simp-share-push-url').textContent(), /https:\/\/lobby\.getdasha\.com\/simp\/r\/test/);
+  assert.equal(await push.getByRole('button', { name: 'Copy link' }).count(), 1);
+  assert.equal(await push.getByRole('button', { name: 'Share on X' }).count(), 1);
+  await push.getByRole('button', { name: 'Share', exact: true }).click();
   await page.waitForFunction(() => window.__shares.length === 1);
   const shared = await page.evaluate(() => ({
-    count: window.__shares[0].files.length,
-    type: window.__shares[0].files[0].type,
-    size: window.__shares[0].files[0].size,
     text: window.__shares[0].text,
     url: window.__shares[0].url,
+    title: window.__shares[0].title,
   }));
-  assert.equal(shared.count, 1);
-  assert.equal(shared.type, 'image/png');
-  assert(shared.size > 100_000 && shared.size <= 5_000_000);
-  assert.match(shared.text, /Confirmed simp 8\/10/);
-  assert.match(shared.text, /Beat this/);
-  assert(!shared.text.includes('https://lobby.getdasha.com/simp/r/test'));
+  assert.match(shared.text, /Confirmed simp/);
+  assert.match(shared.text, /https:\/\/lobby\.getdasha\.com\/simp\/r\/test/);
   assert.equal(shared.url, 'https://lobby.getdasha.com/simp/r/test');
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
 
   await page.goto('https://www.getdasha.com/__simp_share_test?challenge=result123#simp');
   await page.addScriptTag({ content: client });
   await page.getByRole('heading', { name: 'A real challenge starts where?' }).waitFor();
+  const stepMedia = page.locator('.simp-quiz-media');
+  await stepMedia.waitFor();
+  assert.equal(await stepMedia.getAttribute('alt'), 'Dasha');
+  assert.match(await stepMedia.getAttribute('src'), /\/simp\/photo\/weekend\.jpg$/);
   assert.doesNotMatch(await page.locator('.simp-quiz').textContent(), /QUICK|10Q|20Q|\d+\s+OF\s+\d+/i);
   assert.equal(challengeLookups, 1, 'result challenge must be resolved once before the quiz');
   await page.waitForFunction(() => document.querySelector('.simp-quiz-note')?.textContent.startsWith('Beat 8/10'));

@@ -273,7 +273,7 @@ for (const [path, dest] of [
 const missingChess = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/chess?game=missing1'), dynamicChessEnv);
 const missingChessHtml = await missingChess.text();
 assert.match(missingChessHtml, /<title>Dasha Chess — holders play<\/title>/);
-assert.match(missingChessHtml, /og:url" content="https:\/\/lobby\.getdasha\.com\/chess"/);
+assert.match(missingChessHtml, /og:url" content="https:\/\/www\.getdasha\.com\/chess"/);
 assert.doesNotMatch(missingChessHtml, /missing1/, 'invalid replay id must fall back to generic canonical metadata');
 assert.match(missingChessHtml, /<meta name="robots" content="index,follow">/);
 for (const path of ['/checkout', '/paypal-checkout', '/order-confirmation']) {
@@ -444,9 +444,13 @@ for (const path of ['/studio', '/studio/']) {
         assert.equal(quiz.status, 308, `${host}${path} ${method} must permanently send quiz to /simp`);
         assert.equal(quiz.headers.get('location'), 'https://www.getdasha.com/simp');
       }
-      const photo = await workerModule.default.fetch(new Request(`https://${host}/simp/photo/weekend.jpg`, { method }), {});
-      assert.equal(photo.status, 308, `${host} /simp/photo must hop to the lobby host`);
-      assert.equal(photo.headers.get('location'), 'https://lobby.getdasha.com/simp/photo/weekend.jpg');
+      const photo = await workerModule.default.fetch(new Request(`https://${host}/simp/photo/weekend.jpg`, { method }), {
+        ASSETS: { fetch: async (req) => new Response(req.method === 'HEAD' ? null : 'jpg', { status: 200, headers: { 'Content-Type': 'image/jpeg' } }) },
+      });
+      assert.equal(photo.status, 200, `${host} /simp/photo must serve first-party stills`);
+      assert.equal(photo.headers.get('content-type'), 'image/jpeg');
+      assert.equal(photo.headers.get('access-control-allow-origin'), '*');
+      assert.equal(await photo.text(), method === 'HEAD' ? '' : 'jpg');
     }
   }
   for (const method of ['GET', 'HEAD']) {
@@ -1213,6 +1217,16 @@ assert.equal(ogAsset.headers.get('access-control-allow-origin'), '*');
 assert.equal(ogAsset.headers.get('cross-origin-resource-policy'), 'cross-origin');
 assert.equal(ogAsset.headers.get('cache-control'), 'public, max-age=86400');
 
+for (const host of ['www.getdasha.com', 'getdasha.com', 'lobby.getdasha.com']) {
+  for (const method of ['GET', 'HEAD']) {
+    const photo = await workerModule.default.fetch(new Request(`https://${host}/simp/photo/weekend.jpg`, { method }), {
+      ASSETS: { fetch: async (req) => new Response(req.method === 'HEAD' ? null : 'jpg', { status: 200, headers: { 'Content-Type': 'image/jpeg' } }) },
+    });
+    assert.equal(photo.status, 200, `${host} ${method} /simp/photo/weekend.jpg must be 200`);
+    assert.equal(photo.headers.get('content-type'), 'image/jpeg');
+    assert.equal(await photo.text(), method === 'HEAD' ? '' : 'jpg');
+  }
+}
 for (const host of ['www.getdasha.com', 'getdasha.com']) {
   for (const method of ['GET', 'HEAD']) {
     const res = await workerModule.default.fetch(new Request(`https://${host}/og/dasha-social-card.png`, { method }), {
@@ -2125,9 +2139,17 @@ let quizData = await quizResponse.json();
 assert.equal(quizResponse.status, 200);
 assert.equal(quizData.attemptId, undefined);
 assert.equal('total' in (quizData.progress || {}), false);
+assert.match(quizData.question.media.src, /^\/simp\/photo\/[a-z0-9]+\.jpg$/);
+assert.equal(quizData.question.media.kind, 'image');
+let prevMedia = quizData.question.media.src;
 for (let i = 0; i < 17; i++) {
   quizResponse = await linkedQuizPost({ action: 'answer', answer: 0 });
   quizData = await quizResponse.json();
+  if (!quizData.done) {
+    assert.match(quizData.question.media.src, /^\/simp\/photo\/[a-z0-9]+\.jpg$/);
+    assert.notEqual(quizData.question.media.src, prevMedia);
+    prevMedia = quizData.question.media.src;
+  }
 }
 assert.equal(quizData.done, true);
 assert.equal(quizData.linkRequired, undefined);
@@ -2137,6 +2159,9 @@ assert.equal(studioDo.simpQuizMetrics.starts, 1);
 assert.equal(studioDo.simpQuizMetrics.completions, 1);
 assert.equal(Object.values(studioDo.simpQuizMetrics.reached).reduce((a, b) => a + b, 0), 17);
 assert.equal(Object.values(studioDo.simpQuizMetrics.answers).reduce((a, b) => a + b, 0), 17);
+assert.equal(Object.values(studioDo.simpQuizMetrics.lanes).reduce((a, b) => a + b, 0), 1);
+assert.equal(Object.values(studioDo.simpQuizMetrics.tiers).reduce((a, b) => a + b, 0), 1);
+assert.equal(Object.values(studioDo.simpQuizMetrics.elapsed).reduce((a, b) => a + b, 0), 1);
 assert.equal((await quizPost({ event: 'share' }, '/simp/quiz/event')).status, 200);
 assert.equal(studioDo.simpQuizMetrics.shares, 1);
 const resetMetrics = (auth) => studioDo.fetch(new Request('https://lobby.getdasha.com/studio/metrics', {
@@ -2169,9 +2194,6 @@ assert.equal((await holderRequestWithoutOrigin('/simp/wallet/challenge', { publi
 assert.equal((await holderRequestWithoutOrigin('/simp/wallet/verify', {})).status, 403);
 const finalizedQuiz = await holderRequest('/simp/quiz', { action: 'finalize', attemptId: 'missing' });
 assert.equal(finalizedQuiz.status, 400);
-assert.equal(Object.values(studioDo.simpQuizMetrics.lanes).reduce((a, b) => a + b, 0), 1);
-assert.equal(Object.values(studioDo.simpQuizMetrics.tiers).reduce((a, b) => a + b, 0), 1);
-assert.equal(Object.values(studioDo.simpQuizMetrics.elapsed).reduce((a, b) => a + b, 0), 1);
 assert.equal((await holderRequest('/simp/wallet/challenge', {})).status, 400);
 assert.equal((await holderRequest('/simp/wallet/challenge', { publicKey: '1'.repeat(44) })).status, 400, 'Base58-looking non-32-byte address must be rejected');
 const proofAddress = '11111111111111111111111111111111';

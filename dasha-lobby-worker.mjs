@@ -3041,10 +3041,10 @@ async function productEdge(request, url, env) {
   if (url.pathname.startsWith('/og/')) {
     return staticAssetResponse(request, env);
   }
-  if (
-    (request.method === 'GET' || request.method === 'HEAD') &&
-    (url.pathname.startsWith('/simp/photo/') || url.pathname.startsWith('/simp/card/'))
-  ) {
+  if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname.startsWith('/simp/photo/')) {
+    return staticAssetResponse(request, env);
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname.startsWith('/simp/card/')) {
     return Response.redirect(`https://lobby.getdasha.com${url.pathname}${url.search}`, 308);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && isIconPath(url.pathname)) {

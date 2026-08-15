@@ -111,31 +111,22 @@ for (const [id, tier, lane, prompt, choices, answer, note, source] of ITEMS) {
 }
 export const QUIZ_QUESTIONS = [...bank.values()];
 const scoredItems = QUIZ_QUESTIONS.filter((question) => question.answer != null);
-/** Local photos under /simp/photo/* (worker assets). */
-const VISUALS = {
-  'sailor-fuku': '/simp/photo/profile.jpg',
-  'tatu-theme': '/simp/photo/media.jpg',
-  'comfry-job': '/simp/photo/press.jpg',
-  berlinale: '/simp/photo/sweet.jpg',
-  'healthcare-line': '/simp/photo/weekend.jpg',
-  'wobble-sxsw': '/simp/photo/chart.jpg',
-  'minsk-vegas': '/simp/photo/public.jpg',
-  'the-girl': '/simp/photo/bull.jpg',
-  'ews-universe': '/simp/photo/sweet.jpg',
-  'bannon-healthcare': '/simp/photo/media.jpg',
-  'nietzsche-mills': '/simp/photo/archive.jpg',
-  'equinox-script': '/simp/photo/hero.jpg',
-  'byzantine': '/simp/photo/public.jpg',
-  'klaasje-never': '/simp/photo/archive.jpg',
-  'softness-poet': '/simp/photo/hero.jpg',
-  'hanging-stunt': '/simp/photo/bull.jpg',
-  'isis-tees': '/simp/photo/press.jpg',
-  'evangelion': '/simp/photo/chart.jpg',
-  'usc-western': '/simp/photo/weekend.jpg',
-  'exorcist-mexico': '/simp/photo/profile.jpg',
-};
+/** First-party stills under /simp/photo/*. No pbs.twimg. No in-repo dance GIFs. */
+const QUIZ_PHOTO_MEDIA = ['archive', 'bull', 'chart', 'hero', 'media', 'press', 'profile', 'public', 'sweet', 'weekend'].map((name) => ({
+  src: `/simp/photo/${name}.jpg`,
+  kind: 'image',
+  alt: 'Dasha',
+}));
+let photoCursor = 0;
 for (const question of QUIZ_QUESTIONS) {
-  if (VISUALS[question.id]) question.image = VISUALS[question.id];
+  question.media = QUIZ_PHOTO_MEDIA[photoCursor++ % QUIZ_PHOTO_MEDIA.length];
+}
+function publicMedia(question, avoidSrc) {
+  const preferred = question?.media || QUIZ_PHOTO_MEDIA[0];
+  if (!avoidSrc || preferred.src !== avoidSrc) return { src: preferred.src, kind: preferred.kind, alt: preferred.alt };
+  const i = QUIZ_PHOTO_MEDIA.findIndex((item) => item.src === preferred.src);
+  const next = QUIZ_PHOTO_MEDIA[(i + 1) % QUIZ_PHOTO_MEDIA.length];
+  return { src: next.src, kind: next.kind, alt: next.alt };
 }
 /** Fun mid-quiz stickers keyed by question id (client may show as overlay). */
 export const QUIZ_SURPRISES = {
@@ -230,7 +221,12 @@ export const quizPublic = () => ({
   version: QUIZ_VERSION,
   maxPoints: QUIZ_MAX_POINTS,
 });
-export const publicQuestion = ({ id, prompt, choices, image }) => ({ id, prompt, choices, ...(image ? { image } : {}) });
+export const publicQuestion = (question, extra = {}) => ({
+  id: question.id,
+  prompt: question.prompt,
+  choices: question.choices,
+  media: publicMedia(question, extra.avoidSrc),
+});
 export function startQuizAttempt({ now = Date.now(), practice = false } = {}) {
   return {
     version: QUIZ_VERSION,
@@ -249,7 +245,9 @@ export function startQuizAttempt({ now = Date.now(), practice = false } = {}) {
 }
 export function questionForAttempt(attempt) {
   const question = attempt?.version === QUIZ_VERSION ? bank.get(attempt.current) : null;
-  return question ? { question: publicQuestion(question), progress: { current: attempt.position + 1 } } : null;
+  if (!question) return null;
+  const prev = attempt.seen?.length ? bank.get(attempt.seen[attempt.seen.length - 1]) : null;
+  return { question: publicQuestion(question, { avoidSrc: prev?.media?.src }), progress: { current: attempt.position + 1 } };
 }
 export function answerQuizAttempt(attempt, answer, { now = Date.now() } = {}) {
   const question = attempt?.version === QUIZ_VERSION ? bank.get(attempt.current) : null;
