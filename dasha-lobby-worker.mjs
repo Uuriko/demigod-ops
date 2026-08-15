@@ -122,7 +122,6 @@ import {
   cropTicksHtml,
   AWARD_FOOT_CSS,
   hamburgerHtml,
-  roomLinksHtml,
   slimFooterHtml,
 } from './dasha-award-chrome.mjs';
 import {
@@ -310,15 +309,26 @@ function stripHomeScrollToys(html) {
     .replace(/scroll-timeline(?:-name|-axis)?\s*:\s*(?!none\b)[^;}\"']+;?/gi, '');
 }
 
-const HOME_CULTURE_NAV = roomLinksHtml();
+const HOME_LEFTOVER_ROOM_HREF = /href=["'](?:https:\/\/(?:www\.)?getdasha\.com)?\/(?:studio|dasha|desk|bounties|how-to-buy|howtobuy)(?:[/?#][^"']*)?["']/i;
 
-/** Hidden Webflow `main.dasha > nav` — same labels as lock nav after #49. No Buy. */
-function alignHomeLowerNav(html) {
-  return String(html || '').replace(/<nav\b[^>]*>[\s\S]*?<\/nav>/gi, (nav) => {
-    if (!/\bclass=["'][^"']*\b(?:nav|dasha-nav)\b/.test(nav)) return nav;
-    if (!/\/studio|\/lobby|\/forum|\/bounties|#token|buy-dasha/i.test(nav)) return nav;
-    return nav.replace(/>[\s\S]*<\/nav>/i, `>${HOME_CULTURE_NAV}</nav>`);
-  });
+/** Drop leftover Webflow rooms from rewritten home. CSS hide is not enough. */
+function stripHomeLeftoverChrome(html) {
+  let page = String(html || '');
+  page = page.replace(/\/\*[\s\S]*?DashaNav[\s\S]*?\*\//gi, '');
+  page = page.replace(/<!--[\s\S]*?DashaNav[\s\S]*?-->/gi, '');
+  page = page.replace(/<script\b(?![^>]*\bsrc\s*=)[^>]*>[\s\S]*?<\/script>/gi, (block) => (
+    /a\[href[*^=]["'][^"']*\/studio|\/studio#|p\.set\(\s*(["'])src\1\s*,\s*(["'])home\2/i.test(block) ? '' : block
+  ));
+  page = page.replace(/<(div|section)\b[^>]*\bclass=["'](?:[^"']*\s)?poster-grid(?:\s|["'])[^>]*>[\s\S]*?<\/\1>/gi, '');
+  page = page.replace(/<a\b[^>]*\bclass=["'](?:[^"']*\s)?poster-tile(?:\s|["'])[^>]*>[\s\S]*?<\/a>/gi, '');
+  page = page.replace(/<(div|section)\b[^>]*\bclass=["'](?:[^"']*\s)?poster(?:\s|["'])[^>]*>[\s\S]*?<\/\1>/gi, '');
+  page = page.replace(/<nav\b[^>]*>[\s\S]*?<\/nav>/gi, (nav) => (
+    /\bclass=["'][^"']*\b(?:nav|dasha-nav)\b/.test(nav) ? '' : nav
+  ));
+  page = page.replace(/<footer\b[^>]*>[\s\S]*?<\/footer>/gi, (foot) => (
+    /\bclass=["'][^"']*\bdasha-foot\b/.test(foot) ? foot : ''
+  ));
+  return page.replace(/<a\b[^>]*>[\s\S]*?<\/a>/gi, (anchor) => (HOME_LEFTOVER_ROOM_HREF.test(anchor) ? '' : anchor));
 }
 
 const HOME_BUY_HREF = BUY_HREF;
@@ -493,7 +503,7 @@ export function rewriteHomeFirstViewport(html) {
   }
   page = ensureHomeAwardChrome(page);
   page = injectHomeReveal(page);
-  return rewriteLeftoverLobbyHrefs(alignHomeLowerNav(page));
+  return rewriteLeftoverLobbyHrefs(stripHomeLeftoverChrome(page));
 }
 
 function ensureHomeAwardChrome(html) {
