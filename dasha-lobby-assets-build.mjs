@@ -144,17 +144,21 @@ function build() {
   const simpSrc = loadClient('dasha-simp-board-client.js');
   const studioSrc = loadClient('dasha-studio-embed.js');
   const graphSrc = loadClient('dasha-graph-client.js');
+  const learnSrc = loadClient('dasha-learn-client.js');
   assertSingleClient(lobbySrc, 'dasha-lobby-client.js', 'global.DashaLobby');
   assertSingleClient(simpSrc, 'dasha-simp-board-client.js', 'global.DashaSimpBoard');
   assertSingleClient(graphSrc, 'dasha-graph-client.js', 'global.DashaGraph');
+  assertSingleClient(learnSrc, 'dasha-learn-client.js', 'global.DashaLearn');
   const lobby = minifyJs(lobbySrc);
   const simp = minifyJs(simpSrc);
   const studio = minifyJs(studioSrc);
   const graph = minifyJs(graphSrc);
+  const learn = minifyJs(learnSrc);
   const lobbySri = sri(lobby);
   const simpSri = sri(simp);
   const studioSri = sri(studio);
   const graphSri = sri(graph);
+  const learnSri = sri(learn);
   const robots = readFileSync(join(root, 'dasha-robots.txt'), 'utf8').trim() + '\n';
   const sitemap = readFileSync(join(root, 'dasha-sitemap.xml'), 'utf8')
     .replace(/<!--[\s\S]*?-->\n?/g, '')
@@ -172,6 +176,8 @@ function build() {
     'dasha-simp-score.mjs',
     'dasha-chess.mjs',
     'dasha-graph.mjs',
+    'dasha-learn-adapt.mjs',
+    'dasha-learn-bank.mjs',
   ].map(file => readFileSync(join(root, file), 'utf8')).join('\n');
   const wrangler = readFileSync(join(root, 'dasha-lobby-wrangler.jsonc'), 'utf8');
   const hash = createHash('sha256')
@@ -200,6 +206,8 @@ function build() {
         '\n' +
         graph +
         '\n' +
+        learn +
+        '\n' +
         lobbyPage +
         '\n' +
         socialCard.toString('base64'),
@@ -215,6 +223,8 @@ function build() {
     simpSri,
     studioSri,
     graphSri,
+    learnSri,
+    learnBytes: learn.length,
     robotsBytes: robots.length,
     sitemapBytes: sitemap.length,
     howtoBytes: howto.length,
@@ -235,6 +245,8 @@ export const CHESS_PAGE_HTML = \`${escTemplate(chessPage)}\`;
 export const GRAPH_PAGE_HTML = \`${escTemplate(graphPage)}\`;
 export const GRAPH_CLIENT_JS = \`${escTemplate(graph)}\`;
 export const GRAPH_CLIENT_SRI = ${JSON.stringify(graphSri)};
+export const LEARN_CLIENT_JS = \`${escTemplate(learn)}\`;
+export const LEARN_CLIENT_SRI = ${JSON.stringify(learnSri)};
 export const LOBBY_PAGE_HTML = \`${escTemplate(lobbyPage)}\`;
 export const ASSET_HASH = ${JSON.stringify(hash)};
 `,

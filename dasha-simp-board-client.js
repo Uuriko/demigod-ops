@@ -507,6 +507,8 @@
           (entry.components.linked_x || 0) +
           ' · quiz ' +
           (entry.components.quiz || 0) +
+          ' · learn ' +
+          (entry.components.learn || 0) +
           ' · create ' +
           (entry.components.creative || 0) +
           ' · community ' +
@@ -601,6 +603,8 @@
         (c.linked_x || 0) +
         ' · quiz ' +
         (c.quiz || 0) +
+        ' · learn ' +
+        (c.learn || 0) +
         ' · create ' +
         (c.creative || 0) +
         ' · community ' +

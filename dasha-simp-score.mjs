@@ -24,6 +24,12 @@ export const QUIZ_MAX_POINTS = 60;
 /** Soft ±vibe on quiz points so the formula is not a pure spreadsheet. */
 export const QUIZ_VIBE_RANGE = 8;
 export const QUIZ_LANES = ['Cinema obsessive', 'Podcast casualty', 'Dasha archaeologist'];
+export const LEARN_BASE = 4;
+export const LEARN_HARD_BONUS = 2;
+export const LEARN_TOOL_BONUS = 2;
+export const LEARN_CAP_28D = 80;
+export const LEARN_CAP_LIFETIME = 120;
+const LEARN_TOOLS = new Set(['live-buy', 'siws']);
 const LANE_KEYS = ['cinema', 'podcast', 'lore'];
 const q = (id, prompt, choices, answer, next, note, source, extra = {}) => ({
   id,
@@ -214,7 +220,35 @@ export function isValidEvidenceUrl(raw) {
 }
 
 function emptyComponents() {
-  return { linked_x: 0, quiz: 0, creative: 0, community: 0, oss: 0, holder: 0 };
+  return { linked_x: 0, quiz: 0, learn: 0, creative: 0, community: 0, oss: 0, holder: 0 };
+}
+
+export function learnAwardPoints({ difficulty, tool } = {}) {
+  let pts = LEARN_BASE;
+  if (Number(difficulty) === 2) pts += LEARN_HARD_BONUS;
+  if (tool === true || LEARN_TOOLS.has(tool) || (typeof tool === 'string' && tool)) pts += LEARN_TOOL_BONUS;
+  return pts;
+}
+
+function learnLifetime(awards) {
+  let sum = 0;
+  for (const a of awards || []) {
+    if (a.kind !== 'learn') continue;
+    sum += Math.max(0, Number(a.points) || 0);
+  }
+  return Math.min(LEARN_CAP_LIFETIME, sum);
+}
+
+function learnWindow(awards, now) {
+  const windowStart = now - ROLLING_MS;
+  let sum = 0;
+  for (const a of awards || []) {
+    if (a.kind !== 'learn') continue;
+    const at = Number(a.at) || 0;
+    if (at < windowStart || at > now) continue;
+    sum += Math.max(0, Number(a.points) || 0);
+  }
+  return Math.min(LEARN_CAP_28D, sum);
 }
 
 export const quizPublic = () => ({
@@ -483,17 +517,22 @@ export function scoreProfile(profile, { now = Date.now() } = {}) {
   components.creative = rollingKindPoints(awards, 'creative', CREATIVE_POINTS, CREATIVE_CAP_28D, now);
   components.community = rollingKindPoints(awards, 'community', COMMUNITY_POINTS, COMMUNITY_CAP_28D, now);
   components.oss = ossPoints(awards);
+  components.learn = Math.min(LEARN_CAP_LIFETIME, learnLifetime(awards));
   components.holder = 0; // badge only in v1
   let lastEvidenceAt = null;
   for (const a of awards) {
     const at = Number(a.at) || 0;
     if (!at || at > now) continue;
+    if (a.kind === 'learn') {
+      if (lastEvidenceAt == null || at > lastEvidenceAt) lastEvidenceAt = at;
+      continue;
+    }
     if (a.kind === 'oss' ? isValidOssEvidenceUrl(a.evidenceUrl) : isValidEvidenceUrl(a.evidenceUrl)) {
       if (lastEvidenceAt == null || at > lastEvidenceAt) lastEvidenceAt = at;
     }
   }
   const total =
-    components.linked_x + components.quiz + components.creative + components.community + components.oss + components.holder;
+    components.linked_x + components.quiz + components.learn + components.creative + components.community + components.oss + components.holder;
   return { total, components, lastEvidenceAt };
 }
 
@@ -583,6 +622,15 @@ export function rulesPublic() {
         'One adaptive quiz. Scored retakes allowed — latest finish updates Board quiz points. Points = accuracy; soft vibe is share copy only (±' +
         QUIZ_VIBE_RANGE +
         '). Finishing enrolls that X account. Share via X intent anytime.',
+    },
+    learn: {
+      points_base: LEARN_BASE,
+      hard_bonus: LEARN_HARD_BONUS,
+      tool_bonus: LEARN_TOOL_BONUS,
+      cap_rolling_28d: LEARN_CAP_28D,
+      cap_lifetime: LEARN_CAP_LIFETIME,
+      note:
+        'Optional /learn modules. First pass per module only. Retakes update nothing. 4 pts, +2 at difficulty 2, +2 for a tool / live-buy / SIWS. Caps 80 / 28d and 120 lifetime. No second leaderboard.',
     },
     creative: {
       points_per: CREATIVE_POINTS,
@@ -716,6 +764,62 @@ export function joinBoard(store, session, { now = Date.now() } = {}) {
  * Scored quiz finish: enrolls on Board if needed, then stores latest quiz result.
  * Retakes replace the previous score (no one-shot lock). Practice path is unused.
  */
+/**
+ * First-time /learn award. Join-if-needed. Retakes update nothing.
+ * Rejects purchases/balance/bagSize/referrals. Holder stays 0.
+ */
+export function applyLearnAward(store, session, payload = {}, { now = Date.now() } = {}) {
+  if (payload.purchases != null || payload.balance != null || payload.bagSize != null || payload.referrals != null) {
+    return { ok: false, status: 400, error: 'forbidden signal' };
+  }
+  const joined = joinBoard(store, session, { now });
+  if (!joined.ok) return joined;
+  const moduleId = String(payload.moduleId || '');
+  if (!/^[CAI]\d{2}$/.test(moduleId)) return { ok: false, status: 400, error: 'unknown module' };
+  const awards = Array.isArray(joined.profile.awards) ? joined.profile.awards : [];
+  if (awards.some((row) => row.kind === 'learn' && row.moduleId === moduleId)) {
+    return {
+      ok: true,
+      awarded: false,
+      retake: true,
+      created: joined.created,
+      points: 0,
+      profile: joined.profile,
+      store: joined.store,
+    };
+  }
+  const difficulty = Number(payload.difficulty);
+  const wanted = learnAwardPoints({ difficulty, tool: payload.tool });
+  const lifetime = learnLifetime(awards);
+  const window = learnWindow(awards, now);
+  const room = Math.min(LEARN_CAP_LIFETIME - lifetime, LEARN_CAP_28D - window);
+  if (room <= 0) {
+    return {
+      ok: true,
+      awarded: false,
+      capped: true,
+      created: joined.created,
+      points: 0,
+      profile: joined.profile,
+      store: joined.store,
+    };
+  }
+  const points = Math.min(wanted, room);
+  const row = { id: `learn:${moduleId}`, kind: 'learn', moduleId, points, at: now };
+  const profile = { ...joined.profile, awards: [...awards, row], updatedAt: now };
+  const xId = String(session.xId);
+  return {
+    ok: true,
+    awarded: true,
+    created: joined.created,
+    retake: false,
+    points,
+    award: row,
+    profile,
+    store: { ...joined.store, [xId]: profile },
+  };
+}
+
 export function submitQuiz(store, session, attempt, { now = Date.now(), rng = Math.random } = {}) {
   const joined = joinBoard(store, session, { now });
   if (!joined.ok) return joined;
@@ -787,6 +891,7 @@ export function meStatus(store, session) {
           holder: Number(profile.holderUntil) > now,
           holderCheckedAt: Number(profile.holderCheckedAt) || null,
           badges: badgesForProfile(profile, { now }),
+          learnModules: (profile.awards || []).filter((row) => row.kind === 'learn' && row.moduleId).map((row) => row.moduleId),
         }
       : null,
   };
