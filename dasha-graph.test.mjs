@@ -33,8 +33,8 @@ assert.doesNotMatch(page, /dasha-dance/, '/graph must not mount the bottom dance
 assert.match(page, new RegExp(`jup\\.ag/swap\\?sell=${wsol}&amp;buy=${mint}`));
 assert.match(page, new RegExp(`dexscreener\\.com/solana/${pair}`));
 assert.match(page, /id="hud-price"/);
-assert.match(page, /class="dasha-ham"/);
-assert.doesNotMatch(page, /class="dasha-ticks"/, 'graph is the toy — no crop marks');
+assert.match(page, /class="dasha-slim[\s"]/);
+assert.doesNotMatch(page, /class="dasha-crop"/, 'graph is the toy — no crop marks');
 assert.match(page, /<a href="https:\/\/www\.getdasha\.com\/">\$dasha<\/a>/);
 assert.match(page, /href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats</);
 assert.match(page, /<a class="buy-dasha" href="https:\/\/jup\.ag\/swap\?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump"/);

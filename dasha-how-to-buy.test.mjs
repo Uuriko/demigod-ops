@@ -40,8 +40,8 @@ assert.ok(!/payTo|referralAccount/i.test(html), 'howto must not invent payTo or 
 const WSOL = 'So11111111111111111111111111111111111111112';
 assert.doesNotMatch(html.replaceAll(MINT, '').replaceAll(WSOL, ''), /[1-9A-HJ-NP-Za-km-z]{32,44}/, 'howto contains a mint other than $dasha or WSOL');
 assert.ok(html.includes('DashaHowToBuy'), 'export for tests');
-assert.match(html, /class="dasha-ham"/, 'howto must use the hamburger');
-assert.match(html, /class="dasha-ticks"/, 'howto must keep crop marks');
+assert.match(html, /class="dasha-slim[\s"]/, 'howto must use the hamburger');
+assert.match(html, /class="dasha-crop"/, 'howto must keep crop marks');
 assert.match(html, /<a href="https:\/\/www\.getdasha\.com\/">\$dasha<\/a> · <a class="buy-dasha"/, 'footer is \$dasha + Buy');
 assert.match(html, /href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats</, 'footer includes @dash_eats');
 assert.doesNotMatch(html.match(/<footer[\s\S]*?<\/footer>/i)?.[0] || '', /\/lobby|\/graph|\/chess|\/verse|\/bounties|\/learn|\/faucet|\/studio/, 'howto footer must not be a sitemap');

@@ -103,8 +103,8 @@ assert.equal((hubVisible.match(/<h1>Learn<\/h1>/g) || []).length, 1, 'hub HTML h
 assert.equal((hubVisible.match(/id="learn-mint"/g) || []).length, 1, 'hub HTML has one mint');
 assert.match(hubVisible, /id="learn-mint-copy"/);
 assert.doesNotMatch(hubHtml, /<noscript>[\s\S]*<h1>Learn<\/h1>[\s\S]*<\/noscript>/, 'hub noscript must not reprint Learn + mint');
-assert.match(hubHtml, /class="dasha-ham"/);
-assert.match(hubHtml, /href="\/chess">Chess</);
+assert.match(hubHtml, /class="dasha-slim[\s"]/);
+assert.match(hubHtml, /href="\/verse">Verse</);
 assert.match(hubHtml, /min-height:48px/);
 assert.doesNotMatch(hubHtml, /id="dasha-quiz"/);
 assert.ok(hubHtml.includes(mint));
