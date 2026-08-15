@@ -49,7 +49,7 @@
   }
 
   function css() {
-    return '#dasha-dance{position:fixed;left:0;right:0;bottom:0;z-index:20;height:150px;pointer-events:none}' +
+    return '#dasha-dance{position:fixed;left:0;right:0;bottom:0;z-index:12;height:150px;pointer-events:none}' +
       '#dasha-dance button{position:absolute;right:max(8px,env(safe-area-inset-right,0px));bottom:0;width:100px;height:150px;margin:0;padding:0;border:0;background:transparent;pointer-events:auto;cursor:pointer}' +
       '#dasha-dance button:focus-visible{outline:3px solid #dfff00;outline-offset:3px}' +
       '#dasha-dance canvas,#dasha-dance img{display:block;width:100%;height:100%;background:transparent;image-rendering:pixelated}';
