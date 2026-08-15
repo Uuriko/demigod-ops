@@ -248,12 +248,6 @@ function stripHomeForumHrefs(html) {
     .replace(/<a\b[^>]*href=["'][^"']*\/forum\/?["'][^>]*>[^<]*<\/a>/gi, '');
 }
 
-function stripHomeLegacyHero(html) {
-  return String(html || '')
-    .replace(/<header\b[^>]*\bid=["']content["'][^>]*>[\s\S]*?<\/header>/i, '')
-    .replace(/<header\b[^>]*\bdasha-hero\b[^>]*>[\s\S]*?<\/header>/i, '');
-}
-
 function demoteHomeNavMint(html) {
   return String(html || '').replace(/<nav\b[^>]*>[\s\S]*?<\/nav>/gi, (nav) => nav
     .replace(/<a\b[^>]*href=["']#token["'][^>]*>[^<]*<\/a>/gi, '')
@@ -293,15 +287,72 @@ function alignHomeLowerNav(html) {
   });
 }
 
-/** www/apex / only: first paint is the product lock. Live `#dasha-home` is a wrapper, not this rewrite. */
+const HOME_BUY_HREF = `https://jup.ag/swap?sell=${WSOL}&buy=${MINT}`;
+const HOME_BUY_PILL = `<a class="pill primary buy-dasha" href="${HOME_BUY_HREF}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a>`;
+const HOME_CALM_CSS = '.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),#dasha-lock .dasha-band,#dasha-lock header,#dasha-lock .dasha-posters,#dasha-lock .dasha-x-wrap,#dasha-lock .dasha-assoc{display:none!important}';
+
+function injectHomeCalmCss(html) {
+  const page = String(html || '');
+  if (/id=["']dasha-home-calm["']/i.test(page)) return page;
+  const tag = `<style id="dasha-home-calm">${HOME_CALM_CSS}</style>`;
+  const closeHead = page.search(/<\/head>/i);
+  if (closeHead >= 0) return page.slice(0, closeHead) + tag + page.slice(closeHead);
+  const styleAt = page.search(/<style\b/i);
+  if (styleAt >= 0) return page.slice(0, styleAt) + tag + page.slice(styleAt);
+  const body = page.match(/<body\b[^>]*>/i);
+  if (body) {
+    const at = page.indexOf(body[0]) + body[0].length;
+    return page.slice(0, at) + tag + page.slice(at);
+  }
+  return tag + page;
+}
+
+function ensureHomeBuyPill(html) {
+  const pill = HOME_BUY_PILL;
+  let page = String(html || '').replace(/<header\b[^>]*\bdasha-hero\b[^>]*>[\s\S]*?<\/header>/i, (hero) => {
+    if (/<(?:p|div)\b[^>]*\bactions\b[^>]*>[\s\S]*\bbuy-dasha\b/i.test(hero)) return hero;
+    if (/(<(?:p|div)\b[^>]*\bclass=["'][^"']*\bactions\b[^"']*["'][^>]*>)/i.test(hero)) {
+      return hero.replace(/(<(?:p|div)\b[^>]*\bclass=["'][^"']*\bactions\b[^"']*["'][^>]*>)/i, `$1${pill}`);
+    }
+    if (/<h1\b[^>]*>[\s\S]*?<\/h1>/i.test(hero)) {
+      return hero.replace(/(<h1\b[^>]*>[\s\S]*?<\/h1>)/i, `$1<p class="actions">${pill}</p>`);
+    }
+    return hero.replace(/<\/header>/i, `<p class="actions">${pill}</p></header>`);
+  });
+  return page.replace(/<section\b[^>]*\bid=["']dasha-lock["'][^>]*>[\s\S]*?<\/section>/i, (lock) => {
+    if (/\bbuy-dasha\b/.test(lock)) return lock;
+    if (/<h1\b[^>]*>[\s\S]*?<\/h1>/i.test(lock)) {
+      return lock.replace(/(<h1\b[^>]*>[\s\S]*?<\/h1>)/i, `$1<p class="actions">${pill}</p>`);
+    }
+    return lock;
+  });
+}
+
+function ensureHomeSimpMount(html, sri = SIMP_BOARD_SRI) {
+  if (/id=["']dasha-simp-board["']/i.test(html)) return html;
+  const mount = `<div id="simp"><div id="dasha-simp-board" class="dasha-quiz" data-simp-api="https://lobby.getdasha.com"><noscript>Answer in the browser — questions are not in this HTML.</noscript></div></div><script src="https://lobby.getdasha.com/client/simp-board.js" integrity="${sri}" crossorigin="anonymous" defer></script>`;
+  const hero = String(html).match(/<header\b[^>]*\bdasha-hero\b[^>]*>[\s\S]*?<\/header>/i);
+  if (hero) {
+    const at = html.indexOf(hero[0]) + hero[0].length;
+    return html.slice(0, at) + mount + html.slice(at);
+  }
+  const token = String(html).search(/<section\b[^>]*\bid=["']token["']/i);
+  if (token >= 0) return html.slice(0, token) + mount + html.slice(token);
+  return html + mount;
+}
+
+/** www/apex / only: first paint is headline + Buy $dasha. Live `#dasha-home` is a wrapper, not this rewrite. */
 export function rewriteHomeFirstViewport(html, sri = SIMP_BOARD_SRI) {
-  let page = demoteHomeNavMint(stripHomeLegacyHero(stripHomeForumHrefs(stripHomeAtmosphere(stripHomeWebFonts(stripHomeCtaDecoy(String(html || '')))))));
+  let page = demoteHomeNavMint(stripHomeForumHrefs(stripHomeAtmosphere(stripHomeWebFonts(stripHomeCtaDecoy(String(html || ''))))));
   page = page.replace(/href=["']#content["']/gi, 'href="#simp"');
-  if (!/id=["']dasha-lock["']/i.test(page)) {
+  page = injectHomeCalmCss(page);
+  if (!/id=["']dasha-lock["']/i.test(page) && !/<header\b[^>]*\bdasha-hero\b/i.test(page)) {
     const at = homeFirstInsertAt(page);
     page = page.slice(0, at) + homeFirstViewportHtml(sri) + page.slice(at);
   }
-  return alignHomeLowerNav(page);
+  page = ensureHomeBuyPill(page);
+  page = ensureHomeSimpMount(page, sri);
+  return rewriteLeftoverLobbyHrefs(alignHomeLowerNav(page));
 }
 
 /** /lobby is chat only. Quiz lives on / #simp and /simp. Drops leftover mount/style/script. Idempotent. */
@@ -331,6 +382,13 @@ export function rewriteLobbyScriptIntegrity(html, sri = LOBBY_CLIENT_SRI) {
     /(s\.src\s*=\s*(['"])(?:https:\/\/lobby\.getdasha\.com)?\/client\/lobby(?:-client)?\.js\2\s*;\s*s\.integrity\s*=\s*)(['"])[^'"]*\3/gi,
     `$1$3${sri}$3`,
   );
+}
+
+/** Leftover lobby.getdasha.com chess/forum doors become same-origin. Does not invent a forum. */
+export function rewriteLeftoverLobbyHrefs(html) {
+  return String(html || '')
+    .replace(/href=(["'])https:\/\/lobby\.getdasha\.com\/chess/gi, 'href=$1/chess')
+    .replace(/href=(["'])https:\/\/lobby\.getdasha\.com\/forum\/?/gi, 'href=$1/lobby');
 }
 
 /** Drop the dead lobby.getdasha.com/forum hop, empty #dasha-forum, and 404 forum.js. Does not invent a forum. */
@@ -407,7 +465,7 @@ function bountiesBoardHtml(feed) {
     : '<p>No open bounties</p>';
   const payoutNote = unpaid ? '<p>Payouts are not configured yet.</p>' : '';
   const buy = `https://jup.ag/swap?sell=${WSOL}&buy=${MINT}`;
-  return `<section id="dasha-bounties" aria-label="Bounties"><style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}#dasha-bounties{box-sizing:border-box;min-height:100vh;margin:0;padding:0 0 2rem;background:var(--ink);color:var(--paper);font:16px/1.45 Arial,Helvetica,sans-serif}#dasha-bounties header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;padding:.6rem 1rem}#dasha-bounties .dasha-brand{display:inline-flex;align-items:center;gap:.5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:1.25rem;text-decoration:none;text-transform:uppercase}#dasha-bounties .dasha-brand img{width:28px;height:28px}#dasha-bounties nav{display:flex;flex-wrap:wrap;gap:.5rem 1rem}#dasha-bounties nav a{display:inline-flex;align-items:center;min-height:48px;color:var(--paper);font-weight:900;text-transform:uppercase;text-decoration:none}#dasha-bounties h1,#dasha-bounties h2{margin:1.25rem 1rem .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-transform:uppercase}#dasha-bounties h1{margin-top:.5rem;color:var(--paper);font-size:clamp(2rem,5vw,3.25rem);line-height:.9}#dasha-bounties p{margin:.5rem 1rem}#dasha-bounties a{color:var(--acid)}#dasha-bounties a.go,#dasha-bounties button{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font:inherit;font-weight:900;text-decoration:none;border:0;box-shadow:4px 4px 0 var(--hot)}#dasha-bounties .amt{color:var(--hot)}#dasha-bounties ul{list-style:none;margin:0 1rem;padding:0}#dasha-bounties li{border-top:1px solid var(--acid);padding:.75rem 0}#dasha-bounties li:first-child{border-top:0}#dasha-bounties li p{margin:.25rem 0}#dasha-bounties form{margin:0 1rem}#dasha-bounties label{display:block}#dasha-bounties input,#dasha-bounties textarea{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}#dasha-bounties textarea{min-height:6rem}#dasha-bounties footer{margin:2rem 1rem 0;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-bounties footer code{color:var(--paper);word-break:break-all}</style><header><a class="dasha-brand" href="/">$DASHA <img src="/favicon.svg" alt="" width="36" height="36"></a><nav aria-label="Main"><a href="/studio">Studio</a><a href="/simp">Simp</a><a href="/bounties">Bounties</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></nav></header><h1>Bounties</h1><p>Post a project. Other people run spare compute on it.</p><p><a class="go" href="#dasha-bounty-post">Post a project</a></p><p><a class="go" href="mailto:potter@trydemigod.com?subject=I%20have%20excess%20compute">I have excess compute</a></p><h2 id="dasha-bounty-post">Post</h2><form action="mailto:potter@trydemigod.com" method="get"><input type="hidden" name="subject" value="Dasha bounty"><p><label>Project name <input name="name" required></label></p><p><label>What to run <textarea name="body" required></textarea></label></p><p><label>Contact <input name="contact"></label> <a href="/privacy">Privacy</a></p><p><button type="submit">Post a project</button></p></form><p>This sends a request. It is not a live listing.</p><h2>Work</h2>${payoutNote}${work}<footer id="token"><p><code>${MINT}</code> · <a href="${buy}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a></p></footer>${WORKER_SITE_FOOTER}</section>`;
+  return `<section id="dasha-bounties" aria-label="Bounties"><style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}#dasha-bounties{box-sizing:border-box;min-height:100vh;margin:0;padding:0 0 2rem;background:var(--ink);color:var(--paper);font:16px/1.45 Arial,Helvetica,sans-serif}#dasha-bounties header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;padding:.6rem 1rem}#dasha-bounties .dasha-brand{display:inline-flex;align-items:center;gap:.5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:1.25rem;text-decoration:none;text-transform:uppercase}#dasha-bounties .dasha-brand img{width:28px;height:28px}#dasha-bounties nav{display:flex;flex-wrap:wrap;gap:.5rem 1rem}#dasha-bounties nav a{display:inline-flex;align-items:center;min-height:48px;color:var(--paper);font-weight:900;text-transform:uppercase;text-decoration:none}#dasha-bounties h1,#dasha-bounties h2{margin:1.25rem 1rem .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-transform:uppercase}#dasha-bounties h1{margin-top:.5rem;color:var(--paper);font-size:clamp(2rem,5vw,3.25rem);line-height:.9}#dasha-bounties p{margin:.5rem 1rem}#dasha-bounties a{color:var(--acid)}#dasha-bounties a.go,#dasha-bounties button{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font:inherit;font-weight:900;text-decoration:none;border:0;box-shadow:4px 4px 0 var(--hot)}#dasha-bounties .amt{color:var(--hot)}#dasha-bounties ul{list-style:none;margin:0 1rem;padding:0}#dasha-bounties li{border-top:1px solid var(--acid);padding:.75rem 0}#dasha-bounties li:first-child{border-top:0}#dasha-bounties li p{margin:.25rem 0}#dasha-bounties form{margin:0 1rem}#dasha-bounties label{display:block}#dasha-bounties input,#dasha-bounties textarea{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}#dasha-bounties textarea{min-height:6rem}#dasha-bounties footer{margin:2rem 1rem 0;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-bounties footer code{color:var(--paper);word-break:break-all}</style><header><a class="dasha-brand" href="/">$DASHA <img src="/favicon.svg" alt="" width="36" height="36"></a><nav aria-label="Main"><a href="/studio">Studio</a><a href="/simp">Simp</a><a href="/graph">Graph</a><a href="/chess">Chess</a><a href="/bounties">Bounties</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></nav></header><h1>Bounties</h1><p>Post a project. Other people run spare compute on it.</p><p><a class="go" href="#dasha-bounty-post">Post a project</a></p><p><a class="go" href="mailto:potter@trydemigod.com?subject=I%20have%20excess%20compute">I have excess compute</a></p><h2 id="dasha-bounty-post">Post</h2><form action="mailto:potter@trydemigod.com" method="get"><input type="hidden" name="subject" value="Dasha bounty"><p><label>Project name <input name="name" required></label></p><p><label>What to run <textarea name="body" required></textarea></label></p><p><label>Contact <input name="contact"></label> <a href="/privacy">Privacy</a></p><p><button type="submit">Post a project</button></p></form><p>This sends a request. It is not a live listing.</p><h2>Work</h2>${payoutNote}${work}<footer id="token"><p><code>${MINT}</code> · <a href="${buy}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a></p></footer>${WORKER_SITE_FOOTER}</section>`;
 }
 
 /** Worker-owned first HTML for /bounties. Tokens + Arial only. No Webflow first paint. */
@@ -443,7 +501,7 @@ export function injectBountiesBoard(html, feed) {
 }
 
 const PRIVACY_A = '<a href="/privacy">Privacy</a>';
-const FOOTER_LINKS = '<a href="/studio">Studio</a> · <a href="/lobby">Lobby</a> · <a href="/simp">Simp</a> · <a href="/learn">Learn</a> · <a href="/faucet">Faucet</a> · <a href="/airdrop">Airdrop</a> · <a href="/earn">Earn</a> · <a href="/graph">Graph</a> · <a href="/verse">Verse</a> · <a href="/bounties">Bounties</a> · <a href="/how-to-buy">How to buy</a> · <a href="/privacy">Privacy</a>';
+const FOOTER_LINKS = '<a href="/studio">Studio</a> · <a href="/lobby">Lobby</a> · <a href="/simp">Simp</a> · <a href="/learn">Learn</a> · <a href="/faucet">Faucet</a> · <a href="/airdrop">Airdrop</a> · <a href="/earn">Earn</a> · <a href="/graph">Graph</a> · <a href="/chess">Chess</a> · <a href="/verse">Verse</a> · <a href="/bounties">Bounties</a> · <a href="/how-to-buy">How to buy</a> · <a href="/privacy">Privacy</a>';
 function siteFooter(current = '') {
   let links = FOOTER_LINKS;
   if (current) links = links.replace(`<a href="${current}">`, `<a href="${current}" aria-current="page">`);
@@ -812,7 +870,7 @@ function send(ws, obj) {
 
 function htmlPage(title, body) {
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
-<style>body{font:16px/1.45 system-ui;background:#070608;color:#f4eddb;max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:#dfff00}code{color:#c8b6ff}</style>
+<style>body{font:16px/1.45 Arial,Helvetica,sans-serif;background:#070608;color:#f4eddb;max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:#dfff00}code{color:#c8b6ff}</style>
 <body>${body}</body></html>`;
 }
 
@@ -833,7 +891,7 @@ export function simpQuizFirstPaintHtml() {
 export function simpPageHtml() {
   const perryDisplay = escapeHtml(String(publicPerryRow().display || '@PerryALPHA').slice(0, 20));
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Simp</title>
-<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 system-ui,sans-serif}h1{margin:0 0 .5rem;color:var(--paper);font-size:clamp(3rem,12vw,6rem);line-height:.9;font-weight:950}a{color:var(--acid)}.dasha-go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font-weight:950;text-decoration:none}#dasha-quiz,.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-quiz .dasha-go{margin:0 .5rem .75rem 0}#dasha-quiz ul{margin:.25rem 0 1rem;padding-left:1.2rem}</style>
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}h1{margin:0 0 .5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(3rem,12vw,6rem);line-height:.9}a{color:var(--acid)}.dasha-go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font-weight:900;text-decoration:none}#dasha-quiz,.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-quiz .dasha-go{margin:0 .5rem .75rem 0}#dasha-quiz ul{margin:.25rem 0 1rem;padding-left:1.2rem}</style>
 <body>
 <h1>Simp</h1>
 <p>How big of a Dasha simp are you?</p>
@@ -891,7 +949,7 @@ export function simpSharePageHtml(result, id) {
 <meta property="og:title" content="${typeName}"><meta property="og:description" content="${description}">
 <meta property="og:image" content="${SIMP_SHARE_IMAGE}"><meta property="og:image:alt" content="${typeName}">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${typeName}"><meta name="twitter:description" content="${description}"><meta name="twitter:image" content="${SIMP_SHARE_IMAGE}"><meta name="twitter:image:alt" content="${typeName}">
-<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}body{font:16px/1.45 system-ui;background:var(--ink);color:var(--paper);max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:var(--acid)}h1{font-size:clamp(2rem,8vw,3.4rem);line-height:.95;margin:0 0 .75rem}.dasha-share{background:var(--acid);color:var(--ink);border:0;padding:.55rem 1rem;font:inherit;font-weight:700;cursor:pointer}</style>
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}body{font:16px/1.45 Arial,Helvetica,sans-serif;background:var(--ink);color:var(--paper);max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:var(--acid)}h1{font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(2rem,8vw,3.4rem);line-height:.95;margin:0 0 .75rem}.dasha-share{background:var(--acid);color:var(--ink);border:0;padding:.55rem 1rem;font:inherit;font-weight:700;cursor:pointer}</style>
 <body>
 <h1>${typeName}</h1>
 ${support ? `<p>${support}</p>` : ''}
@@ -904,7 +962,7 @@ ${support ? `<p>${support}</p>` : ''}
 /** Honest empty result page. No invented score. */
 export function simpResultMissingHtml() {
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Result not found</title>
-<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}body{font:16px/1.45 system-ui;background:var(--ink);color:var(--paper);max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:var(--acid)}</style>
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}body{font:16px/1.45 Arial,Helvetica,sans-serif;background:var(--ink);color:var(--paper);max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:var(--acid)}</style>
 <body>
 <h1>Result not found</h1>
 <p>No quiz result for this id.</p>
@@ -1110,7 +1168,7 @@ export function versePageHtml({ status = '', kind = '' } = {}) {
 <link rel="canonical" href="${VERSE_WWW}">
 <style>:root{color-scheme:dark;--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--line:rgba(244,237,219,.18);--muted:rgba(244,237,219,.62)}*{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--paper);font:16px/1.55 Arial,Helvetica,sans-serif}.wrap{width:min(720px,calc(100% - 32px));margin:0 auto;padding:28px 0 64px}nav{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px}nav a{color:var(--paper);text-decoration:none;font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:13px;min-height:44px;display:inline-flex;align-items:center}h1{margin:0 0 12px;font-size:clamp(2.4rem,8vw,3.6rem);line-height:.9;letter-spacing:-.05em;text-transform:uppercase;font-weight:950}.lede{color:var(--muted);margin:0 0 22px;max-width:48ch}h2{margin:0 0 8px;font-size:1.15rem;text-transform:uppercase}.site{border-top:1px solid var(--line);padding:18px 0}.host{margin:.4rem 0;color:var(--muted);font-size:.9rem}.btn,button{appearance:none;border:0;min-height:48px;padding:12px 18px;font:inherit;font-weight:900;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;background:var(--acid);color:var(--ink);text-transform:uppercase;letter-spacing:.05em;box-shadow:3px 3px 0 var(--hot)}.honest{color:var(--muted);font-size:.9rem}form{margin:28px 0 0;padding-top:22px;border-top:1px solid var(--line)}label{display:block;font-weight:800}input{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}.status{font-weight:800}.status[data-kind=bad]{color:var(--hot)}footer{margin-top:36px;color:var(--muted);font-size:.9rem;border-top:1px solid var(--line);padding-top:18px}footer a,a{color:var(--acid)}:focus-visible{outline:3px solid var(--acid);outline-offset:3px}</style>
 <body><main class="wrap">
-<nav aria-label="Dasha"><a href="/">$dasha</a><a href="/simp">Simp</a><a href="/bounties">Bounties</a></nav>
+<nav aria-label="Dasha"><a href="/">$dasha</a><a href="/simp">Simp</a><a href="/graph">Graph</a><a href="/chess">Chess</a><a href="/bounties">Bounties</a></nav>
 <h1>Dashaverse</h1>
 <p class="lede">Other Dasha sites. Ours is the token. Send the next one.</p>
 ${cards}
@@ -1125,7 +1183,7 @@ ${notice}
 <p><button type="submit">Send it</button></p>
 </form>
 </section>
-<footer><p><a href="/">Home</a> · <a href="/simp">Simp</a> · <a href="/bounties">Bounties</a> · <a href="/privacy">Privacy</a></p></footer>
+<footer><p><a href="/">Home</a> · <a href="/simp">Simp</a> · <a href="/graph">Graph</a> · <a href="/chess">Chess</a> · <a href="/bounties">Bounties</a> · <a href="/privacy">Privacy</a></p></footer>
 </main></body></html>`;
 }
 
@@ -2006,7 +2064,7 @@ export class DashaLobby {
       const description = `${result.correct}/${result.total} on the Dasha simp quiz. Beat this score.`;
       const resultUrl = `https://lobby.getdasha.com/simp/r/${id}`;
       const imageUrl = 'https://lobby.getdasha.com/simp/card/quiz.png';
-      const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${identity}</title><link rel="canonical" href="${resultUrl}"><meta property="og:type" content="website"><meta property="og:site_name" content="getdasha"><meta property="og:url" content="${resultUrl}"><meta property="og:title" content="${identity}"><meta property="og:description" content="${description}"><meta property="og:image" content="${imageUrl}"><meta property="og:image:secure_url" content="${imageUrl}"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="628"><meta property="og:image:alt" content="Dasha simp quiz"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${identity}"><meta name="twitter:description" content="${description}"><meta name="twitter:image" content="${imageUrl}"><meta name="twitter:image:alt" content="Dasha simp quiz"><style>body{margin:0;background:#070608;color:#f4eddb;font:20px/1.4 system-ui;display:grid;place-items:center;min-height:100vh}.r{max-width:36rem;padding:32px}h1{font-size:clamp(42px,9vw,76px);line-height:.95}b{color:#dfff00}a{display:inline-block;background:#dfff00;color:#070608;padding:14px 20px;font-weight:900;text-decoration:none}</style></head><body><main class="r"><b>DASHA SIMP QUIZ</b><h1>${result.correct}/${result.total}<br>${identity}</h1><p>${description}</p><a href="https://www.getdasha.com/?challenge=${id}#simp">Beat this score</a></main></body></html>`;
+      const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${identity}</title><link rel="canonical" href="${resultUrl}"><meta property="og:type" content="website"><meta property="og:site_name" content="getdasha"><meta property="og:url" content="${resultUrl}"><meta property="og:title" content="${identity}"><meta property="og:description" content="${description}"><meta property="og:image" content="${imageUrl}"><meta property="og:image:secure_url" content="${imageUrl}"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="628"><meta property="og:image:alt" content="Dasha simp quiz"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${identity}"><meta name="twitter:description" content="${description}"><meta name="twitter:image" content="${imageUrl}"><meta name="twitter:image:alt" content="Dasha simp quiz"><style>body{margin:0;background:#070608;color:#f4eddb;font:20px/1.4 Arial,Helvetica,sans-serif;display:grid;place-items:center;min-height:100vh}.r{max-width:36rem;padding:32px}h1{font-size:clamp(42px,9vw,76px);line-height:.95}b{color:#dfff00}a{display:inline-block;background:#dfff00;color:#070608;padding:14px 20px;font-weight:900;text-decoration:none}</style></head><body><main class="r"><b>DASHA SIMP QUIZ</b><h1>${result.correct}/${result.total}<br>${identity}</h1><p>${description}</p><a href="https://www.getdasha.com/?challenge=${id}#simp">Beat this score</a></main></body></html>`;
       return new Response(headOnly ? null : html, { headers: htmlHeaders({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' }) });
     }
 
@@ -3695,6 +3753,7 @@ async function productEdge(request, url, env) {
   html = ensureHtmlLang(html);
   html = ensurePrivacyLink(html);
   if (isExactPath(url.pathname, '/lobby')) html = stripDeadLobbyForum(html);
+  html = rewriteLeftoverLobbyHrefs(html);
   html = rewriteStudioScriptIntegrity(html);
   html = rewriteLobbyScriptIntegrity(html);
   html = rewriteStaleCdnFavicon(html);
