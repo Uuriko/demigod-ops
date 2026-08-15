@@ -29,15 +29,20 @@ assert(client.includes('Link X to join'), 'client missing link state');
 assert(client.includes('Join board'), 'client missing join state');
 assert(client.includes('Leave board'), 'client missing leave state');
 assert(client.includes('/oauth/x/start'), 'client must reuse OAuth start');
-// Optional first-visit Connect X on homepage (not mandatory).
-assert(client.includes('openHomeGate();'), 'first-visit optional X gate missing');
+// First-visit Connect X on homepage. Looking is free. Quiz needs X.
+assert(client.includes('openHomeGate();'), 'first-visit X gate missing');
 assert(client.includes('dasha_x_gate_v1') && client.includes('Not now'), 'gate dismiss + storage missing');
-assert(client.includes('Optional') && client.includes('Connect X?'), 'gate must stay optional, not required');
+assert(client.includes('First visit') && client.includes('Connect X?'), 'home gate kicker stays first-visit');
+assert(client.includes('Link X to play the quiz. Looking is free.'), 'home gate must say quiz needs X');
+assert(
+  !/Optional — everything still works if you skip|Not required\. Simp quiz|neither is required|Optional · first visit/i.test(client),
+  'home gate must not call X optional for the quiz',
+);
 assert(client.includes('simp-gate-open') && client.includes('buy-sticky'), 'gate must hide mobile buy sticky while open');
 assert(client.includes('Take quiz ↓') || client.includes('Take quiz'), 'gate must offer path to quiz');
 assert(client.includes('How big of a Dasha simp are you?') && client.includes('Take quiz'), 'simp quiz UI must remain in client');
-// Optional gate must not trap scroll (quiz lives below the fold on Home).
-assert(!/simp-gate-open body\{overflow:hidden\}/.test(client.replace(/\s+/g, '')), 'optional gate must not lock body scroll');
+// Home gate must not trap scroll (quiz lives below the fold on Home).
+assert(!/simp-gate-open body\{overflow:hidden\}/.test(client.replace(/\s+/g, '')), 'home gate must not lock body scroll');
 assert(client.indexOf("root.appendChild(quiz)") < client.indexOf("root.appendChild(list)"), 'quiz must render before leaderboard');
 assert(!/oauth\/x\/callback[\s\S]{0,1500}joinBoard/.test(worker), 'OAuth callback must not auto-enroll (client joins)');
 assert(client.includes('/simp/board') && client.includes('/simp/join') && client.includes('/simp/leave'), 'client missing API paths');
