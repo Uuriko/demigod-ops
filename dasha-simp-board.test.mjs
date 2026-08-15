@@ -139,6 +139,10 @@ assert(client.includes('startQuiz()') && !client.includes("startQuiz('quick')") 
 assert(client.includes("action: 'start'") && !client.includes("action: 'start', mode"), 'start payload must not send a mode');
 assert(!client.includes('Quick quiz ·') && !client.includes('Deep quiz ·'), 'start status must not name Quick/Deep');
 assert(client.includes('Take the quiz') && !client.includes('quickBtn'), 'board must expose one start button');
+assert(client.includes('Connect X to play') && client.includes('You cannot play until you connect X'), 'unlinked visitors must be gated before start');
+assert(client.includes('function showSharePush') && client.includes('dasha-share-push'), 'finish must open a share popup');
+assert(client.includes('Copy link') && client.includes("Share on X"), 'share popup must show copy and tweet');
+assert(worker.includes("error: 'link X to take the quiz'"), 'worker must refuse anonymous quiz start');
 assert(client.includes('sendQuizCard') && client.includes('Share result'), 'result share must offer image-first Share result');
 assert(client.includes("navigator.canShare({ files: [file] })"), 'native image share path must stay wired');
 assert(client.includes('var challengeUrl = (result && result.resultUrl) || QUIZ_INVITE_URL'), 'fallback share must prefer the permanent result-card URL');
