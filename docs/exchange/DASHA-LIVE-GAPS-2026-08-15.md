@@ -7,7 +7,43 @@ last_verified: 2026-08-15T21:47Z
 
 # Live gaps on getdasha.com, and exactly where the code already is
 
-## 0. HIGHEST PRIORITY — the social card advertises a retired feature
+## 0a. Verified surface inventory — this repo predates a product pivot
+
+Established from the **live sitemap** (`x-dasha-edge: sitemap`), then each surface rendered in
+Chromium. Status codes alone are misleading here; four surfaces return 200 with a title and are
+empty.
+
+| surface | live state |
+|---|---|
+| `/` | 200, working (defects in §1, §3b) |
+| `/simp` | **200, working** — quiz + leaderboard, real data |
+| `/chess` | **200, working** — full game, zero console errors |
+| `/faucet` | 200, renders `treasury_empty`, **no actions, no links** |
+| `/airdrop` | 200, one word + a link to `/faucet`, no actions |
+| `/earn` | 200, one word + a link to `/faucet`, no actions |
+| `/claim` | 200, one word + a link to `/faucet`, no actions |
+| `/studio` `/lobby` `/dasha` `/bounties` `/how-to-buy` | **308 → `/`** |
+
+The sitemap lists `/`, `/simp`, `/chess`, `/faucet`, `/airdrop`, `/earn`, `/claim` — and **not**
+`/studio`, `/dasha` or `/bounties`. A sitemap that has been updated is the difference between a
+retirement and an outage: this is a deliberate pivot away from the Studio/Lobby/Desk product toward
+a faucet/airdrop/earn/claim one. That also explains `DashaFaucet`, the Durable Object class in the
+deployed Worker that exists nowhere in this tree — **this tree predates the pivot**, which is the
+single fact that explains most of the divergence documented below.
+
+**Do not link `/faucet`, `/airdrop`, `/earn` or `/claim` from the homepage yet.** They are live but
+the treasury is empty, so every one of them is a dead end. Sending Twitter traffic there is worse
+than the current single `/chess` link. Two consequences worth deciding on deliberately:
+
+- The faucet needs funding before any of those four is worth advertising. That is a money decision,
+  not an engineering one.
+- The sitemap currently advertises four near-duplicate thin pages to crawlers. Low stakes, but it is
+  the kind of thing that earns a thin-content impression on a domain that is about to be indexed.
+
+Substantively the site has **two** working community surfaces, `/simp` and `/chess` — the number is
+unchanged by the pivot, because the four new routes are scaffolding rather than product.
+
+## 0b. HIGHEST PRIORITY — the social card advertises a retired feature
 
 Fix this before the first tweet, not after. It is the only item here that every single visitor sees
 *before* they reach the site, and it is currently a broken promise.
