@@ -705,4 +705,4 @@ export const LOBBY_PAGE_HTML = `<!doctype html>
 </body>
 </html>
 `;
-export const ASSET_HASH = "7a0ff5998266da59";
+export const ASSET_HASH = "9f50330ee1df0f98";

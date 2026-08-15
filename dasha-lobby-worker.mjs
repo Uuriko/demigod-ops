@@ -61,7 +61,7 @@ import {
   submitQuiz,
   applyLearnAward,
 } from './dasha-simp-score.mjs';
-import { publicBank, isLearnTrack, isLearnModuleId, MODULE_BY_ID, MINT } from './dasha-learn-bank.mjs';
+import { publicBank, isLearnTrack, isLearnModuleId, MODULE_BY_ID } from './dasha-learn-bank.mjs';
 import {
   applyHolderProof,
   hasPositiveTokenBalance,
