@@ -696,8 +696,8 @@ for (const path of ['/studio', '/studio/']) {
       }
       for (const [path, edge] of [['/airdrop', 'airdrop'], ['/earn', 'earn'], ['/claim', 'claim']]) {
         const room = await workerModule.default.fetch(new Request(`https://${host}${path}`), {});
-        assert.equal(room.status, 200, `${host}${path} magnet must stay worker-owned when origin 404s`);
-        assert.equal(room.headers.get('x-dasha-edge'), edge, `${host}${path} must not become html-404`);
+        assert.equal(room.status, 200, `${host}${path} must stay 200`);
+        assert.equal(room.headers.get('x-dasha-edge'), edge, `${host}${path} must keep x-dasha-edge ${edge}`);
         assert.doesNotMatch(await room.text(), /not an airdrop|not earn/i);
       }
       for (const [path, title, edge] of [
