@@ -1560,7 +1560,7 @@ try {
     assert.doesNotMatch(lowerNav, /href="\/graph"/, `${label} lower nav must not door to shelved /graph`);
     assert.match(lowerNav, /href="\/verse">Verse</, `${label} lower nav must include Verse`);
     assert.match(lowerNav, /href="\/bounties">Bounties</, `${label} lower nav must include Bounties`);
-    assert.doesNotMatch(lowerNav, /Buy|#token|\/forum/i, `${label} lower nav must not grow Buy or Forum`);
+    assert.doesNotMatch(lowerNav, /#token|\/forum|buy-dasha/i, `${label} lower nav must not grow a Buy pill or Forum`);
     assert.match(html, /href="\/lobby"/, `${label} Lobby stays in the footer`);
     assert.match(html, /href="\/dasha"/, `${label} Desk stays in the footer`);
     assert.match(html, /href="\/chess">Chess</, `${label} Chess stays in the footer`);

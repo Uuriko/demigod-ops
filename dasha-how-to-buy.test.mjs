@@ -63,7 +63,7 @@ for (const bad of ['official Dasha', 'safe token', 'verified mint', 'endorsed by
   assert.ok(!html.toLowerCase().includes(bad.toLowerCase()), `howto must not claim: ${bad}`);
 }
 assert.match(landing, /href=["']\/how-to-buy["']/, 'home must crawlably link live how-to-buy');
-assert.match(landing, /href=["']\/graph["']/, 'home must crawlably link Graph');
+assert.doesNotMatch(landing, /href=["']\/graph["']/, 'home must not door to shelved /graph');
 if (desk) assert.ok(!/href=["']\/how-to-buy["']/.test(desk), 'desk must not primary-link how-to-buy');
 
 const m = html.match(/<script>([\s\S]*?)<\/script>/);
