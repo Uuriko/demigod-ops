@@ -23,12 +23,34 @@ assert.match(source, /\{text:'Prove',action:'holder'\}/,
   'nextPlay names Prove for an enrolled non-holder');
 assert.doesNotMatch(source, /board\.textContent=''/,
   'paint must keep the 64 squares and update them in place');
-assert.match(source, /function startPoll\(\)[\s\S]*poll=setTimeout\(tick,800\)/,
-  'visible opponent and queue polls are 800ms');
+assert.match(source, /function startPoll\(\)[\s\S]*poll=setTimeout\(tick,400\)/,
+  'visible opponent and queue polls are sub-second');
 assert.match(source, /function retryReconcile\(\)[\s\S]*\},800\)/,
   'visible reconcile retry is 800ms');
 assert.doesNotMatch(source, /draw\(\);loadLeaders\(\)/,
   'a move must not refetch the ratings table');
+assert.doesNotMatch(source, /loadLeaders\(\);/,
+  'ratings stay off the play path');
+assert.doesNotMatch(source, /Moving…/,
+  'own moves must not wait on Moving…');
+assert.match(source, /function paintOptimistic\(move\)/,
+  'own moves paint the destination before the POST returns');
+assert.match(source, /if\(res\.data&&res\.data\.game\)/,
+  '409 position-changed must apply the included game');
+assert.match(source, /function resumeVisible\(\)/,
+  'tab-back must not resumeRoute during a live game');
+assert.match(source, /if\(next===clockKey&&clockTimer\)return/,
+  'clock interval must survive an unchanged paint');
+assert.match(source, /function playNow\(button\)/,
+  'one Play button enrolls then queues');
+assert.match(source, /\/simp\/join[\s\S]*joinQueue\('join'\)/,
+  'unenrolled Play posts /simp/join then queue');
+assert.match(source, /function clearBlockingChallenge\(/,
+  'leftover invite 409 clears the open challenge');
+assert.doesNotMatch(source, /confirm\(/,
+  'resign and draw are one tap');
+assert.doesNotMatch(source, /180px/,
+  'chess footer must not reserve the retired dancer dock');
 assert.match(source, /function samePaint\(prev,next\)/,
   'poll paint must be able to recognize an unchanged game');
 assert.match(source, /if\(same\)return true/,
@@ -306,13 +328,9 @@ try {
     await page.waitForFunction(() => document.querySelector('#white-name')?.textContent?.startsWith('@') && document.querySelectorAll('.sq').length === 64);
     let resignRequests = 0;
     page.on('request', request => { if (request.url().includes('/chess/game/') && request.method() === 'POST' && request.postDataJSON()?.action === 'resign') resignRequests++; });
-    page.once('dialog', dialog => dialog.dismiss());
-    await page.locator('#resign').click();
-    assert.equal(resignRequests, 0, 'cancelled resignation must not send a request');
-    page.once('dialog', dialog => dialog.accept());
     await page.locator('#resign').click();
     await page.waitForFunction(() => !document.querySelector('#resign').disabled);
-    assert.equal(resignRequests, 1, 'confirmed resignation must send one request');
+    assert.equal(resignRequests, 1, 'resign is one tap');
     await page.locator('[data-square="e2"]').focus();
     await page.keyboard.press('ArrowUp');
     assert.equal(await page.evaluate(() => document.activeElement?.dataset.square), 'e3');
@@ -328,7 +346,6 @@ try {
     assert.equal(await page.locator('.sq.selected').count(), 0, 'switching to an immobile friendly piece must clear selection');
     await page.locator('[data-square="e2"]').click();
     gameReply = finished;
-    page.once('dialog', dialog => dialog.accept());
     await page.locator('#resign').click();
     await page.waitForFunction(() => !document.querySelector('#resign').disabled);
     assert.equal(await page.locator('.sq.selected').count(), 0, 'server completion must clear stale piece selection');
@@ -378,13 +395,9 @@ try {
     await page.waitForFunction(() => document.querySelector('#draw') && !document.querySelector('#draw').disabled);
     let offerDrawPosts = 0;
     page.on('request', request => { if (request.url().includes('/chess/game/') && request.method() === 'POST' && request.postDataJSON()?.action === 'offer_draw') offerDrawPosts++; });
-    page.once('dialog', dialog => { assert.equal(dialog.message(), 'Offer a draw?'); dialog.dismiss(); });
-    await page.locator('#draw').click();
-    assert.equal(offerDrawPosts, 0, 'cancelled draw offer must not send a request');
-    page.once('dialog', dialog => dialog.accept());
     await page.locator('#draw').click();
     await page.waitForFunction(() => !document.querySelector('#draw').disabled || document.querySelector('#draw').textContent !== 'Offer draw');
-    assert.equal(offerDrawPosts, 1, 'confirmed draw offer must send one request');
+    assert.equal(offerDrawPosts, 1, 'draw offer is one tap');
     state = { ...state, game: { ...game, check: true } };
     await page.reload();
     await page.waitForFunction(() => document.querySelector('.sq.check'));
@@ -1084,7 +1097,6 @@ try {
   const lostResignPage = await lostResignContext.newPage();
   await lostResignPage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
   await lostResignPage.waitForFunction(() => document.querySelector('#white-name')?.textContent?.startsWith('@') && document.querySelectorAll('.sq').length === 64);
-  lostResignPage.once('dialog', dialog => dialog.accept());
   await lostResignPage.getByRole('button', { name: 'Resign' }).click();
   await lostResignPage.waitForFunction(() => document.querySelector('#turn')?.textContent.includes('checkmate'));
   assert.equal(resignPosts, 1, 'a committed resignation with a lost response must not be submitted twice');
@@ -1106,7 +1118,6 @@ try {
   await outageActionPage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
   await outageActionPage.waitForFunction(() => document.querySelector('#white-name')?.textContent?.startsWith('@') && document.querySelectorAll('.sq').length === 64);
   const meReadsBeforeOutage = outageMeReads;
-  outageActionPage.once('dialog', dialog => dialog.accept());
   await outageActionPage.getByRole('button', { name: 'Resign' }).click();
   await outageActionPage.waitForFunction(() => document.querySelector('#game-status')?.textContent === 'Network unavailable');
   assert.equal(await outageActionPage.locator('#game').isVisible(), true, 'a failed reconciliation read must preserve the last known board');

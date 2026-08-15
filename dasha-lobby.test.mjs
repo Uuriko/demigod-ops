@@ -60,7 +60,8 @@ assert.doesNotMatch(chessPage, /\/airdrop|\/earn|\/claim|\/graph/, 'chess chrome
   assert.doesNotMatch(ham + rail + foot, /\/learn|>Learn</, 'chrome list must hide Learn');
   assert.doesNotMatch(ham + rail + foot, /\/verse|>Verse</, 'chrome list must hide Verse');
   assert.match(ham, /href="\/chess">Chess</);
-  assert.match(foot, /padding:1\.25rem 1\.25rem calc\(180px/);
+  assert.match(foot, /padding:1\.25rem 1\.25rem calc\(1\.25rem/);
+  assert.doesNotMatch(foot, /180px/, 'footer must not reserve the retired dancer dock');
   assert.match(foot, /min-height:48px/);
   assert.match(AWARD_BTN_CSS, /a\.pill\.primary,a\.buy-dasha,.w-button[\s\S]*?background:#dfff00!important;color:#070608!important/, 'primary Buy is acid fill + ink type');
   assert.match(AWARD_BTN_CSS, /a\.btn\.ghost[\s\S]*?color:#f4eddb!important;border:1px solid #f4eddb!important/, 'ghost / Connect X is paper on ink');
