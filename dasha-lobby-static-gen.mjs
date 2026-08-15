@@ -157,6 +157,7 @@ Allow: /studio
 Allow: /dasha
 Allow: /chess
 Allow: /verse
+Allow: /graph
 Disallow: /desk-rc
 Disallow: /retired-dasha-draft
 Disallow: /checkout
@@ -197,6 +198,9 @@ export const SITEMAP_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </url>
   <url>
     <loc>https://www.getdasha.com/chess</loc>
+  </url>
+  <url>
+    <loc>https://www.getdasha.com/graph</loc>
   </url>
 </urlset>
 `;
@@ -300,7 +304,7 @@ footer a{color:var(--muted)}
   </article>
 
   <footer>
-    <p><a href="/studio">Studio</a> · <a href="/lobby">Lobby</a> · <a href="/simp">Simp</a> · <a href="/verse">Verse</a> · <a href="/bounties">Bounties</a> · <a href="/how-to-buy">How to buy</a> · <a href="/privacy">Privacy</a></p>
+    <p><a href="/studio">Studio</a> · <a href="/lobby">Lobby</a> · <a href="/simp">Simp</a> · <a href="/graph">Graph</a> · <a href="/verse">Verse</a> · <a href="/bounties">Bounties</a> · <a href="/how-to-buy">How to buy</a> · <a href="/privacy">Privacy</a></p>
   </footer>
 </main>
 <div class="buy-sticky" id="buy-sticky" hidden><a class="btn" id="buy-sticky-a" target="_blank" rel="noopener noreferrer" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Buy $dasha</a></div>
@@ -522,6 +526,95 @@ if(/getdasha\\.com$/i.test(location.hostname)){var s=document.createElement('scr
 </body>
 </html>
 `;
+export const GRAPH_PAGE_HTML = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>$DASHA GRAPH — getdasha.com</title>
+<meta name="description" content="Public chain. Addresses, not people. Not endorsement.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://www.getdasha.com/graph">
+<meta name="theme-color" content="#070608">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.getdasha.com/graph">
+<meta property="og:title" content="$DASHA GRAPH">
+<meta property="og:description" content="Public chain. Addresses, not people. Not endorsement.">
+<meta property="og:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
+<meta property="og:image:alt" content="$DASHA GRAPH">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="$DASHA GRAPH">
+<meta name="twitter:description" content="Public chain. Addresses, not people. Not endorsement.">
+<meta name="twitter:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
+<style>
+:root{color-scheme:dark;--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--violet:#7c4dff;--line:rgba(244,237,219,.22);--muted:rgba(244,237,219,.62)}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:#070608;color:#f4eddb;font:16px/1.45 Arial,Helvetica,sans-serif;overflow:hidden}
+a{color:inherit}button,input{font:inherit}[hidden]{display:none!important}
+.chrome{position:fixed;inset:0 auto auto 0;z-index:3;width:100%;padding:.55rem 1rem 0;pointer-events:none}
+.chrome>*{pointer-events:auto}
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.6rem 1rem}
+.brand{font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:1.1rem;letter-spacing:-.04em;text-decoration:none;text-transform:uppercase}
+.brand span{color:#dfff00}
+nav{display:flex;flex-wrap:wrap;gap:.35rem .9rem}
+nav a{display:inline-flex;align-items:center;min-height:44px;font:900 11px/1 Arial,Helvetica,sans-serif;letter-spacing:.08em;text-transform:uppercase;text-decoration:none}
+nav a[aria-current=page]{color:#dfff00}
+.hero{margin:.35rem 0 0;pointer-events:none}
+.hero h1{margin:0;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(3.4rem,14vw,11rem);line-height:.78;letter-spacing:-.07em;text-transform:uppercase}
+.hero h1 em{font-style:normal;color:#dfff00}
+.assoc{margin:.35rem 0 0;max-width:36rem;color:var(--muted);font-size:.92rem}
+.mintrow{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin:.55rem 0 0;max-width:100%}
+.mintrow code{flex:1 1 16rem;min-width:0;color:#f4eddb;font:700 13px/1.4 ui-monospace,Menlo,Consolas,monospace;word-break:break-all;user-select:all}
+.mintrow button,.panel button,.retry{min-height:44px;padding:0 12px;border:1px solid var(--line);background:transparent;color:#f4eddb;font:900 11px/1 Arial,Helvetica,sans-serif;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.mintrow button:focus-visible,nav a:focus-visible,.panel button:focus-visible,.retry:focus-visible{outline:3px solid #dfff00;outline-offset:3px}
+#graph{position:fixed;inset:0;z-index:1;background:#070608}
+#graph canvas{display:block;width:100%;height:100%}
+.status{position:fixed;left:1rem;bottom:1rem;z-index:3;margin:0;color:var(--muted);font:800 12px/1.4 Arial,Helvetica,sans-serif;letter-spacing:.04em;text-transform:uppercase}
+.status[data-kind=bad]{color:#ff3b81}
+.keys{position:fixed;right:1rem;bottom:1rem;z-index:3;margin:0;color:var(--muted);font:800 11px/1.4 Arial,Helvetica,sans-serif;letter-spacing:.06em;text-transform:uppercase}
+.panel{position:fixed;top:0;right:0;z-index:4;width:min(28rem,100%);height:100%;padding:1rem 1.1rem 2rem;overflow:auto;background:#070608;border-left:1px solid var(--line);box-shadow:-16px 0 0 rgba(223,255,0,.08)}
+.panel h2{margin:2.6rem 0 .4rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(1.6rem,5vw,2.4rem);line-height:.9;text-transform:uppercase}
+.panel p,.panel a{margin:.35rem 0;word-break:break-all}
+.panel a{color:#dfff00}
+.panel .row{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.8rem}
+#list{position:fixed;inset:auto 0 0;z-index:2;max-height:46vh;overflow:auto;margin:0;padding:1rem;background:rgba(7,6,8,.92);border-top:1px solid var(--line)}
+#list li{margin:0 0 .7rem;word-break:break-all}
+#list strong{color:#dfff00}
+@media(prefers-reduced-motion:reduce){#graph{display:none}#list{display:block}html,body{overflow:auto}}
+@media(prefers-reduced-motion:no-preference){#list{display:none}}
+</style>
+</head>
+<body>
+<header class="chrome">
+  <div class="top">
+    <a class="brand" href="https://www.getdasha.com/" aria-label="Dasha home">$<span>DASHA</span></a>
+    <nav aria-label="Dasha">
+      <a href="https://www.getdasha.com/">Home</a>
+      <a href="/studio">Studio</a>
+      <a href="/simp">Simp</a>
+      <a href="/graph" aria-current="page">Graph</a>
+      <a href="/verse">Verse</a>
+      <a href="/how-to-buy">How to buy</a>
+      <a href="/privacy">Privacy</a>
+    </nav>
+  </div>
+  <div class="hero">
+    <h1>$DASHA <em>GRAPH</em></h1>
+    <p class="assoc">Public chain. Addresses, not people. Not endorsement.</p>
+    <p class="mintrow"><code id="mint">53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump</code><button type="button" id="copy-mint">Copy</button></p>
+  </div>
+</header>
+<div id="graph" aria-hidden="true"></div>
+<p class="status" id="status" role="status" aria-live="polite"></p>
+<p class="keys">R reset · L labels · Esc close</p>
+<aside class="panel" id="panel" hidden></aside>
+<ol id="list" hidden></ol>
+<script src="https://cdn.jsdelivr.net/npm/3d-force-graph@1.80.0/dist/3d-force-graph.min.js" crossorigin="anonymous"></script>
+<script src="https://lobby.getdasha.com/client/graph.js" integrity="sha384-VD3uORv7yNB16E9Y6wUeGURU2o/gI0dQPOhHmah4+DaPy/AkmUWqyw2EUIAIRoJx" crossorigin="anonymous" defer></script>
+</body>
+</html>
+`;
+export const GRAPH_CLIENT_JS = `(function(global){'use strict';var MINT='53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';var INK='#070608';var PAPER='#f4eddb';var ACID='#dfff00';var HOT='#ff3b81';var VIOLET='#7c4dff';var graph=null;var data={nodes:[],links:[]};var labelsOn=true;var reduced=false;var usedViolet=false;function $(id){return document.getElementById(id);}function prefersReduced(){return global.matchMedia&&global.matchMedia('(prefers-reduced-motion: reduce)').matches;}function apiRoot(){return'';}function solscanAccount(id){return id==='pump.fun'?'https://pump.fun':'https://solscan.io/account/'+id;}function solscanTx(sig){return'https://solscan.io/tx/'+sig;}function copy(text){if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(text);return Promise.reject();}function nodeColor(node){if(node.kind==='mint'&&node.id===MINT)return ACID;if(node.kind==='launchpad')return VIOLET;return PAPER;}function linkColor(link){if(link.kind==='launchpad'&&!usedViolet)return VIOLET;if(link.kind==='transfer')return HOT;return PAPER;}function nodeVal(node){if(node.id===MINT)return 14;if(Number.isFinite(node.uiAmount)&&node.uiAmount>0)return Math.max(2,Math.min(12,Math.log10(node.uiAmount+1)*3));return 3;}function nodeLabel(node){if(!labelsOn)return'';if(node.symbol)return node.symbol;if(node.label)return node.label;if(node.id===MINT)return'$DASHA';return node.id.slice(0,4)+'…'+node.id.slice(-4);}function setStatus(text,kind){var el=$('status');if(!el)return;el.textContent=text||'';el.dataset.kind=kind||'';}function closePanel(){var panel=$('panel');if(panel){panel.hidden=true;panel.innerHTML='';}}function showPanel(html){var panel=$('panel');if(!panel)return;panel.innerHTML=html;panel.hidden=false;}function esc(value){return String(value==null?'':value).replace(/[&<>"']/g,function(ch){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch];});}function paintList(){var list=$('list');if(!list)return;list.hidden=false;list.innerHTML='';data.nodes.forEach(function(node){var li=document.createElement('li');var bits=[node.id];if(node.symbol)bits.unshift(node.symbol);if(node.uiAmountString)bits.push(node.uiAmountString);li.innerHTML='<strong>'+esc(node.kind||'node')+'</strong> '+esc(bits.join(' · '));list.appendChild(li);});data.links.forEach(function(link){var li=document.createElement('li');var from=typeof link.source==='object'?link.source.id:link.source;var to=typeof link.target==='object'?link.target.id:link.target;li.textContent=(link.kind||'link')+' '+from+' → '+to+(link.uiAmountString?' · '+link.uiAmountString:'');list.appendChild(li);});}function nodePanel(node){var amount=node.uiAmountString?'<p>'+esc(node.uiAmountString)+'</p>':'';var meta=[node.kind,node.tag,node.symbol,node.name,node.label].filter(Boolean).join(' · ');var expand=node.kind==='wallet'||node.kind==='pool'||node.kind==='program'?'<button type="button" data-expand="'+esc(node.id)+'">Expand</button>':'';showPanel('<h2>'+esc(node.symbol||node.label||(node.id===MINT?'$DASHA':'Address'))+'</h2>'+'<p>'+esc(meta)+'</p>'+'<p><code>'+esc(node.id)+'</code></p>'+amount+'<div class="row"><button type="button" data-copy="'+esc(node.id)+'">Copy</button>'+(node.id==='pump.fun'?'':'<a href="'+esc(solscanAccount(node.id))+'" target="_blank" rel="noopener noreferrer">Solscan ↗</a>')+expand+'<button type="button" data-close="1">Close</button></div>');}function linkPanel(link){var from=typeof link.source==='object'?link.source.id:link.source;var to=typeof link.target==='object'?link.target.id:link.target;var amount=link.uiAmountString||(Number.isFinite(link.amount)?String(link.amount):'');var sig=link.signature?'<p><code>'+esc(link.signature)+'</code></p>':'';var tx=link.signature?'<a href="'+esc(solscanTx(link.signature))+'" target="_blank" rel="noopener noreferrer">Explorer ↗</a>':'';showPanel('<h2>Edge</h2><p>'+esc(link.kind||'')+'</p>'+'<p>From '+esc(from)+'</p><p>To '+esc(to)+'</p>'+(amount?'<p>'+esc(amount)+'</p>':'')+sig+'<div class="row">'+(link.signature?'<button type="button" data-copy="'+esc(link.signature)+'">Copy</button>':'')+tx+'<button type="button" data-close="1">Close</button></div>');}function mergeExpand(next){if(!next||next.empty){setStatus(next&&next.reason==='no_other_holdings'?'No other holdings':(next&&next.reason==='rpc_unavailable'?'holders unavailable — retry':'Nothing to expand'),next&&next.empty?'bad':'');return;}var have=new Set(data.nodes.map(function(n){return n.id;}));(next.nodes||[]).forEach(function(node){if(!have.has(node.id)){data.nodes.push(node);have.add(node.id);}});(next.links||[]).forEach(function(link){data.links.push(link);});if(graph)graph.graphData(data);if(reduced)paintList();}function expand(id){setStatus('Expanding…');fetch(apiRoot()+'/api/graph/expand?id='+encodeURIComponent(id),{credentials:'omit'}).then(function(res){return res.json();}).then(mergeExpand).catch(function(){setStatus('holders unavailable — retry','bad');});}function bindPanel(){var panel=$('panel');if(!panel||panel.dataset.bound)return;panel.dataset.bound='1';panel.addEventListener('click',function(ev){var t=ev.target;if(t.dataset.close)closePanel();if(t.dataset.copy)copy(t.dataset.copy);if(t.dataset.expand)expand(t.dataset.expand);});}function draw3d(){if(!global.ForceGraph3D){setStatus('3D library unavailable — list only','bad');reduced=true;paintList();return;}usedViolet=data.links.some(function(link){return link.kind==='launchpad';});var el=$('graph');graph=global.ForceGraph3D()(el).backgroundColor(INK).showNavInfo(false).enableNodeDrag(true).enableNavigationControls(true).nodeRelSize(4).nodeVal(nodeVal).nodeColor(nodeColor).nodeLabel(nodeLabel).linkColor(linkColor).linkWidth(function(link){return link.kind==='transfer'?1.6:0.8;}).linkOpacity(0.72).graphData(data).onNodeClick(nodePanel).onLinkClick(linkPanel).onNodeDragEnd(function(node){node.fx=node.x;node.fy=node.y;node.fz=node.z;});graph.d3Force('charge').strength(-48);var clicks={id:'',at:0};graph.onNodeClick(function(node){var now=Date.now();if(clicks.id===node.id&&now-clicks.at<400)expand(node.id);clicks={id:node.id,at:now};nodePanel(node);});}function applySnapshot(body){data={nodes:body.nodes||[],links:body.links||[]};if(body.rings&&body.rings[1]&&body.rings[1].empty){var reason=body.rings[1].reason;if(reason==='rpc_unavailable')setStatus('holders unavailable — retry','bad');else setStatus('Mint only','');}else setStatus('','');if(reduced)paintList();else draw3d();}function load(reload){setStatus('Loading…');fetch(apiRoot()+'/api/graph',{credentials:'omit',cache:reload?'reload':'default'}).then(function(res){return res.json();}).then(applySnapshot).catch(function(){applySnapshot({nodes:[{id:MINT,kind:'mint',ring:0}],links:[],rings:{1:{empty:true,reason:'rpc_unavailable'}}});});}function resetCamera(){if(!graph)return;data.nodes.forEach(function(node){node.fx=node.fy=node.fz=undefined;});graph.cameraPosition({x:0,y:0,z:220},{x:0,y:0,z:0},0);graph.graphData(data);}function onKey(ev){if(ev.key==='Escape')closePanel();if(ev.key==='r'||ev.key==='R')resetCamera();if(ev.key==='l'||ev.key==='L'){labelsOn=!labelsOn;if(graph)graph.nodeLabel(nodeLabel);}}function boot(){reduced=prefersReduced();bindPanel();var copyBtn=$('copy-mint');if(copyBtn)copyBtn.addEventListener('click',function(){copy(MINT);});var status=$('status');if(status){status.style.cursor='pointer';status.addEventListener('click',function(){if(status.dataset.kind==='bad')load(true);});}document.addEventListener('keydown',onKey);load(false);}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();global.DashaGraph={load:load,expand:expand};})(typeof window!=='undefined'?window:globalThis);`;
+export const GRAPH_CLIENT_SRI = "sha384-VD3uORv7yNB16E9Y6wUeGURU2o/gI0dQPOhHmah4+DaPy/AkmUWqyw2EUIAIRoJx";
 export const LOBBY_PAGE_HTML = `<!doctype html>
 <html lang="en">
 <head>
@@ -545,4 +638,4 @@ export const LOBBY_PAGE_HTML = `<!doctype html>
 </body>
 </html>
 `;
-export const ASSET_HASH = "4522708f4830e316";
+export const ASSET_HASH = "4e91757caef8b496";

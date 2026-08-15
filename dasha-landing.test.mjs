@@ -153,7 +153,8 @@ assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => matc
   'https://www.getdasha.com/simp',
   'https://www.getdasha.com/verse',
   'https://www.getdasha.com/chess',
-].sort(), 'bounded sitemap must list home, studio, lobby, desk, how-to-buy, privacy, bounties, simp, verse, and www chess exactly once');
+  'https://www.getdasha.com/graph',
+].sort(), 'bounded sitemap must list home, studio, lobby, desk, how-to-buy, privacy, bounties, simp, verse, www chess, and graph exactly once');
 assert.doesNotMatch(sitemap, /forum/i, 'sitemap must not add Forum');
 assert.match(sitemap, /\n  <url>\n    <loc>https:\/\/www\.getdasha\.com\/chess<\/loc>\n  <\/url>\n/, 'www chess loc must keep the same indent as other sitemap urls');
 assert(!/lastmod|thesis|receipt|forecast/i.test(sitemap), 'sitemap contains stale dates or retired routes');

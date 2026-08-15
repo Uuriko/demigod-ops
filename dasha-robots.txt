@@ -15,6 +15,7 @@ Allow: /studio
 Allow: /dasha
 Allow: /chess
 Allow: /verse
+Allow: /graph
 Disallow: /desk-rc
 Disallow: /retired-dasha-draft
 Disallow: /checkout
