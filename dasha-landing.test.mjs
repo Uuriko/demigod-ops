@@ -151,10 +151,11 @@ assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => matc
   'https://www.getdasha.com/privacy',
   'https://www.getdasha.com/bounties',
   'https://www.getdasha.com/simp',
-  'https://lobby.getdasha.com/chess',
-].sort(), 'bounded sitemap must list home, studio, lobby, desk, how-to-buy, privacy, bounties, simp, and lobby chess exactly once');
+  'https://www.getdasha.com/verse',
+  'https://www.getdasha.com/chess',
+].sort(), 'bounded sitemap must list home, studio, lobby, desk, how-to-buy, privacy, bounties, simp, verse, and www chess exactly once');
 assert.doesNotMatch(sitemap, /forum/i, 'sitemap must not add Forum');
-assert.match(sitemap, /\n  <url>\n    <loc>https:\/\/lobby\.getdasha\.com\/chess<\/loc>\n  <\/url>\n/, 'lobby chess loc must keep the same indent as other sitemap urls');
+assert.match(sitemap, /\n  <url>\n    <loc>https:\/\/www\.getdasha\.com\/chess<\/loc>\n  <\/url>\n/, 'www chess loc must keep the same indent as other sitemap urls');
 assert(!/lastmod|thesis|receipt|forecast/i.test(sitemap), 'sitemap contains stale dates or retired routes');
 assert.equal([...html.matchAll(/class="seed"/g)].length, 5, 'homepage must expose one curated seed for every Studio look');
 for (const tag of html.matchAll(/<a\b[^>]*target="_blank"[^>]*>/g)) assert(/rel="noopener noreferrer"/.test(tag[0]), `unsafe external link: ${tag[0]}`);

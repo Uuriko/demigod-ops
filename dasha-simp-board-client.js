@@ -141,7 +141,7 @@
     root.setAttribute('role', 'region');
     root.setAttribute('aria-label', 'Dasha simp board');
     var style = document.createElement('style');
-    style.textContent = '.simp-quiz{margin:0 0 26px;padding:clamp(20px,4vw,34px);border:1px solid var(--line,#665b70);background:rgba(255,255,255,.055);color:var(--paper,#f4eddb)}.simp-quiz-title{margin:0 0 6px;color:var(--paper,#f4eddb)!important;font-size:clamp(28px,4vw,42px)}.simp-quiz-note{margin:0 0 18px;color:var(--cream,#f4eddb)}.simp-quiz-stage{display:grid;gap:18px}.simp-quiz-count{margin:0;color:var(--paper,#f4eddb);font-size:13px;font-weight:800;letter-spacing:.08em}.simp-quiz-stage.is-correct .simp-quiz-count{color:var(--acid,#dfff00)}.simp-quiz-stage.is-wrong .simp-quiz-count{color:var(--hot,#ff3b81)}.simp-quiz-bar{height:4px;background:#44384d}.simp-quiz-fill{display:block;height:100%;background:var(--acid,#dfff00);transition:width .2s}.simp-quiz-question{margin:4px 0;color:var(--paper,#f4eddb)!important;font-size:clamp(25px,5vw,46px);line-height:1.08}.simp-quiz-choices{display:grid;gap:10px}.simp-quiz-choice{display:flex;gap:12px;align-items:center;width:100%;min-height:54px;padding:12px 14px;border:1px solid #81738d;background:#160f1d;color:#fff;text-align:left;cursor:pointer;transition:border-color .12s,background .12s,transform .12s}.simp-quiz-key{display:grid;place-items:center;min-width:28px;height:28px;border:1px solid #aa9ab8;color:var(--acid,#dfff00)}.simp-quiz-choice:hover,.simp-quiz-choice:focus-visible{border-color:var(--acid,#dfff00)}.simp-quiz-choice.is-selected{border-color:var(--acid,#dfff00);background:rgba(223,255,0,.15);transform:translateX(3px)}.simp-quiz-feedback{margin:0;color:#fff}.simp-quiz-source{color:var(--acid,#dfff00)}.simp-surprise{margin:4px 0 0;padding:12px 14px;border:1px dashed var(--acid,#dfff00);background:rgba(223,255,0,.1);display:grid;gap:4px}.simp-surprise strong{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--acid,#dfff00)}.simp-surprise p{margin:0;font-size:14px;line-height:1.35;color:var(--paper,#f4eddb)}.simp-quiz-close{display:none;justify-self:end;border:0;background:none;color:var(--paper,#f4eddb);font:inherit;font-weight:900;cursor:pointer}.simp-quiz-active .simp-quiz{min-height:calc(100svh - 48px);display:grid;align-content:center}.simp-quiz-active>.simp-status,.simp-quiz-active>.simp-privacy,.simp-quiz-active>.simp-board,.simp-quiz-active>.simp-actions,.simp-quiz-active>.simp-me,.simp-quiz-active>.simp-tools{display:none!important}.simp-quiz-active .simp-quiz-close{display:block}html.simp-quiz-open .buy-sticky,html.simp-result-open .buy-sticky{display:none!important}.simp-quiz-result-bar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:96;gap:10px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));background:rgba(7,6,8,.94);border-top:1px solid #665b70;backdrop-filter:blur(10px)}.simp-quiz-result-bar button,.simp-quiz-result-bar a{flex:1 1 auto;min-height:48px;display:inline-flex;align-items:center;justify-content:center;padding:0 14px;border-radius:999px;font:inherit;font-weight:950;font-size:12px;letter-spacing:.04em;text-transform:uppercase;text-decoration:none!important;cursor:pointer;border:1px solid #dfff00;background:#dfff00;color:#070608}.simp-quiz-result-bar a.ghost{border-color:rgba(244,237,219,.45);background:transparent;color:#f4eddb;flex:0.9 1 auto}@media(max-width:720px){html.simp-result-open .simp-quiz-result-bar{display:flex}.simp-quiz-box{padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}}@media(max-width:520px){.simp-quiz{padding:18px}.simp-quiz-title{font-size:28px}.simp-quiz-question{font-size:30px}.simp-quiz-active .simp-quiz{min-height:calc(100svh - 22px);align-content:start;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}html.simp-result-open .simp-quiz{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}}@media(prefers-reduced-motion:reduce){.simp-quiz-fill,.simp-quiz-choice{transition:none}.simp-quiz-choice.is-selected{transform:none}}';
+    style.textContent = '.simp-quiz{margin:0 0 26px;padding:clamp(20px,4vw,34px);border:1px solid var(--line,#665b70);background:rgba(255,255,255,.055);color:var(--paper,#f4eddb)}.simp-quiz-title{margin:0 0 6px;color:var(--paper,#f4eddb)!important;font-size:clamp(28px,4vw,42px)}.simp-quiz-note{margin:0 0 18px;color:var(--cream,#f4eddb)}.simp-quiz-stage{display:grid;gap:18px}.simp-quiz-count{margin:0;color:var(--paper,#f4eddb);font-size:13px;font-weight:800;letter-spacing:.08em}.simp-quiz-stage.is-correct .simp-quiz-count{color:var(--acid,#dfff00)}.simp-quiz-stage.is-wrong .simp-quiz-count{color:var(--hot,#ff3b81)}.simp-quiz-bar{height:4px;background:#44384d}.simp-quiz-fill{display:block;height:100%;background:var(--acid,#dfff00);transition:width .2s}.simp-quiz-media{display:block;width:100%;height:auto;min-height:180px;max-height:min(56svh,480px);object-fit:cover;margin:0 0 14px;background:#160f1d}.simp-quiz-question{margin:4px 0;color:var(--paper,#f4eddb)!important;font-size:clamp(25px,5vw,46px);line-height:1.08}.simp-quiz-choices{display:grid;gap:10px}.simp-quiz-choice{display:flex;gap:12px;align-items:center;width:100%;min-height:54px;padding:12px 14px;border:1px solid #81738d;background:#160f1d;color:#fff;text-align:left;cursor:pointer;transition:border-color .12s,background .12s,transform .12s}.simp-quiz-key{display:grid;place-items:center;min-width:28px;height:28px;border:1px solid #aa9ab8;color:var(--acid,#dfff00)}.simp-quiz-choice:hover,.simp-quiz-choice:focus-visible{border-color:var(--acid,#dfff00)}.simp-quiz-choice.is-selected{border-color:var(--acid,#dfff00);background:rgba(223,255,0,.15);transform:translateX(3px)}.simp-quiz-feedback{margin:0;color:#fff}.simp-quiz-source{color:var(--acid,#dfff00)}.simp-surprise{margin:4px 0 0;padding:12px 14px;border:1px dashed var(--acid,#dfff00);background:rgba(223,255,0,.1);display:grid;gap:4px}.simp-surprise strong{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--acid,#dfff00)}.simp-surprise p{margin:0;font-size:14px;line-height:1.35;color:var(--paper,#f4eddb)}.simp-quiz-close{display:none;justify-self:end;border:0;background:none;color:var(--paper,#f4eddb);font:inherit;font-weight:900;cursor:pointer}.simp-quiz-active .simp-quiz{min-height:calc(100svh - 48px);display:grid;align-content:center}.simp-quiz-active>.simp-status,.simp-quiz-active>.simp-privacy,.simp-quiz-active>.simp-board,.simp-quiz-active>.simp-actions,.simp-quiz-active>.simp-me,.simp-quiz-active>.simp-tools{display:none!important}.simp-quiz-active .simp-quiz-close{display:block}html.simp-quiz-open .buy-sticky,html.simp-result-open .buy-sticky{display:none!important}.simp-quiz-result-bar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:96;gap:10px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));background:rgba(7,6,8,.94);border-top:1px solid #665b70;backdrop-filter:blur(10px)}.simp-quiz-result-bar button,.simp-quiz-result-bar a{flex:1 1 auto;min-height:48px;display:inline-flex;align-items:center;justify-content:center;padding:0 14px;border-radius:999px;font:inherit;font-weight:950;font-size:12px;letter-spacing:.04em;text-transform:uppercase;text-decoration:none!important;cursor:pointer;border:1px solid #dfff00;background:#dfff00;color:#070608}.simp-quiz-result-bar a.ghost{border-color:rgba(244,237,219,.45);background:transparent;color:#f4eddb;flex:0.9 1 auto}@media(max-width:720px){html.simp-result-open .simp-quiz-result-bar{display:flex}.simp-quiz-box{padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}}@media(max-width:520px){.simp-quiz{padding:18px}.simp-quiz-title{font-size:28px}.simp-quiz-question{font-size:30px}.simp-quiz-active .simp-quiz{min-height:calc(100svh - 22px);align-content:start;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}html.simp-result-open .simp-quiz{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}}@media(prefers-reduced-motion:reduce){.simp-quiz-fill,.simp-quiz-choice{transition:none}.simp-quiz-choice.is-selected{transform:none}}.simp-share-push{position:fixed;inset:0;z-index:98;display:grid;place-items:center;padding:16px;background:rgba(7,6,8,.82)}.simp-share-push-card{width:min(440px,100%);padding:22px 20px 18px;border:2px solid #dfff00;background:#120c18;color:#f4eddb;display:grid;gap:12px;box-shadow:12px 12px 0 #ff3b81}.simp-share-push-card h2{margin:0;font-size:clamp(26px,6vw,36px);line-height:1.05;text-transform:uppercase}.simp-share-push-card p{margin:0;font-size:15px;line-height:1.45}.simp-share-push-url{word-break:break-all;font:700 13px/1.4 ui-monospace,Menlo,Consolas,monospace;color:#dfff00;user-select:all}.simp-share-push-actions{display:flex;flex-wrap:wrap;gap:10px}.simp-share-push-actions button{min-height:48px;padding:0 16px;border:1px solid #dfff00;background:#dfff00;color:#070608;font:inherit;font-weight:950;font-size:12px;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}.simp-share-push-actions .ghost{border-color:rgba(244,237,219,.4);background:transparent;color:#f4eddb}';
     root.appendChild(style);
 
     var quiz = el('section', 'simp-quiz');
@@ -551,9 +551,10 @@
         actionBtn.textContent = 'Link X to join';
       actionBtn.setAttribute('aria-label', 'Link X to join the simp board');
         actionBtn.dataset.mode = 'link';
-        quizBtn.textContent = 'Take the quiz';
-        quizBtn.dataset.mode = 'quiz';
-        quizNote.textContent = 'Take the quiz. Finishing joins the Board.';
+        quizBtn.textContent = 'Connect X to play';
+        quizBtn.dataset.mode = 'link';
+        quizBtn.setAttribute('aria-label', 'Connect X to take the quiz');
+        quizNote.textContent = 'Connect X to take the quiz. You cannot play until you connect X.';
         return;
       }
       var quizResult = (meData.board && meData.board.quiz) || lastQuizResult;
@@ -575,6 +576,7 @@
           (meData.board && meData.board.components ? meData.board.components.quiz || 0 : quizResult.points || 0) +
           ' pts' +
           (quizResult.vibeNote ? ' · ' + quizResult.vibeNote : '') +
+          (quizResult.resultUrl ? ' · ' + quizResult.resultUrl : '') +
           ' · Share anytime · Retake updates score'
         : 'Take the quiz. Finishing joins the Board. Score = accuracy. Vibe is just for fun.';
       if (!meData.enrolled) {
@@ -618,9 +620,8 @@
     function inviteShareText() {
       return (
         'How big of a Dasha simp are you?\n\n' +
-        'Take the quiz (connect X to save your score):\n' +
-        QUIZ_INVITE_URL +
-        '\n\n$dasha'
+        'Connect X to take the quiz:\n' +
+        QUIZ_INVITE_URL
       );
     }
 
@@ -680,7 +681,7 @@
       var bar = el('div', 'simp-quiz-connect-bar');
       bar.id = 'dasha-quiz-connect-bar';
       bar.setAttribute('role', 'region');
-      bar.setAttribute('aria-label', 'Connect X to save quiz score');
+      bar.setAttribute('aria-label', 'Connect X to take the quiz');
       var st = document.createElement('style');
       st.textContent =
         '.simp-quiz-connect-bar{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:95;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:12px 14px;border:2px solid #dfff00;border-radius:14px;background:#120c18;color:#f4eddb;box-shadow:8px 8px 0 #7c4dff}' +
@@ -696,7 +697,7 @@
       var bold = el('b', '', 'Simp quiz invite');
       msg.appendChild(bold);
       msg.appendChild(
-        document.createTextNode(' — connect X to save your score and join the board. Optional.'),
+        document.createTextNode(' — connect X to take the quiz. You cannot play until you connect X.'),
       );
       bar.appendChild(msg);
       var acts = el('div', 'actions');
@@ -709,7 +710,7 @@
         setGateAutoJoin(true);
         linkX();
       });
-      var dismiss = el('button', 'ghost', 'Keep playing');
+      var dismiss = el('button', 'ghost', 'Not now');
       dismiss.type = 'button';
       dismiss.addEventListener('click', function () {
         if (bar.parentNode) bar.parentNode.removeChild(bar);
@@ -727,17 +728,16 @@
 
     /**
      * Deep link: /?quiz=1#simp
-     * Starts quiz immediately; if not linked, asks to connect X (non-blocking bar).
+     * Linked visitors start. Unlinked visitors must connect X first.
      */
     function runQuizInvite() {
       scrollToQuiz();
-      setStatus('Quiz invite', 'ok');
       if (meData && meData.linked) {
         hideQuizConnectBar();
         startQuiz();
         return;
       }
-      // Ask to connect X; Start quiz / bar is optional.
+      setStatus('Connect X to take the quiz. You cannot play until you connect X.', 'warn');
       openQuizInviteGate();
       showQuizConnectBar();
     }
@@ -778,17 +778,14 @@
         el(
           'p',
           '',
-          'Someone sent you the Dasha simp quiz. Connect X to save your score and land on the board — or start now and link later.',
+          'Someone sent you the Dasha simp quiz. Connect X to take it. You cannot play until you connect X.',
         ),
       );
-      card.appendChild(el('p', 'simp-gate-note', 'Not mandatory. You can play without connecting.'));
+      card.appendChild(el('p', 'simp-gate-note', 'X is required. No anonymous play.'));
       var actions = el('div', 'simp-gate-actions');
       var primary = el('button', 'simp-gate-primary', 'Connect X');
       primary.type = 'button';
-      var startBtn = el('button', 'simp-gate-skip', 'Start quiz');
-      startBtn.type = 'button';
       actions.appendChild(primary);
-      actions.appendChild(startBtn);
       card.appendChild(actions);
       var gateStatus = el('p', 'simp-gate-status', '');
       gateStatus.setAttribute('role', 'status');
@@ -808,12 +805,6 @@
         }
       };
       document.addEventListener('keydown', gateKeyHandler);
-      startBtn.addEventListener('click', function () {
-        dismiss();
-        scrollToQuiz();
-        if (quizBox.hidden) startQuiz();
-        showQuizConnectBar();
-      });
       gateEl.addEventListener('click', function (ev) {
         if (ev.target === gateEl) dismiss();
       });
@@ -1016,6 +1007,110 @@
       }
       openXIntent(text);
       setStatus('X compose opened — hit Post to publish your result', 'ok');
+    }
+
+    function hideSharePush() {
+      var overlay = document.getElementById('dasha-share-push');
+      if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }
+
+    function resultShareText(result, url) {
+      var title = (result && result.title) || 'Simp';
+      return title + '\n' + url;
+    }
+
+    function copyText(text, btn, okStatus) {
+      function done() {
+        setStatus(okStatus || 'Copied', 'ok');
+        if (btn) {
+          var prev = btn.textContent;
+          btn.textContent = 'Copied!';
+          setTimeout(function () {
+            btn.textContent = prev;
+          }, 1400);
+        }
+      }
+      function fallback() {
+        try {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          ta.setAttribute('readonly', '');
+          ta.style.cssText = 'position:fixed;left:-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          done();
+        } catch (e) {
+          setStatus(text, 'warn');
+        }
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(fallback);
+      } else fallback();
+    }
+
+    function showSharePush(result, resultUrl) {
+      result = result || lastQuizResult || (meData && meData.board && meData.board.quiz);
+      var url = resultUrl || (result && result.resultUrl) || '';
+      if (!result || !url) {
+        setStatus('No share link yet', 'warn');
+        return;
+      }
+      lastQuizResult = result;
+      hideSharePush();
+      var overlay = el('div', 'simp-share-push');
+      overlay.id = 'dasha-share-push';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+      overlay.setAttribute('aria-labelledby', 'dasha-share-push-title');
+      var card = el('div', 'simp-share-push-card');
+      var title = el('h2', '', 'Share this');
+      title.id = 'dasha-share-push-title';
+      card.appendChild(title);
+      card.appendChild(el('p', '', 'You finished. Send the link.'));
+      var urlLine = el('p', 'simp-share-push-url', url);
+      urlLine.setAttribute('aria-label', 'Result link');
+      card.appendChild(urlLine);
+      var acts = el('div', 'simp-share-push-actions');
+      var copyBtn = el('button', '', 'Copy link');
+      copyBtn.type = 'button';
+      copyBtn.addEventListener('click', function () {
+        copyText(url, copyBtn, 'Link copied');
+      });
+      var tweet = el('button', '', 'Share on X');
+      tweet.type = 'button';
+      tweet.addEventListener('click', function () {
+        trackQuiz('share');
+        openXIntent(resultShareText(result, url));
+        setStatus('X compose opened — post your result', 'ok');
+      });
+      acts.appendChild(copyBtn);
+      acts.appendChild(tweet);
+      if (navigator.share) {
+        var native = el('button', '', 'Share');
+        native.type = 'button';
+        native.addEventListener('click', function () {
+          trackQuiz('share');
+          navigator.share({ title: (result && result.title) || 'Simp', text: resultShareText(result, url), url: url }).catch(function (err) {
+            if (!err || err.name !== 'AbortError') openXIntent(resultShareText(result, url));
+          });
+        });
+        acts.appendChild(native);
+      }
+      var dismiss = el('button', 'ghost', 'Not now');
+      dismiss.type = 'button';
+      dismiss.addEventListener('click', hideSharePush);
+      acts.appendChild(dismiss);
+      card.appendChild(acts);
+      overlay.appendChild(card);
+      overlay.addEventListener('click', function (ev) {
+        if (ev.target === overlay) hideSharePush();
+      });
+      document.body.appendChild(overlay);
+      try {
+        tweet.focus();
+      } catch (e) {}
     }
 
     function shareQuiz(result) {
@@ -1244,8 +1339,16 @@
       var current = (data.progress && data.progress.current) || 1;
       var bar = el('div', 'simp-quiz-bar'); bar.setAttribute('role','progressbar'); bar.setAttribute('aria-valuenow',String(current));
       var fill = el('span','simp-quiz-fill'); fill.style.width = Math.min(90, 6 + current * 5) + '%'; bar.appendChild(fill); stage.appendChild(bar);
+      var media = data.question.media || (data.question.image && { src: data.question.image, kind: 'image', alt: 'Dasha' });
+      if (media && media.src) {
+        var qimg = document.createElement('img');
+        qimg.className = 'simp-quiz-media';
+        qimg.src = media.src.charAt(0) === '/' ? media.src : base + media.src;
+        qimg.alt = media.alt || 'Dasha';
+        qimg.loading = 'eager';
+        stage.appendChild(qimg);
+      }
       var question = el('h4','simp-quiz-question',data.question.prompt); question.id = 'simp-quiz-question'; question.tabIndex = -1; stage.appendChild(question);
-      if (data.question.image) { var qimg = document.createElement('img'); qimg.src = base + data.question.image; qimg.alt = ''; qimg.setAttribute('aria-hidden', 'true'); qimg.loading = 'eager'; qimg.style.cssText = 'display:block;width:100%;max-height:min(300px,32svh);object-fit:cover'; stage.appendChild(qimg); }
       var choices = el('div','simp-quiz-choices'); choices.setAttribute('role','group'); choices.setAttribute('aria-labelledby',question.id);
       data.question.choices.forEach(function (choice, index) {
         var button = el('button','simp-quiz-choice'); button.type = 'button';
@@ -1297,7 +1400,7 @@
             setQuizOpen(false);
             if (res.data.linkRequired) {
               quizAttemptId = res.data.attemptId;
-              setStatus('Quiz complete · link X to save score and share (optional to keep playing later)', 'warn');
+              setStatus('Connect X to take the quiz. You cannot play until you connect X.', 'warn');
               return linkX();
             }
             if (res.data.quiz) {
@@ -1307,7 +1410,7 @@
               res.data.retake ? 'Score updated · share your result' : 'Quiz scored · Board joined · share your result',
               'ok',
             );
-            shareQuiz(res.data.quiz || lastQuizResult);
+            showSharePush(res.data.quiz || lastQuizResult, res.data.resultUrl);
             return refresh();
           });
         }
@@ -1322,6 +1425,13 @@
     function startQuiz() {
       quizAnswerBusy = false;
       hideResultSticky();
+      if (!meData || !meData.linked) {
+        quizBtn.disabled = false;
+        retakeBtn.disabled = false;
+        setStatus('Connect X to take the quiz. You cannot play until you connect X.', 'warn');
+        linkX();
+        return;
+      }
       quizBtn.disabled = true;
       retakeBtn.disabled = true;
       postQuiz({ action: 'start' })
@@ -1351,8 +1461,12 @@
     });
 
     quizBtn.addEventListener('click', function () {
+      if (quizBtn.dataset.mode === 'link') {
+        return linkX();
+      }
       if (quizBtn.dataset.mode === 'share') {
-        return shareQuiz(lastQuizResult || (meData && meData.board && meData.board.quiz));
+        var shared = lastQuizResult || (meData && meData.board && meData.board.quiz);
+        return showSharePush(shared, shared && shared.resultUrl);
       }
       startQuiz();
     });
@@ -1523,7 +1637,7 @@
             quizAttemptId = '';
             if (res.data.quiz) lastQuizResult = res.data.quiz;
             setStatus('Result unlocked · post on X', 'ok');
-            shareQuiz(res.data.quiz || lastQuizResult);
+            showSharePush(res.data.quiz || lastQuizResult, res.data.resultUrl);
             return refresh();
           })
           .catch(function (error) {
@@ -1550,6 +1664,7 @@
         closeGate();
         hideQuizConnectBar();
         hideResultSticky();
+        hideSharePush();
         setQuizOpen(false);
         root.innerHTML = '';
       },

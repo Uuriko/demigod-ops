@@ -137,10 +137,12 @@ assert(worker.includes("isExactPath(url.pathname, '/dashaverse')") && worker.inc
 assert(!worker.includes('injectBountiesBoard(stripBountiesIframe'), 'www /bounties must not paint through Webflow');
 assert(worker.includes('SIMP_BOARD_SRI') && worker.includes('client/simp-board.js'), 'www /simp mounts the existing board client');
 assert(worker.includes('href="#simp"') && worker.includes('class="dasha-quiz"'), 'home first HTML mounts the playable quiz in the hero');
-assert(worker.includes('injectLobbySimpQuiz') && worker.includes('injectLobbySimpQuiz(LOBBY_PAGE_HTML)'), 'first-party /lobby mounts the playable quiz');
+assert(worker.includes('stripLobbySimpQuiz') && worker.includes('stripLobbySimpQuiz(LOBBY_PAGE_HTML)'), 'first-party /lobby must not mount the quiz');
 assert(!worker.includes('SIMP_QUIZ_JS'), 'must not invent a second quiz client');
 assert(worker.includes('simpSharePageHtml') && worker.includes('og:image:alt'), 'www /simp/r is type-first share HTML');
 assert(worker.includes('simpQuizFirstPaintHtml') && worker.includes('simpResultMissingHtml'), 'www /simp first-paints the quiz and has an honest result 404');
+assert(worker.includes("error: 'link X to take the quiz'"), 'quiz start must require a linked X session');
+assert(worker.includes('Needs JavaScript.'), 'www /simp noscript must not dump the bank');
 assert(worker.includes("isExactPath(url.pathname, '/bounties')") && worker.includes('BOUNTIES_FEED_PAGE'), 'lobby /bounties hops to www');
 assert(worker.includes("pathname.replace(/\\/$/, '') === '/simp/hold'") && worker.includes("error: 'not_configured'"), 'hold stays a not_configured stub');
 assert(!/\/simp\/hold[\s\S]{0,180}verify/i.test(worker), 'hold must not be called a verify');
@@ -172,7 +174,7 @@ assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no
 // Aggregate Studio funnel: bounded events in, authenticated counters out.
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { DashaLobby, bountiesPageHtml, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectLobbySimpQuiz, normalizeBountiesFeed, parseVerseSubmit, personalizeChessPage, publicFunnelSummary, rewriteHomeFirstViewport, rewriteLobbyScriptIntegrity, rewriteStaleCdnFavicon, rewriteStudioBuyVerifyHref, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripDeadLobbyForum, stripHomeSimpBoard, unpaidBountiesHtmlHasPayoutAmounts, versePageHtml } = workerModule;
+const { DashaLobby, bountiesPageHtml, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, normalizeBountiesFeed, parseVerseSubmit, personalizeChessPage, publicFunnelSummary, rewriteHomeFirstViewport, rewriteLobbyScriptIntegrity, rewriteStaleCdnFavicon, rewriteStudioBuyVerifyHref, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripDeadLobbyForum, stripHomeSimpBoard, stripLobbySimpQuiz, unpaidBountiesHtmlHasPayoutAmounts, versePageHtml } = workerModule;
 const { LOBBY_CLIENT_JS, SIMP_BOARD_JS, SIMP_BOARD_SRI, STUDIO_CLIENT_JS, LOBBY_CLIENT_SRI } = await import('./dasha-lobby-static-gen.mjs');
 const STUDIO_SRI = `sha384-${createHash('sha384').update(STUDIO_CLIENT_JS).digest('base64')}`;
 const LOBBY_SRI = `sha384-${createHash('sha384').update(LOBBY_CLIENT_JS).digest('base64')}`;
@@ -271,7 +273,7 @@ for (const [path, dest] of [
 const missingChess = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/chess?game=missing1'), dynamicChessEnv);
 const missingChessHtml = await missingChess.text();
 assert.match(missingChessHtml, /<title>Dasha Chess — holders play<\/title>/);
-assert.match(missingChessHtml, /og:url" content="https:\/\/lobby\.getdasha\.com\/chess"/);
+assert.match(missingChessHtml, /og:url" content="https:\/\/www\.getdasha\.com\/chess"/);
 assert.doesNotMatch(missingChessHtml, /missing1/, 'invalid replay id must fall back to generic canonical metadata');
 assert.match(missingChessHtml, /<meta name="robots" content="index,follow">/);
 for (const path of ['/checkout', '/paypal-checkout', '/order-confirmation']) {
@@ -348,7 +350,7 @@ for (const path of ['/forum', '/forum/']) {
     assert.equal(lobbyRootBody.service, 'dasha-lobby');
   }
 }
-for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '/no-such-page-253', '/no-such-page/', '/studio/', '/studio']) {
+for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '/no-such-page-253', '/no-such-page/']) {
   for (const method of ['GET', 'HEAD']) {
     const page = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`, { method }), {});
     assert.equal(page.status, 404, `lobby ${path} ${method} must be a branded HTML 404`);
@@ -373,6 +375,13 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
     }
   }
 }
+for (const path of ['/studio', '/studio/']) {
+  for (const method of ['GET', 'HEAD']) {
+    const hop = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`, { method }), {});
+    assert.equal(hop.status, 308, `lobby ${path} ${method} must send Studio to www`);
+    assert.equal(hop.headers.get('location'), 'https://www.getdasha.com/studio');
+  }
+}
 {
   const SIMP_TOKENS = ['#070608', '#f4eddb', '#dfff00', '#ff3b81'];
   const assertSimpFirstHtml = (html, label) => {
@@ -384,10 +393,10 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
     assert.match(html, /<a href="\/verse">Verse<\/a>/);
     assert.match(html, /PerryALPHA founding #1 is editorial and non-measured/);
     assert.match(html, /editorial #1 · not measured/);
-    assert.match(html, /id="dasha-quiz"[\s\S]*Take the quiz/);
-    assert.match(html, /id="dasha-quiz"[\s\S]*Pick your strongest lane/);
-    assert.match(html, /<noscript>[\s\S]*Pick your strongest lane[\s\S]*<\/noscript>/);
-    assert.match(html, /<noscript>[\s\S]*Which t\.A\.T\.u\. song is Red Scare[\s\S]*<\/noscript>/);
+    assert.match(html, /id="dasha-quiz"[\s\S]*How big of a Dasha simp are you\?/);
+    assert.match(html, /<noscript><p>Needs JavaScript\.<\/p><\/noscript>/);
+    assert.doesNotMatch(html, /Pick your strongest lane/);
+    assert.doesNotMatch(html, /Which t\.A\.T\.u\. song is Red Scare/);
     assert.doesNotMatch(html, /questions are not in this HTML/);
     assert.match(html, /class="dasha-quiz"/);
     assert.match(html, /id="dasha-quiz"/);
@@ -435,6 +444,13 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
         assert.equal(quiz.status, 308, `${host}${path} ${method} must permanently send quiz to /simp`);
         assert.equal(quiz.headers.get('location'), 'https://www.getdasha.com/simp');
       }
+      const photo = await workerModule.default.fetch(new Request(`https://${host}/simp/photo/weekend.jpg`, { method }), {
+        ASSETS: { fetch: async (req) => new Response(req.method === 'HEAD' ? null : 'jpg', { status: 200, headers: { 'Content-Type': 'image/jpeg' } }) },
+      });
+      assert.equal(photo.status, 200, `${host} /simp/photo must serve first-party stills`);
+      assert.equal(photo.headers.get('content-type'), 'image/jpeg');
+      assert.equal(photo.headers.get('access-control-allow-origin'), '*');
+      assert.equal(await photo.text(), method === 'HEAD' ? '' : 'jpg');
     }
   }
   for (const method of ['GET', 'HEAD']) {
@@ -823,19 +839,16 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
   assert.match(listedSection, /What to run/);
   assert.doesNotMatch(listedSection, /writes?\s+\/bounties\.json|saved to \/bounties/i);
   assert.doesNotMatch(listedSection, /uuriko\.github\.io\/dasha-desk\/bounties|issues\/new\?template=bounty-project/i);
-  assert.match(listedSection, /docs/);
-  assert.match(listedSection, /href="https:\/\/github\.com\/Uuriko\/dasha-desk\/issues\/8"/);
+  assert.doesNotMatch(listedSection, /docs: add CONTRIBUTING screenshot/);
+  assert.doesNotMatch(listedSection, /href="https:\/\/github\.com\/Uuriko\/dasha-desk\/issues\/8"/);
+  assert.match(listedSection, /No open bounties/);
   assert.doesNotMatch(listedSection, />dasha desk<|>desk</);
   assert.equal(unpaidBountiesHtmlHasPayoutAmounts(listedSection), false, 'unpaid Work list must not print USDC or $ payout amounts');
   assert.doesNotMatch(listedSection, /<p class="amt">/);
   assert.match(listedSection, /Payouts are not configured yet\./);
   assert.ok(listedSection.indexOf('<h1>Bounties</h1>') < listedSection.indexOf('Payouts are not configured yet.'), 'payout note must not be first-paint copy');
   assert.doesNotMatch(listedSection, /not implemented/i);
-  const firstListing = listedSection.match(/<li\b[\s\S]*?<\/li>/i)?.[0] || '';
-  assert.match(firstListing, /docs/);
-  assert.doesNotMatch(firstListing, /not implemented/i);
-  assert.doesNotMatch(firstListing, /Payout not live|Payouts are not configured yet/);
-  assert.doesNotMatch(firstListing, /USDC|\$\s*\d/);
+  assert.doesNotMatch(listedSection, /<li\b/);
   assert.doesNotMatch(listedSection, /<script\b/i);
   assert.doesNotMatch(listedSection, /\bClaim\b|\bPay\b/);
   assert.doesNotMatch(listed, /<iframe/i);
@@ -884,7 +897,8 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
   assert.match(pageHtml, /<title>Bounties<\/title>/);
   assertBountiesChrome(pageHtml, 'worker-owned page helper');
   assert.match(pageHtml, /Payouts are not configured yet\./);
-  assert.match(pageHtml, /href="https:\/\/github\.com\/Uuriko\/dasha-desk\/issues\/8"/);
+  assert.doesNotMatch(pageHtml, /href="https:\/\/github\.com\/Uuriko\/dasha-desk\/issues\/8"/);
+  assert.match(pageHtml, /No open bounties/);
   assert.equal(unpaidBountiesHtmlHasPayoutAmounts(pageHtml), false, 'worker-owned /bounties HTML must omit USDC / $ payout amounts while unconfigured');
   assert.equal(unpaidBountiesHtmlHasPayoutAmounts('25 USDC'), true);
   assert.equal(unpaidBountiesHtmlHasPayoutAmounts('$25'), true);
@@ -1030,14 +1044,15 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
     'https://www.getdasha.com/bounties',
     'https://www.getdasha.com/simp',
     'https://www.getdasha.com/verse',
-    'https://lobby.getdasha.com/chess',
+    'https://www.getdasha.com/chess',
   ]) {
     assert.match(sitemapBody, new RegExp(`<loc>${loc.replaceAll('.', '\\.')}</loc>`), `${host} sitemap must list ${loc}`);
   }
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/capsule/, `${host} sitemap must not invent /capsule`);
   assert.doesNotMatch(sitemapBody, /lobby\.getdasha\.com\/bounties/, `${host} sitemap must not list lobby /bounties`);
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/forum/, `${host} sitemap must not add Forum`);
-  assert.match(sitemapBody, /\n  <url>\n    <loc>https:\/\/lobby\.getdasha\.com\/chess<\/loc>\n  <\/url>\n/, `${host} sitemap chess URL must keep the same indent as other locs`);
+  assert.doesNotMatch(sitemapBody, /lobby\.getdasha\.com\/chess/, `${host} sitemap must not list lobby chess`);
+  assert.match(sitemapBody, /\n  <url>\n    <loc>https:\/\/www\.getdasha\.com\/chess<\/loc>\n  <\/url>\n/, `${host} sitemap chess URL must keep the same indent as other locs`);
   const robots = await workerModule.default.fetch(new Request(`https://${host}/robots.txt`), {});
   assert.match(await robots.text(), /Allow: \/verse/, `${host} robots must allow /verse`);
 }
@@ -1160,7 +1175,7 @@ const privacy = await workerModule.default.fetch(new Request('https://lobby.getd
 assert.equal(privacy.status, 200);
 const privacyText = await privacy.text();
 assert.match(privacyText, /does not store the X access token[\s\S]*Completed chess games are public replays showing both X handles, ratings, moves, result, and completion time/);
-assert.match(privacyText, /Leave Board removes[\s\S]*chess rating, games and tournaments involving you[\s\S]*private report/);
+assert.match(privacyText, /Leave Board removes[\s\S]*chess rating, games and tournaments involving you[\s\S]*potter@trydemigod\.com/);
 assert.equal(privacy.headers.get('x-robots-tag'), null);
 for (const host of ['lobby.getdasha.com', 'www.getdasha.com']) {
   const response = await workerModule.default.fetch(new Request(`https://${host}/.well-known/security.txt`), {});
@@ -1202,6 +1217,16 @@ assert.equal(ogAsset.headers.get('access-control-allow-origin'), '*');
 assert.equal(ogAsset.headers.get('cross-origin-resource-policy'), 'cross-origin');
 assert.equal(ogAsset.headers.get('cache-control'), 'public, max-age=86400');
 
+for (const host of ['www.getdasha.com', 'getdasha.com', 'lobby.getdasha.com']) {
+  for (const method of ['GET', 'HEAD']) {
+    const photo = await workerModule.default.fetch(new Request(`https://${host}/simp/photo/weekend.jpg`, { method }), {
+      ASSETS: { fetch: async (req) => new Response(req.method === 'HEAD' ? null : 'jpg', { status: 200, headers: { 'Content-Type': 'image/jpeg' } }) },
+    });
+    assert.equal(photo.status, 200, `${host} ${method} /simp/photo/weekend.jpg must be 200`);
+    assert.equal(photo.headers.get('content-type'), 'image/jpeg');
+    assert.equal(await photo.text(), method === 'HEAD' ? '' : 'jpg');
+  }
+}
 for (const host of ['www.getdasha.com', 'getdasha.com']) {
   for (const method of ['GET', 'HEAD']) {
     const res = await workerModule.default.fetch(new Request(`https://${host}/og/dasha-social-card.png`, { method }), {
@@ -1311,12 +1336,10 @@ try {
       for (const path of ['/lobby', '/lobby/']) {
         const lobby = await workerModule.default.fetch(new Request(`https://${host}${path}`), {});
         const lobbyHtml = await lobby.text();
-        assert.match(lobbyHtml, /lobby\.getdasha\.com\/client\/simp-board\.js/, `${host} ${path} must not strip the Simp client`);
-        assert.match(lobbyHtml, /id="dasha-simp-board"/, `${host} ${path} must keep the Simp mount`);
-        assert.match(lobbyHtml, /dasha-quiz/, `${host} ${path} must expose the playable quiz mount`);
-        assert.match(lobbyHtml, new RegExp(`s\\.integrity='${SIMP_BOARD_SRI.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`), `${host} ${path} must pin simp-board SRI`);
-        assert.match(lobbyHtml, /s\.crossOrigin='anonymous'/, `${host} ${path} must load simp-board CORS`);
-        assert.match(lobbyHtml, /Simp board\./, `${host} ${path} must keep the Simp board heading`);
+        assert.doesNotMatch(lobbyHtml, /lobby\.getdasha\.com\/client\/simp-board\.js/, `${host} ${path} must not mount the Simp client`);
+        assert.doesNotMatch(lobbyHtml, /id="dasha-simp-board"/, `${host} ${path} must not keep a Simp mount`);
+        assert.doesNotMatch(lobbyHtml, /dasha-quiz/, `${host} ${path} must not expose a quiz mount`);
+        assert.doesNotMatch(lobbyHtml, /Simp board\./, `${host} ${path} must drop leftover Simp board heading`);
         assert.doesNotMatch(lobbyHtml, leftoverSimpCss, `${host} ${path} must drop leftover Simp CSS`);
         assert.doesNotMatch(lobbyHtml, /\.simp-board\{/, `${host} ${path} must drop leftover .simp-board CSS`);
         assert.doesNotMatch(lobbyHtml, /score=|"answer"\s*:/, `${host} ${path} must not leak answers`);
@@ -1598,7 +1621,8 @@ ${liveHomeFooter}
     assert.match(chessHtml, /id="buy-dasha"/);
     assert.match(chessHtml, /Buy \$dasha ↗/);
     assert.match(chessHtml, /<p class="privacy">Wallet address and balance are checked for access, then discarded\. Ratings belong to linked X identities\.<\/p>/);
-    assert.match(chessHtml, /<footer class="wrap"><p><a href="\/studio">Studio<\/a> · <a href="\/lobby">Lobby<\/a> · <a href="\/simp">Simp<\/a> · <a href="\/verse">Verse<\/a> · <a href="\/bounties">Bounties<\/a> · <a href="\/how-to-buy">How to buy<\/a> · <a href="\/privacy">Privacy<\/a><\/p><\/footer>/);
+    assert.match(chessHtml, /<link rel="canonical" href="https:\/\/www\.getdasha\.com\/chess">/);
+    assert.match(chessHtml, /<footer class="wrap"><p><a href="https:\/\/www\.getdasha\.com\/studio">Studio<\/a> · <a href="https:\/\/www\.getdasha\.com\/lobby">Lobby<\/a> · <a href="\/simp">Simp<\/a> · <a href="\/verse">Verse<\/a> · <a href="\/bounties">Bounties<\/a> · <a href="\/how-to-buy">How to buy<\/a> · <a href="\/privacy">Privacy<\/a><\/p><\/footer>/);
     assert.equal((chessHtml.match(/<nav\b/gi) || []).length, 1, `${host} /chess must keep its existing nav`);
   }
   const liveLobbyNav = '<nav class="nav shell" aria-label="Lobby navigation"><a class="brand" href="https://www.getdasha.com/">$<span>DASHA</span></a><a class="back" href="https://www.getdasha.com/">← Home</a></nav>';
@@ -1630,27 +1654,24 @@ ${liveHomeFooter}
     assert.ok(lobbyHtml.includes(LOBBY_SRI), `lobby ${path} must pin lobby.js to the hash of client/lobby.js`);
     assert.ok(lobbyHtml.includes(`s.integrity='${LOBBY_SRI}'`), `lobby ${path} inject hash must equal client/lobby.js`);
     assert.match(lobbyHtml, /id="dasha-lobby"/, `lobby ${path} must keep chat`);
-    assert.match(lobbyHtml, /class="dasha-quiz"/, `lobby ${path} must mount the playable quiz`);
-    assert.match(lobbyHtml, /id="dasha-simp-board"/, `lobby ${path} must keep the existing client mount`);
-    assert.match(lobbyHtml, /lobby\.getdasha\.com\/client\/simp-board\.js/, `lobby ${path} must load the existing quiz client`);
-    assert.match(lobbyHtml, new RegExp(`s\\.integrity='${SIMP_BOARD_SRI.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`), `lobby ${path} must pin simp-board SRI`);
-    assert.match(lobbyHtml, /s\.crossOrigin='anonymous'/, `lobby ${path} must load simp-board CORS`);
+    assert.doesNotMatch(lobbyHtml, /class="dasha-quiz"/, `lobby ${path} must not mount the quiz`);
+    assert.doesNotMatch(lobbyHtml, /id="dasha-simp-board"/, `lobby ${path} must not keep a quiz mount`);
+    assert.doesNotMatch(lobbyHtml, /lobby\.getdasha\.com\/client\/simp-board\.js/, `lobby ${path} must not load the quiz client`);
     assert.doesNotMatch(lobbyHtml, /lobby\.getdasha\.com\/forum/, `lobby ${path} must not remount leftover Forum`);
     assert.doesNotMatch(lobbyHtml, /score=|"answer"\s*:/, `lobby ${path} must not leak answers`);
-    assert.equal([...lobbyHtml.matchAll(/id=["']dasha-simp-board["']/g)].length, 1, `lobby ${path} must mount the quiz once`);
   }
   const lobbyHead = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/lobby', { method: 'HEAD' }), {});
   assert.equal(lobbyHead.status, 200, 'lobby HEAD /lobby must stay 200');
   assert.equal(await lobbyHead.text(), '', 'lobby HEAD /lobby must have an empty body');
   const staleLobbySri = 'sha384-fet8Bw+WiNBtGR2I4mj67Pk8Xv3WsVe4FvNEHBsjIoUvglQBomg5UPprS72dKEKb';
   const chatOnly = `<!doctype html><html><body><main><div id="dasha-lobby" data-lobby-url="wss://lobby.getdasha.com/ws"></div></main><script>(function(){var s=document.createElement('script');s.src='https://lobby.getdasha.com/client/lobby.js';s.integrity='${staleLobbySri}';s.crossOrigin='anonymous';s.defer=true;document.head.appendChild(s)})();</script></body></html>`;
-  const lobbyQuiz = injectLobbySimpQuiz(chatOnly);
+  const leftoverQuiz = `${chatOnly}<style id="dasha-quiz-style">#dasha-quiz{margin-top:2rem}</style><div id="dasha-quiz" class="dasha-quiz"><div id="dasha-simp-board"><noscript>x</noscript></div></div><script>(function(){var s=document.createElement('script');s.src='https://lobby.getdasha.com/client/simp-board.js';s.integrity='${SIMP_BOARD_SRI}';s.crossOrigin='anonymous';s.defer=true;document.head.appendChild(s)})();</script>`;
+  const lobbyQuiz = stripLobbySimpQuiz(leftoverQuiz);
   assert.match(lobbyQuiz, /id="dasha-lobby"/);
-  assert.match(lobbyQuiz, /class="dasha-quiz"/);
-  assert.match(lobbyQuiz, /id="dasha-simp-board"/);
-  assert.match(lobbyQuiz, /lobby\.getdasha\.com\/client\/simp-board\.js/);
-  assert.match(lobbyQuiz, new RegExp(`s\\.integrity='${SIMP_BOARD_SRI.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`));
-  assert.match(lobbyQuiz, /s\.crossOrigin='anonymous'/);
+  assert.doesNotMatch(lobbyQuiz, /class="dasha-quiz"/);
+  assert.doesNotMatch(lobbyQuiz, /id="dasha-simp-board"/);
+  assert.doesNotMatch(lobbyQuiz, /dasha-quiz-style/);
+  assert.doesNotMatch(lobbyQuiz, /lobby\.getdasha\.com\/client\/simp-board\.js/);
   assert.match(lobbyQuiz, /client\/lobby\.js/);
   assert.ok(lobbyQuiz.includes(`s.integrity='${LOBBY_SRI}'`), '/lobby inject hash must equal the hash of client/lobby.js');
   assert.equal(lobbyQuiz.includes(staleLobbySri), false, 'stale Webflow lobby.js SRI must be rewritten');
@@ -1668,9 +1689,9 @@ ${liveHomeFooter}
   assert.doesNotMatch(deadForum, /forum/i);
   assert.doesNotMatch(lobbyQuiz, /forum/i);
   assert.doesNotMatch(lobbyQuiz, /score=|"answer"\s*:/);
-  assert.equal(injectLobbySimpQuiz(lobbyQuiz), lobbyQuiz, 'second lobby quiz pass must be idempotent');
-  assert.equal([...lobbyQuiz.matchAll(/id=["']dasha-simp-board["']/g)].length, 1);
-  assert.equal([...lobbyQuiz.matchAll(/client\/simp-board\.js/g)].length, 1);
+  assert.equal(stripLobbySimpQuiz(lobbyQuiz), lobbyQuiz, 'second lobby quiz strip must be idempotent');
+  assert.equal([...lobbyQuiz.matchAll(/id=["']dasha-simp-board["']/g)].length, 0);
+  assert.equal([...lobbyQuiz.matchAll(/client\/simp-board\.js/g)].length, 0);
   const staleStudioSri = 'sha384-rwyBrN9MFswysun8gGdKfRSOByQyA3zYhRxZvaBlcw6abIyHL9k5UVb4cfFaiuQL';
   const jquerySri = 'sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=';
   const webflowCssSri = 'sha384-webflowCssMustStay';
@@ -1758,11 +1779,9 @@ ${liveHomeFooter}
       assert.doesNotMatch(lobbyHtml, /client\/forum\.js/, `${host} /lobby must drop the 404 forum.js`);
       assert.ok(lobbyHtml.includes(`s.integrity='${LOBBY_SRI}'`), `${host} /lobby inject hash must equal client/lobby.js`);
       assert.equal(lobbyHtml.includes(staleLobbySri), false, `${host} /lobby must rewrite the stale lobby.js SRI`);
-      assert.match(lobbyHtml, /class="dasha-quiz"/, `${host} /lobby must inject the playable quiz`);
-      assert.match(lobbyHtml, /id="dasha-simp-board"/, `${host} /lobby must keep the existing client mount`);
-      assert.match(lobbyHtml, /lobby\.getdasha\.com\/client\/simp-board\.js/, `${host} /lobby must load the existing quiz client`);
-      assert.match(lobbyHtml, new RegExp(`s\\.integrity='${SIMP_BOARD_SRI.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`), `${host} /lobby must pin simp-board SRI`);
-      assert.match(lobbyHtml, /s\.crossOrigin='anonymous'/, `${host} /lobby must load simp-board CORS`);
+      assert.doesNotMatch(lobbyHtml, /class="dasha-quiz"/, `${host} /lobby must not inject the quiz`);
+      assert.doesNotMatch(lobbyHtml, /id="dasha-simp-board"/, `${host} /lobby must not keep a quiz mount`);
+      assert.doesNotMatch(lobbyHtml, /lobby\.getdasha\.com\/client\/simp-board\.js/, `${host} /lobby must not load the quiz client`);
       assert.doesNotMatch(lobbyHtml, /score=|"answer"\s*:/, `${host} /lobby must not leak answers`);
       assert.doesNotMatch(lobbyHtml, /\.dasha\{|\.pill\{|\.price\{|\.contract\{|\.spark\{|id="token"/);
     }
@@ -2006,7 +2025,8 @@ ${laterIcons}
     assert.match(html, /Payouts are not configured yet\./);
     assert.match(html, /This sends a request\. It is not a live listing\./);
     assert.match(html, /mailto:potter@trydemigod\.com/);
-    assert.match(html, /href="https:\/\/github\.com\/Uuriko\/dasha-desk\/issues\/8"/);
+    assert.doesNotMatch(html, /href="https:\/\/github\.com\/Uuriko\/dasha-desk\/issues\/8"/);
+    assert.match(html, /No open bounties/);
     assert.doesNotMatch(html, />dasha desk</);
     assert.equal(unpaidBountiesHtmlHasPayoutAmounts(html), false, 'served /bounties HTML must not contain USDC or $ payout amounts while payouts are unconfigured');
   } finally {
@@ -2103,21 +2123,45 @@ const quizPost = (body, path = '/simp/quiz') => studioDo.fetch(new Request(`http
   method: 'POST', headers: { Origin: 'https://www.getdasha.com', 'Content-Type': 'application/json' }, body: JSON.stringify(body),
 }));
 assert.equal((await quizPost({ event: 'start' }, '/simp/quiz/event')).status, 400);
-let quizResponse = await quizPost({ action: 'start' });
+const gatedStart = await quizPost({ action: 'start' });
+assert.equal(gatedStart.status, 401, 'unlinked start must be refused');
+assert.equal((await gatedStart.json()).error, 'link X to take the quiz');
+studioDo.env.LOBBY_SESSION_SECRET = 'holder-test-secret';
+studioDo.simpProfiles.x1 = { xId: 'x1', handle: 'ava', enrolledAt: Date.now(), awards: [] };
+const sessionToken = await createSessionToken(studioDo.env, { xId: 'x1', handle: 'ava' });
+const linkedQuizPost = (body) => studioDo.fetch(new Request('https://lobby.getdasha.com/simp/quiz', {
+  method: 'POST',
+  headers: { Origin: 'https://www.getdasha.com', Cookie: `__Host-dasha_x=${sessionToken}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify(body),
+}));
+let quizResponse = await linkedQuizPost({ action: 'start' });
 let quizData = await quizResponse.json();
-const quizAttemptId = quizData.attemptId;
 assert.equal(quizResponse.status, 200);
+assert.equal(quizData.attemptId, undefined);
 assert.equal('total' in (quizData.progress || {}), false);
+assert.match(quizData.question.media.src, /^\/simp\/photo\/[a-z0-9]+\.jpg$/);
+assert.equal(quizData.question.media.kind, 'image');
+let prevMedia = quizData.question.media.src;
 for (let i = 0; i < 17; i++) {
-  quizResponse = await quizPost({ action: 'answer', answer: 0, attemptId: quizAttemptId });
+  quizResponse = await linkedQuizPost({ action: 'answer', answer: 0 });
   quizData = await quizResponse.json();
+  if (!quizData.done) {
+    assert.match(quizData.question.media.src, /^\/simp\/photo\/[a-z0-9]+\.jpg$/);
+    assert.notEqual(quizData.question.media.src, prevMedia);
+    prevMedia = quizData.question.media.src;
+  }
 }
 assert.equal(quizData.done, true);
-assert.equal(quizData.linkRequired, true);
+assert.equal(quizData.linkRequired, undefined);
+assert.match(quizData.resultUrl, /^https:\/\/www\.getdasha\.com\/simp\/r\/[A-Za-z0-9_-]+$/);
+assert.equal(quizData.quiz.resultUrl, quizData.resultUrl);
 assert.equal(studioDo.simpQuizMetrics.starts, 1);
 assert.equal(studioDo.simpQuizMetrics.completions, 1);
 assert.equal(Object.values(studioDo.simpQuizMetrics.reached).reduce((a, b) => a + b, 0), 17);
 assert.equal(Object.values(studioDo.simpQuizMetrics.answers).reduce((a, b) => a + b, 0), 17);
+assert.equal(Object.values(studioDo.simpQuizMetrics.lanes).reduce((a, b) => a + b, 0), 1);
+assert.equal(Object.values(studioDo.simpQuizMetrics.tiers).reduce((a, b) => a + b, 0), 1);
+assert.equal(Object.values(studioDo.simpQuizMetrics.elapsed).reduce((a, b) => a + b, 0), 1);
 assert.equal((await quizPost({ event: 'share' }, '/simp/quiz/event')).status, 200);
 assert.equal(studioDo.simpQuizMetrics.shares, 1);
 const resetMetrics = (auth) => studioDo.fetch(new Request('https://lobby.getdasha.com/studio/metrics', {
@@ -2135,9 +2179,6 @@ assert.deepEqual(rows.get('studioMetrics'), studioDo.studioMetrics);
 assert.deepEqual(rows.get('simpQuizMetrics'), studioDo.simpQuizMetrics);
 
 // Holder challenges are issued only after a wallet is known and are bound to that address.
-studioDo.env.LOBBY_SESSION_SECRET = 'holder-test-secret';
-studioDo.simpProfiles.x1 = { xId: 'x1', handle: 'ava', enrolledAt: Date.now(), awards: [] };
-const sessionToken = await createSessionToken(studioDo.env, { xId: 'x1', handle: 'ava' });
 const holderRequestFrom = (origin, path, body) => studioDo.fetch(new Request(`https://lobby.getdasha.com${path}`, {
   method: 'POST',
   headers: { Origin: origin, Cookie: `__Host-dasha_x=${sessionToken}`, 'Content-Type': 'application/json' },
@@ -2151,11 +2192,8 @@ const holderRequestWithoutOrigin = (path, body) => studioDo.fetch(new Request(`h
 }));
 assert.equal((await holderRequestWithoutOrigin('/simp/wallet/challenge', { publicKey: '11111111111111111111111111111111' })).status, 403);
 assert.equal((await holderRequestWithoutOrigin('/simp/wallet/verify', {})).status, 403);
-const finalizedQuiz = await holderRequest('/simp/quiz', { action: 'finalize', attemptId: quizAttemptId });
-assert.equal(finalizedQuiz.status, 200);
-assert.equal(Object.values(studioDo.simpQuizMetrics.lanes).reduce((a, b) => a + b, 0), 1);
-assert.equal(Object.values(studioDo.simpQuizMetrics.tiers).reduce((a, b) => a + b, 0), 1);
-assert.equal(Object.values(studioDo.simpQuizMetrics.elapsed).reduce((a, b) => a + b, 0), 1);
+const finalizedQuiz = await holderRequest('/simp/quiz', { action: 'finalize', attemptId: 'missing' });
+assert.equal(finalizedQuiz.status, 400);
 assert.equal((await holderRequest('/simp/wallet/challenge', {})).status, 400);
 assert.equal((await holderRequest('/simp/wallet/challenge', { publicKey: '1'.repeat(44) })).status, 400, 'Base58-looking non-32-byte address must be rejected');
 const proofAddress = '11111111111111111111111111111111';

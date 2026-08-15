@@ -98,6 +98,10 @@ while (!step.done) {
   assert.equal('answer' in exposed, false);
   assert.equal('next' in exposed, false);
   assert.equal('note' in exposed, false);
+  assert.equal(exposed.media.kind, 'image');
+  assert.match(exposed.media.src, /^\/simp\/photo\/[a-z0-9]+\.jpg$/);
+  assert.equal(exposed.media.alt, 'Dasha');
+  assert.doesNotMatch(JSON.stringify(exposed), /"answer"/);
   step = answerQuizAttempt(attempt, privateQuestion.answer, { now });
   attempt = step.attempt;
 }
@@ -162,17 +166,28 @@ const publicQuizCopy = QUIZ_QUESTIONS.flatMap(question => [question.prompt, ...q
 ).join(' ');
 assert.doesNotMatch(publicQuizCopy, /\$dasha|mint|Jupiter|getdasha|@getdasha|Simp Board|Perry|holder|\bcoin\b|(?:can|might|could|will) go to zero|go(?:es|ing)? to zero|not financial advice|\bNFA\b|price promise|high risk|rugcheck|lose (?:your )?money|lose it all|worthless/i);
 assert.doesNotMatch(publicQuizCopy, /wikipedia/i);
+for (const question of QUIZ_QUESTIONS) {
+  assert.match(question.media.src, /^\/simp\/photo\/[a-z0-9]+\.jpg$/);
+  const exposed = publicQuestion(question);
+  assert.equal(exposed.media.kind, 'image');
+  assert.equal(exposed.media.alt, 'Dasha');
+  assert.equal('answer' in exposed, false);
+  assert.equal('image' in exposed, false);
+}
 for (let route = 0; route < QUIZ_LANES.length; route++) {
-  let run = answerQuizAttempt(startQuizAttempt({ now }), route, { now }), visuals = 0;
+  const opened = questionForAttempt(startQuizAttempt({ now }));
+  assert.match(opened.question.media.src, /^\/simp\/photo\/[a-z0-9]+\.jpg$/);
+  let run = answerQuizAttempt(startQuizAttempt({ now }), route, { now }), prev = opened.question.media.src;
   while (!run.done) {
-    if (run.question.image) visuals++;
+    assert.match(run.question.media.src, /^\/simp\/photo\/[a-z0-9]+\.jpg$/);
+    assert.notEqual(run.question.media.src, prev, `consecutive questions must not reuse ${prev}`);
+    prev = run.question.media.src;
     assert.equal('total' in (run.progress || {}), false);
     const privateQuestion = QUIZ_QUESTIONS.find(question => question.id === run.question.id);
     run = answerQuizAttempt(run.attempt, privateQuestion.answer, { now });
   }
   assert.equal(run.attempt.position, QUIZ_PATH_LENGTH);
   assert.equal(run.attempt.scorable, QUIZ_SCORED_LENGTH);
-  assert.ok(visuals >= 2, `scored route ${route} must show multiple visual questions, got ${visuals}`);
 }
 assert.equal(answerQuizAttempt(startQuizAttempt({ now }), 99).status, 400);
 

@@ -54,7 +54,6 @@ import {
   PUBLIC_BOARD_LIMIT,
   publicPerryRow,
   quizPublic,
-  QUIZ_QUESTIONS,
   startQuizAttempt,
   questionForAttempt,
   answerQuizAttempt,
@@ -277,35 +276,16 @@ export function rewriteHomeFirstViewport(html, sri = SIMP_BOARD_SRI) {
   return alignHomeLowerNav(page);
 }
 
-function insertBeforeClose(page, chunk) {
-  const close = String(page).search(/<\/(?:body|html)>/i);
-  return close >= 0 ? page.slice(0, close) + chunk + page.slice(close) : page + chunk;
-}
-
-/** First-party /lobby + www/apex /lobby: playable .dasha-quiz. Keeps chat. Does not invent Forum. Idempotent. */
-export function injectLobbySimpQuiz(html) {
+/** /lobby is chat only. Quiz lives on / #simp and /simp. Drops leftover mount/style/script. Idempotent. */
+export function stripLobbySimpQuiz(html) {
   let page = String(html || '');
-  if (!/id=["']dasha-simp-board["']/i.test(page)) {
-    const mount = '<div id="dasha-quiz" class="dasha-quiz"><div id="dasha-simp-board"><noscript>Answer in the browser — questions are not in this HTML.</noscript></div></div>';
-    const main = page.search(/<\/main>/i);
-    page = main >= 0 ? page.slice(0, main) + mount + page.slice(main) : insertBeforeClose(page, mount);
-  } else if (!/class=["'][^"']*\bdasha-quiz\b/i.test(page) && !/id=["']dasha-quiz["']/i.test(page)) {
-    page = page.replace(/<div\b([^>]*\bid=["']dasha-simp-board["'][^>]*)>/i, (full, attrs) => {
-      if (/\bclass=/i.test(attrs)) {
-        return `<div${attrs.replace(/\bclass=(["'])([^"']*)\1/, (_, q, c) => `class=${q}${c} dasha-quiz${q}`)}>`;
-      }
-      return `<div class="dasha-quiz"${attrs}>`;
-    });
-  }
-  if (!/id=["']dasha-quiz-style["']/i.test(page)) {
-    page = page.replace(/<div\b[^>]*(?:\bid=["']dasha-quiz["']|\bclass=["'][^"']*\bdasha-quiz\b)[^>]*>/i, (tag) =>
-      `<style id="dasha-quiz-style">#dasha-quiz,.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid #dfff00}</style>${tag}`);
-  }
-  if (!page.includes(`s.integrity='${SIMP_BOARD_SRI}'`) || !/lobby\.getdasha\.com\/client\/simp-board\.js/.test(page)) {
-    page = page.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, (block) =>
-      /lobby\.getdasha\.com\/client\/simp-board(?:-client)?\.js/i.test(block) ? '' : block);
-    page = insertBeforeClose(page, simpBoardClientScript());
-  }
+  page = page.replace(/<style\b[^>]*\bid=["']dasha-quiz-style["'][^>]*>[\s\S]*?<\/style>/gi, '');
+  page = page.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, (block) =>
+    /lobby\.getdasha\.com\/client\/simp-board(?:-client)?\.js/i.test(block) ? '' : block);
+  page = page.replace(/<script\b[^>]*\bsrc=["'][^"']*simp-board(?:-client)?\.js[^"']*["'][^>]*>\s*<\/script>/gi, '');
+  page = page.replace(/<div\b[^>]*\bid=["']dasha-simp-board["'][^>]*>[\s\S]*?<\/div>/gi, '');
+  page = page.replace(/<(section|div)\b[^>]*(?:\bid=["']dasha-quiz["']|\bclass=["'][^"']*\bdasha-quiz\b)[^>]*>\s*<\/\1>/gi, '');
+  page = page.replace(/<h2\b[^>]*>\s*Simp board\.\s*<\/h2>/i, '');
   return rewriteLobbyScriptIntegrity(page);
 }
 
@@ -364,6 +344,14 @@ function listingHasPayTo(row) {
   return typeof row?.payTo === 'string' && Boolean(row.payTo.trim());
 }
 
+/** Leftover GitHub issue #8 is not an open bounty. */
+function isLeftoverBountyRow(row) {
+  const href = bountyItemHref(row?.itemUrl);
+  const name = typeof row?.name === 'string' ? row.name : '';
+  return /github\.com\/Uuriko\/dasha-desk\/issues\/8/i.test(href)
+    || /docs:\s*add CONTRIBUTING screenshot/i.test(name);
+}
+
 /** True when unpaid /bounties HTML still paints a USDC or $ payout amount. $DASHA / Buy $dasha are not payouts. */
 export function unpaidBountiesHtmlHasPayoutAmounts(html) {
   const page = String(html || '');
@@ -373,9 +361,10 @@ export function unpaidBountiesHtmlHasPayoutAmounts(html) {
 function bountiesBoardHtml(feed) {
   const data = normalizeBountiesFeed(feed);
   const unpaid = data.listings.every((row) => !listingHasPayTo(row));
-  const visible = unpaid
+  let visible = unpaid
     ? data.listings.filter((row) => bountyItemHref(row.itemUrl))
     : data.listings;
+  visible = visible.filter((row) => !isLeftoverBountyRow(row));
   const work = visible.length
     ? `<ul>${visible.map((row) => {
         const name = escapeHtml(typeof row.name === 'string' ? row.name.trim() : '');
@@ -468,7 +457,7 @@ export function ensurePrivacyLink(html) {
 
 const HOWTO_PAGE_HTML = ensurePrivacyLink(HOWTO_HTML);
 const CHESS_PAGE = ensurePrivacyLink(CHESS_PAGE_HTML);
-const LOBBY_PAGE = ensurePrivacyLink(injectLobbySimpQuiz(LOBBY_PAGE_HTML));
+const LOBBY_PAGE = ensurePrivacyLink(stripLobbySimpQuiz(LOBBY_PAGE_HTML));
 
 /** Replace leftover Webflow SRI on the worker-served studio.js tag. Other pins stay. */
 /** Live Studio nav CTA currently dumps people under the home lock at /#token. */
@@ -724,20 +713,10 @@ function isExactPath(pathname, base) {
   return pathname === base || pathname === `${base}/`;
 }
 
-function publicQuestionHtml(question) {
-  const prompt = escapeHtml(String(question?.prompt || ''));
-  const choices = (question?.choices || []).map((choice) => `<li>${escapeHtml(choice)}</li>`).join('');
-  return `<p>${prompt}</p><ul>${choices}</ul>`;
-}
-
-/** First-paint quiz chrome: one start + first question, plus noscript bank (no answers). */
+/** First-paint quiz chrome: one lede. Questions stay in JS. */
 export function simpQuizFirstPaintHtml() {
-  const first = questionForAttempt(startQuizAttempt())?.question;
-  const firstBlock = first ? `<div id="dasha-quiz-q">${publicQuestionHtml(first)}</div>` : '';
-  const bank = QUIZ_QUESTIONS.map((question) => `<li>${publicQuestionHtml(question)}</li>`).join('');
-  return `<p><a class="dasha-go" href="#dasha-quiz-q">Take the quiz</a></p>
-${firstBlock}
-<noscript><p>Scored attempts need JavaScript. Public questions (no answers):</p><ul>${bank}</ul></noscript>`;
+  return `<p>How big of a Dasha simp are you?</p>
+<noscript><p>Needs JavaScript.</p></noscript>`;
 }
 
 /** Worker-owned first HTML for /simp. Quiz is the page. Tokens only. No handle list. */
@@ -968,7 +947,7 @@ const PRIVACY_HTML = htmlPage('Dasha privacy', `<h1>Privacy</h1>
 <p>Webflow serves the site and Cloudflare hosts the service. X processes OAuth and serves some public images; other public images may load from Wikimedia. Those image hosts receive ordinary request metadata without a page referrer. A Solana RPC receives a wallet address only during an optional holder check.</p>
 <h2>Control and deletion</h2>
 <p>Unlink clears the signed browser session. Leave Board removes your profile, claims, active quiz state, current linked result, holder challenge, chess rating, games and tournaments involving you, and your rows from retained season snapshots. Anonymous aggregate counts remain.</p>
-<p>For access or deletion requests, use the repository's <a href="https://github.com/Uuriko/dasha-desk/security/advisories/new">private report</a>. Do not include wallet keys or seed phrases.</p>
+<p>For access or deletion requests, email <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>. Do not include wallet keys or seed phrases.</p>
 ${WORKER_SITE_FOOTER}`);
 
 const NOT_FOUND_HTML = htmlPage('Page not found — $dasha', `<h1>Page not found</h1>
@@ -1660,12 +1639,12 @@ export class DashaLobby {
       const input = await requestJson(request);
       if (!xId && !allowedOrigin) return json({ error: 'origin required' }, 403, null);
       if (input?.action === 'start') {
+        if (!xId) return json({ error: 'link X to take the quiz' }, 401, allowedOrigin, cred);
         const cutoff = Date.now() - 60 * 60_000;
         for (const [key, attempt] of Object.entries(this.simpQuizAttempts)) if (key.startsWith('anon:') && Number(attempt?.updatedAt) < cutoff) delete this.simpQuizAttempts[key];
         // Scored retakes always allowed — wipe in-progress attempt and start a fresh scored run.
-        const attemptId = xId || `anon:${randomUrlToken(18)}`;
         const attempt = startQuizAttempt({ practice: false });
-        this.simpQuizAttempts[attemptId] = attempt;
+        this.simpQuizAttempts[xId] = attempt;
         this.simpQuizMetrics[completed ? 'replays' : 'starts']++;
         countMetric(this.simpQuizMetrics.reached, attempt.current);
         await this.persistSimpState();
@@ -1673,7 +1652,6 @@ export class DashaLobby {
           ok: true,
           ...quizPublic(),
           retake: Boolean(completed),
-          ...(xId ? {} : { attemptId: attemptId.slice(5) }),
           ...questionForAttempt(attempt),
         }, 200, allowedOrigin, cred);
       }
@@ -1697,7 +1675,8 @@ export class DashaLobby {
           ...meStatus(this.simpProfiles, session),
         }, 200, allowedOrigin, cred);
       }
-      const attemptKey = xId || `anon:${String(input?.attemptId || '')}`;
+      if (!xId) return json({ error: 'link X to take the quiz' }, 401, allowedOrigin, cred);
+      const attemptKey = xId;
       if (input?.action !== 'answer' || !this.simpQuizAttempts[attemptKey]) return json({ error: 'start quiz first' }, 400, allowedOrigin, cred);
       const prior = this.simpQuizAttempts[attemptKey];
       const advanced = answerQuizAttempt(prior, input.answer);
@@ -3062,6 +3041,12 @@ async function productEdge(request, url, env) {
   if (url.pathname.startsWith('/og/')) {
     return staticAssetResponse(request, env);
   }
+  if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname.startsWith('/simp/photo/')) {
+    return staticAssetResponse(request, env);
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname.startsWith('/simp/card/')) {
+    return Response.redirect(`https://lobby.getdasha.com${url.pathname}${url.search}`, 308);
+  }
   if ((request.method === 'GET' || request.method === 'HEAD') && isIconPath(url.pathname)) {
     return faviconResponse(request);
   }
@@ -3215,7 +3200,7 @@ async function productEdge(request, url, env) {
     html = rewriteHomeFirstViewport(stripHomeSimpBoard(html));
   } else {
     html = stripLeftoverStyleRules(html, SIMP_LEFTOVER_STYLE_RE);
-    if (isExactPath(url.pathname, '/lobby')) html = injectLobbySimpQuiz(html);
+    if (isExactPath(url.pathname, '/lobby')) html = stripLobbySimpQuiz(html);
   }
   html = ensureHtmlLang(html);
   html = ensurePrivacyLink(html);
@@ -3403,6 +3388,9 @@ export default {
       (url.pathname === '/rally' || url.pathname === '/rally/')
     ) {
       return Response.redirect('https://www.getdasha.com/', 308);
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/studio')) {
+      return Response.redirect('https://www.getdasha.com/studio', 308);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/lobby' || url.pathname === '/lobby/')) {
       return new Response(request.method === 'HEAD' ? null : LOBBY_PAGE, {
