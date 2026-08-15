@@ -314,8 +314,8 @@ const HOME_LEFTOVER_ROOM_HREF = /href=["'](?:https:\/\/(?:www\.)?getdasha\.com)?
 /** Drop leftover Webflow rooms from rewritten home. CSS hide is not enough. */
 function stripHomeLeftoverChrome(html) {
   let page = String(html || '');
-  page = page.replace(/\/\*[\s\S]*?DashaNav[\s\S]*?\*\//gi, '');
-  page = page.replace(/<!--[\s\S]*?DashaNav[\s\S]*?-->/gi, '');
+  page = page.replace(/\/\*(?:[^*]|\*(?!\/))*DashaNav(?:[^*]|\*(?!\/))*\*\//gi, '');
+  page = page.replace(/<!--(?:(?!-->)[\s\S])*DashaNav(?:(?!-->)[\s\S])*-->/gi, '');
   page = page.replace(/<script\b(?![^>]*\bsrc\s*=)[^>]*>[\s\S]*?<\/script>/gi, (block) => (
     /a\[href[*^=]["'][^"']*\/studio|\/studio#|p\.set\(\s*(["'])src\1\s*,\s*(["'])home\2/i.test(block) ? '' : block
   ));

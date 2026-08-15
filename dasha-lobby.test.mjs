@@ -1404,7 +1404,13 @@ try {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
 <script>WebFont.load({google:{families:["Exo:400","Bangers:regular","Raleway:400"]}});</script>
+<!-- earlier unrelated -->
+<!-- DashaNav stays on lobby/studio/desk -->
 <style>
+/* foo */
+.keep-prior{border:1px solid red}
+/* reduced-motion */
+@media(prefers-reduced-motion:reduce){.keep-prior{scroll-behavior:auto}}
 /* Home first paint is Buy $dasha. DashaNav stays on lobby/studio/desk. */
 :root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--violet:#7c4dff;--hot-deep:#c21f5a}
 .simp-board{display:grid}.simp-row{display:grid}.simp-rank{font-size:42px}
@@ -1482,6 +1488,10 @@ try {
     assert.match(hero, /class="price"/, `${label} must keep the price in the DOM`);
     assert.doesNotMatch(hero, /Open Studio →/, `${label} must strip leftover Studio actions`);
     assert.doesNotMatch(html, /class="dasha-nav"|DashaNav stays/, `${label} must strip Designer DashaNav and its comments`);
+    assert.match(html, /\/\* foo \*\//, `${label} must keep earlier CSS comments`);
+    assert.match(html, /\.keep-prior\{border:1px solid red\}/, `${label} must keep CSS after an earlier comment`);
+    assert.match(html, /\/\* reduced-motion \*\//, `${label} must keep the reduced-motion comment`);
+    assert.match(html, /<!-- earlier unrelated -->/, `${label} must keep earlier HTML comments`);
     assert.doesNotMatch(html, /href="\/studio"|How to buy/, `${label} rewritten home must not include href="/studio" or How to buy`);
     assert.doesNotMatch(html, /href="\/dasha"|href="\/bounties"|href="\/how-to-buy"/, `${label} must strip leftover Desk/Bounties/How-to-buy hrefs`);
     assert.doesNotMatch(html, /<footer(?![^>]*dasha-foot)\b/, `${label} must keep only .dasha-foot`);
@@ -1546,6 +1556,20 @@ try {
   assertHomeFirst(injected, 'rewrite');
   assert.doesNotMatch(injected, /href="\/studio"/, 'rewritten home string must not include href="/studio"');
   assert.doesNotMatch(injected, /How to buy/, 'rewritten home string must not include How to buy');
+  {
+    const commentOrder = `<!doctype html><html><head><style>
+/* foo */
+.keep-prior{border:1px solid red}
+/* Home first paint is Buy $dasha. DashaNav stays on lobby/studio/desk. */
+.dasha-hero{min-height:640px}
+</style></head><body><!-- earlier unrelated --><!-- DashaNav stays on lobby/studio/desk --><header class="dasha-hero"><h1>It's time $dasha.</h1><p class="actions"><a class="pill primary buy-dasha" href="${buy}">Buy $dasha ↗</a></p></header><section id="token"><code id="mint">${mint}</code></section></body></html>`;
+    const kept = rewriteHomeFirstViewport(stripHomeSimpBoard(commentOrder));
+    assert.match(kept, /\/\* foo \*\//, 'earlier /* foo */ must survive');
+    assert.match(kept, /\.keep-prior\{border:1px solid red\}/, 'CSS after an earlier comment must survive');
+    assert.match(kept, /<!-- earlier unrelated -->/, 'earlier HTML comment must survive');
+    assert.doesNotMatch(kept, /DashaNav stays/, 'only the DashaNav comment is stripped');
+    assert.doesNotMatch(kept, /href="\/studio"|How to buy/, 'comment-order fixture must not grow leftover rooms');
+  }
   assert.match(injected, /class="dasha-slim[\s"]/, 'home rewrite must add the slim bar');
   assert.match(injected, /class="dasha-crop"/, 'home rewrite must add crop marks');
   assert.doesNotMatch(injected, /dasha-menu|aria-label="Menu">Menu</, 'home rewrite must not render a Menu');
