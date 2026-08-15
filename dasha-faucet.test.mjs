@@ -91,15 +91,11 @@ assert.match(sitemap, /<loc>https:\/\/www\.getdasha\.com\/earn<\/loc>/);
 assert.match(sitemap, /<loc>https:\/\/www\.getdasha\.com\/claim<\/loc>/);
 assert.doesNotMatch(sitemap, /\/claim-rewards<\/loc>/);
 
+const WEAK = /not an airdrop|not earn|not official|not advice|she is not the dev|association is not endorsement|neither is required|we will not ask for a phrase|nobody from \$dasha will ask for a phrase|agents do not claim this faucet|tiny sample for newbies|MATCH, not verified/i;
+
 assert.match(clientSrc, /global\.DashaFaucet/);
-assert.match(clientSrc, /a tiny sample for newbies\. not an airdrop\. not earn\./);
-assert.match(clientSrc, /Agents do not claim this faucet/);
-assert.match(clientSrc, /SIWS is dest-proof, not a claim-airdrop signature/);
-assert.match(clientSrc, /current ATA rent/);
 assert.match(clientSrc, /faucet paused/);
 assert.match(clientSrc, /solana:signIn|signIn/);
-assert.match(clientSrc, /nobody from \$dasha will ask for a phrase/);
-assert.match(clientSrc, /MATCH, not verified/);
 assert.match(clientSrc, /dasha-x-linked/);
 assert.match(clientSrc, /signedMessage/);
 assert.match(clientSrc, /dasha-faucet-static/);
@@ -107,42 +103,24 @@ assert.match(clientSrc, /destShapeError/);
 assert.match(clientSrc, /last-4 does not match/);
 assert.match(clientSrc, /dest_not_wallet/);
 assert.match(clientSrc, /dest_token/);
-assert.match(clientSrc, /faucet-quiet/);
 assert.match(clientSrc, /faucet-back/);
 assert.match(clientSrc, /holdCard/);
 assert.match(clientSrc, /aria-label/);
-assert.match(clientSrc, /\/airdrop/);
-assert.match(clientSrc, /\/earn/);
-assert.match(clientSrc, /state\.card = 6/);
+assert.match(clientSrc, /faucet-hero/);
+assert.match(clientSrc, /client\/faucet\.png/);
+assert.match(clientSrc, /state\.card = 5/);
 assert.match(clientSrc, /\/faucet\/dest-check/);
 assert.doesNotMatch(clientSrc, /JSON\.stringify\(res\.data\)/);
 assert.doesNotMatch(clientSrc, /live\.textContent = raw/);
-assert.match(clientSrc, /waiting for the chain\. no fake bar\./);
-assert.match(clientSrc, /it's a sample/);
-assert.match(clientSrc, /that word has a room at \/airdrop/);
-assert.match(clientSrc, /that word has a room at \/earn/);
-assert.match(clientSrc, /got a sample\. not an airdrop\. not earn\./);
-assert.match(clientSrc, /no cash value/);
-assert.match(clientSrc, /send the sample/);
-assert.match(clientSrc, /faucet-hole/);
-assert.match(clientSrc, /MATCH the mint/);
-assert.match(clientSrc, /paste the real CA/);
+assert.doesNotMatch(clientSrc, WEAK);
 assert.doesNotMatch(clientSrc, /\bContinue\b/);
 assert.doesNotMatch(clientSrc, /\bXP\b|hearts|refer a friend|referral code/i);
-assert.match(clientSrc, /IS_WALLET/);
-assert.match(clientSrc, /NOT THIS TOKEN/);
-assert.match(clientSrc, /bull\.jpg|weekend\.jpg|chart\.jpg|profile\.jpg/);
 assert.match(clientSrc, /body: '\{\}'/);
 assert.doesNotMatch(clientSrc, /body: JSON\.stringify\(\{[^}]*\b(mint|amountRaw|amount)\b/);
 assert.match(clientSrc, /credentials:\s*'include'/);
 assert.match(clientSrc, /\/oauth\/x\/start/);
 assert.match(clientSrc, /\/faucet\/wallet\/challenge/);
 assert.match(clientSrc, /\/faucet\/claim/);
-assert.match(clientSrc, /\/how-to-buy/);
-assert.match(clientSrc, /\/learn/);
-assert.match(clientSrc, /jup\.ag\/swap\?sell=/);
-assert.ok(clientSrc.includes(WSOL));
-assert.match(clientSrc, /var JUPITER = 'https:\/\/jup\.ag\/swap\?sell=' \+ WSOL \+ '&buy=' \+ MINT/);
 assert.doesNotMatch(clientSrc, /sell=So11111111111111111111111111111111111112&/);
 assert.doesNotMatch(faucetSrc, /sell=So11111111111111111111111111111111111112&/);
 assert.doesNotMatch(clientSrc, /\bInter\b|Geist|fonts\.googleapis|system-ui/);
@@ -272,24 +250,36 @@ function memoryFaucet(env) {
 
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { FAUCET_CLIENT_JS, FAUCET_CLIENT_SRI } = await import('./dasha-lobby-static-gen.mjs');
+const { FAUCET_CLIENT_JS, FAUCET_CLIENT_SRI, FAUCET_STILL_SRI } = await import('./dasha-lobby-static-gen.mjs');
 const faucetSri = `sha384-${createHash('sha384').update(FAUCET_CLIENT_JS).digest('base64')}`;
 assert.equal(FAUCET_CLIENT_SRI, faucetSri, 'FAUCET_CLIENT_SRI must hash served client/faucet.js');
+assert.match(FAUCET_STILL_SRI, /^sha384-/);
 
+const { magnetPageHtml } = await import('./dasha-magnet-pages.mjs');
 const pageHtml = workerModule.faucetPageHtml();
 assert.match(pageHtml, /<link rel="canonical" href="https:\/\/www\.getdasha\.com\/faucet">/);
 assert.match(pageHtml, /id="dasha-faucet"/);
-assert.match(pageHtml, /<noscript>[\s\S]*<h1>Faucet<\/h1>[\s\S]*<\/noscript>/);
+assert.match(pageHtml, /<noscript>[\s\S]*client\/faucet\.png[\s\S]*<\/noscript>/);
 assert.doesNotMatch(pageHtml.replace(/<noscript>[\s\S]*?<\/noscript>/, ''), /<h1>Faucet<\/h1>/);
 assert.match(pageHtml, /href="\/faucet" aria-current="page"/);
 assert.match(pageHtml, /footer a\{display:inline-flex;align-items:center;min-height:48px/);
-assert.ok(pageHtml.includes(mint));
-assert.match(pageHtml, /Arial Black/);
+assert.match(pageHtml, /data-faucet-still/);
+assert.match(pageHtml, /data-faucet-still-sri/);
+assert.ok(pageHtml.includes(FAUCET_STILL_SRI));
+assert.match(pageHtml, /client\/faucet\.png/);
+assert.match(pageHtml, /Arial Black|"Arial Black"/);
 assert.match(pageHtml, /client\/faucet\.js/);
 assert.match(pageHtml, /href="\/faucet"/);
-assert.match(pageHtml, /Agents do not claim this faucet/);
+assert.doesNotMatch(pageHtml, WEAK);
 assert.doesNotMatch(pageHtml, /\bInter\b|Geist|fonts\.googleapis|system-ui/);
 assert.doesNotMatch(pageHtml, /free money|guaranteed|official faucet/i);
+for (const kind of ['airdrop', 'earn', 'claim']) {
+  const room = magnetPageHtml(kind);
+  assert.match(room, /<h1>(AIRDROP|EARN|CLAIM)<\/h1>/);
+  assert.match(room, /href="\/faucet"/);
+  assert.doesNotMatch(room, WEAK);
+  assert.doesNotMatch(room, /there isn't one|does not pay you to click|the only send/i);
+}
 
 for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
   for (const method of ['GET', 'HEAD']) {
@@ -299,7 +289,8 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
     const html = await res.text();
     if (method === 'HEAD') assert.equal(html, '');
     else {
-      assert.ok(html.includes(mint), `${host} /faucet mint`);
+      assert.match(html, /client\/faucet\.png/, `${host} /faucet still`);
+      assert.doesNotMatch(html, WEAK);
       assert.doesNotMatch(html, /\bInter\b|Geist|fonts\.googleapis|system-ui/);
     }
   }
@@ -316,7 +307,9 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
     assert.equal(room.status, 200, `${host} ${path}`);
     assert.equal(room.headers.get('x-dasha-edge'), edge);
     const html = await room.text();
-    assert.match(html, /not an airdrop|does not pay you to click|the only send is the \/faucet sample/i);
+    assert.match(html, /<h1>(AIRDROP|EARN|CLAIM)<\/h1>/);
+    assert.match(html, /href="\/faucet"/);
+    assert.doesNotMatch(html, WEAK);
     assert.doesNotMatch(html, /claim your allocation|earn \$dasha|\$[0-9]|fake txid|txid/i);
     assert.doesNotMatch(html, /<form[\s\S]*method=["']post["']/i);
     assert.doesNotMatch(html, /\bInter\b|Geist|fonts\.googleapis|system-ui/);
@@ -337,6 +330,14 @@ assert.match(js.headers.get('content-type') || '', /javascript/);
 const jsBody = await js.text();
 assert.ok(jsBody.includes(mint));
 assert.doesNotMatch(jsBody, /\bInter\b|Geist|fonts\.googleapis|system-ui/);
+const still = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/client/faucet.png'), {
+  ASSETS: { fetch: async (req) => {
+    assert.match(String(req.url), /\/simp\/photo\/faucet\.png/);
+    return new Response('png', { status: 200, headers: { 'Content-Type': 'image/png' } });
+  } },
+});
+assert.equal(still.status, 200);
+assert.match(still.headers.get('content-type') || '', /png/);
 
 const env = {
   LOBBY_SESSION_SECRET: 'faucet-test-secret',

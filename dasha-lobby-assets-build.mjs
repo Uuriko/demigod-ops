@@ -172,6 +172,8 @@ function build() {
   const graphPage = readFileSync(join(root, 'dasha-graph-page.html'), 'utf8');
   const lobbyPage = readFileSync(join(root, 'dasha-lobby-page.html'), 'utf8');
   const socialCard = readFileSync(join(root, 'dasha-worker-assets/og/dasha-social-card.png'));
+  const faucetStill = readFileSync(join(root, 'dasha-worker-assets/simp/photo/faucet.png'));
+  const faucetStillSri = sri(faucetStill);
   const worker = readFileSync(join(root, 'dasha-lobby-worker.mjs'), 'utf8');
   const workerDependencies = [
     'dasha-lobby-mod.mjs',
@@ -218,7 +220,9 @@ function build() {
         '\n' +
         lobbyPage +
         '\n' +
-        socialCard.toString('base64'),
+        socialCard.toString('base64') +
+        '\n' +
+        faucetStill.toString('base64'),
     )
     .digest('hex')
     .slice(0, 16);
@@ -233,6 +237,7 @@ function build() {
     graphSri,
     learnSri,
     faucetSri,
+    faucetStillSri,
     learnBytes: learn.length,
     faucetBytes: faucet.length,
     robotsBytes: robots.length,
@@ -259,6 +264,7 @@ export const LEARN_CLIENT_JS = \`${escTemplate(learn)}\`;
 export const LEARN_CLIENT_SRI = ${JSON.stringify(learnSri)};
 export const FAUCET_CLIENT_JS = \`${escTemplate(faucet)}\`;
 export const FAUCET_CLIENT_SRI = ${JSON.stringify(faucetSri)};
+export const FAUCET_STILL_SRI = ${JSON.stringify(faucetStillSri)};
 export const LOBBY_PAGE_HTML = \`${escTemplate(lobbyPage)}\`;
 export const ASSET_HASH = ${JSON.stringify(hash)};
 `,

@@ -1,6 +1,5 @@
 /**
- * Dasha /faucet — tiny sample, not an airdrop, not earn.
- * Classic Token program. HTTP RPC only. No hold check. No board join.
+ * Dasha /faucet. Classic Token program. HTTP RPC only. No hold check. No board join.
  */
 import { MINT, WSOL, originAllowed } from './dasha-lobby-mod.mjs';
 import {

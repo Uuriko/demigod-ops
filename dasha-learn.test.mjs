@@ -92,7 +92,8 @@ assert.doesNotMatch(hubHtml.replace(/<script type="application\/json"[\s\S]*?<\/
 assert.match(hubHtml, /Arial Black/);
 assert.match(hubHtml, /LEARN_CLIENT_SRI|integrity="/);
 assert.match(hubHtml, /client\/learn\.js/);
-assert.match(hubHtml, /Optional class/);
+assert.match(hubHtml, /<title>Learn — getdasha.com<\/title>|<h1>Learn<\/h1>/);
+assert.doesNotMatch(hubHtml.replace(/<script type="application\/json"[\s\S]*?<\/script>/, ''), /not an airdrop|not earn|not official|not advice|she is not the dev|association is not endorsement|MATCH, not verified|tiny sample for newbies|agents do not claim/i);
 assert.match(hubHtml, /href="\/learn"/);
 
 const c08 = learnPageHtml({ track: 'crypto', mod: 'C08' });
