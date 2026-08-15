@@ -13,7 +13,6 @@
   var data = { nodes: [], links: [] };
   var labelsOn = true;
   var reduced = false;
-  var usedViolet = false;
 
   function $(id) { return document.getElementById(id); }
   function prefersReduced() {
@@ -34,7 +33,7 @@
     return PAPER;
   }
   function linkColor(link) {
-    if (link.kind === 'launchpad' && !usedViolet) return VIOLET;
+    if (link.kind === 'launchpad') return VIOLET;
     if (link.kind === 'transfer') return HOT;
     return PAPER;
   }
@@ -158,7 +157,6 @@
       paintList();
       return;
     }
-    usedViolet = data.links.some(function (link) { return link.kind === 'launchpad'; });
     var el = $('graph');
     graph = global.ForceGraph3D()(el)
       .backgroundColor(INK)
@@ -173,7 +171,6 @@
       .linkWidth(function (link) { return link.kind === 'transfer' ? 1.6 : 0.8; })
       .linkOpacity(0.72)
       .graphData(data)
-      .onNodeClick(nodePanel)
       .onLinkClick(linkPanel)
       .onNodeDragEnd(function (node) {
         node.fx = node.x;

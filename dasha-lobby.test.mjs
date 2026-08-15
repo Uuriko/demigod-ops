@@ -1058,8 +1058,9 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
   assert.doesNotMatch(sitemapBody, /lobby\.getdasha\.com\/chess/, `${host} sitemap must not list lobby chess`);
   assert.match(sitemapBody, /\n  <url>\n    <loc>https:\/\/www\.getdasha\.com\/chess<\/loc>\n  <\/url>\n/, `${host} sitemap chess URL must keep the same indent as other locs`);
   const robots = await workerModule.default.fetch(new Request(`https://${host}/robots.txt`), {});
-  assert.match(await robots.text(), /Allow: \/verse/, `${host} robots must allow /verse`);
-  assert.match(await robots.text(), /Allow: \/graph/, `${host} robots must allow /graph`);
+  const robotsBody = await robots.text();
+  assert.match(robotsBody, /Allow: \/verse/, `${host} robots must allow /verse`);
+  assert.match(robotsBody, /Allow: \/graph/, `${host} robots must allow /graph`);
 }
 
 {
