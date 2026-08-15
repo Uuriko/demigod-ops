@@ -56,7 +56,7 @@ assert(client.indexOf("root.appendChild(quiz)") < client.indexOf("root.appendChi
 assert(!/oauth\/x\/callback[\s\S]{0,1500}joinBoard/.test(worker), 'OAuth callback must not auto-enroll (client joins)');
 assert(client.includes('/simp/board') && client.includes('/simp/join') && client.includes('/simp/leave'), 'client missing API paths');
 assert(client.includes('How big of a Dasha simp are you?') && client.includes('/simp/quiz'), 'client missing X-linked simp quiz');
-assert(client.includes('Finishing joins the Board') && client.includes('Retake'), 'quiz enrollment/retake terms missing');
+assert(client.includes("'Retake'") && client.includes('retakeQuiz'), 'quiz retake primary is Retake');
 assert(client.includes('x.com/intent/post?text='), 'quiz result X fallback missing');
 assert(client.includes('sendQuizCard') && client.includes('shareQuiz'), 'share helpers missing');
 assert(client.includes('QUIZ_CARDS') && client.includes('quizCardBlob') && client.includes('1200') && client.includes('675'), 'quiz result-card suite missing');
@@ -73,7 +73,7 @@ assert(client.indexOf("qimg.className = 'simp-quiz-media'") < client.indexOf("el
 assert(client.includes('paintLinkedChip') && client.includes('dasha-x-chip'), 'linked identity chip helpers missing');
 assert(score.includes('QUIZ_LANES') && client.includes('result.lane'), 'lane-specific result identity missing');
 assert(!client.includes('Replay for fun') && !client.includes('leaderboard score unchanged'), 'unscored for-fun replay must be gone');
-assert(client.includes('Retake quiz') && (client.includes('latest score') || client.includes('Retake updates score') || client.includes('vibe')), 'scored retake UX missing');
+assert(client.includes("'Retake'") && (client.includes('latest score') || client.includes('Retake updates score') || client.includes('vibe') || client.includes('retakeQuiz')), 'scored retake UX missing');
 assert(client.includes('simp-surprise') && score.includes('vibeDeltaForAttempt'), 'quiz surprises + vibe scoring missing');
 assert(score.includes('QUIZ_VIBE_RANGE') && score.includes('vibeNote'), 'vibe range helpers missing');
 assert(worker.includes('retake') && worker.includes('quizResultForAttempt'), 'Worker must allow scored retakes');
@@ -134,12 +134,17 @@ assert(!landing.includes('10Q') && !landing.includes('20Q'),
 );
 assert(!client.includes("el('details', 'simp-breakdown')") && !client.includes('simp-badge'), 'board rows must drop breakdown and badge chrome');
 assert(client.includes('rowClean') && client.includes("el('span', 'simp-rank'") && client.includes("el('span', 'simp-pts'"), 'board row is rank · handle · number');
-assert(client.includes('homeBoard') && client.includes("homeQuiz.addEventListener('click'") && client.includes('startQuiz()'), 'home Take Quiz starts the quiz');
+assert(client.includes('homeBoard') && client.includes('scrollToQuiz()') && client.includes('startQuiz()'), 'home Take Quiz starts the quiz in #simp');
 assert(client.includes('rows.slice(0, 10)') && client.includes('Show more'), 'home board is top 10 plus Show more');
 assert(client.includes("el('button', 'simp-connect', 'Connect X')"), 'Connect X is a quiet board button, not a first-paint modal');
-assert(client.includes('simp-quiz-go') && client.includes('box-shadow:4px 4px 0 #ff3b81'), 'Take the quiz is an acid button with a hard hot offset');
-assert.match(client, /\.simp-quiz-go,.simp-quiz-start,.simp-action,.simp-tool\{[^}]*background:#dfff00;color:#070608/, 'quiz go and board actions are acid fill + ink type');
-assert.match(client, /\.simp-connect\{[^}]*border:1px solid #f4eddb;background:none;color:#f4eddb/, 'Connect X is paper on ink');
+assert(client.includes('simp-quiz-go') && client.includes('box-shadow:4px 4px 0 #ff3b81'), 'Take Quiz is an acid button with a hard hot offset');
+assert.match(client, /\.simp-quiz-go,.simp-quiz-start\{[^}]*min-height:56px;min-width:12rem[^}]*background:#dfff00;color:#070608/, 'Take Quiz is acid fill + ink type at 56px');
+assert.match(client, /\.simp-quiz-go:hover,.simp-quiz-go:focus-visible,.simp-quiz-start:hover,.simp-quiz-start:focus-visible\{[^}]*color:#070608/, 'Take Quiz hover/focus stays ink on acid');
+assert.match(client, /\.simp-quiz-go:disabled,.simp-quiz-start:disabled\{[^}]*color:#070608/, 'Take Quiz disabled stays readable');
+assert.match(client, /@media\(max-width:520px\)\{[\s\S]*?\.simp-quiz-go,.simp-quiz-start\{width:100%/, 'Take Quiz is full-width on mobile');
+assert.match(client, /\.simp-connect,.simp-quiz-share\{[^}]*border:1px solid #f4eddb;background:none;color:#f4eddb/, 'Connect X is paper on ink');
+assert.doesNotMatch(client, /Take the quiz/);
+assert(client.includes("quizBtn.textContent = 'Retake'") && client.includes("shareBtn") && client.includes("'Share'"), 'after a run, primary is Retake and Share is secondary');
 assert.match(client, /\.simp-more\{[^}]*color:#dfff00;font:900 1rem/, 'Show more is acid on ink');
 assert.doesNotMatch(client, /\.simp-quiz-choice\{[^}]*color:#fff/, 'quiz choices are not white type');
 assert.match(client, /\.simp-quiz-choice\{[^}]*color:#f4eddb/, 'quiz choices are paper on ink');
@@ -159,7 +164,7 @@ assert(!client.includes("var inviteCopyBtn") && !client.includes("var inviteShar
 assert(client.includes("var inviteToolBtn") && client.includes("'Invite on X'"), 'secondary invite controls must remain contextual');
 assert(client.includes('copyQuizInvite') && client.includes('shareQuizInviteOnX'), 'invite copy/share helpers missing');
 assert(landing.includes('?quiz=1#simp'), 'landing should surface quiz invite link');
-assert(client.includes('latest score counts') || client.includes('Retake updates score'), 'retake-for-score copy missing');
+assert(client.includes('retakeQuiz') && client.includes("quizBtn.textContent = 'Retake'"), 'retake-for-score path missing');
 assert(score.includes("QUIZ_VERSION = 'dasha-simp-quiz/v10'"), 'score module must be v10');
 assert(score.includes('QUIZ_SCORED_LENGTH = 21'), 'scored path must be 21');
 assert(score.includes('QUIZ_PATH_LENGTH = 22'), 'shown path must be 22');

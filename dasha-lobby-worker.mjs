@@ -378,7 +378,7 @@ function ensureHomeBuyPill(html) {
 function ensureHomeSimpMount(html) {
   const page = String(html || '');
   if (/id=["']dasha-simp-board["']/i.test(page)) return page;
-  const mount = `<div id="simp"><style>${AWARD_BOARD_CSS}</style><div id="dasha-simp-board" data-simp-api="https://lobby.getdasha.com"><noscript>Needs JavaScript.</noscript></div></div>${simpBoardClientScript()}`;
+  const mount = `<div id="simp"><style>${AWARD_BOARD_CSS}</style><div id="dasha-simp-board" data-simp-api="https://lobby.getdasha.com">${simpQuizFirstPaintHtml()}</div></div>${simpBoardClientScript()}`;
   const hero = page.match(/<header\b[^>]*\bdasha-hero\b[^>]*>[\s\S]*?<\/header>/i);
   if (!hero) return page;
   const at = page.indexOf(hero[0]) + hero[0].length;
@@ -1134,7 +1134,7 @@ function isExactPath(pathname, base) {
 
 /** First-paint quiz chrome: one lede. Questions stay in JS. */
 export function simpQuizFirstPaintHtml() {
-  return `<p>How big of a Dasha simp are you?</p>
+  return `<p class="simp-lede">How big of a Dasha simp are you?</p>
 <button type="button" class="simp-quiz-go" data-dasha-take-quiz>Take Quiz</button>
 <noscript><p>Needs JavaScript.</p></noscript>`;
 }

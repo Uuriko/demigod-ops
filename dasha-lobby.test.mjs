@@ -23,8 +23,11 @@ assert.match(chessPage, /\.btn\{[^}]*background:var\(--acid\);color:var\(--ink\)
 assert.match(chessPage, /\.btn\.ghost\{[^}]*color:var\(--paper\);border:1px solid var\(--paper\)/, 'chess ghost is paper on ink');
 assert.match(chessPage, /\.btn:disabled\{opacity:\.7/, 'chess disabled type stays readable');
 assert.doesNotMatch(chessPage, /\.btn:disabled\{opacity:\.5/);
-assert.match(simpClient, /\.simp-quiz-go,.simp-quiz-start,.simp-action,.simp-tool\{[^}]*background:#dfff00;color:#070608/, 'quiz go and board actions are acid fill + ink type');
-assert.match(simpClient, /\.simp-connect\{[^}]*border:1px solid #f4eddb;background:none;color:#f4eddb/, 'Connect X is paper on ink');
+assert.match(simpClient, /\.simp-quiz-go,.simp-quiz-start\{[^}]*min-height:56px;min-width:12rem[^}]*background:#dfff00;color:#070608/, 'Take Quiz is acid fill + ink type at 56px');
+assert.match(simpClient, /\.simp-quiz-go:hover,.simp-quiz-go:focus-visible,.simp-quiz-start:hover,.simp-quiz-start:focus-visible\{[^}]*color:#070608/, 'Take Quiz hover/focus stays ink on acid');
+assert.match(simpClient, /\.simp-quiz-go:disabled,.simp-quiz-start:disabled\{[^}]*color:#070608/, 'Take Quiz disabled stays readable');
+assert.match(simpClient, /@media\(max-width:520px\)\{[\s\S]*?\.simp-quiz-go,.simp-quiz-start\{width:100%/, 'Take Quiz is full-width on mobile');
+assert.match(simpClient, /\.simp-connect,.simp-quiz-share\{[^}]*border:1px solid #f4eddb;background:none;color:#f4eddb/, 'Connect X is paper on ink');
 assert.match(simpClient, /\.simp-more\{[^}]*color:#dfff00;font:900 1rem/, 'Show more is acid on ink');
 assert.doesNotMatch(simpClient, /\.simp-quiz-choice\{[^}]*color:#fff/, 'quiz choices are not white type');
 assert.match(simpClient, /\.simp-quiz-choice\{[^}]*color:#f4eddb/, 'quiz choices are paper on ink');
@@ -1516,6 +1519,8 @@ try {
     assert.match(html, /dexscreener\.com\/solana\/9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7\?embed=1/, `${label} chart embeds this pair only`);
     assert.match(html, /id="simp"/, `${label} must keep a #simp room`);
     assert.match(html, /id="dasha-simp-board"/, `${label} #simp remounts the pretty board`);
+    assert.match(html, /id="dasha-simp-board"[\s\S]*data-dasha-take-quiz[^>]*>Take Quiz</, `${label} #simp first-paints Take Quiz`);
+    assert.doesNotMatch(hero, /Take Quiz|data-dasha-take-quiz/, `${label} hero first paint stays headline + Buy`);
     assert.match(html, /simp-board\.js/, `${label} must load the board client below the hero`);
     assert.match(html, /id="chess"/, `${label} must embed chess on home`);
     assert.match(html, /id="board"/, `${label} home chess must ship the 64-square board`);
@@ -1552,7 +1557,7 @@ try {
     assert.doesNotMatch(html, /--hot-deep|rgba\(124,\s*77,\s*255/, `${label} must drop the violet wash and --hot-deep`);
     assert.doesNotMatch(hero, /system-ui/, `${label} hero must not use system-ui`);
     assert.doesNotMatch(hero, /<form\b|wallet-connect|payTo|\/oauth|score=/i, `${label} first paint must not mount forms or OAuth`);
-    assert.doesNotMatch(html, /class="simp-/);
+    assert.doesNotMatch(html.replace(/class="simp-(?:lede|quiz-go)"/g, ''), /class="simp-/, `${label} home first paint only ships the Take Quiz entry`);
     const lowerNav = html.match(/<nav class="nav wrap">[\s\S]*?<\/nav>/i)?.[0] || '';
     assert.doesNotMatch(lowerNav, /href="\/studio">Studio</, `${label} lower nav must not include Studio`);
     assert.doesNotMatch(lowerNav, /href="\/how-to-buy"/, `${label} lower nav must not include How to buy`);

@@ -21,7 +21,7 @@
     'Dasha curious': { image: '/simp/photo/weekend.jpg', quote: 'All I want is free healthcare, honey', source: '1011745071983296512' }
   };
   var QUIZ_PHOTOS = Object.keys(QUIZ_CARDS).map(function (key) { return QUIZ_CARDS[key].image; });
-  var BOARD_CSS = '.simp-board-root{max-width:36rem;margin:0 auto;color:#f4eddb;font-family:Arial,Helvetica,sans-serif}.simp-lede{margin:0 0 1.25rem;font:900 clamp(1.35rem,3.4vw,2rem)/1.15 "Arial Black",Helvetica,Arial,sans-serif}.simp-home-actions,.simp-quiz-invite-actions{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 1.75rem;align-items:center}.simp-quiz-go,.simp-quiz-start,.simp-action,.simp-tool{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 1.25rem;border:0;background:#dfff00;color:#070608;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif;text-decoration:none;box-shadow:4px 4px 0 #ff3b81;cursor:pointer}.simp-action:disabled,.simp-tool:disabled{opacity:.7;color:#070608}.simp-connect{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 1.25rem;border:1px solid #f4eddb;background:none;color:#f4eddb;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif;cursor:pointer}.simp-board{display:grid}.simp-row{display:grid;grid-template-columns:3.2rem minmax(0,1fr) 3.2rem;gap:.8rem;align-items:baseline;padding:.8rem 0;border-bottom:1px solid rgba(244,237,219,.18);background:none}.simp-rank{color:#dfff00;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}.simp-handle{color:#f4eddb;font-weight:900;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.simp-pts{color:rgba(244,237,219,.5);text-align:right;font-variant-numeric:tabular-nums}.simp-empty,.simp-status{margin:0;color:rgba(244,237,219,.42)}.simp-status:empty{display:none}.simp-more{margin:1.25rem 0 0;padding:0;border:0;background:none;color:#dfff00;font:900 1rem/1.2 "Arial Black",Helvetica,Arial,sans-serif;cursor:pointer}.simp-tools summary{min-height:48px;color:#f4eddb;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif;cursor:pointer}';
+  var BOARD_CSS = '.simp-board-root{max-width:36rem;margin:0 auto;color:#f4eddb;font-family:Arial,Helvetica,sans-serif}.simp-lede{margin:0 0 1.25rem;font:900 clamp(1.35rem,3.4vw,2rem)/1.15 "Arial Black",Helvetica,Arial,sans-serif}.simp-home-actions,.simp-quiz-invite-actions{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 1.75rem;align-items:center}.simp-quiz-go,.simp-quiz-start{display:inline-flex;align-items:center;justify-content:center;min-height:56px;min-width:12rem;padding:0 1.25rem;border:0;background:#dfff00;color:#070608;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif;text-decoration:none;box-shadow:4px 4px 0 #ff3b81;cursor:pointer}.simp-quiz-go:hover,.simp-quiz-go:focus-visible,.simp-quiz-start:hover,.simp-quiz-start:focus-visible{background:#dfff00;color:#070608}.simp-quiz-go:disabled,.simp-quiz-start:disabled{opacity:.7;background:#dfff00;color:#070608}.simp-action,.simp-tool{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 1.25rem;border:0;background:#dfff00;color:#070608;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif;text-decoration:none;box-shadow:4px 4px 0 #ff3b81;cursor:pointer}.simp-action:disabled,.simp-tool:disabled{opacity:.7;color:#070608}.simp-connect,.simp-quiz-share{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 1.25rem;border:1px solid #f4eddb;background:none;color:#f4eddb;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif;cursor:pointer}@media(max-width:520px){.simp-quiz-invite-actions,.simp-home-actions{display:grid;width:100%}.simp-quiz-go,.simp-quiz-start{width:100%;min-width:0}}.simp-board{display:grid}.simp-row{display:grid;grid-template-columns:3.2rem minmax(0,1fr) 3.2rem;gap:.8rem;align-items:baseline;padding:.8rem 0;border-bottom:1px solid rgba(244,237,219,.18);background:none}.simp-rank{color:#dfff00;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}.simp-handle{color:#f4eddb;font-weight:900;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.simp-pts{color:rgba(244,237,219,.5);text-align:right;font-variant-numeric:tabular-nums}.simp-empty,.simp-status{margin:0;color:rgba(244,237,219,.42)}.simp-status:empty{display:none}.simp-more{margin:1.25rem 0 0;padding:0;border:0;background:none;color:#dfff00;font:900 1rem/1.2 "Arial Black",Helvetica,Arial,sans-serif;cursor:pointer}.simp-tools summary{min-height:48px;color:#f4eddb;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif;cursor:pointer}';
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -166,41 +166,30 @@
     var quizClose = el('button', 'simp-quiz-close', 'Close'); quizClose.type = 'button';
     quiz.appendChild(quizClose);
     quiz.appendChild(el('h3', 'simp-quiz-title', 'How big of a Dasha simp are you?'));
-    var quizNote = el('p', 'simp-quiz-note', 'Take Quiz. Finishing joins the Board.');
-    var quizBtn = root.querySelector('[data-dasha-take-quiz]') || el('button', 'simp-action simp-quiz-start', 'Take Quiz');
+    var quizNote = el('p', 'simp-quiz-note', '');
+    quizNote.hidden = true;
+    var quizBtn = root.querySelector('[data-dasha-take-quiz]') || el('button', 'simp-quiz-go', 'Take Quiz');
     quizBtn.type = 'button';
+    quizBtn.className = 'simp-quiz-go';
     quizBtn.textContent = 'Take Quiz';
     quizBtn.setAttribute('aria-label', 'Start the Dasha simp quiz');
     if (!quizBtn.getAttribute('data-dasha-take-quiz')) quizBtn.setAttribute('data-dasha-take-quiz', '');
-    var retakeBtn = el('button', 'simp-action', 'Retake quiz'); retakeBtn.type = 'button'; retakeBtn.hidden = true;
-    retakeBtn.setAttribute('aria-label', 'Retake the simp quiz and update your board score');
+    var shareBtn = el('button', 'simp-connect simp-quiz-share', 'Share');
+    shareBtn.type = 'button';
+    shareBtn.hidden = true;
+    shareBtn.setAttribute('aria-label', 'Share your quiz result');
     var connectBtn = el('button', 'simp-connect', 'Connect X');
     connectBtn.type = 'button';
     connectBtn.setAttribute('aria-label', 'Connect X');
     var quizActions = el('div', 'simp-actions simp-quiz-invite-actions');
     var quizBox = el('div', 'simp-quiz-box'); quizBox.hidden = true;
-    quiz.appendChild(quizNote); quiz.appendChild(quizActions); quiz.appendChild(quizBox);
-    if (homeBoard) {
-      var hop = el('p', 'simp-lede', 'How big of a Dasha simp are you?');
-      var homeActions = el('div', 'simp-home-actions');
-      var homeQuiz = el('button', 'simp-quiz-go', 'Take Quiz');
-      homeQuiz.type = 'button';
-      homeQuiz.setAttribute('data-dasha-take-quiz', '');
-      homeQuiz.setAttribute('aria-label', 'Start the Dasha simp quiz');
-      homeQuiz.addEventListener('click', function () { startQuiz(); });
-      homeActions.appendChild(homeQuiz);
-      homeActions.appendChild(connectBtn);
-      root.appendChild(hop);
-      root.appendChild(homeActions);
-      quizActions.appendChild(quizBtn);
-      quizActions.appendChild(retakeBtn);
-      root.appendChild(quiz);
-    } else {
-      quizActions.appendChild(quizBtn);
-      quizActions.appendChild(connectBtn);
-      quizActions.appendChild(retakeBtn);
-      root.appendChild(quiz);
-    }
+    quizActions.appendChild(quizBtn);
+    quizActions.appendChild(shareBtn);
+    quizActions.appendChild(connectBtn);
+    quiz.appendChild(quizNote);
+    quiz.appendChild(quizActions);
+    quiz.appendChild(quizBox);
+    root.appendChild(quiz);
 
     var status = el('p', 'simp-status', 'Loading board…');
     status.setAttribute('role', 'status');
@@ -265,6 +254,7 @@
 
     function paintChallengeNote() {
       if (!challengeResult) return;
+      quizNote.hidden = false;
       quizNote.textContent = 'Beat ' + challengeResult.correct + '/' + challengeResult.total + ' · ' + challengeResult.title + ' · ' + challengeResult.lane;
     }
 
@@ -321,7 +311,7 @@
     function setQuizOpen(on) {
       root.classList.toggle('simp-quiz-active', Boolean(on));
       document.documentElement.classList.toggle('simp-quiz-open', Boolean(on));
-      if (on && root.scrollIntoView) root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (on) scrollToQuiz();
     }
 
     /** Result share phase: hide buy sticky + mobile sticky Share CTA. */
@@ -356,7 +346,6 @@
       hideResultSticky();
       quizBox.hidden = true;
       quizBtn.hidden = false;
-      retakeBtn.disabled = false;
       quizBtn.disabled = false;
       setQuizOpen(false);
       paintMe();
@@ -428,42 +417,32 @@
       meLine.hidden = true;
       meLine.textContent = '';
       quizBtn.hidden = false;
-      retakeBtn.hidden = true;
       quizBtn.disabled = false;
-      retakeBtn.disabled = false;
+      quizBtn.className = 'simp-quiz-go';
       connectBtn.hidden = !!(meData && meData.linked);
+      var quizResult = (meData && meData.board && meData.board.quiz) || lastQuizResult;
+      if (quizResult) {
+        quizBtn.textContent = 'Retake';
+        quizBtn.dataset.mode = 'quiz';
+        quizBtn.setAttribute('aria-label', 'Retake the Dasha simp quiz');
+        shareBtn.hidden = false;
+        if (!challengeResult) quizNote.hidden = true;
+      } else {
+        quizBtn.textContent = 'Take Quiz';
+        quizBtn.dataset.mode = 'quiz';
+        quizBtn.setAttribute('aria-label', 'Start the Dasha simp quiz');
+        shareBtn.hidden = true;
+        if (!challengeResult) {
+          quizNote.hidden = true;
+          quizNote.textContent = '';
+        }
+      }
       if (!meData || !meData.linked) {
         actionBtn.textContent = 'Link X to join';
       actionBtn.setAttribute('aria-label', 'Link X to join the simp board');
         actionBtn.dataset.mode = 'link';
-        quizBtn.textContent = 'Take Quiz';
-        quizBtn.dataset.mode = 'quiz';
-        quizBtn.setAttribute('aria-label', 'Start the Dasha simp quiz');
-        quizNote.textContent = 'Take Quiz. Finishing joins the Board.';
         return;
       }
-      var quizResult = (meData.board && meData.board.quiz) || lastQuizResult;
-      quizBtn.textContent = quizResult ? 'Share result' : 'Take Quiz';
-      quizBtn.dataset.mode = quizResult ? 'share' : 'quiz';
-      quizBtn.setAttribute(
-        'aria-label',
-        quizResult ? 'Share your quiz result' : 'Start the Dasha simp quiz',
-      );
-      retakeBtn.hidden = !quizResult;
-      retakeBtn.setAttribute('aria-label', 'Retake the simp quiz and update your score');
-      quizNote.textContent = quizResult
-        ? quizResult.correct +
-          '/' +
-          quizResult.total +
-          ' · ' +
-          quizResult.title +
-          ' · ' +
-          (meData.board && meData.board.components ? meData.board.components.quiz || 0 : quizResult.points || 0) +
-          ' pts' +
-          (quizResult.vibeNote ? ' · ' + quizResult.vibeNote : '') +
-          (quizResult.resultUrl ? ' · ' + quizResult.resultUrl : '') +
-          ' · Share anytime · Retake updates score'
-        : 'Take Quiz. Finishing joins the Board.';
       if (!meData.enrolled) {
         actionBtn.textContent = 'Join board';
         actionBtn.setAttribute('aria-label', 'Join the simp board with linked X account');
@@ -1068,7 +1047,7 @@
         quizBox.textContent = '';
         quizBox.hidden = false;
         quizBtn.hidden = true;
-        retakeBtn.hidden = true;
+        shareBtn.hidden = true;
         setQuizOpen(false);
         if (blob) {
           if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -1108,7 +1087,7 @@
           });
           actions.appendChild(another);
         }
-        var retake = el('button', 'simp-action', 'Retake quiz');
+        var retake = el('button', 'simp-quiz-go', 'Retake');
         retake.type = 'button';
         retake.addEventListener('click', function () {
           if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -1260,7 +1239,7 @@
 
     function renderQuestion(data) {
       quizAnswerBusy = false;
-      quizState = data; setQuizOpen(true); quizBox.textContent = ''; quizBox.hidden = false; quizBtn.hidden = true;
+      quizState = data; setQuizOpen(true); quizBox.textContent = ''; quizBox.hidden = false; quizBtn.hidden = true; shareBtn.hidden = true;
       var stage = el('div', 'simp-quiz-stage');
       var current = (data.progress && data.progress.current) || 0;
       var total = (data.progress && data.progress.total) || 0;
@@ -1373,8 +1352,9 @@
     function startQuiz() {
       quizAnswerBusy = false;
       hideResultSticky();
+      scrollToQuiz();
       quizBtn.disabled = true;
-      retakeBtn.disabled = true;
+      shareBtn.hidden = true;
       postQuiz({ action: 'start' })
         .then(function (res) {
           if (!res.data || !res.data.question) throw new Error((res.data && res.data.error) || 'Quiz unavailable');
@@ -1384,7 +1364,6 @@
         })
         .catch(function (error) {
           quizBtn.disabled = false;
-          retakeBtn.disabled = false;
           setStatus(String(error.message || error), 'bad');
         });
     }
@@ -1405,17 +1384,11 @@
       linkX();
     });
     quizBtn.addEventListener('click', function () {
-      if (quizBtn.dataset.mode === 'link') {
-        return linkX();
-      }
-      if (quizBtn.dataset.mode === 'share') {
-        var shared = lastQuizResult || (meData && meData.board && meData.board.quiz);
-        return showSharePush(shared, shared && shared.resultUrl);
-      }
       startQuiz();
     });
-    retakeBtn.addEventListener('click', function () {
-      retakeQuiz();
+    shareBtn.addEventListener('click', function () {
+      var shared = lastQuizResult || (meData && meData.board && meData.board.quiz);
+      return showSharePush(shared, shared && shared.resultUrl);
     });
     inviteToolBtn.addEventListener('click', function () {
       copyQuizInvite(inviteToolBtn);
