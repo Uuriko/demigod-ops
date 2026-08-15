@@ -21,9 +21,10 @@ const bank = publicBank();
 assert.equal(bank.mint, mint);
 assert.equal(Object.hasOwn(bank, 'disclaimer'), false, 'bank must not ship a disclaimer lecture');
 assert.match(JSON.stringify(bank), /how-to-buy/);
-const BANNED = /not an airdrop|not earn|not [“"]i earned \$dasha|she is not the dev|\bnot the dev\b|association is not endorsement|association ≠ endorsement|neither is required|we will not ask for a phrase|this is not advice|\bnot advice\b/i;
+const BANNED = /not an airdrop|not earn|not [“"]i earned \$dasha|she is not the dev|\bnot the dev\b|association is not endorsement|association ≠ endorsement|neither is required|we will not ask for a phrase|this is not advice|\bnot advice\b|We never take your card|Nobody from \$dasha|We never take the phrase|We never take a card|Who from \$dasha will ask|A tx is not required to pass|We do not tell you which|Other networks sell inference\. We do not|If someone else has the phrase, they have the keys\. We do not|you do not have to buy to pass|No transaction required|No purchase required/i;
 const bankNotesChips = bank.modules.flatMap((row) => [
-  row.goal, row.body, row.note, row.prompt,
+  row.goal, row.body, row.note, row.prompt, row.fallback?.prompt,
+  ...(row.proves || []).flatMap((p) => [p.prompt, ...(p.choices || [])]),
   ...(row.chips || []).map((chip) => chip.text),
 ]).join('\n');
 assert.doesNotMatch(bankNotesChips, BANNED, 'bank notes/chips must not lecture');

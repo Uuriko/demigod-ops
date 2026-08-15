@@ -19,6 +19,7 @@ assert.ok(html.includes(MINT), 'mint on how-to-buy');
 assert.ok(html.includes('jup.ag/swap'), 'jupiter deep link');
 assert.ok(!/phantom\.com\/tokens|raydium\.io\/swap/i.test(html), 'retired transaction venues returned');
 assert.match(html, /data-n="01"[\s\S]*?wallet[\s\S]*?SOL/, 'Get SOL must mention wallet and SOL');
+assert.doesNotMatch(html, /We never take your card|Nobody from \$dasha will ask for it/i);
 assert.ok(html.includes('https://phantom.app/'), 'official Phantom download');
 assert.ok(html.includes('https://solflare.com/'), 'official Solflare download');
 assert.ok(html.includes('https://phantom.app/ul/v1/swap?buy=solana%3A101%2Faddress%3A' + MINT), 'Phantom in-app swap deeplink');

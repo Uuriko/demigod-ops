@@ -287,7 +287,6 @@ footer a{color:var(--muted)}
   <article class="step" id="step01" data-n="01">
     <div class="n">01</div>
     <h2>Get SOL</h2>
-    <p>We never take your card. You buy in your own wallet.</p>
     <p>Install <a href="https://phantom.app/" target="_blank" rel="noopener noreferrer">Phantom</a> or <a href="https://solflare.com/" target="_blank" rel="noopener noreferrer">Solflare</a>. Write the phrase on paper.</p>
     <p>In Phantom tap Buy, pick SOL. MoonPay / Coinbase Pay / Robinhood are Phantom’s checkout, not ours.</p>
     <p>Or buy SOL on <a href="https://www.coinbase.com/price/solana" target="_blank" rel="noopener noreferrer">Coinbase</a> and send on network Solana to that wallet.</p>
@@ -704,4 +703,4 @@ export const LOBBY_PAGE_HTML = `<!doctype html>
 </body>
 </html>
 `;
-export const ASSET_HASH = "27831a862884e412";
+export const ASSET_HASH = "3519e6dd80692499";
