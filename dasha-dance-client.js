@@ -1,23 +1,18 @@
 /**
- * Bottom dancer. One Three r170 Dasha + Umplix CC0 loop.
+ * Bottom dancer. One skinned GLB + Umplix CC0 loop.
  * Track: Umplix, "Polygons N' Light", OpenGameArt, CC0 1.0.
  */
 (function (global) {
   'use strict';
 
   var LOBBY = 'https://lobby.getdasha.com';
+  var GLB = LOBBY + '/client/dasha.glb';
   var FACE = LOBBY + '/client/dasha-face.webp';
   var LOOP = LOBBY + '/client/dasha-loop.mp3';
   var THREE_SRC = 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+  var ADDONS = 'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/';
   var MUTE_KEY = 'dashaMute';
   var DOCK_H = 156;
-  var SKIN = 0xf0d2be;
-  var HAIR = 0xc4a36a;
-  var HAIR_DIM = 0x8d6b45;
-  var TEE = 0x161618;
-  var CAP = 0x0c0c0e;
-  var JEAN = 0x242428;
-  var MOLE = 0x3a2418;
 
   var dock = null;
   var canvas = null;
@@ -29,15 +24,19 @@
   var muted = false;
   var gesturing = false;
   var dead = false;
+  var onScreen = true;
   var THREE = null;
   var renderer = null;
   var scene = null;
   var camera = null;
-  var rig = null;
+  var wrap = null;
+  var head = null;
+  var mixer = null;
   var clock = null;
   var dir = 1;
   var yaw = -0.85;
   var ro = null;
+  var io = null;
   var tmp = null;
 
   function prefersReduced() {
@@ -117,205 +116,12 @@
     if (!muted) playLoop();
   }
 
-  function mat(color, extra) {
-    return new THREE.MeshStandardMaterial(Object.assign({
-      color: color,
-      roughness: 0.78,
-      metalness: 0.02,
-    }, extra || {}));
-  }
-
-  function capLabel() {
-    var c = document.createElement('canvas');
-    c.width = 256;
-    c.height = 64;
-    var g = c.getContext('2d');
-    g.fillStyle = '#0c0c0e';
-    g.fillRect(0, 0, 256, 64);
-    g.fillStyle = '#f4eddb';
-    g.font = '900 34px "Arial Black", Arial, sans-serif';
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText('SCARY', 128, 34);
-    var tex = new THREE.CanvasTexture(c);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    var mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.2, 0.05),
-      new THREE.MeshBasicMaterial({ map: tex })
-    );
-    mesh.position.set(0, 0.05, 0.145);
-    return mesh;
-  }
-
-  function addHair(head, hair, dim) {
-    var clumps = [
-      [0, 0.08, -0.12, 0.145, hair],
-      [0.11, 0.02, -0.07, 0.1, hair],
-      [-0.11, 0.02, -0.07, 0.1, dim],
-      [0.13, -0.08, 0.02, 0.085, hair],
-      [-0.12, -0.1, 0.01, 0.08, dim],
-      [0.15, -0.2, 0.0, 0.09, hair],
-      [-0.1, -0.22, -0.02, 0.085, dim],
-      [0.02, 0.1, -0.14, 0.11, dim],
-    ];
-    var i;
-    for (i = 0; i < clumps.length; i++) {
-      var c = clumps[i];
-      var m = new THREE.Mesh(new THREE.SphereGeometry(c[3], 10, 8), c[4]);
-      m.position.set(c[0], c[1], c[2]);
-      head.add(m);
-    }
-  }
-
-  function limb(len, r, material) {
-    var g = new THREE.Group();
-    var mesh = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 4, 8), material);
-    mesh.position.y = -len / 2 - r * 0.2;
-    g.add(mesh);
-    return g;
-  }
-
-  function buildRig(faceMap) {
-    var skin = mat(SKIN);
-    var hair = mat(HAIR, { roughness: 0.92 });
-    var dim = mat(HAIR_DIM, { roughness: 0.94 });
-    var tee = mat(TEE, { roughness: 0.7 });
-    var capM = mat(CAP, { roughness: 0.55 });
-    var jean = mat(JEAN);
-    var shoe = mat(0x111114, { roughness: 0.6 });
-    var moleM = mat(MOLE, { roughness: 1 });
-
-    var root = new THREE.Group();
-    var hips = new THREE.Group();
-    hips.position.y = 0.7;
-    root.add(hips);
-
-    var torso = new THREE.Group();
-    torso.position.y = 0.06;
-    hips.add(torso);
-    var chest = new THREE.Mesh(new THREE.CapsuleGeometry(0.155, 0.3, 6, 12), tee);
-    chest.position.y = 0.24;
-    torso.add(chest);
-    var hem = new THREE.Mesh(new THREE.CylinderGeometry(0.145, 0.165, 0.12, 12), tee);
-    hem.position.y = 0.02;
-    torso.add(hem);
-    var neck = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.05, 0.08, 8), skin);
-    neck.position.y = 0.44;
-    torso.add(neck);
-
-    var head = new THREE.Group();
-    head.position.y = 0.58;
-    torso.add(head);
-    var skull = new THREE.Mesh(new THREE.SphereGeometry(0.152, 20, 16), skin);
-    skull.scale.set(0.9, 1.04, 0.86);
-    head.add(skull);
-    if (faceMap) {
-      var face = new THREE.Mesh(
-        new THREE.CircleGeometry(0.132, 28),
-        new THREE.MeshStandardMaterial({
-          map: faceMap,
-          transparent: true,
-          alphaTest: 0.18,
-          roughness: 0.62,
-          metalness: 0,
-        })
-      );
-      face.position.set(0, -0.012, 0.118);
-      head.add(face);
-    }
-    var cheek = new THREE.Mesh(new THREE.SphereGeometry(0.0075, 8, 6), moleM);
-    cheek.position.set(0.088, -0.018, 0.128);
-    head.add(cheek);
-    var chin = new THREE.Mesh(new THREE.SphereGeometry(0.005, 8, 6), moleM);
-    chin.position.set(0.022, -0.1, 0.122);
-    head.add(chin);
-    var earL = new THREE.Mesh(new THREE.SphereGeometry(0.028, 8, 6), skin);
-    earL.position.set(0.13, -0.01, 0.01);
-    earL.scale.set(0.55, 1, 0.7);
-    head.add(earL);
-    var earR = earL.clone();
-    earR.position.x = -0.13;
-    head.add(earR);
-    addHair(head, hair, dim);
-
-    var crown = new THREE.Mesh(new THREE.SphereGeometry(0.17, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.58), capM);
-    crown.scale.set(1.06, 0.62, 1.04);
-    crown.position.y = 0.09;
-    head.add(crown);
-    var brim = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.018, 0.15), capM);
-    brim.position.set(0, 0.03, 0.155);
-    head.add(brim);
-    head.add(capLabel());
-
-    var lArm = limb(0.22, 0.038, skin);
-    lArm.position.set(0.2, 0.38, 0);
-    torso.add(lArm);
-    var lFore = limb(0.2, 0.032, skin);
-    lFore.position.y = -0.24;
-    lArm.add(lFore);
-    var rArm = limb(0.22, 0.038, skin);
-    rArm.position.set(-0.2, 0.38, 0);
-    torso.add(rArm);
-    var rFore = limb(0.2, 0.032, skin);
-    rFore.position.y = -0.24;
-    rArm.add(rFore);
-
-    var lLeg = limb(0.28, 0.05, jean);
-    lLeg.position.set(0.08, 0, 0);
-    hips.add(lLeg);
-    var lShin = limb(0.26, 0.042, jean);
-    lShin.position.y = -0.3;
-    lLeg.add(lShin);
-    var lShoe = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.05, 0.16), shoe);
-    lShoe.position.set(0, -0.3, 0.03);
-    lShin.add(lShoe);
-
-    var rLeg = limb(0.28, 0.05, jean);
-    rLeg.position.set(-0.08, 0, 0);
-    hips.add(rLeg);
-    var rShin = limb(0.26, 0.042, jean);
-    rShin.position.y = -0.3;
-    rLeg.add(rShin);
-    var rShoe = lShoe.clone();
-    rShin.add(rShoe);
-
-    return {
-      root: root,
-      hips: hips,
-      torso: torso,
-      head: head,
-      lArm: lArm,
-      rArm: rArm,
-      lFore: lFore,
-      rFore: rFore,
-      lLeg: lLeg,
-      rLeg: rLeg,
-      lShin: lShin,
-      rShin: rShin,
-    };
-  }
-
-  function pose(t, moving) {
-    if (!rig) return;
-    var s = moving ? 1 : 0;
-    var step = Math.sin(t);
-    var kick = Math.sin(t * 2);
-    rig.hips.position.y = 0.7 + Math.abs(step) * 0.04 * s;
-    rig.hips.rotation.y = step * 0.2 * s;
-    rig.torso.rotation.z = -step * 0.1 * s;
-    rig.torso.rotation.y = step * 0.14 * s;
-    rig.head.rotation.y = -step * 0.12 * s;
-    rig.head.rotation.z = step * 0.05 * s;
-    rig.lLeg.rotation.x = step * 0.72 * s;
-    rig.rLeg.rotation.x = -step * 0.72 * s;
-    rig.lShin.rotation.x = Math.max(0, -step) * 0.5 * s;
-    rig.rShin.rotation.x = Math.max(0, step) * 0.5 * s;
-    rig.lArm.rotation.x = -step * 0.62 * s + kick * 0.08 * s;
-    rig.rArm.rotation.x = step * 0.62 * s;
-    rig.lArm.rotation.z = 0.42 + Math.abs(step) * 0.12 * s;
-    rig.rArm.rotation.z = -0.42 - Math.abs(step) * 0.12 * s;
-    rig.lFore.rotation.x = -0.28 - Math.abs(step) * 0.22 * s;
-    rig.rFore.rotation.x = -0.28 - Math.abs(step) * 0.22 * s;
+  function pinThree() {
+    if (document.querySelector('script[type="importmap"]')) return;
+    var s = document.createElement('script');
+    s.type = 'importmap';
+    s.textContent = '{"imports":{"three":"' + THREE_SRC + '","three/addons/":"' + ADDONS + '"}}';
+    document.head.appendChild(s);
   }
 
   function travelWidth() {
@@ -326,15 +132,16 @@
   }
 
   function placeHit() {
-    if (!hit || !rig || !camera || !tmp) return;
+    if (!hit || !camera || !tmp) return;
     var w = canvas.clientWidth || 1;
     var h = canvas.clientHeight || DOCK_H;
-    rig.head.getWorldPosition(tmp);
+    var obj = head || wrap;
+    if (!obj) return;
+    obj.getWorldPosition(tmp);
+    tmp.y += head ? 0 : 1.46;
     tmp.project(camera);
-    var sx = (tmp.x * 0.5 + 0.5) * w;
-    var sy = (-tmp.y * 0.5 + 0.5) * h;
-    hit.style.left = Math.round(sx - 44) + 'px';
-    hit.style.top = Math.round(sy - 36) + 'px';
+    hit.style.left = Math.round((tmp.x * 0.5 + 0.5) * w - 44) + 'px';
+    hit.style.top = Math.round((-tmp.y * 0.5 + 0.5) * h - 36) + 'px';
     hit.style.marginLeft = '0';
   }
 
@@ -349,25 +156,29 @@
   }
 
   function tick() {
-    if (dead || !renderer || !scene || !camera || !rig) return;
+    if (dead || !renderer || !scene || !camera || !wrap) {
+      raf = 0;
+      return;
+    }
+    if (!onScreen) {
+      raf = 0;
+      return;
+    }
     var dt = clock ? Math.min(0.05, clock.getDelta()) : 0.016;
-    var t = clock ? clock.elapsedTime * 5.2 : 0;
     if (!reduced) {
-      var span = travelWidth() / 2 - 0.42;
-      rig.root.position.x += dir * 0.95 * dt;
-      if (rig.root.position.x > span) {
-        rig.root.position.x = span;
+      var span = travelWidth() / 2 - 0.45;
+      wrap.position.x += dir * 0.95 * dt;
+      if (wrap.position.x > span) {
+        wrap.position.x = span;
         dir = -1;
-      } else if (rig.root.position.x < -span) {
-        rig.root.position.x = -span;
+      } else if (wrap.position.x < -span) {
+        wrap.position.x = -span;
         dir = 1;
       }
       var want = dir > 0 ? -0.85 : 0.85;
       yaw += (want - yaw) * Math.min(1, dt * 5);
-      rig.root.rotation.y = yaw;
-      pose(t, true);
-    } else {
-      pose(0, false);
+      wrap.rotation.y = yaw;
+      if (mixer) mixer.update(dt);
     }
     placeHit();
     renderer.render(scene, camera);
@@ -375,7 +186,7 @@
   }
 
   function stillFallback() {
-    if (!hit) return;
+    if (!hit || hit.querySelector('img')) return;
     var img = document.createElement('img');
     img.src = FACE;
     img.alt = '';
@@ -386,7 +197,7 @@
     hit.appendChild(img);
   }
 
-  function startScene(faceMap) {
+  function startScene(gltf) {
     if (dead || !canvas || !THREE) return;
     try {
       renderer = new THREE.WebGLRenderer({
@@ -413,10 +224,19 @@
     var fill = new THREE.DirectionalLight(0xc8d4ff, 0.22);
     fill.position.set(-2.2, 1.1, 1.4);
     scene.add(fill);
-    rig = buildRig(faceMap);
-    scene.add(rig.root);
+    wrap = new THREE.Group();
+    wrap.add(gltf.scene);
+    gltf.scene.traverse(function (obj) {
+      if (obj.name === 'head') head = obj;
+    });
+    scene.add(wrap);
     tmp = new THREE.Vector3();
     clock = new THREE.Clock();
+    if (!reduced && gltf.animations && gltf.animations.length) {
+      mixer = new THREE.AnimationMixer(gltf.scene);
+      var clip = mixer.clipAction(gltf.animations[0]);
+      clip.play();
+    }
     fit();
     if (global.ResizeObserver) {
       ro = new ResizeObserver(fit);
@@ -424,32 +244,19 @@
     } else {
       global.addEventListener('resize', fit);
     }
+    if (global.IntersectionObserver) {
+      io = new IntersectionObserver(function (entries) {
+        onScreen = !!(entries[0] && entries[0].isIntersecting);
+        if (onScreen && !reduced && !raf) tick();
+      }, { threshold: 0 });
+      io.observe(dock);
+    }
     if (reduced) {
-      pose(0, false);
       renderer.render(scene, camera);
       placeHit();
     } else {
       tick();
     }
-  }
-
-  function loadFaceImg() {
-    return new Promise(function (resolve) {
-      var img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.decoding = 'async';
-      img.onload = function () { resolve(img); };
-      img.onerror = function () { resolve(null); };
-      img.src = FACE;
-    });
-  }
-
-  function faceTexture(img) {
-    if (!img || !THREE) return null;
-    var tex = new THREE.Texture(img);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    tex.needsUpdate = true;
-    return tex;
   }
 
   function dispose() {
@@ -460,14 +267,23 @@
       try { ro.disconnect(); } catch (e) { /* closed */ }
       ro = null;
     }
+    if (io) {
+      try { io.disconnect(); } catch (e0) { /* closed */ }
+      io = null;
+    }
     global.removeEventListener('resize', fit);
+    if (mixer) {
+      mixer.stopAllAction();
+      mixer = null;
+    }
     if (renderer) {
       try { renderer.dispose(); } catch (e2) { /* closed */ }
       renderer = null;
     }
     scene = null;
     camera = null;
-    rig = null;
+    wrap = null;
+    head = null;
     clock = null;
     tmp = null;
     if (audio) {
@@ -523,17 +339,24 @@
       speaker.disabled = true;
     }
     global.addEventListener('pagehide', dispose);
+    pinThree();
     Promise.all([
       import(THREE_SRC),
-      loadFaceImg(),
+      import('three/addons/loaders/GLTFLoader.js'),
     ]).then(function (pack) {
       if (dead) return;
       THREE = pack[0];
-      if (!THREE) {
+      var Loader = pack[1] && pack[1].GLTFLoader;
+      if (!THREE || !Loader) {
         stillFallback();
         return;
       }
-      startScene(faceTexture(pack[1]));
+      var loader = new Loader();
+      loader.setCrossOrigin('anonymous');
+      loader.load(GLB, function (gltf) {
+        if (dead) return;
+        startScene(gltf);
+      }, undefined, stillFallback);
     }).catch(stillFallback);
   }
 

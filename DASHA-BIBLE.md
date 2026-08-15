@@ -151,13 +151,13 @@ Visible four. Violet is technical only. No sixth hex.
 8. Association one-liner: “References describe internet culture. Not endorsement.”
 9. Body / `.body` / `.dasha-root` ink `#070608`. No maroon `#1F041C`. No violet. No WebFont.load.
 
-**Bottom dancer (2026-08-15 lock — one 3D Dasha, not a flipbook):**
-1. One Three.js `0.170.0` character (same pin as `/graph`). Same face, hair, body, clothes in every frame. She is a model, not an 8-frame sheet.
-2. Likeness: dirty-blonde / light-brown wavy hair, pale skin, dark brows, small mouth, mole on her left cheek (viewer right) and chin, black tee, black **SCARY** cap. Not Mixamo, not an MK rip, not a cherry blob, not a sailor fuku, not photogrammetry of press photos.
-3. Travels the full bottom of the viewport, left edge ↔ right edge, yaw to face the direction of travel, loop forever.
-4. Visible speaker: classic speaker + sound waves, strikethrough when muted. Acid `#dfff00` on ink `#070608`. Click speaker or dancer to toggle. Persist `localStorage.dashaMute`. Autoplay `/client/dasha-loop.mp3` (Umplix “Polygons N' Light”, CC0) with the gesture-unlock fallback.
-5. Dock is the one 3D object on home. Hidden on `/graph`. Reduced-motion: still pose, no travel, no music. Home first paint stays headline + Buy $dasha; dock boots after first paint / idle.
-6. No Spline. No second 3D toy. No disclaimers / weak copy on the dock. Face albedo is worker-hosted `/client/dasha-face.webp` from the CC refs in `dasha-dance-refs/`.
+**Bottom dancer (2026-08-15 lock — one skinned GLB, not a flipbook, not capsules):**
+1. Identity is **one mesh**: worker-hosted `/client/dasha.glb` (skin + in-place `step` clip). Same face, hair, body, clothes in every frame. Playback is Three.js `0.170.0` `GLTFLoader` + `AnimationMixer` (same pin as `/graph`). Clip root stays at origin.
+2. Likeness: dirty-blonde / light-brown wavy hair, pale skin, dark brows, small mouth, mole on her left cheek (viewer right) and chin, black tee, black **SCARY** cap. Not Mixamo stock, not an MK rip, not a cherry blob, not a sailor fuku, not photogrammetry of press photos, not a runtime capsule/primitive girl.
+3. The client drives world X ping-pong across the full dock and yaws on turn. Pause the render loop when the dock is off-screen.
+4. Speaker is a **DOM button** (classic speaker + waves, strikethrough when muted). Acid `#dfff00` on ink `#070608`. Click speaker or dancer. Persist `localStorage.dashaMute`. Autoplay `/client/dasha-loop.mp3` (Umplix “Polygons N' Light”, CC0) with the gesture-unlock fallback.
+5. Dock is the one 3D object on home. Hidden on `/graph`. Reduced-motion / no-WebGL: still pose, no travel, no music (`/client/dasha-face.webp`). Home first paint stays headline + Buy $dasha; dock boots after first paint / idle.
+6. No Spline. No second 3D toy. No disclaimers / weak copy on the dock. No invented Meshy key. Swap the GLB if a Meshy bake lands; do not change the mixer path.
 
 **Image policy for product HTML:**
 1. Prefer **hotlinkable** `pbs.twimg.com` media with `referrerpolicy="no-referrer"` and honest alts.

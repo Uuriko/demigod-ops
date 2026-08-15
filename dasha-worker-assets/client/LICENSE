@@ -5,9 +5,10 @@ Download: https://opengameart.org/sites/default/files/polygons_n_light.mp3
 License: CC0 1.0 Universal (https://creativecommons.org/publicdomain/zero/1.0/)
 Hosted as /client/dasha-loop.mp3
 
-dasha-face.webp is one oval-cropped albedo from the 2022 self-portrait,
-used as the single face on the Three.js Dasha. Likeness also checked
-against these stills:
+dasha.glb is one skinned A-pose humanoid with an in-place step clip.
+The face tile is cropped from the 2022 self-portrait. dasha-face.webp
+is the still-pose / no-WebGL fallback. Likeness also checked against
+these stills:
 
 Dasha Nekrasova in "Cotton" pilot
 Author: After Hours Productions
