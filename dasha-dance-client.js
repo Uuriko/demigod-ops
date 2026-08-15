@@ -13,6 +13,9 @@
   var ADDONS = 'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/';
   var MUTE_KEY = 'dashaMute';
   var DOCK_H = 156;
+  var HALF_H = 0.84;
+  var LOOK_EVERY = 3;
+  var LOOK_HOLD = 1.15;
 
   var dock = null;
   var canvas = null;
@@ -25,6 +28,7 @@
   var gesturing = false;
   var dead = false;
   var onScreen = true;
+  var tabVisible = true;
   var THREE = null;
   var renderer = null;
   var scene = null;
@@ -35,6 +39,8 @@
   var clock = null;
   var dir = 1;
   var yaw = -0.85;
+  var crossings = 0;
+  var lookHold = 0;
   var ro = null;
   var io = null;
   var tmp = null;
@@ -57,7 +63,7 @@
       '#dasha-dance button{pointer-events:auto;margin:0;padding:0;border:0;cursor:pointer;background:transparent}' +
       '#dasha-dance button:focus-visible{outline:3px solid #dfff00;outline-offset:3px}' +
       '#dasha-dance .dasha-dance-hit{position:absolute;left:50%;width:88px;height:150px;bottom:0;margin-left:-44px}' +
-      '#dasha-dance .dasha-dance-speaker{position:absolute;left:max(8px,env(safe-area-inset-left,0px));bottom:max(8px,env(safe-area-inset-bottom,0px));width:48px;height:48px;background:#070608;border:2px solid #dfff00}' +
+      '#dasha-dance .dasha-dance-speaker{position:absolute;right:max(8px,env(safe-area-inset-right,0px));top:8px;width:48px;height:48px;background:#070608;border:2px solid #dfff00}' +
       '#dasha-dance .dasha-dance-speaker svg{display:block;width:32px;height:32px;margin:6px auto}';
   }
 
@@ -82,7 +88,7 @@
   }
 
   function playLoop() {
-    if (dead || reduced || !audio) return;
+    if (dead || reduced || muted || !audio || !live()) return;
     var go = audio.play();
     if (go && go.catch) go.catch(function () { waitGesture(); });
   }
@@ -124,11 +130,33 @@
     document.head.appendChild(s);
   }
 
+  function live() {
+    return onScreen && tabVisible && !dead;
+  }
+
+  function goQuiet() {
+    if (raf) global.cancelAnimationFrame(raf);
+    raf = 0;
+    if (audio) {
+      try { audio.pause(); } catch (e) { /* closed */ }
+    }
+  }
+
+  function goLive() {
+    if (dead || reduced) return;
+    if (!raf) tick();
+    if (!muted) playLoop();
+  }
+
+  function onVis() {
+    tabVisible = !document.hidden;
+    if (live()) goLive();
+    else goQuiet();
+  }
+
   function travelWidth() {
     if (!camera) return 4;
-    var dist = camera.position.z;
-    var h = 2 * Math.tan((camera.fov * Math.PI / 180) / 2) * dist;
-    return h * camera.aspect;
+    return camera.right - camera.left;
   }
 
   function placeHit() {
@@ -149,7 +177,11 @@
     if (!renderer || !camera || !dock) return;
     var w = dock.clientWidth || global.innerWidth || 320;
     renderer.setSize(w, DOCK_H, true);
-    camera.aspect = w / DOCK_H;
+    var halfW = HALF_H * (w / DOCK_H);
+    camera.left = -halfW;
+    camera.right = halfW;
+    camera.top = HALF_H;
+    camera.bottom = -HALF_H;
     camera.updateProjectionMatrix();
     if (reduced && scene) renderer.render(scene, camera);
     placeHit();
@@ -160,24 +192,35 @@
       raf = 0;
       return;
     }
-    if (!onScreen) {
+    if (!live()) {
       raf = 0;
       return;
     }
     var dt = clock ? Math.min(0.05, clock.getDelta()) : 0.016;
     if (!reduced) {
       var span = travelWidth() / 2 - 0.45;
-      wrap.position.x += dir * 0.95 * dt;
-      if (wrap.position.x > span) {
-        wrap.position.x = span;
-        dir = -1;
-      } else if (wrap.position.x < -span) {
-        wrap.position.x = -span;
-        dir = 1;
-      }
       var want = dir > 0 ? -0.85 : 0.85;
-      yaw += (want - yaw) * Math.min(1, dt * 5);
+      if (lookHold > 0) {
+        lookHold -= dt;
+        want = 0;
+      }
+      yaw += (want - yaw) * Math.min(1, dt * 2.2);
       wrap.rotation.y = yaw;
+      var turning = Math.abs(want - yaw) > 0.16;
+      if (lookHold <= 0 && !turning) {
+        wrap.position.x += dir * 0.95 * dt;
+        if (wrap.position.x > span) {
+          wrap.position.x = span;
+          dir = -1;
+          crossings += 1;
+          if (crossings % LOOK_EVERY === 0) lookHold = LOOK_HOLD;
+        } else if (wrap.position.x < -span) {
+          wrap.position.x = -span;
+          dir = 1;
+          crossings += 1;
+          if (crossings % LOOK_EVERY === 0) lookHold = LOOK_HOLD;
+        }
+      }
       if (mixer) mixer.update(dt);
     }
     placeHit();
@@ -197,6 +240,23 @@
     hit.appendChild(img);
   }
 
+  function dressMat(mat) {
+    mat.metalness = 0;
+    mat.roughness = 0.9;
+    mat.envMap = null;
+    mat.envMapIntensity = 0;
+    mat.onBeforeCompile = function (shader) {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        'vec3 outgoingLight = totalDiffuse + totalSpecular + totalEmissiveRadiance;',
+        'float rim = 1.0 - max(dot(normalize(normal), normalize(vViewPosition)), 0.0);' +
+        'vec3 outgoingLight = totalDiffuse + totalSpecular * 0.15 + totalEmissiveRadiance;' +
+        'outgoingLight += vec3(0.874, 1.0, 0.0) * pow(rim, 2.7) * 0.58;' +
+        'outgoingLight += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * 0.028;'
+      );
+    };
+    mat.needsUpdate = true;
+  }
+
   function startScene(gltf) {
     if (dead || !canvas || !THREE) return;
     try {
@@ -213,21 +273,25 @@
     renderer.setClearColor(0x000000, 0);
     renderer.setPixelRatio(Math.min(global.devicePixelRatio || 1, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.NoToneMapping;
     scene = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera(28, 2, 0.1, 40);
-    camera.position.set(0, 0.86, 4.15);
-    camera.lookAt(0, 0.78, 0);
-    scene.add(new THREE.AmbientLight(0xfff6ee, 0.72));
-    var key = new THREE.DirectionalLight(0xfff4e8, 0.88);
+    camera = new THREE.OrthographicCamera(-1.6, 1.6, HALF_H, -HALF_H, 0.1, 40);
+    camera.position.set(0, 0.80, 4);
+    camera.lookAt(0, 0.80, 0);
+    scene.add(new THREE.AmbientLight(0xfff6ee, 0.78));
+    var key = new THREE.DirectionalLight(0xfff4e8, 0.52);
     key.position.set(1.1, 2.2, 3.4);
     scene.add(key);
-    var fill = new THREE.DirectionalLight(0xc8d4ff, 0.22);
+    var fill = new THREE.DirectionalLight(0xc8d4ff, 0.16);
     fill.position.set(-2.2, 1.1, 1.4);
     scene.add(fill);
     wrap = new THREE.Group();
     wrap.add(gltf.scene);
     gltf.scene.traverse(function (obj) {
       if (obj.name === 'head') head = obj;
+      if (obj.material) {
+        if (obj.material.isMaterial) dressMat(obj.material);
+      }
     });
     scene.add(wrap);
     tmp = new THREE.Vector3();
@@ -247,10 +311,12 @@
     if (global.IntersectionObserver) {
       io = new IntersectionObserver(function (entries) {
         onScreen = !!(entries[0] && entries[0].isIntersecting);
-        if (onScreen && !reduced && !raf) tick();
+        if (live()) goLive();
+        else goQuiet();
       }, { threshold: 0 });
       io.observe(dock);
     }
+    document.addEventListener('visibilitychange', onVis);
     if (reduced) {
       renderer.render(scene, camera);
       placeHit();
@@ -263,6 +329,7 @@
     dead = true;
     if (raf) global.cancelAnimationFrame(raf);
     raf = 0;
+    document.removeEventListener('visibilitychange', onVis);
     if (ro) {
       try { ro.disconnect(); } catch (e) { /* closed */ }
       ro = null;
@@ -304,6 +371,7 @@
     if (dead || document.getElementById('dasha-dance')) return;
     reduced = prefersReduced();
     muted = reduced ? true : readMute();
+    tabVisible = !document.hidden;
     var style = document.createElement('style');
     style.textContent = css();
     dock = document.createElement('div');

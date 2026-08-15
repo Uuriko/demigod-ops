@@ -7,6 +7,7 @@ Likeness refs (not flipbook frames):
   berlinale-2021.jpg — bangs / body check
 
 Playback is GLTFLoader + AnimationMixer. Clip has no root translation.
+Atlas is grainy and matte so she keys off ink, not a plastic doll.
 """
 from __future__ import annotations
 
@@ -153,6 +154,14 @@ def stamp_scary(dst: np.ndarray) -> None:
                 dst[yy : yy + py - 1, xx : xx + px - 1] = PAPER
 
 
+def grain(dst: np.ndarray, lo: int, hi: int, seed: int, y0: int = 0, y1: int | None = None) -> None:
+    y1 = dst.shape[0] if y1 is None else y1
+    rng = np.random.default_rng(seed)
+    band = dst[y0:y1]
+    noise = rng.integers(lo, hi + 1, band.shape, dtype=np.int16)
+    dst[y0:y1] = np.clip(band.astype(np.int16) + noise, 0, 255).astype(np.uint8)
+
+
 def build_atlas() -> tuple[np.ndarray, np.ndarray]:
     name, x, y, cw, ch = FACE
     w, h, raw = decode_rgb(REFS / name)
@@ -168,6 +177,8 @@ def build_atlas() -> tuple[np.ndarray, np.ndarray]:
     fill(atlas, 266, 266, 504, 378, SKIN)
     fill(atlas, 8, 388, 246, 504, JEAN)
     fill(atlas, 266, 388, 504, 504, SHOE)
+    grain(atlas, -10, 10, 61, 248, 512)
+    grain(atlas, -7, 7, 67, 0, 248)
     still = np.zeros((256, 256, 3), dtype=np.uint8)
     blit(still, face, 0, 0, 256, 256)
     return atlas, still
@@ -293,22 +304,22 @@ def build_mesh() -> Mesh:
     r_ul, r_ll = 13, 14
 
     m.lathe(
-        [(0.16, 0.86), (0.15, 0.96), (0.17, 1.08), (0.16, 1.18), (0.14, 1.26), (0.07, 1.32)],
+        [(0.19, 0.84), (0.18, 0.96), (0.20, 1.10), (0.18, 1.20), (0.15, 1.28), (0.08, 1.34)],
         12, UV_TEE, hips, chest,
     )
     m.ellipsoid((0.0, 1.46, 0.02), 0.13, 0.155, 0.12, 14, 10, head_uv, head)
-    # hair volume
-    m.ellipsoid((0.0, 1.44, -0.02), 0.15, 0.16, 0.14, 12, 8, lambda su, sv, x, y, z: uv_point(UV_HAIR, su, sv), head)
-    # cap crown + brim
-    m.ellipsoid((0.0, 1.54, 0.0), 0.14, 0.07, 0.13, 12, 6, lambda su, sv, x, y, z: uv_point(UV_CAP, su, sv), head)
-    brim_z = 0.16
+    m.ellipsoid((0.0, 1.40, -0.05), 0.18, 0.19, 0.17, 12, 8, lambda su, sv, x, y, z: uv_point(UV_HAIR, su, sv), head)
+    m.ellipsoid((0.12, 1.28, 0.02), 0.08, 0.12, 0.07, 8, 6, lambda su, sv, x, y, z: uv_point(UV_HAIR, su, sv), head)
+    m.ellipsoid((-0.10, 1.26, 0.00), 0.07, 0.11, 0.07, 8, 6, lambda su, sv, x, y, z: uv_point(UV_HAIR, su, sv), head)
+    m.ellipsoid((0.0, 1.55, 0.0), 0.15, 0.08, 0.14, 12, 6, lambda su, sv, x, y, z: uv_point(UV_CAP, su, sv), head)
+    brim_z = 0.20
     for i in range(8):
-        t0 = -0.45 + i / 7 * 0.9
-        t1 = -0.45 + (i + 1) / 7 * 0.9
-        a = m.add((t0 * 0.12, 1.50, 0.10), uv_point(UV_CAP, i / 8, 0.2), (head, 0, 0, 0), (1, 0, 0, 0))
-        b = m.add((t1 * 0.12, 1.50, 0.10), uv_point(UV_CAP, (i + 1) / 8, 0.2), (head, 0, 0, 0), (1, 0, 0, 0))
-        c = m.add((t0 * 0.14, 1.495, brim_z), uv_point(UV_CAP, i / 8, 0.9), (head, 0, 0, 0), (1, 0, 0, 0))
-        d = m.add((t1 * 0.14, 1.495, brim_z), uv_point(UV_CAP, (i + 1) / 8, 0.9), (head, 0, 0, 0), (1, 0, 0, 0))
+        t0 = -0.5 + i / 7 * 1.0
+        t1 = -0.5 + (i + 1) / 7 * 1.0
+        a = m.add((t0 * 0.14, 1.50, 0.10), uv_point(UV_CAP, i / 8, 0.2), (head, 0, 0, 0), (1, 0, 0, 0))
+        b = m.add((t1 * 0.14, 1.50, 0.10), uv_point(UV_CAP, (i + 1) / 8, 0.2), (head, 0, 0, 0), (1, 0, 0, 0))
+        c = m.add((t0 * 0.16, 1.492, brim_z), uv_point(UV_CAP, i / 8, 0.9), (head, 0, 0, 0), (1, 0, 0, 0))
+        d = m.add((t1 * 0.16, 1.492, brim_z), uv_point(UV_CAP, (i + 1) / 8, 0.9), (head, 0, 0, 0), (1, 0, 0, 0))
         m.tri(a, b, d)
         m.tri(a, d, c)
 
@@ -324,14 +335,14 @@ def build_mesh() -> Mesh:
 
     for sx in (0.08, -0.08):
         shoe = [
-            (sx - 0.045, 0.02, -0.04),
-            (sx + 0.045, 0.02, -0.04),
-            (sx + 0.045, 0.02, 0.10),
-            (sx - 0.045, 0.02, 0.10),
-            (sx - 0.045, 0.08, -0.04),
-            (sx + 0.045, 0.08, -0.04),
-            (sx + 0.045, 0.08, 0.10),
-            (sx - 0.045, 0.08, 0.10),
+            (sx - 0.05, 0.0, -0.04),
+            (sx + 0.05, 0.0, -0.04),
+            (sx + 0.05, 0.0, 0.11),
+            (sx - 0.05, 0.0, 0.11),
+            (sx - 0.05, 0.07, -0.04),
+            (sx + 0.05, 0.07, -0.04),
+            (sx + 0.05, 0.07, 0.11),
+            (sx - 0.05, 0.07, 0.11),
         ]
         ids = [m.add(p, uv_point(UV_SHOE, 0.3, 0.4), (l_ll if sx > 0 else r_ll, 0, 0, 0), (1, 0, 0, 0)) for p in shoe]
         faces = ((0, 1, 2, 3), (4, 7, 6, 5), (0, 4, 5, 1), (3, 2, 6, 7), (0, 3, 7, 4), (1, 5, 6, 2))
@@ -553,7 +564,7 @@ def write_glb(mesh: Mesh, jpeg: bytes, dest: Path) -> None:
             "pbrMetallicRoughness": {
                 "baseColorTexture": {"index": 0},
                 "metallicFactor": 0.0,
-                "roughnessFactor": 0.72,
+                "roughnessFactor": 0.92,
             },
         }],
         "textures": [{"source": 0, "sampler": 0}],
