@@ -83,9 +83,7 @@ assert(!landing.includes('Public lobby.</h2>'), 'removed Lobby title returned');
 assert(page.includes('lobby.getdasha.com/client/lobby.js'), 'dedicated page must load lobby client');
 assert.match(page, /class="dasha-word" href="https:\/\/www\.getdasha\.com\/">\$dasha</, 'lobby wordmark must leave the JSON health root');
 assert.match(page, /class="dasha-slim[\s"]/, 'lobby must use the hamburger, not a door strip');
-assert.match(page, /class="dasha-rooms"/, 'lobby must number the real rooms');
-assert.match(page, /<b>\[01\]<\/b> Forum/, 'lobby rail starts at Forum');
-assert.match(page, /<b>\[02\]<\/b> Chess/, 'lobby rail ends at Chess');
+assert.doesNotMatch(page, /dasha-rooms|dasha-next|<h1>/, 'forum first paint is threads + chat, not a rail or hero');
 assert.doesNotMatch(page, /href="\/studio"/, 'lobby chrome must not door to Studio');
 assert.doesNotMatch(page, /href="\/how-to-buy"/, 'lobby chrome must not door to How to buy');
 assert.doesNotMatch(page, /href="\/verse"/, 'lobby chrome must not door to Verse');
@@ -95,8 +93,7 @@ assert.doesNotMatch(page, /href="\/faucet"/, 'lobby chrome must not door to Fauc
 assert.doesNotMatch(page, /href="\/simp"/, 'lobby chrome must not door to Simp');
 assert.doesNotMatch(page, /href="\/dasha"/, 'lobby chrome must not door to Desk');
 assert.doesNotMatch(page, /href="\/bounties"/, 'lobby chrome must not door to Bounties');
-assert.doesNotMatch(page.match(/class="dasha-rooms"[\s\S]*?<\/nav>/)?.[0] || '', /\/airdrop|\/earn|\/claim|\/graph/, 'lobby rail hides dead and shelved doors');
-assert.match(page, /class="dasha-next"[\s\S]*href="\/chess">Chess</, 'lobby next-up points at a live room');
+assert.doesNotMatch(page, /\/airdrop|\/earn|\/claim|\/graph/, 'forum chrome hides dead and shelved doors');
 assert.doesNotMatch(page, /href="\/graph"/, 'lobby must not door to shelved /graph');
 assert.doesNotMatch(page, /class="(?:brand|back)" href="\/"/, 'lobby navigation must not mislabel the lobby service root as Home');
 assert(/s\.integrity='sha384-[A-Za-z0-9+/=]+'/.test(page) && page.includes("s.crossOrigin='anonymous'"), 'dedicated lobby client must be SRI-pinned after Webflow sanitization');
@@ -384,7 +381,7 @@ for (const host of ['www.getdasha.com', 'getdasha.com']) {
       if (method === 'HEAD') assert.equal(await forum.text(), '');
       else {
         const html = await forum.text();
-        assert.match(html, /<h1>FORUM<\/h1>/);
+        assert.doesNotMatch(html, /<h1>/);
         assert.match(html, /id="dasha-forum"/);
         assert.match(html, /id="dasha-lobby"/);
       }
@@ -1762,11 +1759,8 @@ ${liveHomeFooter}
     assert.equal([...forumHtml.matchAll(/href=["']\/privacy["']/g)].length, 0, 'lobby /forum must not keep Privacy in chrome');
     assert.match(forumHtml, /class="dasha-slim[\s"]/);
     assert.match(forumHtml, /class="dasha-word" href="https:\/\/www\.getdasha\.com\/">\$dasha</);
-    assert.match(forumHtml, /class="dasha-rooms"/);
-    assert.match(forumHtml, /<b>\[01\]<\/b> Forum/);
-    assert.match(forumHtml, /<b>\[02\]<\/b> Chess/);
+    assert.doesNotMatch(forumHtml, /dasha-rooms|dasha-next|<h1>/);
     assert.doesNotMatch(forumHtml, /href="\/studio"/);
-    assert.match(forumHtml, /class="dasha-next"[\s\S]*href="\/chess">Chess</);
     assert.doesNotMatch(forumHtml, /href="\/graph"/);
     assert.doesNotMatch(forumHtml, /class="(?:brand|back)" href="\/"/);
     assert.match(forumHtml, /<footer\b/, 'lobby /forum must keep the slim footer');

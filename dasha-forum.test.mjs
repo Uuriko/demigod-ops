@@ -38,7 +38,8 @@ const page = await readFile(new URL('./dasha-lobby-page.html', root), 'utf8');
 const client = await readFile(new URL('./dasha-lobby-client.js', root), 'utf8');
 const workerModule = await import('./dasha-lobby-worker.mjs');
 
-assert.match(page, /<h1>FORUM<\/h1>/);
+assert.doesNotMatch(page, /<h1>/);
+assert.doesNotMatch(page, /dasha-rooms|dasha-next|welcome to the forum|how this works/i);
 assert.match(page, /id="dasha-forum"/);
 assert.match(page, /id="dasha-lobby"/);
 assert.match(page, /wss:\/\/lobby\.getdasha\.com\/ws/);
@@ -58,6 +59,8 @@ assert.match(client, /mountForum/);
 assert.match(client, /forum-replies/);
 assert.match(client, /lastTs/);
 assert.match(client, /topicTitle/);
+assert.match(client, /aria-label', 'Title'/);
+assert.match(client, /forum-send', 'Post'/);
 assert.doesNotMatch(client, /Discourse|Latest|Unread|Hot/);
 assert.doesNotMatch(page, /Discourse|Latest|Unread|Hot/);
 assert.doesNotMatch(client, /Be first\./);
@@ -174,7 +177,7 @@ for (const host of ['www.getdasha.com', 'getdasha.com', 'lobby.getdasha.com']) {
   const forum = await workerModule.default.fetch(new Request(`https://${host}/forum`), workerEnv);
   assert.equal(forum.status, 200, `${host}/forum must be 200`);
   const html = await forum.text();
-  assert.match(html, /<h1>FORUM<\/h1>/);
+  assert.doesNotMatch(html, /<h1>/);
   assert.match(html, /id="dasha-forum"/);
   assert.match(html, /id="dasha-lobby"/);
   assert.match(html, /wss:\/\/lobby\.getdasha\.com\/ws/);

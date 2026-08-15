@@ -153,7 +153,6 @@
     nickIn.type = 'text';
     nickIn.name = 'nick';
     nickIn.maxLength = MAX_NICK;
-    nickIn.placeholder = 'nick';
     nickIn.required = true;
     nickIn.setAttribute('aria-label', 'Nickname');
     try {
@@ -166,7 +165,6 @@
     textIn.type = 'text';
     textIn.name = 'text';
     textIn.maxLength = MAX_TEXT;
-    textIn.placeholder = 'Message';
     textIn.setAttribute('aria-label', 'Message');
     textWrap.appendChild(textIn);
 
@@ -700,8 +698,8 @@
     var textIn = el('input', 'forum-text');
     textIn.type = 'text';
     textIn.maxLength = MAX_TEXT_LINKED;
-    textIn.setAttribute('aria-label', 'Post');
-    var send = el('button', 'forum-send', 'Send');
+    textIn.setAttribute('aria-label', 'Title');
+    var send = el('button', 'forum-send', 'Post');
     send.type = 'submit';
     form.appendChild(textIn);
     form.appendChild(send);
@@ -740,7 +738,7 @@
         var left = coolUntil - Date.now();
         if (left <= 0) {
           send.disabled = false;
-          send.textContent = 'Send';
+          send.textContent = 'Post';
           return;
         }
         send.textContent = Math.ceil(left / 1000) + 's';
@@ -797,12 +795,14 @@
       back.hidden = true;
       threadBox.hidden = true;
       list.hidden = false;
+      textIn.setAttribute('aria-label', 'Title');
     }
 
     function showThread() {
       back.hidden = false;
       list.hidden = true;
       threadBox.hidden = false;
+      textIn.setAttribute('aria-label', 'Reply');
     }
 
     function loadList() {
