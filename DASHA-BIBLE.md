@@ -142,7 +142,7 @@ Visible four. Violet is technical only. No sixth hex.
 
 **Home first viewport (2026-08-15 cleaner lock — and nothing else in that viewport):**
 1. Headline + Buy $dasha + the dancer. That is the whole first viewport. Never `#dasha-lock`, never a 100vh system-ui `$dasha` / “Take Simp.” decoy, never the acid ticker, never the quiz, never posters, never an association lecture.
-2. Slim hamburger + crop marks stay. Menu + footer share one live room list (`DASHA_ROOMS` in `dasha-award-chrome.mjs`): Studio, Lobby, Simp, Chess, Desk, Bounties, How to buy, Learn, Faucet, Verse, Privacy. Hide Graph. Forum is not a door (`/forum` 308s to lobby chat).
+2. Slim hamburger + crop marks stay. Menu + footer share one live room list (`DASHA_ROOMS` in `dasha-award-chrome.mjs`): Lobby, Chess, Studio, Simp, Desk, Bounties, How to buy, Learn, Faucet, Verse, Privacy. Chess sits after Lobby, near the top. Hide Graph. Forum is not a door (`/forum` 308s to lobby chat).
 3. Body / `.body` / `.dasha-root` ink `#070608`. No maroon `#1F041C`. No violet. No WebFont.load. No Inter / Geist / system-ui / Google Fonts.
 4. Cleaner, not more. No disclaimers, no weak copy. Do not write “not an airdrop”, “not earn”, “she is not the dev”, “association is not endorsement”, “neither is required”, “we will not ask for a phrase”.
 

@@ -28,10 +28,10 @@ export const AWARD_BOARD_CSS = '.simp-board{display:grid}.simp-row{display:grid;
 
 /** Live rooms. Menu, rail, and footer all render this. No Graph. */
 export const DASHA_ROOMS = [
-  { href: '/studio', label: 'Studio' },
   { href: '/lobby', label: 'Lobby' },
-  { href: '/simp', label: 'Simp' },
   { href: '/chess', label: 'Chess' },
+  { href: '/studio', label: 'Studio' },
+  { href: '/simp', label: 'Simp' },
   { href: '/dasha', label: 'Desk' },
   { href: '/bounties', label: 'Bounties' },
   { href: '/how-to-buy', label: 'How to buy' },
