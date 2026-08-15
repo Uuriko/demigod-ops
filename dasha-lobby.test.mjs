@@ -237,15 +237,16 @@ assert(!worker.includes('SIMP_QUIZ_JS'), 'must not invent a second quiz client')
 assert(worker.includes('simpSharePageHtml') && worker.includes('og:image:alt'), 'www /simp/r is type-first share HTML');
 assert(worker.includes('simpQuizFirstPaintHtml') && worker.includes('simpResultMissingHtml'), 'www /simp first-paints the quiz and has an honest result 404');
 assert(worker.includes("anon:${randomUrlToken(9)}") || worker.includes('anon:${'), 'quiz start must work without a linked X session');
-assert(worker.includes('id="grwm"') && worker.includes('/client/grwm.mp4') && worker.includes('/client/grwm.jpg'), 'home mounts first-party GRWM after the hero');
+assert(worker.includes('id="grwm"') && worker.includes('/client/grwm.mp4') && worker.includes('/client/grwm-loop.mp4') && worker.includes('/client/grwm.jpg'), 'home mounts first-party GRWM after the hero');
 assert.ok((await stat(new URL('./dasha-worker-assets/client/grwm.mp4', root))).size < 20 * 1024 * 1024, 'grwm.mp4 must stay under 20 MiB');
+assert.ok((await stat(new URL('./dasha-worker-assets/client/grwm-loop.mp4', root))).size < 1024 * 1024, 'grwm-loop.mp4 must stay under 1 MiB');
 assert.ok((await stat(new URL('./dasha-worker-assets/client/grwm.jpg', root))).size > 1000, 'grwm.jpg must exist');
 for (const name of ['scary', 'berlinale', 'cotton', 'hero', 'pony', 'press', 'bull', 'weekend', 'profile']) {
   assert.ok((await stat(new URL(`./dasha-worker-assets/simp/photo/${name}.jpg`, root))).size > 1000, `${name}.jpg must be hosted first-party`);
 }
-assert(worker.includes('poster="/client/grwm.jpg"') && worker.includes('preload="metadata"') && worker.includes('playsinline') && worker.includes(' controls'), 'GRWM is a native poster+controls video');
-assert(!/id=["']grwm["'][\s\S]{0,1800}autoplay/.test(worker), 'GRWM must not autoplay');
-assert(!worker.includes('grwm-loop') && !worker.includes('video.twimg.com') && !worker.includes('pbs.twimg.com'), 'GRWM must not hotlink X or ship a loop');
+assert(worker.includes('<video muted loop playsinline autoplay poster="/client/grwm.jpg" src="/client/grwm-loop.mp4">'), 'GRWM living poster is muted loop autoplay');
+assert(worker.includes("v.src='/client/grwm.mp4'") && worker.includes('v.controls=true') && worker.includes('v.muted=false'), 'tap swaps the same player to the full file with sound');
+assert(!worker.includes('video.twimg.com') && !worker.includes('pbs.twimg.com'), 'GRWM must not hotlink X');
 assert(worker.includes('overflow-x:auto') && worker.includes('scroll-snap-type:x mandatory'), 'stills strip is a horizontal flick');
 assert(worker.includes('data-quiz="${quiz}"') && worker.includes('dasha-still-quiz') && worker.includes("'scary-cap'") && worker.includes("['pony', '']"), 'a still can jump into a matching quiz question');
 assert.match(worker, /#stills \.still:hover,#stills \.still:focus-visible\{transform:rotate/, 'stills tilt on hover/focus');
@@ -1570,8 +1571,14 @@ try {
     assert.match(html, /id="grwm"/, `${label} GRWM sits after the hero`);
     assert.ok(html.indexOf('id="grwm"') < html.indexOf('id="dasha-tape"'), `${label} GRWM sits before the chart`);
     assert.match(html, /poster="\/client\/grwm\.jpg"/, `${label} GRWM uses the first-party poster`);
-    assert.match(html, /src="\/client\/grwm\.mp4"/, `${label} GRWM plays the first-party file`);
-    assert.doesNotMatch(html.match(/<section id="grwm"[\s\S]*?<\/section>/)?.[0] || '', /autoplay|grwm-loop|twimg|@dash_eats|from X/i, `${label} GRWM has no autoplay, loop, or tweet chrome`);
+    assert.match(html, /src="\/client\/grwm-loop\.mp4"/, `${label} GRWM living poster is the muted loop`);
+    assert.match(html, /<video muted loop playsinline autoplay poster="\/client\/grwm\.jpg"/, `${label} living poster autoplays muted only`);
+    {
+      const grwm = html.match(/<section id="grwm"[\s\S]*?<\/section>/)?.[0] || '';
+      assert.match(grwm, /v\.src='\/client\/grwm\.mp4'/, `${label} tap loads the full first-party file`);
+      assert.doesNotMatch(grwm, /twimg|@dash_eats|from X/i, `${label} GRWM has no tweet chrome`);
+      assert.doesNotMatch(grwm, /<video[^>]+src="\/client\/grwm\.mp4"[^>]*autoplay/, `${label} must not autoplay the 7:14 with sound`);
+    }
     assert.match(html, /\/simp\/photo\/scary\.jpg/, `${label} stills include the SCARY cap`);
     assert.ok(html.indexOf('dasha-tape') < html.indexOf('dasha-simp-board'), `${label} chart lives just above the board`);
     assert.ok(html.indexOf('dasha-simp-board') < html.indexOf('id="chess"'), `${label} chess lives after the quiz board`);
