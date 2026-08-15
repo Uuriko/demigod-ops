@@ -11,8 +11,6 @@
 
 User-agent: *
 Allow: /
-Allow: /studio
-Allow: /dasha
 Allow: /chess
 Allow: /verse
 Allow: /learn

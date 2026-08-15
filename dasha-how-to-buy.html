@@ -23,7 +23,7 @@
 <style>
 :root{color-scheme:dark;--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--line:rgba(244,237,219,.18);--muted:rgba(244,237,219,.62);--panel:rgba(255,255,255,.04);--mono:ui-monospace,Menlo,Consolas,monospace}
 *{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--paper);font:16px/1.55 Arial,Helvetica,sans-serif}
-.dasha-slim{display:flex;align-items:center;gap:.65rem;padding:.45rem 0}.dasha-word{display:inline-flex;align-items:center;min-height:48px;color:#f4eddb;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900;font-size:1.15rem;letter-spacing:-.04em;text-decoration:none;text-transform:uppercase}.dasha-slim .buy-dasha{margin-left:auto;display:inline-flex;align-items:center;min-height:48px;padding:0 1rem;background:#dfff00;color:#070608;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900;text-decoration:none;text-transform:uppercase}.dasha-menu{position:relative}.dasha-menu summary{list-style:none;cursor:pointer;min-height:48px;min-width:48px;display:inline-flex;align-items:center;justify-content:center;color:#f4eddb;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900;text-transform:uppercase}.dasha-menu summary::-webkit-details-marker{display:none}.dasha-menu nav{position:absolute;right:0;top:100%;z-index:90;display:grid;min-width:11rem;padding:.4rem .7rem;background:#070608;border:1px solid #dfff00}.dasha-menu nav a{display:inline-flex;align-items:center;min-height:48px;color:#f4eddb;font-weight:900;text-transform:uppercase;text-decoration:none}
+.dasha-slim{display:flex;align-items:center;gap:.65rem;padding:.45rem 0}.dasha-word{display:inline-flex;align-items:center;min-height:48px;color:#f4eddb;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900;font-size:1.15rem;letter-spacing:-.04em;text-decoration:none;text-transform:uppercase}.dasha-slim .buy-dasha{margin-left:auto;display:inline-flex;align-items:center;min-height:48px;padding:0 1rem;background:#dfff00;color:#070608;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900;text-decoration:none;text-transform:uppercase}.dasha-menu{position:relative}.dasha-menu summary{list-style:none;cursor:pointer;min-height:48px;min-width:48px;display:inline-flex;align-items:center;justify-content:center;color:#f4eddb;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900;font-size:1rem;text-transform:uppercase}.dasha-menu summary::-webkit-details-marker{display:none}.dasha-menu nav{position:absolute;right:0;top:100%;z-index:90;display:grid;min-width:11rem;padding:.4rem .7rem;background:#070608;border:1px solid #dfff00}.dasha-menu nav a{display:inline-flex;align-items:center;min-height:48px;color:#f4eddb;font-weight:900;text-transform:uppercase;text-decoration:none}
 .dasha-crop{position:fixed;inset:10px;z-index:80;pointer-events:none}.dasha-crop i{position:absolute;width:12px;height:12px;border-style:solid;border-color:#f4eddb}.dasha-crop i:nth-child(1){top:0;left:0;border-width:2px 0 0 2px}.dasha-crop i:nth-child(2){top:0;right:0;border-width:2px 2px 0 0;border-color:#dfff00}.dasha-crop i:nth-child(3){bottom:0;left:0;border-width:0 0 2px 2px;border-color:#dfff00}.dasha-crop i:nth-child(4){bottom:0;right:0;border-width:0 2px 2px 0}
 @media(prefers-reduced-motion:no-preference){@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:180ms}}
 .wrap{width:min(720px,calc(100% - 32px));margin:0 auto;padding:28px 0 64px}
@@ -37,7 +37,7 @@ h1{margin:0 0 12px;font-size:clamp(2.4rem,8vw,3.6rem);line-height:.9;letter-spac
 .step a{color:var(--acid);font-weight:800}
 .ca{display:block;margin:12px 0;padding:12px;border-radius:10px;background:rgba(0,0,0,.35);border:1px solid var(--line);font-family:var(--mono);font-size:.85rem;word-break:break-all;user-select:all}
 .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
-.btn{appearance:none;border:0;min-height:48px;padding:12px 18px;border-radius:999px;font:inherit;font-weight:900;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;background:var(--acid);color:var(--ink);text-transform:uppercase;letter-spacing:.05em;box-shadow:3px 3px 0 var(--hot)}
+.btn{appearance:none;border:0;min-height:48px;padding:12px 18px;border-radius:999px;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900;font-size:1rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;background:var(--acid);color:var(--ink);text-transform:uppercase;letter-spacing:.05em;box-shadow:3px 3px 0 var(--hot)}
 .btn.ghost{background:transparent;color:var(--paper);border:1px solid var(--paper);box-shadow:3px 3px 0 var(--paper)}
 .btn:focus-visible{outline:3px solid var(--acid);outline-offset:3px}
 #dasha-jup{height:600px;margin-top:12px;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.35);overflow:hidden;scroll-margin-top:16px}
@@ -45,10 +45,10 @@ h1{margin:0 0 12px;font-size:clamp(2.4rem,8vw,3.6rem);line-height:.9;letter-spac
 .doors{margin:14px 0 0;padding:0;list-style:none;color:var(--muted)}
 .doors li{margin:0 0 8px}
 .doors a{color:var(--paper);font-weight:800}
-footer{margin-top:36px;color:var(--paper);font:900 1rem/1.3 Arial,Helvetica,sans-serif;border-top:1px solid var(--line);padding:18px 0 calc(180px + env(safe-area-inset-bottom,0px))}
+footer{margin-top:36px;color:var(--paper);font:900 1rem/1.3 Arial,Helvetica,sans-serif;border-top:1px solid var(--line);padding:18px 0 calc(1.25rem + env(safe-area-inset-bottom,0px))}
 footer a{display:inline-flex;align-items:center;min-height:48px;min-width:48px;padding:0 .65rem;color:var(--paper);text-decoration:none}
 footer a:hover{color:var(--acid)}
-footer .buy-dasha{background:var(--acid);color:var(--ink);padding:0 1rem}
+footer .buy-dasha,footer .buy-dasha:hover{background:var(--acid);color:var(--ink);padding:0 1rem}
 footer nav{display:flex;flex-wrap:wrap;gap:.15rem .25rem}
 .source{margin:10px 0 0;font-size:13px;color:var(--muted)}.source a{color:var(--acid);font-weight:800}
 .buy-sticky{display:none}@media(max-width:560px){.buy-sticky:not([hidden]){display:flex;position:fixed;inset:auto 0 0;z-index:10;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(7,6,8,.96);border-top:1px solid var(--line)}.buy-sticky .btn{width:100%;box-shadow:none}.wrap{padding-bottom:110px}}
@@ -56,7 +56,7 @@ footer nav{display:flex;flex-wrap:wrap;gap:.15rem .25rem}
 </head>
 <body>
 <div class="dasha-crop" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-<header class="dasha-slim"><a class="dasha-word" href="https://www.getdasha.com/">$dasha</a><a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha</a><details class="dasha-menu"><summary aria-label="Menu">Menu</summary><nav aria-label="Dasha"><a href="/studio">Studio</a><a href="/lobby">Lobby</a><a href="/simp">Simp</a><a href="/chess">Chess</a><a href="/dasha">Desk</a><a href="/bounties">Bounties</a><a href="/how-to-buy">How to buy</a><a href="/learn">Learn</a><a href="/faucet">Faucet</a><a href="/verse">Verse</a><a href="/privacy">Privacy</a></nav></details></header>
+<header class="dasha-slim"><a class="dasha-word" href="https://www.getdasha.com/">$dasha</a><a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha</a><details class="dasha-menu"><summary aria-label="Menu">Menu</summary><nav aria-label="Dasha"><a href="/forum">Forum</a><a href="/chess">Chess</a></nav></details></header>
 <main class="wrap">
 
   <h1>How to buy $dasha</h1>
@@ -101,7 +101,7 @@ footer nav{display:flex;flex-wrap:wrap;gap:.15rem .25rem}
 
   <footer class="dasha-foot">
     <p><a href="https://www.getdasha.com/">$dasha</a> · <a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a> · <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></p>
-    <nav aria-label="Rooms"><a href="/studio">Studio</a><a href="/lobby">Lobby</a><a href="/simp">Simp</a><a href="/chess">Chess</a><a href="/dasha">Desk</a><a href="/bounties">Bounties</a><a href="/how-to-buy">How to buy</a><a href="/learn">Learn</a><a href="/faucet">Faucet</a><a href="/verse">Verse</a><a href="/privacy">Privacy</a></nav>
+    <nav aria-label="Rooms"><a href="/forum">Forum</a><a href="/chess">Chess</a></nav>
   </footer>
 </main>
 <div class="buy-sticky" id="buy-sticky" hidden><a class="btn" id="buy-sticky-a" target="_blank" rel="noopener noreferrer" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Buy $dasha</a></div>

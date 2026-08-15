@@ -37,7 +37,7 @@ assert.deepEqual((i10?.chips || []).filter((chip) => chip.required).map((chip) =
 assert.ok((i10?.chips || []).some((chip) => chip.id === 'official' && chip.forbidden), 'stamp chip stays forbidden');
 assert.ok(!(i10?.chips || []).some((chip) => chip.id === 'not-dev' || chip.id === 'assoc'), 'lecture chips are out');
 
-assert.match(sitemap, /<loc>https:\/\/www\.getdasha\.com\/learn<\/loc>/);
+assert.doesNotMatch(sitemap, /<loc>https:\/\/www\.getdasha\.com\/learn<\/loc>/, 'sitemap must not feature /learn');
 assert.doesNotMatch(sitemap, /\/hold|\/academy|\/university<\/loc>/);
 
 assert.match(clientSrc, /global\.DashaLearn/);
@@ -71,7 +71,8 @@ for (const tool of ['mint-check', 'fees', 'siws', 'sandbox', 'phish-siws', 'chip
   assert.match(clientSrc, new RegExp(tool));
 }
 
-assert.match(workerSrc, /X-Dasha-Edge': 'learn'/);
+assert.match(workerSrc, /isLeftoverLearnPath/);
+assert.doesNotMatch(workerSrc, /learnPageHtml|X-Dasha-Edge': 'learn'/);
 assert.match(workerSrc, /client\/learn\.js/);
 assert.match(workerSrc, /\/simp\/learn/);
 assert.doesNotMatch(workerSrc, /isExactPath\(url\.pathname, '\/hold'\)/);
@@ -86,64 +87,24 @@ assert.equal(LEARN_CLIENT_SRI, learnSri, 'LEARN_CLIENT_SRI must hash served clie
 
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { learnPageHtml, parseLearnPath } = workerModule;
+const { parseLearnPath } = workerModule;
 
 assert.deepEqual(parseLearnPath('/learn'), { track: '', mod: '' });
 assert.deepEqual(parseLearnPath('/learn/crypto/C08'), { track: 'crypto', mod: 'C08' });
 assert.equal(parseLearnPath('/learn/nope')?.invalid, true);
 assert.equal(parseLearnPath('/simp'), null);
 
-const hubHtml = learnPageHtml({});
-const hubVisible = hubHtml.replace(/<script type="application\/json"[\s\S]*?<\/script>/, '').replace(/<noscript>[\s\S]*?<\/noscript>/, '');
-assert.match(hubHtml, /<link rel="canonical" href="https:\/\/www\.getdasha\.com\/learn">/);
-assert.match(hubHtml, /id="dasha-learn"/);
-assert.match(hubHtml, /id="dasha-learn-static"/);
-assert.match(hubVisible, /<h1>Learn<\/h1>/);
-assert.equal((hubVisible.match(/<h1>Learn<\/h1>/g) || []).length, 1, 'hub HTML has one Learn heading');
-assert.equal((hubVisible.match(/id="learn-mint"/g) || []).length, 1, 'hub HTML has one mint');
-assert.match(hubVisible, /id="learn-mint-copy"/);
-assert.doesNotMatch(hubHtml, /<noscript>[\s\S]*<h1>Learn<\/h1>[\s\S]*<\/noscript>/, 'hub noscript must not reprint Learn + mint');
-assert.match(hubHtml, /class="dasha-slim[\s"]/);
-assert.match(hubHtml, /href="\/verse">Verse</);
-assert.match(hubHtml, /min-height:48px/);
-assert.doesNotMatch(hubHtml, /id="dasha-quiz"/);
-assert.ok(hubHtml.includes(mint));
-assert.doesNotMatch(hubHtml.replace(/<script type="application\/json"[\s\S]*?<\/script>/, ''), /\bInter\b|Geist|fonts\.googleapis|system-ui/);
-assert.match(hubHtml, /Arial Black/);
-assert.match(hubHtml, /LEARN_CLIENT_SRI|integrity="/);
-assert.match(hubHtml, /client\/learn\.js/);
-assert.match(hubHtml, /<title>Learn — getdasha.com<\/title>|<h1>Learn<\/h1>/);
-assert.doesNotMatch(hubHtml.replace(/<script type="application\/json"[\s\S]*?<\/script>/, ''), /not an airdrop|not earn|not official|not advice|she is not the dev|association is not endorsement|MATCH, not verified|tiny sample for newbies|agents do not claim/i);
-assert.match(hubHtml, /href="https:\/\/x\.com\/dash_eats"/);
-
-const c08 = learnPageHtml({ track: 'crypto', mod: 'C08' });
-assert.doesNotMatch(c08, /id="dasha-learn-static"/, 'module pages hide hub chrome by omitting it');
-assert.match(c08, /<noscript>[\s\S]*<h1>Learn<\/h1>[\s\S]*<\/noscript>/);
-assert.match(c08, /\/how-to-buy/);
-assert.ok(c08.includes(mint));
-
 for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
   for (const method of ['GET', 'HEAD']) {
-    const res = await workerModule.default.fetch(new Request(`https://${host}/learn`, { method }), {});
-    assert.equal(res.status, 200, `${host} /learn ${method}`);
-    assert.equal(res.headers.get('x-dasha-edge'), 'learn');
-    const html = await res.text();
-    if (method === 'HEAD') assert.equal(html, '');
-    else {
-      assert.ok(html.includes(mint), `${host} /learn mint`);
-      assert.doesNotMatch(html.replace(/<script type="application\/json"[\s\S]*?<\/script>/, ''), /\bInter\b|Geist|fonts\.googleapis|system-ui/);
-      assert.doesNotMatch(html, /id="dasha-quiz"/);
+    for (const path of ['/learn', '/learn/', '/learn/crypto', '/learn/crypto/C08', '/learn/academy']) {
+      const res = await workerModule.default.fetch(new Request(`https://${host}${path}`, { method }), {});
+      assert.equal(res.status, 308, `${host} ${path} ${method} must 308 home`);
+      assert.equal(res.headers.get('location'), 'https://www.getdasha.com/');
     }
   }
-  const c08res = await workerModule.default.fetch(new Request(`https://${host}/learn/crypto/C08`), {});
-  assert.equal(c08res.status, 200);
-  assert.equal(c08res.headers.get('x-dasha-edge'), 'learn');
-  assert.match(await c08res.text(), /\/how-to-buy/);
   const hold = await workerModule.default.fetch(new Request(`https://${host}/simp/hold`), {});
   assert.equal(hold.status, 501);
   assert.deepEqual(await hold.json(), { configured: false, error: 'not_configured' });
-  const bad = await workerModule.default.fetch(new Request(`https://${host}/learn/academy`), {});
-  assert.equal(bad.status, 404);
 }
 
 const js = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/client/learn.js'), {});

@@ -13,12 +13,12 @@ if (!page.includes('id="dasha-lobby"') || !page.includes('https://lobby.getdasha
   console.error('dasha-lobby-embed-build: dedicated page is missing its mount or client');
   process.exit(1);
 }
-if (!landing.includes('href="/lobby"') || landing.includes('id="dasha-lobby"')) {
-  console.error('dasha-lobby-embed-build: homepage must link to /lobby without mounting chat');
+if (landing.includes('href="/forum"') || landing.includes('id="dasha-lobby"') || landing.includes('client/lobby.js')) {
+  console.error('dasha-lobby-embed-build: homepage must not feature Forum or mount chat');
   process.exit(1);
 }
 if (args.has('--check') || args.has('--write') || args.size === 0) {
-  console.log('dasha-lobby-embed-build: PASS', { route: '/lobby' });
+  console.log('dasha-lobby-embed-build: PASS', { featured: false });
   process.exit(0);
 }
 console.error('usage: node dasha-lobby-embed-build.mjs --check|--write');

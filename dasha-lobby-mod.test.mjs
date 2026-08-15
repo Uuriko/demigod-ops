@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import {
   MINT,
+  PAIR,
+  DASHA_TAPE_EMBED_SRC,
+  isDashaTapeEmbedSrc,
   PIN,
   MAX_SOCKETS,
   validateNick,
@@ -8,6 +11,12 @@ import {
   checkRate,
   checkRepeat,
   pruneHistory,
+  pruneForumThreads,
+  publicForumRow,
+  publicForumThread,
+  parseForumThreadPath,
+  MAX_FORUM_THREADS,
+  MAX_FORUM_REPLIES,
   parseClientFrame,
   originAllowed,
   linkOk,
@@ -27,6 +36,11 @@ import {
 } from './dasha-lobby-mod.mjs';
 
 assert.equal(MINT, '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump');
+assert.equal(PAIR, '9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7');
+assert.equal(isDashaTapeEmbedSrc(DASHA_TAPE_EMBED_SRC), true);
+assert.equal(isDashaTapeEmbedSrc(`https://dexscreener.com/solana/${PAIR}?embed=1`), true);
+assert.equal(isDashaTapeEmbedSrc(`https://dexscreener.com/solana/${PAIR}`), false);
+assert.equal(isDashaTapeEmbedSrc('https://dexscreener.com/solana/otherpair?embed=1'), false);
 assert.equal(PIN.mint, MINT);
 assert.equal(PIN.text, 'Public lobby.');
 assert.equal(MAX_SOCKETS, 80, 'public room concurrent cap');
@@ -119,6 +133,43 @@ const hist = pruneHistory([
 ], now);
 assert.ok(hist.length <= MAX_HISTORY);
 assert.ok(!hist.some(m => m.text === 'old'));
+
+const forumKept = pruneForumThreads([
+  ...Array.from({ length: MAX_FORUM_THREADS + 3 }, (_, i) => ({ id: `t${i}`, text: `thread ${i}`, replies: [] })),
+]);
+assert.equal(forumKept.length, MAX_FORUM_THREADS);
+assert.equal(forumKept[0].text, 'thread 3');
+const withReplies = pruneForumThreads([{
+  id: 'keep',
+  text: 'hello',
+  replies: Array.from({ length: MAX_FORUM_REPLIES + 2 }, (_, i) => ({ id: `r${i}`, text: `r${i}` })),
+}]);
+assert.equal(withReplies[0].replies.length, MAX_FORUM_REPLIES);
+assert.equal(withReplies[0].replies[0].text, 'r2');
+assert.deepEqual(parseForumThreadPath('/forum/threads'), { list: true, id: '' });
+assert.deepEqual(parseForumThreadPath('/forum/threads/abc123'), { list: false, id: 'abc123' });
+assert.equal(parseForumThreadPath('/forum'), null);
+{
+  const row = publicForumRow({
+    id: 't1',
+    text: 'first line is the topic\nmore',
+    ts: 100,
+    nick: 'ava',
+    replies: [{ id: 'r1', text: 'reply', ts: 200, nick: 'ben' }],
+  });
+  assert.equal(row.replies, 1);
+  assert.equal(row.lastTs, 200);
+  assert.equal(row.text, 'first line is the topic\nmore');
+  const open = publicForumThread({
+    id: 't1',
+    text: 'first line is the topic\nmore',
+    ts: 100,
+    nick: 'ava',
+    replies: [{ id: 'r1', text: 'reply', ts: 200, nick: 'ben' }],
+  });
+  assert.equal(open.replies.length, 1);
+  assert.equal(open.replies[0].text, 'reply');
+}
 
 assert.equal(parseClientFrame('{"type":"hello","nick":"ava"}').ok, true);
 assert.equal(parseClientFrame('{"type":"chat","text":"gm"}').ok, true);

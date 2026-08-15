@@ -62,7 +62,7 @@ assert(client.includes('sendQuizCard') && client.includes('shareQuiz'), 'share h
 assert(client.includes('QUIZ_CARDS') && client.includes('quizCardBlob') && client.includes('1200') && client.includes('675'), 'quiz result-card suite missing');
 assert(client.includes('Another photo') && client.includes('Dasha simp quiz result card preview'), 'result card preview controls missing');
 assert(client.includes('Share on X') && client.includes('shareBoardOnX') && client.includes('boardShareText'), 'board row must share on X');
-assert(client.includes('showJoinSuccess') && client.includes('Make a meme') && client.includes('Open lobby'), 'post-join success CTAs missing');
+assert(client.includes('showJoinSuccess') && client.includes('Make a meme') && client.includes('Open forum'), 'post-join success CTAs missing');
 assert(client.includes('dasha-x-chip') && client.includes('paintLinkedChip'), 'nav linked-identity chip missing');
 assert.match(client, /chip\.href = document\.getElementById\('simp'\) \? '#simp' : '\/simp'/, 'chip must keep #simp only when that section exists');
 assert(!client.includes('Save score card') && !client.includes("a.download = 'dasha-simp-"), 'score download path must be gone');
@@ -136,6 +136,12 @@ assert(client.includes('homeBoard') && client.includes("homeQuiz.href = '/simp'"
 assert(client.includes('rows.slice(0, 10)') && client.includes('Show more'), 'home board is top 10 plus Show more');
 assert(client.includes("el('button', 'simp-connect', 'Connect X')"), 'Connect X is a quiet board button, not a first-paint modal');
 assert(client.includes('simp-quiz-go') && client.includes('box-shadow:4px 4px 0 #ff3b81'), 'Take the quiz is an acid button with a hard hot offset');
+assert.match(client, /\.simp-quiz-go,.simp-quiz-start,.simp-action,.simp-tool\{[^}]*background:#dfff00;color:#070608/, 'quiz go and board actions are acid fill + ink type');
+assert.match(client, /\.simp-connect\{[^}]*border:1px solid #f4eddb;background:none;color:#f4eddb/, 'Connect X is paper on ink');
+assert.match(client, /\.simp-more\{[^}]*color:#dfff00;font:900 1rem/, 'Show more is acid on ink');
+assert.doesNotMatch(client, /\.simp-quiz-choice\{[^}]*color:#fff/, 'quiz choices are not white type');
+assert.match(client, /\.simp-quiz-choice\{[^}]*color:#f4eddb/, 'quiz choices are paper on ink');
+assert.doesNotMatch(client, /opacity:\.55/, 'button type is not faded to .55');
 assert(client.includes("el('button', 'x-skip', 'Not now')") && client.includes('markGateDone()'), 'scroll ask dismiss persists in localStorage');
 assert(client.includes("el('p', 'simp-empty', 'Empty.')"), 'empty board is one quiet line');
 assert(client.includes("el('details', 'simp-tools')") && client.includes("el('summary', '', 'More')"), 'secondary board tools must stay under More');

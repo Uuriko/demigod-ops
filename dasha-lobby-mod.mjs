@@ -5,6 +5,20 @@
 
 export const MINT = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
 export const PAIR = '9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7';
+/** Official Dexscreener embed for this pair only. Candles + windows + info. */
+export const DASHA_TAPE_EMBED_SRC = `https://dexscreener.com/solana/${PAIR}?embed=1&loadChartSettings=0&trades=0&tabs=0&info=1&chartLeftToolbar=0&chartTheme=dark&theme=dark&chartStyle=0&chartType=usd&interval=15`;
+
+export function isDashaTapeEmbedSrc(src) {
+  try {
+    const u = new URL(String(src || ''));
+    const host = u.hostname.toLowerCase();
+    return (host === 'dexscreener.com' || host === 'www.dexscreener.com')
+      && u.pathname.toLowerCase() === `/solana/${PAIR}`.toLowerCase()
+      && u.searchParams.get('embed') === '1';
+  } catch {
+    return false;
+  }
+}
 export const WSOL = 'So11111111111111111111111111111111111111112';
 export const MAX_NICK = 18;
 export const MAX_TEXT = 200;
@@ -292,6 +306,43 @@ export function pruneHistory(list, now = Date.now()) {
   let out = (list || []).filter(m => m && typeof m.ts === 'number' && m.ts >= cutoff);
   if (out.length > MAX_HISTORY) out = out.slice(-MAX_HISTORY);
   return out;
+}
+
+export const MAX_FORUM_THREADS = 200;
+export const MAX_FORUM_REPLIES = 50;
+
+export function pruneForumThreads(list) {
+  let out = Array.isArray(list) ? list.filter(row => row && typeof row.id === 'string' && typeof row.text === 'string') : [];
+  if (out.length > MAX_FORUM_THREADS) out = out.slice(-MAX_FORUM_THREADS);
+  for (const thread of out) {
+    const replies = Array.isArray(thread.replies) ? thread.replies.filter(row => row && typeof row.id === 'string' && typeof row.text === 'string') : [];
+    thread.replies = replies.length > MAX_FORUM_REPLIES ? replies.slice(-MAX_FORUM_REPLIES) : replies;
+  }
+  return out;
+}
+
+function publicForumPost(row) {
+  const out = { id: row.id, text: row.text, ts: row.ts };
+  if (row.handle) out.handle = row.handle;
+  else if (row.nick) out.nick = row.nick;
+  return out;
+}
+
+export function publicForumRow(row) {
+  const replies = Array.isArray(row.replies) ? row.replies : [];
+  const last = replies.length ? replies[replies.length - 1] : null;
+  return { ...publicForumPost(row), replies: replies.length, lastTs: last?.ts || row.ts };
+}
+
+export function publicForumThread(thread) {
+  return { ...publicForumPost(thread), replies: (thread.replies || []).map(publicForumPost) };
+}
+
+export function parseForumThreadPath(pathname) {
+  const path = String(pathname || '').replace(/\/$/, '') || '/';
+  if (path === '/forum/threads') return { list: true, id: '' };
+  const match = path.match(/^\/forum\/threads\/([A-Za-z0-9_-]{6,24})$/);
+  return match ? { list: false, id: match[1] } : null;
 }
 
 /** Avatar URLs accepted in public chat (X CDN only). */

@@ -314,8 +314,8 @@ if (args.has('--check')) {
     process.exit(1);
   }
   const chessPageCheck = readFileSync(join(root, 'dasha-chess-page.html'), 'utf8');
-  if (!chessPageCheck.includes(`s.integrity='${built.lobbySri}'`) || !chessPageCheck.includes("s.crossOrigin='anonymous'")) {
-    console.error('dasha-lobby-assets-build: chess page lobby client SRI is stale');
+  if (chessPageCheck.includes('lobby.getdasha.com/client/lobby.js') || chessPageCheck.includes('id="dasha-lobby"')) {
+    console.error('dasha-lobby-assets-build: chess page must not load lobby chat');
     process.exit(1);
   }
   const graphPageCheck = readFileSync(join(root, 'dasha-graph-page.html'), 'utf8');
@@ -347,7 +347,6 @@ if (args.has('--check')) {
 if (args.has('--write') || args.size === 0) {
   pinSri('dasha-landing.html', /const SIMP_SRI='sha384-[A-Za-z0-9+/=]+'/, `const SIMP_SRI='${built.simpSri}'`);
   pinSri('dasha-lobby-page.html', /s\.integrity='sha384-[A-Za-z0-9+/=]+'/, `s.integrity='${built.lobbySri}'`);
-  pinSri('dasha-chess-page.html', /s\.integrity='sha384-[A-Za-z0-9+/=]+'/, `s.integrity='${built.lobbySri}'`);
   pinSri('dasha-graph-page.html', /integrity="sha384-[A-Za-z0-9+/=]+"/, `integrity="${built.graphSri}"`);
   pinSri('dasha-studio-embed.html', /integrity="sha384-[A-Za-z0-9+/=]+"/, `integrity="${built.studioSri}"`);
   const final = build();

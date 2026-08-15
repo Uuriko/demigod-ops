@@ -123,30 +123,10 @@
     root.innerHTML = '';
     root.classList.add('dasha-lobby');
     root.setAttribute('role', 'region');
-    root.setAttribute('aria-label', 'Public lobby chat');
-
-    var pin = el('div', 'lobby-pin');
-    var pinStrong = el('strong', null, 'Lobby');
-    pin.appendChild(pinStrong);
-    pin.appendChild(document.createTextNode(' · public · not Discord · '));
-    var mintSpan = el('span', 'lobby-mint', MINT);
-    mintSpan.title = MINT;
-    pin.appendChild(mintSpan);
-    pin.appendChild(document.createTextNode(' · '));
-    var verifyA = el('a', null, 'verify mint');
-    verifyA.href = '/how-to-buy';
-    verifyA.setAttribute('aria-label', 'How to buy $dasha');
-    pin.appendChild(verifyA);
-    pin.appendChild(document.createTextNode(' · '));
-    var verseA = el('a', null, 'Verse');
-    verseA.href = '/verse';
-    pin.appendChild(verseA);
-
-    var pinBody = el('p', 'lobby-pin-body', '');
-    pinBody.hidden = true;
+    root.setAttribute('aria-label', 'Chat');
 
     var xBar = el('div', 'lobby-xbar');
-    var xStatus = el('span', 'lobby-x-status', 'Optional: link X for perks');
+    var xStatus = el('span', 'lobby-x-status', '');
     var xBtn = el('button', 'lobby-x-btn', 'Link X');
     xBtn.type = 'button';
     var xUnlink = el('button', 'lobby-x-unlink', 'Unlink');
@@ -156,17 +136,7 @@
     xBar.appendChild(xBtn);
     xBar.appendChild(xUnlink);
 
-    var presenceStrip = el('p', 'lobby-presence', '—');
-    presenceStrip.setAttribute('aria-live', 'polite');
-
-    var tools = el('div', 'lobby-tools');
-    var expandBtn = el('button', 'lobby-expand-btn', 'Expand chat');
-    expandBtn.type = 'button';
-    expandBtn.setAttribute('aria-expanded', 'false');
-    expandBtn.setAttribute('aria-controls', root.id || 'dasha-lobby');
-    tools.appendChild(expandBtn);
-
-    var status = el('p', 'lobby-status', 'Connecting…');
+    var status = el('p', 'lobby-status', '');
     status.setAttribute('role', 'status');
     status.setAttribute('aria-live', 'polite');
 
@@ -174,22 +144,6 @@
     log.setAttribute('role', 'log');
     log.setAttribute('aria-live', 'polite');
     log.setAttribute('aria-relevant', 'additions');
-    // Empty state belongs to the room. The composer directly below is the action.
-    if (!document.getElementById('dasha-lobby-empty-style')) {
-      var emptyStyle = document.createElement('style');
-      emptyStyle.id = 'dasha-lobby-empty-style';
-      emptyStyle.textContent =
-        '.lobby-empty{display:grid;gap:10px;justify-items:center;margin:auto;padding:28px 14px;text-align:center;color:var(--muted,#e6dcc4)}' +
-        '.lobby-empty-title{margin:0;color:var(--paper,#f4eddb);font-size:18px;font-weight:950;letter-spacing:.02em}' +
-        '.lobby-join{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;margin-left:8px;border-radius:999px;background:var(--acid,#dfff00);color:var(--ink,#070608);font:900 11px Arial,Helvetica,sans-serif;letter-spacing:.06em;text-transform:uppercase;text-decoration:none}';
-      document.head.appendChild(emptyStyle);
-    }
-    function makeEmptyState() {
-      var wrap = el('div', 'lobby-empty');
-      wrap.appendChild(el('p', 'lobby-empty-title', 'Be first.'));
-      return wrap;
-    }
-    log.appendChild(makeEmptyState());
 
     var form = el('form', 'lobby-form');
     form.setAttribute('autocomplete', 'off');
@@ -199,26 +153,20 @@
     nickIn.type = 'text';
     nickIn.name = 'nick';
     nickIn.maxLength = MAX_NICK;
-    nickIn.placeholder = 'nick';
     nickIn.required = true;
     nickIn.setAttribute('aria-label', 'Nickname');
     try {
       nickIn.value = localStorage.getItem(nickKey) || '';
     } catch (e) {}
-    var nickCount = el('span', 'lobby-count', '');
     nickWrap.appendChild(nickIn);
-    nickWrap.appendChild(nickCount);
 
     var textWrap = el('div', 'lobby-field lobby-field-text');
     var textIn = el('input', 'lobby-text');
     textIn.type = 'text';
     textIn.name = 'text';
     textIn.maxLength = MAX_TEXT;
-    textIn.placeholder = 'Message';
     textIn.setAttribute('aria-label', 'Message');
-    var textCount = el('span', 'lobby-count', '');
     textWrap.appendChild(textIn);
-    textWrap.appendChild(textCount);
 
     var send = el('button', 'lobby-send', 'Send');
     send.type = 'submit';
@@ -227,12 +175,7 @@
     form.appendChild(textWrap);
     form.appendChild(send);
 
-    // Pin / X / presence were built but never attached (chat looked "empty/broken").
-    pin.appendChild(pinBody);
-    root.appendChild(pin);
     root.appendChild(xBar);
-    root.appendChild(presenceStrip);
-    root.appendChild(tools);
     root.appendChild(status);
     root.appendChild(log);
     root.appendChild(form);
@@ -254,30 +197,6 @@
     var idleTimer = null;
     var IDLE_MS = 20 * 60 * 1000;
     var pendingText = null;
-    var expanded = false;
-
-    function paintPresence(data) {
-      if (!data) {
-        presenceStrip.textContent = '—';
-        return;
-      }
-      var bits = [(data.count || 0) + ' here'];
-      if (typeof data.linked === 'number') bits.push(data.linked + ' linked');
-      if (data.slow) bits.push('slow');
-      if (data.shield) bits.push('X-only');
-      presenceStrip.textContent = bits.join(' · ');
-    }
-
-    function clearEmpty() {
-      var e = log.querySelector('.lobby-empty');
-      if (e) e.remove();
-    }
-
-    function ensureEmpty() {
-      if (!log.querySelector('.lobby-line') && !log.querySelector('.lobby-empty')) {
-        log.appendChild(makeEmptyState());
-      }
-    }
 
     function bumpActivity() {
       lastActivity = Date.now();
@@ -315,29 +234,20 @@
       if (linked && linkedHandle) {
         nickIn.value = '@' + linkedHandle;
         nickIn.readOnly = true;
-        nickIn.title = 'Your X handle (linked)';
         xStatus.textContent = '';
-        xStatus.appendChild(document.createTextNode('X · '));
         if (linkedAvatar && avatarOk(linkedAvatar)) {
           var identityAvatar = document.createElement('img');
+          identityAvatar.className = 'lobby-avatar';
           identityAvatar.src = linkedAvatar;
           identityAvatar.alt = '';
-          identityAvatar.width = identityAvatar.height = 22;
-          identityAvatar.style.cssText = 'width:22px;height:22px;border-radius:50%;vertical-align:middle;margin-right:5px';
+          identityAvatar.width = identityAvatar.height = 16;
           xStatus.appendChild(identityAvatar);
         }
-        xStatus.appendChild(document.createTextNode('@' + linkedHandle + ' · '));
-        var boardA = document.createElement('a');
-        boardA.href = 'https://www.getdasha.com/#simp';
-        boardA.textContent = 'Simp Board';
-        boardA.style.cssText = 'color:#7ec8ff;font-weight:800;text-underline-offset:3px';
-        xStatus.appendChild(boardA);
-        xStatus.appendChild(document.createTextNode(' · longer chat'));
+        xStatus.appendChild(document.createTextNode('@' + linkedHandle));
         xBtn.hidden = true;
         xUnlink.hidden = false;
       } else {
         nickIn.readOnly = false;
-        nickIn.title = '';
         if (nickIn.value.charAt(0) === '@') {
           try {
             nickIn.value = localStorage.getItem(nickKey) || '';
@@ -345,14 +255,11 @@
             nickIn.value = '';
           }
         }
-        xStatus.textContent = xConfigured
-          ? 'Optional: link X for @handle, longer msgs, faster rate, priority seats'
-          : 'Optional X link (server not configured yet) — chat still works';
+        xStatus.textContent = '';
         xBtn.hidden = !xConfigured;
         xBtn.disabled = !xConfigured;
         xUnlink.hidden = true;
       }
-      paintCounts();
     }
 
     function refreshXStatus() {
@@ -385,11 +292,6 @@
       status.dataset.kind = kind || '';
     }
 
-    function paintCounts() {
-      nickCount.textContent = (nickIn.value || '').length + '/' + (linked ? 16 : MAX_NICK);
-      textCount.textContent = (textIn.value || '').length + '/' + maxTextNow;
-    }
-
     function setCooling(ms) {
       coolUntil = Date.now() + Math.max(0, ms || 0);
       send.disabled = true;
@@ -417,34 +319,7 @@
       setStatus('Sent', 'ok');
     }
 
-    function setPinText(text) {
-      if (!text) {
-        pinBody.hidden = true;
-        pinBody.textContent = '';
-        return;
-      }
-      pinBody.hidden = false;
-      pinBody.textContent = text;
-    }
-
-    function setExpanded(on) {
-      expanded = !!on;
-      root.classList.toggle('lobby-expanded', expanded);
-      expandBtn.textContent = expanded ? 'Close expand' : 'Expand chat';
-      expandBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-      try {
-        document.documentElement.classList.toggle('lobby-expanded-open', expanded);
-        document.body.classList.toggle('lobby-expanded-open', expanded);
-      } catch (e) {}
-      if (expanded) {
-        try {
-          log.focus();
-        } catch (e) {}
-      }
-    }
-
     function addLine(kind, head, body, ts, extra) {
-      clearEmpty();
       var row = el('div', 'lobby-line lobby-' + kind + (extra && extra.linked ? ' lobby-linked' : ''));
       var meta = el('span', 'lobby-meta');
       if (extra && extra.avatar && avatarOk(extra.avatar)) {
@@ -508,25 +383,13 @@
           linkedAvatar = data.x.avatar || null;
           applyLinkedUi();
         }
-        if (typeof data.remaining === 'number' && typeof data.max === 'number') {
-          presenceStrip.textContent = data.remaining + ' seats open · max ' + data.max;
-        }
-        setStatus(
-          linked ? 'Connected as @' + linkedHandle + ' — send to join' : 'Connected — enter a nick to join',
-          'ok',
-        );
-        if (data.pin && data.pin.text) setPinText(data.pin.text);
-        ensureEmpty();
+        setStatus('');
         if ((nickIn.value || '').trim().length >= 2) sendHello();
         return;
       }
-      if (data.type === 'pin') {
-        if (data.pin && data.pin.text) setPinText(data.pin.text);
-        return;
-      }
+      if (data.type === 'pin') return;
       if (data.type === 'history_clear') {
         log.innerHTML = '';
-        ensureEmpty();
         return;
       }
       if (data.type === 'hello_ok') {
@@ -539,10 +402,6 @@
           linkedAvatar = data.x.avatar || null;
           applyLinkedUi();
         }
-        if (data.presence) paintPresence(data.presence);
-        var count =
-          (data.presence && data.presence.count) ||
-          (data.count != null ? data.count : null);
         var coolLeft =
           typeof data.joinCooldownRemainingMs === 'number'
             ? data.joinCooldownRemainingMs
@@ -551,27 +410,12 @@
               : 0;
         if (coolLeft > 0) {
           setCooling(coolLeft);
-          setStatus(
-            (data.you ? 'Joined as ' + data.you : 'Joined') +
-              ' · chat unlocks in ' +
-              Math.ceil(coolLeft / 1000) +
-              's' +
-              (pendingText ? ' · message queued' : ''),
-            'warn',
-          );
         } else {
-          setStatus(
-            (data.you ? 'Joined as ' + data.you : 'Connected') +
-              (linked ? ' · X perks' : '') +
-              (count != null ? ' · ' + count + ' here' : ''),
-            'ok',
-          );
+          setStatus('');
           flushPending();
         }
         if (Array.isArray(data.history)) {
           log.innerHTML = '';
-          if (data.pin && data.pin.text) addLine('pin', 'PIN', data.pin.text, null);
-          if (data.pin && data.pin.text) setPinText(data.pin.text);
           data.history.forEach(function (m) {
             if (m.type === 'chat' || m.nick)
               addLine('chat', m.nick, m.text, m.ts, {
@@ -580,7 +424,6 @@
                 avatar: m.avatar || null,
               });
           });
-          ensureEmpty();
         }
         return;
       }
@@ -597,7 +440,6 @@
         if (data.lookingFor && data.lookingFor.expired && data.lookingFor.id) {
           var gone = log.querySelector('[data-looking="' + data.lookingFor.id + '"]');
           if (gone) gone.remove();
-          ensureEmpty();
           return;
         }
         addLine('sys', '·', data.text, data.ts, {
@@ -606,18 +448,7 @@
         });
         return;
       }
-      if (data.type === 'presence') {
-        paintPresence(data);
-        if (ready) {
-          var bits = ['Live · ' + (data.count || 0) + ' here'];
-          if (typeof data.linked === 'number') bits.push(data.linked + ' linked');
-          if (data.slow) bits.push('slow mode');
-          if (data.shield) bits.push('X-only');
-          if (linked) bits.push('X perks');
-          setStatus(bits.join(' · '), data.shield || data.slow ? 'warn' : 'ok');
-        }
-        return;
-      }
+      if (data.type === 'presence') return;
       if (data.type === 'error') {
         var err = data.error || 'error';
         setStatus(err, 'bad');
@@ -670,14 +501,14 @@
         try {
           ws = new WebSocket(wsUrl);
         } catch (e) {
-          setStatus('Lobby offline (bad URL)', 'bad');
+          setStatus('offline', 'bad');
           return;
         }
         ws.onopen = function () {
           retry = 0;
           bumpActivity();
           armIdle();
-          setStatus('Connected — enter a nick to join', 'ok');
+          setStatus('');
         };
         ws.onmessage = function (ev) {
           try {
@@ -693,11 +524,7 @@
           if (closed) return;
           // 4001 = server closed us for full room
           if (ev && (ev.code === 4001 || /lobby full|lobby busy/i.test(ev.reason || ''))) {
-            var why = ev.reason || 'lobby full';
-            scheduleRetry(
-              FULL_RETRY_MS,
-              why + ' · max ' + MAX_SOCKETS + (linked ? '' : ' · link X for reserved seats') + ' · retrying',
-            );
+            scheduleRetry(FULL_RETRY_MS, 'full');
             return;
           }
           if (ev && ev.code === 4003) {
@@ -740,7 +567,7 @@
         .then(function (res) {
           if (closed) return;
           if (res.data && res.data.full) {
-            scheduleRetry(FULL_RETRY_MS, 'Lobby full (max ' + (res.data.max || MAX_SOCKETS) + '). Retrying');
+            scheduleRetry(FULL_RETRY_MS, 'full');
             return;
           }
           startWs();
@@ -751,10 +578,7 @@
     }
 
     xBtn.addEventListener('click', function () {
-      if (!xConfigured) {
-        setStatus('X link not configured on server yet', 'warn');
-        return;
-      }
+      if (!xConfigured) return;
       var w = window.open(httpBase() + '/oauth/x/start', 'dasha_x', 'width=520,height=700');
       if (!w) setStatus('Allow popups to link X', 'warn');
     });
@@ -765,7 +589,7 @@
           linkedHandle = null;
           linkedAvatar = null;
           applyLinkedUi();
-          setStatus('X unlinked — pick a nick', 'ok');
+          setStatus('');
           if (ws && ws.readyState === 1) {
             ready = false;
             helloSent = false;
@@ -780,7 +604,7 @@
       // OAuth popup lives on lobby host only.
       if (ev.origin !== 'https://lobby.getdasha.com' && ev.origin !== httpBase()) return;
       refreshXStatus();
-      setStatus('X linked — reconnecting with perks…', 'ok');
+      setStatus('');
       try {
         if (ws) ws.close();
       } catch (e) {}
@@ -789,16 +613,6 @@
     }
     window.addEventListener('message', onXLinkedMessage);
 
-    expandBtn.addEventListener('click', function () {
-      setExpanded(!expanded);
-    });
-    function onEsc(ev) {
-      if (ev.key === 'Escape' && expanded) {
-        setExpanded(false);
-      }
-    }
-    document.addEventListener('keydown', onEsc);
-
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       bumpActivity();
@@ -806,7 +620,7 @@
       var nick = (nickIn.value || '').trim();
       var text = (textIn.value || '').trim();
       if (nick.length < 2) {
-        setStatus('Pick a nick (2–18 chars)', 'bad');
+        setStatus('nick', 'bad');
         nickIn.focus();
         return;
       }
@@ -818,18 +632,16 @@
         if (text) {
           pendingText = text;
           textIn.value = '';
-          paintCounts();
         }
         sendHello();
-        setStatus(text ? 'Joining… message queued' : 'Joining…', 'warn');
+        setStatus('');
         return;
       }
       if (Date.now() < coolUntil) {
         if (text) {
           pendingText = text;
           textIn.value = '';
-          paintCounts();
-          setStatus('Queued — unlocks in ' + Math.ceil((coolUntil - Date.now()) / 1000) + 's', 'warn');
+          setStatus('');
         } else {
           setStatus('slow down', 'warn');
         }
@@ -838,16 +650,12 @@
       if (!text) return;
       ws.send(JSON.stringify({ type: 'chat', text: text }));
       textIn.value = '';
-      paintCounts();
       textIn.focus();
     });
 
     nickIn.addEventListener('change', function () {
       if (ws && ws.readyState === 1) sendHello();
     });
-    nickIn.addEventListener('input', paintCounts);
-    textIn.addEventListener('input', paintCounts);
-    paintCounts();
     applyLinkedUi();
     refreshXStatus();
     connect();
@@ -855,28 +663,245 @@
     return {
       destroy: function () {
         closed = true;
-        setExpanded(false);
         clearTimeout(retryTimer);
         clearTimeout(coolTimer);
         clearTimeout(idleTimer);
         window.removeEventListener('message', onXLinkedMessage);
-        document.removeEventListener('keydown', onEsc);
         try {
           if (ws) ws.close();
         } catch (e) {}
         root.innerHTML = '';
       },
-      expand: function () {
-        setExpanded(true);
-      },
-      collapse: function () {
-        setExpanded(false);
-      },
       wsUrl: wsUrl,
     };
   }
 
-  var api = { mount: mount, mint: MINT, defaultUrl: DEFAULT_WS };
+  function mountForum(root, opts) {
+    opts = opts || {};
+    if (!root) return null;
+    var apiBase = opts.api || root.getAttribute('data-forum-api') || 'https://lobby.getdasha.com';
+    var nickKey = 'dasha-lobby-nick';
+    root.innerHTML = '';
+    root.classList.add('dasha-forum');
+    root.setAttribute('role', 'region');
+    root.setAttribute('aria-label', 'Forum');
+
+    var back = el('button', 'forum-back', 'Back');
+    back.type = 'button';
+    back.hidden = true;
+    var status = el('p', 'forum-status', '');
+    status.setAttribute('role', 'status');
+    var list = el('div', 'forum-list');
+    var threadBox = el('div', 'forum-thread');
+    threadBox.hidden = true;
+    var form = el('form', 'forum-form');
+    var textIn = el('input', 'forum-text');
+    textIn.type = 'text';
+    textIn.maxLength = MAX_TEXT_LINKED;
+    textIn.setAttribute('aria-label', 'Title');
+    var send = el('button', 'forum-send', 'Post');
+    send.type = 'submit';
+    form.appendChild(textIn);
+    form.appendChild(send);
+    root.appendChild(back);
+    root.appendChild(status);
+    root.appendChild(list);
+    root.appendChild(threadBox);
+    root.appendChild(form);
+
+    var openId = '';
+    var linkedHandle = null;
+    var coolUntil = 0;
+    var coolTimer = null;
+
+    function who() {
+      if (linkedHandle) return '@' + linkedHandle;
+      var chatNick = document.querySelector('#dasha-lobby input.lobby-nick');
+      if (chatNick && chatNick.value.trim()) return chatNick.value.trim();
+      try {
+        return localStorage.getItem(nickKey) || '';
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function setStatus(t, kind) {
+      status.textContent = t || '';
+      status.dataset.kind = kind || '';
+    }
+
+    function setCooling(ms) {
+      coolUntil = Date.now() + Math.max(0, ms || 0);
+      send.disabled = true;
+      clearTimeout(coolTimer);
+      function tick() {
+        var left = coolUntil - Date.now();
+        if (left <= 0) {
+          send.disabled = false;
+          send.textContent = 'Post';
+          return;
+        }
+        send.textContent = Math.ceil(left / 1000) + 's';
+        coolTimer = setTimeout(tick, 200);
+      }
+      tick();
+    }
+
+    function topicTitle(text) {
+      return String(text || '').split(/\r?\n/, 1)[0];
+    }
+
+    function postEl(item, cls) {
+      var row = el('div', cls);
+      var whoLabel = item.handle ? '@' + item.handle : item.nick || '';
+      var meta = el('span', 'forum-meta', whoLabel + (item.ts ? (whoLabel ? ' · ' : '') + timeLabel(item.ts) : ''));
+      var body = el('span', 'forum-body');
+      fillBody(body, item.text);
+      row.appendChild(body);
+      row.appendChild(meta);
+      return row;
+    }
+
+    function listRow(item) {
+      var row = el('button', 'forum-row');
+      row.type = 'button';
+      row.appendChild(el('span', 'forum-body', topicTitle(item.text)));
+      row.appendChild(el('span', 'forum-replies', String(item.replies || 0)));
+      row.appendChild(el('span', 'forum-when', timeLabel(item.lastTs || item.ts)));
+      return row;
+    }
+
+    function paintList(threads) {
+      list.textContent = '';
+      (threads || []).forEach(function (t) {
+        var row = listRow(t);
+        row.addEventListener('click', function () {
+          openThread(t.id);
+        });
+        list.appendChild(row);
+      });
+    }
+
+    function paintThread(data) {
+      threadBox.textContent = '';
+      threadBox.appendChild(postEl(data, 'forum-post'));
+      (data.replies || []).forEach(function (r) {
+        threadBox.appendChild(postEl(r, 'forum-reply'));
+      });
+    }
+
+    function showList() {
+      openId = '';
+      back.hidden = true;
+      threadBox.hidden = true;
+      list.hidden = false;
+      textIn.setAttribute('aria-label', 'Title');
+    }
+
+    function showThread() {
+      back.hidden = false;
+      list.hidden = true;
+      threadBox.hidden = false;
+      textIn.setAttribute('aria-label', 'Reply');
+    }
+
+    function loadList() {
+      return fetch(apiBase + '/forum/threads', { method: 'GET', mode: 'cors', cache: 'no-store' })
+        .then(function (r) {
+          return r.json();
+        })
+        .then(function (data) {
+          paintList(data.threads || []);
+        })
+        .catch(function () {
+          setStatus('offline', 'bad');
+        });
+    }
+
+    function openThread(id) {
+      return fetch(apiBase + '/forum/threads/' + encodeURIComponent(id), { method: 'GET', mode: 'cors', cache: 'no-store' })
+        .then(function (r) {
+          return r.json().then(function (data) {
+            return { ok: r.ok, data: data };
+          });
+        })
+        .then(function (res) {
+          if (!res.ok) {
+            setStatus(res.data.error || 'not found', 'bad');
+            return;
+          }
+          openId = id;
+          paintThread(res.data);
+          showThread();
+          setStatus('');
+        })
+        .catch(function () {
+          setStatus('offline', 'bad');
+        });
+    }
+
+    function refreshX() {
+      return fetch(apiBase + '/oauth/x/status', { method: 'GET', credentials: 'include', mode: 'cors', cache: 'no-store' })
+        .then(function (r) {
+          return r.json();
+        })
+        .then(function (data) {
+          linkedHandle = data && data.linked && data.x && data.x.handle ? data.x.handle : null;
+        })
+        .catch(function () {
+          linkedHandle = null;
+        });
+    }
+
+    back.addEventListener('click', function () {
+      showList();
+      loadList();
+    });
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var text = (textIn.value || '').trim();
+      if (!text || Date.now() < coolUntil) return;
+      var path = openId ? '/forum/threads/' + encodeURIComponent(openId) : '/forum/threads';
+      fetch(apiBase + path, {
+        method: 'POST',
+        credentials: 'include',
+        mode: 'cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text, nick: who() }),
+      })
+        .then(function (r) {
+          return r.json().then(function (data) {
+            return { ok: r.ok, data: data };
+          });
+        })
+        .then(function (res) {
+          if (res.data && res.data.waitMs) setCooling(res.data.waitMs);
+          if (!res.ok) {
+            setStatus(res.data.error || 'error', 'bad');
+            return;
+          }
+          textIn.value = '';
+          setStatus('');
+          if (openId) paintThread(res.data);
+          else openThread(res.data.id);
+        })
+        .catch(function () {
+          setStatus('offline', 'bad');
+        });
+    });
+
+    showList();
+    refreshX();
+    loadList();
+    return {
+      destroy: function () {
+        clearTimeout(coolTimer);
+        root.innerHTML = '';
+      },
+    };
+  }
+
+  var api = { mount: mount, mountForum: mountForum, mint: MINT, defaultUrl: DEFAULT_WS };
   global.DashaLobby = api;
 
   /** Drop non-product personal publisher JSON-LD if the host page still injects it. */
@@ -899,6 +924,11 @@
 
   function auto() {
     stripPersonalBrand();
+    var forum = document.getElementById('dasha-forum');
+    if (forum && !forum.dataset.mounted) {
+      forum.dataset.mounted = '1';
+      mountForum(forum);
+    }
     var node = document.getElementById('dasha-lobby');
     if (node && !node.dataset.mounted) {
       node.dataset.mounted = '1';

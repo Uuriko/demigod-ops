@@ -5,6 +5,7 @@
 import {
   MINT,
   WSOL,
+  DASHA_TAPE_EMBED_SRC,
   PIN,
   MAX_HISTORY,
   MAX_SOCKETS,
@@ -13,8 +14,14 @@ import {
   checkRate,
   checkRepeat,
   pruneHistory,
+  pruneForumThreads,
+  publicForumRow,
+  publicForumThread,
+  parseForumThreadPath,
   publicMessage,
   originAllowed,
+  validateNick,
+  validateMessage,
   nickTaken,
   nickKey,
   checkIpJoin,
@@ -60,7 +67,7 @@ import {
   submitQuiz,
   applyLearnAward,
 } from './dasha-simp-score.mjs';
-import { publicBank, isLearnTrack, isLearnModuleId, MODULE_BY_ID } from './dasha-learn-bank.mjs';
+import { isLearnTrack, isLearnModuleId, MODULE_BY_ID } from './dasha-learn-bank.mjs';
 import {
   applyHolderProof,
   hasPositiveTokenBalance,
@@ -84,7 +91,6 @@ import {
   STUDIO_CLIENT_SRI,
   ROBOTS_TXT,
   SITEMAP_XML,
-  HOWTO_HTML,
   CHESS_PAGE_HTML,
   GRAPH_PAGE_HTML,
   GRAPH_CLIENT_JS,
@@ -106,6 +112,7 @@ import {
 import { magnetPageHtml, magnetRoute } from './dasha-magnet-pages.mjs';
 import {
   AWARD_BOARD_CSS,
+  AWARD_BTN_CSS,
   AWARD_CHROME_CSS,
   AWARD_CROP_CSS,
   AWARD_RAIL_CSS,
@@ -115,9 +122,7 @@ import {
   cropTicksHtml,
   AWARD_FOOT_CSS,
   hamburgerHtml,
-  nextUpChipHtml,
   roomLinksHtml,
-  roomRailHtml,
   slimFooterHtml,
 } from './dasha-award-chrome.mjs';
 import {
@@ -211,7 +216,22 @@ export function stripHomeSimpBoard(html) {
 
 const HOME_SKIP_RE = /<a\b[^>]*(?:\bclass=["'][^"']*\bskip(?:-link)?\b[^"']*["']|>\s*Skip to )[^>]*>[\s\S]*?<\/a>/gi;
 const HOME_HERO_RE = /<main\b|<header\b[^>]*\bdasha-hero\b|<header\b|<section\b/i;
-const LOBBY_CHAT = 'https://www.getdasha.com/lobby';
+function isLeftoverForumPath(pathname) {
+  const path = String(pathname || '').replace(/\/+$/, '') || '/';
+  return path === '/forum' || path === '/lobby';
+}
+
+function isForumApiPath(pathname) {
+  return Boolean(parseForumThreadPath(pathname));
+}
+
+async function forumApiResponse(request, env, allowedOrigin) {
+  if (request.method !== 'GET' && request.headers.get('Origin') && !allowedOrigin && !env.ALLOW_ANY_ORIGIN) {
+    return json({ error: 'origin not allowed' }, 403, null);
+  }
+  if (!env.LOBBY) return json({ error: 'not found' }, 404, allowedOrigin, { credentials: true });
+  return env.LOBBY.get(env.LOBBY.idFromName('public')).fetch(request);
+}
 function simpBoardClientScript() {
   return `<script>(function(){var s=document.createElement('script');s.src='https://lobby.getdasha.com/client/simp-board.js';s.integrity='${SIMP_BOARD_SRI}';s.crossOrigin='anonymous';s.defer=true;document.head.appendChild(s)})();</script>`;
 }
@@ -255,9 +275,12 @@ function stripHomeWebFonts(html) {
 
 function stripHomeForumHrefs(html) {
   return String(html || '')
-    .replace(/\s*·\s*<a\b[^>]*href=["'][^"']*\/forum\/?["'][^>]*>[^<]*<\/a>/gi, '')
-    .replace(/<a\b[^>]*href=["'][^"']*\/forum\/?["'][^>]*>[^<]*<\/a>\s*·\s*/gi, '')
-    .replace(/<a\b[^>]*href=["'][^"']*\/forum\/?["'][^>]*>[^<]*<\/a>/gi, '');
+    .replace(/\s*·\s*<a\b[^>]*href=["'](?:https:\/\/(?:www\.)?getdasha\.com)?\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, '')
+    .replace(/<a\b[^>]*href=["'](?:https:\/\/(?:www\.)?getdasha\.com)?\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>\s*·\s*/gi, '')
+    .replace(/<a\b[^>]*href=["'](?:https:\/\/(?:www\.)?getdasha\.com)?\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, '')
+    .replace(/\s*·\s*<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, '')
+    .replace(/<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>\s*·\s*/gi, '')
+    .replace(/<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, '');
 }
 
 function demoteHomeNavMint(html) {
@@ -293,17 +316,17 @@ const HOME_CULTURE_NAV = roomLinksHtml();
 function alignHomeLowerNav(html) {
   return String(html || '').replace(/<nav\b[^>]*>[\s\S]*?<\/nav>/gi, (nav) => {
     if (!/\bclass=["'][^"']*\b(?:nav|dasha-nav)\b/.test(nav)) return nav;
-    if (!/\/studio|\/lobby|\/bounties|#token|buy-dasha/i.test(nav)) return nav;
+    if (!/\/studio|\/lobby|\/forum|\/bounties|#token|buy-dasha/i.test(nav)) return nav;
     return nav.replace(/>[\s\S]*<\/nav>/i, `>${HOME_CULTURE_NAV}</nav>`);
   });
 }
 
 const HOME_BUY_HREF = BUY_HREF;
 const HOME_BUY_PILL = `<a class="pill primary buy-dasha" href="${HOME_BUY_HREF}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a>`;
-const HOME_CARNIVAL_HIDE = '#lobby,#remix,#stills,#oss,#voice,.poster-grid,#token h2,#token .section-title,#token .assoc,#token .disclaimer,#token .poster,#token .tape{display:none!important}';
-const HOME_FOLD_CSS = '#simp,#faucet,#token,main.dasha>section{content-visibility:auto;contain-intrinsic-size:auto 720px}';
+const HOME_CARNIVAL_HIDE = '#lobby,#remix,#stills,#oss,#voice,.poster-grid,#token h2,#token .section-title,#token .assoc,#token .disclaimer,#token .poster,#token .tape,.dasha-hero .micro{display:none!important}';
+const HOME_FOLD_CSS = '#dasha-tape,#simp,#chess,#faucet,#token,main.dasha>section{content-visibility:auto;contain-intrinsic-size:auto 720px}';
 const HOME_SCROLL_CSS = 'html{scroll-behavior:auto!important}.dasha{overflow-x:visible!important}#token,#token *{view-timeline:none!important;animation-timeline:none!important;scroll-timeline:none!important}';
-const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer{display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + HOME_SCROLL_CSS + HOME_CARNIVAL_HIDE + HOME_FOLD_CSS + AWARD_SLIM_CSS + AWARD_CROP_CSS + AWARD_ROOM_CSS + AWARD_FOOT_CSS;
+const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer,footer:not(.dasha-foot){display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + HOME_SCROLL_CSS + HOME_CARNIVAL_HIDE + HOME_FOLD_CSS + AWARD_SLIM_CSS + AWARD_CROP_CSS + AWARD_ROOM_CSS + AWARD_FOOT_CSS + AWARD_BTN_CSS;
 
 function injectHomeCalmCss(html) {
   const page = String(html || '');
@@ -352,6 +375,26 @@ function ensureHomeSimpMount(html) {
   return page.slice(0, at) + mount + page.slice(at);
 }
 
+/** Official Dexscreener embed for this pair. Below first paint, above the board. */
+function dashaTapeMountHtml() {
+  return `<section id="dasha-tape" aria-label="$dasha live chart"><style>#dasha-tape-embed{position:relative;width:100%;padding-bottom:125%;background:#070608}@media(min-width:1400px){#dasha-tape-embed{padding-bottom:65%}}#dasha-tape-embed iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#070608}</style><div id="dasha-tape-embed"><iframe class="dasha-tape-frame" title="$dasha live chart" src="${DASHA_TAPE_EMBED_SRC}" loading="lazy" referrerpolicy="no-referrer"></iframe></div></section>`;
+}
+
+function ensureHomeTapeMount(html) {
+  const page = String(html || '');
+  if (/id=["']dasha-tape["']/i.test(page)) return page;
+  const mount = dashaTapeMountHtml();
+  const simp = page.match(/<(?:div|section)\b[^>]*\bid=["']simp["'][^>]*>/i);
+  if (simp) {
+    const at = page.indexOf(simp[0]);
+    return page.slice(0, at) + mount + page.slice(at);
+  }
+  const hero = page.match(/<header\b[^>]*\bdasha-hero\b[^>]*>[\s\S]*?<\/header>/i);
+  if (!hero) return page;
+  const at = page.indexOf(hero[0]) + hero[0].length;
+  return page.slice(0, at) + mount + page.slice(at);
+}
+
 function faucetStillUrl() {
   return 'https://lobby.getdasha.com/client/faucet.png';
 }
@@ -381,10 +424,56 @@ function ensureHomeFaucetMount(html) {
   return page.slice(0, at) + mount + page.slice(at);
 }
 
+function scopeChessCss(css, root = '#chess') {
+  return String(css || '').replace(/(^|})(\s*)([^@{}][^{}]*)\{/g, (all, brace, space, sel) => {
+    const trimmed = sel.trim();
+    if (!trimmed) return all;
+    const scoped = trimmed.split(',').map((part) => {
+      const s = part.trim();
+      if (!s) return s;
+      if (s === '*') return `${root},${root} *`;
+      if (s === 'html' || s === 'body' || s === ':root') return root;
+      if (/^(html|body|:root)\b/.test(s)) return root + s.replace(/^(html|body|:root)/, '');
+      return `${root} ${s}`;
+    }).join(',');
+    return `${brace}${space}${scoped}{`;
+  });
+}
+
+/** Same chess game as /chess. Home section only — no Menu, no essay. */
+export function chessHomeMountHtml(page = CHESS_PAGE_HTML) {
+  const source = String(page || '');
+  const styles = [...source.matchAll(/<style>([\s\S]*?)<\/style>/g)].map(match => match[1]).join('\n');
+  const main = (source.match(/<main\b[^>]*>([\s\S]*?)<\/main>/) || ['', ''])[1];
+  const dialog = (source.match(/<dialog\b[\s\S]*?<\/dialog>/) || [''])[0];
+  const script = (source.match(/<script>([\s\S]*?)<\/script>/) || [''])[0];
+  const homeCss = '#chess .side,#chess .kicker,#chess #tournament,#chess #leaders-panel,#chess #recent-panel,#chess #rating-panel{display:none}#chess .wrap{width:min(720px,calc(100% - 20px));margin:auto}';
+  return `<section id="chess" aria-label="Chess"><style>${scopeChessCss(styles)}${homeCss}</style><div class="wrap">${main}</div>${dialog}${script ? `<script>${script}</script>` : ''}</section>`;
+}
+
+function ensureHomeChessMount(html) {
+  const page = String(html || '');
+  if (/id=["']chess["']/i.test(page) && /id=["']board["']/i.test(page) && /id=["']gate-action["']/i.test(page)) return page;
+  const mount = chessHomeMountHtml();
+  const faucet = page.match(/<(?:div|section)\b[^>]*\bid=["'](?:faucet|dasha-faucet)["'][^>]*>/i);
+  if (faucet) {
+    const at = page.indexOf(faucet[0]);
+    return page.slice(0, at) + mount + page.slice(at);
+  }
+  const simp = page.match(/<(?:div|section)\b[^>]*\bid=["']simp["'][^>]*>/i);
+  if (simp) {
+    const open = page.indexOf(simp[0]);
+    const after = page.indexOf('</div>', open);
+    const at = after >= 0 ? after + 6 : open + simp[0].length;
+    return page.slice(0, at) + mount + page.slice(at);
+  }
+  return page;
+}
+
 function injectHomeReveal(html) {
   const page = String(html || '');
   if (/id=["']dasha-home-reveal["']/i.test(page)) return page;
-  const tag = `<noscript><style>#simp,#faucet,#token{opacity:1;transform:none}</style></noscript><script id="dasha-home-reveal">(function(){var nodes=document.querySelectorAll('#simp,#faucet,#token');if(!nodes.length)return;if(!window.IntersectionObserver||(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)){for(var i=0;i<nodes.length;i++)nodes[i].classList.add('is-in');return}var io=new IntersectionObserver(function(ents){ents.forEach(function(e){if(e.isIntersecting){e.target.classList.add('is-in');io.unobserve(e.target)}})},{threshold:.12,rootMargin:'0px 0px -8% 0px'});for(var j=0;j<nodes.length;j++)io.observe(nodes[j])})();</script>`;
+  const tag = `<noscript><style>#simp,#chess,#faucet,#token{opacity:1;transform:none}</style></noscript><script id="dasha-home-reveal">(function(){var nodes=document.querySelectorAll('#simp,#chess,#faucet,#token');if(!nodes.length)return;if(!window.IntersectionObserver||(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)){for(var i=0;i<nodes.length;i++)nodes[i].classList.add('is-in');return}var io=new IntersectionObserver(function(ents){ents.forEach(function(e){if(e.isIntersecting){e.target.classList.add('is-in');io.unobserve(e.target)}})},{threshold:.12,rootMargin:'0px 0px -8% 0px'});for(var j=0;j<nodes.length;j++)io.observe(nodes[j])})();</script>`;
   return /<\/body>/i.test(page) ? page.replace(/<\/body>/i, `${tag}</body>`) : page + tag;
 }
 
@@ -398,7 +487,9 @@ export function rewriteHomeFirstViewport(html) {
   page = ensureHomeBuyPill(page);
   if (/<header\b[^>]*\bdasha-hero\b/i.test(page)) {
     page = ensureHomeSimpMount(page);
+    page = ensureHomeTapeMount(page);
     page = ensureHomeFaucetMount(page);
+    page = ensureHomeChessMount(page);
   }
   page = ensureHomeAwardChrome(page);
   page = injectHomeReveal(page);
@@ -451,11 +542,11 @@ export function rewriteLobbyScriptIntegrity(html, sri = LOBBY_CLIENT_SRI) {
   );
 }
 
-/** Leftover lobby.getdasha.com chess/forum doors become same-origin. Does not invent a forum. */
+/** Leftover lobby.getdasha.com chess/forum doors become same-origin. */
 export function rewriteLeftoverLobbyHrefs(html) {
   return String(html || '')
     .replace(/href=(["'])https:\/\/lobby\.getdasha\.com\/chess/gi, 'href=$1/chess')
-    .replace(/href=(["'])https:\/\/lobby\.getdasha\.com\/forum\/?/gi, 'href=$1/lobby');
+    .replace(/href=(["'])https:\/\/lobby\.getdasha\.com\/forum\/?/gi, 'href=$1/forum');
 }
 
 /** Drop the dead lobby.getdasha.com/forum hop, empty #dasha-forum, and 404 forum.js. Does not invent a forum. */
@@ -532,7 +623,7 @@ function bountiesBoardHtml(feed) {
     : '<p>No open bounties</p>';
   const payoutNote = unpaid ? '<p>Payouts are not configured yet.</p>' : '';
   const buy = `https://jup.ag/swap?sell=${WSOL}&buy=${MINT}`;
-  return `<section id="dasha-bounties" aria-label="Bounties"><style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}${AWARD_CHROME_CSS}#dasha-bounties{box-sizing:border-box;min-height:100vh;margin:0;padding:0 0 2rem;background:var(--ink);color:var(--paper);font:16px/1.45 Arial,Helvetica,sans-serif}#dasha-bounties h1,#dasha-bounties h2{margin:1.25rem 1rem .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-transform:uppercase}#dasha-bounties h1{margin-top:.5rem;color:var(--paper);font-size:clamp(2rem,5vw,3.25rem);line-height:.9}#dasha-bounties p{margin:.5rem 1rem}#dasha-bounties a{color:var(--acid)}#dasha-bounties a.go,#dasha-bounties button{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font:inherit;font-weight:900;text-decoration:none;border:0;box-shadow:4px 4px 0 var(--hot)}#dasha-bounties .amt{color:var(--hot)}#dasha-bounties ul{list-style:none;margin:0 1rem;padding:0}#dasha-bounties li{border-top:1px solid var(--acid);padding:.75rem 0}#dasha-bounties li:first-child{border-top:0}#dasha-bounties li p{margin:.25rem 0}#dasha-bounties form{margin:0 1rem}#dasha-bounties label{display:block}#dasha-bounties input,#dasha-bounties textarea{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}#dasha-bounties textarea{min-height:6rem}#dasha-bounties footer{margin:2rem 1rem 0;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-bounties footer code{color:var(--paper);word-break:break-all}</style>${cropTicksHtml()}${hamburgerHtml({ path: '/bounties' })}<h1>Bounties</h1><p>Post a project. Other people run spare compute on it.</p><p><a class="go" href="#dasha-bounty-post">Post a project</a></p><p><a class="go" href="mailto:potter@trydemigod.com?subject=I%20have%20excess%20compute">I have excess compute</a></p><h2 id="dasha-bounty-post">Post</h2><form action="mailto:potter@trydemigod.com" method="get"><input type="hidden" name="subject" value="Dasha bounty"><p><label>Project name <input name="name" required></label></p><p><label>What to run <textarea name="body" required></textarea></label></p><p><label>Contact <input name="contact"></label> <a href="/privacy">Privacy</a></p><p><button type="submit">Post a project</button></p></form><p>This sends a request. It is not a live listing.</p><h2>Work</h2>${payoutNote}${work}<footer id="token"><p><code>${MINT}</code> · <a href="${buy}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a></p></footer>${siteFooter('/bounties')}</section>`;
+  return `<section id="dasha-bounties" aria-label="Bounties"><style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}${AWARD_CHROME_CSS}#dasha-bounties{box-sizing:border-box;min-height:100vh;margin:0;padding:0 0 2rem;background:var(--ink);color:var(--paper);font:16px/1.45 Arial,Helvetica,sans-serif}#dasha-bounties h1,#dasha-bounties h2{margin:1.25rem 1rem .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-transform:uppercase}#dasha-bounties h1{margin-top:.5rem;color:var(--paper);font-size:clamp(2rem,5vw,3.25rem);line-height:.9}#dasha-bounties p{margin:.5rem 1rem}#dasha-bounties a{color:var(--acid)}#dasha-bounties a.go,#dasha-bounties button{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font:inherit;font-weight:900;text-decoration:none;border:0;box-shadow:4px 4px 0 var(--hot)}#dasha-bounties .amt{color:var(--hot)}#dasha-bounties ul{list-style:none;margin:0 1rem;padding:0}#dasha-bounties li{border-top:1px solid var(--acid);padding:.75rem 0}#dasha-bounties li:first-child{border-top:0}#dasha-bounties li p{margin:.25rem 0}#dasha-bounties form{margin:0 1rem}#dasha-bounties label{display:block}#dasha-bounties input,#dasha-bounties textarea{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}#dasha-bounties textarea{min-height:6rem}#dasha-bounties footer{margin:2rem 1rem 0;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-bounties footer code{color:var(--paper);word-break:break-all}</style>${cropTicksHtml()}${hamburgerHtml({ path: '/bounties' })}<h1>Bounties</h1><p>Post a project. Other people run spare compute on it.</p><p><a class="go" href="#dasha-bounty-post">Post a project</a></p><p><a class="go" href="mailto:potter@trydemigod.com?subject=I%20have%20excess%20compute">I have excess compute</a></p><h2 id="dasha-bounty-post">Post</h2><form action="mailto:potter@trydemigod.com" method="get"><input type="hidden" name="subject" value="Dasha bounty"><p><label>Project name <input name="name" required></label></p><p><label>What to run <textarea name="body" required></textarea></label></p><p><label>Contact <input name="contact"></label></p><p><button type="submit">Post a project</button></p></form><p>This sends a request. It is not a live listing.</p><h2>Work</h2>${payoutNote}${work}<footer id="token"><p><code>${MINT}</code> · <a href="${buy}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a></p></footer>${siteFooter('/bounties')}</section>`;
 }
 
 /** Worker-owned first HTML for /bounties. Tokens + Arial only. No Webflow first paint. */
@@ -567,50 +658,58 @@ export function injectBountiesBoard(html, feed) {
   return close >= 0 ? page.slice(0, close) + board + page.slice(close) : page + board;
 }
 
-const PRIVACY_A = '<a href="/privacy">Privacy</a>';
 function siteFooter(_current = '') {
   return slimFooterHtml();
 }
 const WORKER_SITE_FOOTER = siteFooter();
 
-/** Add one visible Privacy link to an existing footer, nav, lobby header, or bounties board. */
-export function ensurePrivacyLink(html) {
-  const page = String(html || '');
-  if (/href=["']\/privacy\/?["']/i.test(page)) return page;
+const PRIVACY_HREF_RE = /href=["'](?:\/(?:privacy|legal|privacy-policy|learn|verse|bible|dashaverse)(?:\/[^"'#?]*)?\/?|https?:\/\/(?:www\.)?getdasha\.com\/(?:privacy|legal|privacy-policy|learn|verse|bible|dashaverse)(?:\/[^"'#?]*)?\/?)["']/i;
 
-  const footer = page.match(/<footer\b[^>]*>[\s\S]*?<p\b[^>]*>[\s\S]*?<\/p>/i);
-  if (footer && /<a\b/i.test(footer[0])) {
-    const n = (footer[0].match(/<a\b/gi) || []).length;
-    if (n <= 3 && /\$dasha/i.test(footer[0]) && /buy-dasha|jup\.ag/i.test(footer[0])) return page;
-    let next = footer[0];
-    const howTo = next.match(/<a\b[^>]*href=["']\/how-to-buy\/?["'][^>]*>[\s\S]*?<\/a>/i);
-    if (howTo) next = next.replace(howTo[0], `${howTo[0]} · ${PRIVACY_A}`);
-    else {
-      const ext = next.match(/ · <a\b[^>]*>[^<]*↗/);
-      next = ext ? next.replace(ext[0], ` · ${PRIVACY_A}${ext[0]}`) : next.replace(/<\/p>/i, ` · ${PRIVACY_A}</p>`);
-    }
-    return page.replace(footer[0], next);
-  }
-
-  const header = page.match(/<header\b[^>]*>[\s\S]*?<\/header>/i);
-  if (header && /href=["']\/["']/.test(header[0]) && /lobby\.getdasha\.com\/forum/.test(header[0])) {
-    const last = [...header[0].matchAll(/<a\b[^>]*>[\s\S]*?<\/a>/gi)].at(-1);
-    if (last) {
-      const cls = /\blp-back\b/.test(header[0]) ? ' class="lp-back"' : '';
-      return page.replace(last[0], `${last[0]}<a${cls} href="/privacy">Privacy</a>`);
-    }
-  }
-
-  const nav = page.match(/<nav\b[^>]*>[\s\S]*?<\/nav>/i);
-  if (nav && /<a\b/i.test(nav[0])) {
-    const inner = nav[0].match(/<\/div>\s*<\/nav>/i);
-    if (inner) return page.replace(inner[0], `${PRIVACY_A}${inner[0]}`);
-    return page.replace(nav[0], nav[0].replace(/<\/nav>/i, `${PRIVACY_A}</nav>`));
-  }
-
-  const board = page.match(/<section\b[^>]*\bid=["']dasha-bounties["'][^>]*>[\s\S]*?<\/section>/i);
-  if (board) return page.replace(board[0], board[0].replace(/<\/section>/i, `<p>${PRIVACY_A}</p></section>`));
+/** Kill leftover Privacy / legal doors and lecture copy. Does not invent a replacement. */
+export function stripPrivacyHrefs(html) {
+  let page = String(html || '');
+  page = page.replace(/<p\b[^>]*\bclass=["']([^"']*)["'][^>]*>[\s\S]*?<\/p>/gi, (tag, cls) => (
+    String(cls).split(/\s+/).includes('privacy') ? '' : tag
+  ));
+  page = page.replace(/<a\b[^>]*>[\s\S]*?<\/a>/gi, (anchor) => (PRIVACY_HREF_RE.test(anchor) ? '' : anchor));
+  page = page.replace(/\s*·\s*·\s*/g, ' · ');
+  page = page.replace(/ · <\/p>/gi, '</p>');
+  page = page.replace(/<p([^>]*)>\s*·\s*/gi, '<p$1>');
   return page;
+}
+
+export function ensurePrivacyLink(html) {
+  return stripPrivacyHrefs(html);
+}
+
+function isLeftoverPrivacyPath(pathname) {
+  const path = String(pathname || '').replace(/\/+$/, '') || '/';
+  return path === '/privacy' || path === '/legal' || path === '/privacy-policy';
+}
+
+function isLeftoverLearnPath(pathname) {
+  const path = String(pathname || '').replace(/\/+$/, '') || '/';
+  return path === '/learn' || path.startsWith('/learn/');
+}
+
+function isLeftoverVersePath(pathname) {
+  const path = String(pathname || '').replace(/\/+$/, '') || '/';
+  return path === '/verse' || path === '/bible' || path === '/dashaverse';
+}
+
+function isLeftoverStudioPath(pathname) {
+  const path = String(pathname || '').replace(/\/+$/, '') || '/';
+  return path === '/studio';
+}
+
+function isLeftoverDeskPath(pathname) {
+  const path = String(pathname || '').replace(/\/+$/, '') || '/';
+  return path === '/dasha' || path === '/desk';
+}
+
+function isLeftoverHowtoPath(pathname) {
+  const path = String(pathname || '').replace(/\/+$/, '') || '/';
+  return path === '/how-to-buy' || path === '/howtobuy';
 }
 
 /** Dock is off. Dance files stay on disk; nothing mounts them. */
@@ -622,24 +721,28 @@ export function injectDanceDock(html) {
   return html;
 }
 
-const HOWTO_PAGE_HTML = ensurePrivacyLink(HOWTO_HTML);
 const CHESS_PAGE = ensurePrivacyLink(CHESS_PAGE_HTML);
 const GRAPH_PAGE = GRAPH_PAGE_HTML;
 const LOBBY_PAGE = injectDanceDock(ensurePrivacyLink(stripLobbySimpQuiz(LOBBY_PAGE_HTML)));
+const FORUM_PAGE = LOBBY_PAGE;
 
 /** Replace leftover Webflow SRI on the worker-served studio.js tag. Other pins stay. */
 /** Live Studio nav CTA currently dumps people under the home lock at /#token. */
 export function rewriteStudioBuyVerifyHref(html) {
-  return String(html || '').replace(
+  let page = String(html || '').replace(
     /<a\b([^>]*\bdgcta\b[^>]*)>(\s*Buy\s*\/\s*verify[^<]*)<\/a>/gi,
     (full, attrs, text) => {
       const next = attrs.replace(
         /(\bhref\s*=\s*["'])(?:https:\/\/(?:www\.)?getdasha\.com)?\/?#token\b/i,
-        '$1/how-to-buy',
+        `$1${BUY_HREF}`,
       );
       return `<a${next}>${text}</a>`;
     },
   );
+  if (/<\/head>/i.test(page) && !/id=["']dasha-btn-lock["']/i.test(page)) {
+    page = page.replace(/<\/head>/i, `<style id="dasha-btn-lock">${AWARD_BTN_CSS}</style></head>`);
+  }
+  return page;
 }
 
 export function rewriteStudioScriptIntegrity(html, sri = STUDIO_CLIENT_SRI) {
@@ -710,6 +813,7 @@ function corsHeaders(origin, { credentials = false } = {}) {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Max-Age': '86400',
     ...(credentials ? { 'Access-Control-Allow-Credentials': 'true' } : {}),
     Vary: 'Origin',
   };
@@ -950,8 +1054,8 @@ function send(ws, obj) {
   }
 }
 
-function htmlPage(title, body, { chrome = false, path = '/privacy' } = {}) {
-  const extra = chrome ? AWARD_CHROME_CSS : '';
+function htmlPage(title, body, { chrome = false, path = '/' } = {}) {
+  const extra = chrome ? AWARD_CHROME_CSS : AWARD_BTN_CSS;
   const lead = chrome ? `${cropTicksHtml()}${hamburgerHtml({ path })}` : '';
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
 <style>body{font:16px/1.45 Arial,Helvetica,sans-serif;background:#070608;color:#f4eddb;max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:#dfff00}code{color:#f4eddb}${extra}</style>
@@ -1034,7 +1138,7 @@ export function simpSharePageHtml(result, id) {
 <h1>${typeName}</h1>
 ${support ? `<p>${support}</p>` : ''}
 <button type="button" class="dasha-share" data-title="${typeName}" data-text="${shareText}" data-url="${url}">Share</button>
-<p><a href="/simp">Simp</a> · <a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="/privacy">Privacy</a></p>
+<p><a href="/simp">Simp</a> · <a href="https://www.getdasha.com/">Back to Dasha</a></p>
 <script>${SIMP_SHARE_JS}</script>
 </body></html>`;
 }
@@ -1046,7 +1150,7 @@ export function simpResultMissingHtml() {
 <body>
 <h1>Result not found</h1>
 <p>No quiz result for this id.</p>
-<p><a href="/simp">Simp</a> · <a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="/privacy">Privacy</a></p>
+<p><a href="/simp">Simp</a> · <a href="https://www.getdasha.com/">Back to Dasha</a></p>
 </body></html>`;
 }
 
@@ -1065,10 +1169,6 @@ function simpHoldResponse(origin) {
   return json({ configured: false, error: 'not_configured' }, 501, origin);
 }
 
-function learnClientScript() {
-  return `<script src="https://lobby.getdasha.com/client/learn.js" integrity="${LEARN_CLIENT_SRI}" crossorigin="anonymous" defer></script>`;
-}
-
 export function parseLearnPath(pathname) {
   const m = String(pathname || '').replace(/\/$/, '').match(/^\/learn(?:\/([^/]+))?(?:\/([^/]+))?$/);
   if (!m) return null;
@@ -1078,54 +1178,6 @@ export function parseLearnPath(pathname) {
   if (mod && !isLearnModuleId(mod)) return { invalid: true };
   if (mod && MODULE_BY_ID.get(mod)?.track !== track) return { invalid: true };
   return { track, mod };
-}
-
-/** Worker-owned /learn. No leftover #dasha-quiz. No second score. */
-export function learnPageHtml({ track = '', mod = '' } = {}) {
-  const row = mod ? MODULE_BY_ID.get(mod) : null;
-  const title = row ? `${row.id} — Learn` : 'Learn';
-  const canonical = track
-    ? `https://www.getdasha.com/learn/${track}${mod ? `/${mod}` : ''}`
-    : 'https://www.getdasha.com/learn';
-  const bank = JSON.stringify(publicBank()).replace(/</g, '\\u003c');
-  const hop = row?.hop?.href
-    ? `<p><a class="learn-go" href="${escapeHtml(row.hop.href)}">${escapeHtml(row.hop.label || 'Hop')}</a></p>`
-    : '';
-  const lede = track ? escapeHtml(row?.goal || 'Learn') : 'Learn';
-  const mint = escapeHtml(MINT);
-  const hubChrome = track
-    ? ''
-    : `<div id="dasha-learn-static">
-<h1>Learn</h1>
-<code class="learn-ca" id="learn-mint">${mint}</code>
-<button type="button" class="learn-go" id="learn-mint-copy">Copy mint</button>
-</div>`;
-  const noscript = track
-    ? `<noscript>
-<h1>Learn</h1>
-<p>${lede}</p>
-<code class="learn-ca">${mint}</code>
-<p>Needs JavaScript.</p>
-</noscript>`
-    : `<noscript>
-<p>Needs JavaScript.</p>
-</noscript>`;
-  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} — getdasha.com</title>
-<link rel="canonical" href="${canonical}">
-<meta name="description" content="Learn">
-<meta name="theme-color" content="#070608">
-<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}${AWARD_CHROME_CSS}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}h1{margin:0 0 .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(2.6rem,10vw,5rem);line-height:.9;text-transform:uppercase}a{color:var(--acid)}.learn-go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-decoration:none;text-transform:uppercase}#dasha-learn{margin-top:1rem}.learn-ca{display:block;margin:12px 0;padding:12px;border:1px solid rgba(244,237,219,.18);font-family:ui-monospace,Menlo,Consolas,monospace;word-break:break-all;user-select:all}footer{margin-top:36px;color:rgba(244,237,219,.62)}footer a{color:var(--acid);display:inline-flex;align-items:center;min-height:48px;min-width:48px;padding:0 .4rem}@media(prefers-reduced-motion:reduce)*{transition:none!important;animation:none!important}</style>
-<body>
-${cropTicksHtml()}
-${hamburgerHtml({ path: '/learn' })}
-${hubChrome}
-${hop}
-<div id="dasha-learn" data-track="${escapeHtml(track)}" data-mod="${escapeHtml(mod)}"></div>
-<script type="application/json" id="dasha-learn-bank">${bank}</script>
-${noscript}
-${learnClientScript()}
-${siteFooter('/learn')}
-</body></html>`;
 }
 
 function faucetClientScript() {
@@ -1189,38 +1241,6 @@ async function faucetApiResponse(request, env, allowedOrigin) {
   });
 }
 
-function learnPageResponse(request, parsed) {
-  if (parsed?.invalid) {
-    return new Response(request.method === 'HEAD' ? null : NOT_FOUND_HTML, {
-      status: 404,
-      headers: htmlHeaders({
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'public, max-age=120',
-        'X-Dasha-Edge': 'html-404',
-      }),
-    });
-  }
-  return new Response(request.method === 'HEAD' ? null : learnPageHtml(parsed || {}), {
-    status: 200,
-    headers: htmlHeaders({
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'public, max-age=120',
-      'X-Dasha-Edge': 'learn',
-    }),
-  });
-}
-
-const VERSE_WWW = 'https://www.getdasha.com/verse';
-const VERSE_SITES = [
-  {
-    title: 'Dasha Madness',
-    line: 'Photo March Madness of Dasha Nekrasova. Home of the Dashamaniacs.',
-    href: 'https://dashamadness.com/',
-    host: 'dashamadness.com',
-  },
-];
-const VERSE_SAVE_FAIL = "Couldn't save. Post the URL in the lobby.";
-const VERSE_SAVE_OK = "Got it. We'll look.";
 
 /** Curated public list only. Pending submissions never appear here. */
 export function parseVerseSubmit(input) {
@@ -1235,113 +1255,6 @@ export function parseVerseSubmit(input) {
   if (parsed.username || parsed.password) return { error: 'Need an http(s) link.' };
   return { url: parsed.href, note };
 }
-
-export function versePageHtml({ status = '', kind = '' } = {}) {
-  const cards = VERSE_SITES.map((site) =>
-    `<article class="site"><h2>${escapeHtml(site.title)}</h2><p>${escapeHtml(site.line)}</p><p class="host">${escapeHtml(site.host)}</p><p><a class="btn" href="${escapeHtml(site.href)}" target="_blank" rel="noopener noreferrer">Go there ↗</a></p></article>`).join('');
-  const notice = status
-    ? `<p class="status" role="status"${kind ? ` data-kind="${escapeHtml(kind)}"` : ''}>${escapeHtml(status)}</p>`
-    : '';
-  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashaverse — getdasha.com</title>
-<meta name="description" content="Other Dasha sites. Ours is the token.">
-<link rel="canonical" href="${VERSE_WWW}">
-<style>:root{color-scheme:dark;--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--line:rgba(244,237,219,.18);--muted:rgba(244,237,219,.62)}*{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--paper);font:16px/1.55 Arial,Helvetica,sans-serif}${AWARD_CHROME_CSS}${AWARD_RAIL_CSS}.wrap{width:min(720px,calc(100% - 32px));margin:0 auto;padding:28px 0 64px}h1{margin:0 0 12px;font-size:clamp(2.4rem,8vw,3.6rem);line-height:.9;letter-spacing:-.05em;text-transform:uppercase;font-weight:950;font-family:"Arial Black",Arial,Helvetica,sans-serif}.lede{color:var(--muted);margin:0 0 22px;max-width:48ch}h2{margin:0 0 8px;font-size:1.15rem;text-transform:uppercase}.site{border-top:1px solid var(--line);padding:18px 0}.host{margin:.4rem 0;color:var(--muted);font-size:.9rem}.btn,button{appearance:none;border:0;min-height:48px;padding:12px 18px;font:inherit;font-weight:900;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;background:var(--acid);color:var(--ink);text-transform:uppercase;letter-spacing:.05em;box-shadow:3px 3px 0 var(--hot)}.honest{color:var(--muted);font-size:.9rem}form{margin:28px 0 0;padding-top:22px;border-top:1px solid var(--line)}label{display:block;font-weight:800}input{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}.status{font-weight:800}.status[data-kind=bad]{color:var(--hot)}footer{margin-top:36px;color:var(--muted);font-size:.9rem;border-top:1px solid var(--line);padding-top:18px}footer a,a{color:var(--acid)}:focus-visible{outline:3px solid var(--acid);outline-offset:3px}</style>
-<body>${cropTicksHtml()}${hamburgerHtml({ path: '/verse' })}<main class="wrap">
-${nextUpChipHtml()}
-<h1>Dashaverse</h1>
-<p class="lede">Other Dasha sites. Ours is the token. Send the next one.</p>
-${cards}
-<p class="honest">We don't run dashamadness.com. One outbound link. Nothing else is listed until we put it here.</p>
-<section>
-<h2>Know another?</h2>
-<p>Paste a Dasha-related site. We'll look. Nothing goes live until we list it.</p>
-${notice}
-<form action="/verse" method="post">
-<p><label>URL <input name="url" type="url" required maxlength="2048" inputmode="url" autocomplete="off"></label></p>
-<p><label>Note <span class="honest">(optional)</span> <input name="note" type="text" maxlength="200" autocomplete="off"></label></p>
-<p><button type="submit">Send it</button></p>
-</form>
-</section>
-${siteFooter('/verse')}
-</main></body></html>`;
-}
-
-function verseWantsJson(request) {
-  return /application\/json/i.test(request.headers.get('Content-Type') || '')
-    || /application\/json/i.test(request.headers.get('Accept') || '');
-}
-
-function verseResult(request, { httpStatus, status, kind = '' }) {
-  if (verseWantsJson(request)) {
-    return json(httpStatus < 400 ? { ok: true, status } : { error: status }, httpStatus, request.headers.get('Origin'));
-  }
-  return new Response(request.method === 'HEAD' ? null : versePageHtml({ status, kind: kind || (httpStatus >= 400 ? 'bad' : '') }), {
-    status: httpStatus,
-    headers: htmlHeaders({
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'no-store',
-      'X-Dasha-Edge': 'verse',
-    }),
-  });
-}
-
-async function requestVerseInput(request) {
-  const ct = String(request.headers.get('Content-Type') || '');
-  if (ct.includes('application/json')) return requestJson(request);
-  if (Number(request.headers.get('Content-Length') || 0) > 4096) return {};
-  const text = await request.text().catch(() => '');
-  if (new TextEncoder().encode(text).length > 4096) return {};
-  const params = new URLSearchParams(text);
-  return { url: params.get('url') || '', note: params.get('note') || '' };
-}
-
-async function verseSubmitResponse(request, env) {
-  const parsed = parseVerseSubmit(await requestVerseInput(request));
-  if (parsed.error) return verseResult(request, { httpStatus: 400, status: parsed.error, kind: 'bad' });
-  try {
-    const stub = env?.LOBBY?.get(env.LOBBY.idFromName('public'));
-    if (!stub) return verseResult(request, { httpStatus: 503, status: VERSE_SAVE_FAIL, kind: 'bad' });
-    const res = await stub.fetch(new Request(new URL('/verse', request.url), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'CF-Connecting-IP': request.headers.get('CF-Connecting-IP') || '',
-        'X-Forwarded-For': request.headers.get('X-Forwarded-For') || '',
-      },
-      body: JSON.stringify(parsed),
-    }));
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && data.ok) return verseResult(request, { httpStatus: 200, status: VERSE_SAVE_OK });
-    if (res.status === 429) return verseResult(request, { httpStatus: 429, status: 'Slow down. Try again in a moment.', kind: 'bad' });
-    return verseResult(request, { httpStatus: 503, status: VERSE_SAVE_FAIL, kind: 'bad' });
-  } catch {
-    return verseResult(request, { httpStatus: 503, status: VERSE_SAVE_FAIL, kind: 'bad' });
-  }
-}
-
-function versePageResponse(request) {
-  return new Response(request.method === 'HEAD' ? null : versePageHtml(), {
-    status: 200,
-    headers: htmlHeaders({
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'public, max-age=120',
-      'X-Dasha-Edge': 'verse',
-    }),
-  });
-}
-
-const PRIVACY_HTML = htmlPage('Dasha privacy', `<h1>Privacy</h1>
-<p>Updated August 15, 2026.</p>
-<h2>What Dasha uses</h2>
-<p>Linking X reads your X account ID, handle, display name, avatar, and verification type. The browser session lasts up to 30 days. Dasha does not store the X access token.</p>
-<p>If you join the Simp Board or finish its scored quiz, Dasha stores your linked identity, score, badges, contribution links, and dated holder-badge status. The wallet address and balance used for that optional badge are checked once and are not retained. If you opt in to graph highlight, Dasha shows your public X handle on /graph until that proof expires, or until you leave the Board or unlink. If you use /faucet, Dasha stores the receive address, a real transaction signature, and a hash of your IP for a 30-day cooldown. Unlinking X does not reset that cooldown. Lobby history is limited to roughly 30 minutes and 40 messages. Completed chess games are public replays showing both X handles, ratings, moves, result, and completion time. Studio, quiz, and chess funnel counts are aggregate only.</p>
-<h2>How it is used</h2>
-<p>The data provides linked chat identity, Board ranking, quiz results, contribution review, moderation, and optional holder recognition. Public Board rows and season snapshots can show your handle, avatar, score, badges, and accepted evidence links. Dasha does not post to X or sell identity data.</p>
-<p>Webflow serves the site and Cloudflare hosts the service. X processes OAuth and serves some public images; other public images may load from Wikimedia. Those image hosts receive ordinary request metadata without a page referrer. A Solana RPC receives a wallet address during an optional holder check, and during a /faucet send if the treasury is funded.</p>
-<h2>Control and deletion</h2>
-<p>Unlink clears the signed browser session. Leave Board removes your profile, claims, active quiz state, current linked result, holder challenge, chess rating, games and tournaments involving you, and your rows from retained season snapshots. Anonymous aggregate counts remain.</p>
-<p>For access or deletion requests, email <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>. Do not include wallet keys or seed phrases.</p>
-${WORKER_SITE_FOOTER}`, { chrome: true, path: '/privacy' });
 
 const NOT_FOUND_HTML = htmlPage('Page not found — $dasha', `<h1>Page not found</h1>
 <p>This path is not a Dasha page.</p>
@@ -1392,7 +1305,7 @@ function escapeHtml(value) {
 
 export function personalizeChessPage(html, { title, description, url, robots = 'index,follow' }) {
   const safeTitle = escapeHtml(String(title || 'Dasha Chess').slice(0, 100));
-  const safeDescription = escapeHtml(String(description || 'Dasha versus Anna. Holder-only rated chess.').slice(0, 180));
+  const safeDescription = escapeHtml(String(description || 'Chess.').slice(0, 180));
   const safeUrl = escapeHtml(String(url || WWW_CHESS));
   const safeRobots = robots === 'noindex,follow' ? robots : 'index,follow';
   return html
@@ -1488,7 +1401,7 @@ function parseOAuthReturn(raw) {
   if (path === '/graph') return 'https://www.getdasha.com/';
   if (path === '/simp') return 'https://www.getdasha.com/simp';
   if (path === '/chess') return 'https://www.getdasha.com/chess';
-  if (path === '/lobby') return 'https://www.getdasha.com/lobby';
+  if (path === '/lobby' || path === '/forum') return 'https://www.getdasha.com/';
   if (path === '/faucet') return 'https://www.getdasha.com/faucet';
   return '';
 }
@@ -1505,6 +1418,7 @@ export class DashaLobby {
     this.state = state;
     this.env = env;
     this.history = [];
+    this.forumThreads = [];
     this.rates = new Map();
     this.simpRates = new Map();
     this.verseRates = new Map();
@@ -1550,6 +1464,8 @@ export class DashaLobby {
     this.state.blockConcurrencyWhile(async () => {
       const stored = await this.state.storage.get('history');
       if (Array.isArray(stored)) this.history = pruneHistory(stored);
+      const forumStored = await this.state.storage.get('forumThreads');
+      if (Array.isArray(forumStored)) this.forumThreads = pruneForumThreads(forumStored);
       const muteRows = await this.state.storage.get('mutes');
       if (Array.isArray(muteRows)) {
         const now = Date.now();
@@ -2812,6 +2728,8 @@ export class DashaLobby {
   async alarm() {
     this.history = pruneHistory(this.history);
     await this.state.storage.put('history', this.history.slice(-MAX_HISTORY));
+    this.forumThreads = pruneForumThreads(this.forumThreads);
+    await this.state.storage.put('forumThreads', this.forumThreads);
     // Drop expired mutes + idle sockets
     const now = Date.now();
     let chessChanged = this.pruneChessQueue(now);
@@ -2848,6 +2766,67 @@ export class DashaLobby {
   async persist() {
     this.history = pruneHistory(this.history);
     await this.state.storage.put('history', this.history.slice(-MAX_HISTORY));
+  }
+
+  async persistForum() {
+    this.forumThreads = pruneForumThreads(this.forumThreads);
+    await this.state.storage.put('forumThreads', this.forumThreads);
+  }
+
+  forumIdentity(session, body) {
+    if (session?.handle) {
+      const handle = String(session.handle).toLowerCase();
+      return { ok: true, nick: `@${handle}`, handle };
+    }
+    return validateNick(body?.nick);
+  }
+
+  async handleForum(request, allowedOrigin) {
+    const parsed = parseForumThreadPath(new URL(request.url).pathname);
+    const cred = { credentials: true };
+    if (!parsed) return json({ error: 'not found' }, 404, allowedOrigin);
+
+    if (request.method === 'GET') {
+      if (parsed.list) {
+        const threads = this.forumThreads.map(thread => publicForumRow(thread)).sort((a, b) => (b.lastTs || 0) - (a.lastTs || 0));
+        return json({ threads }, 200, allowedOrigin || '*');
+      }
+      const thread = this.forumThreads.find(row => row.id === parsed.id);
+      if (!thread) return json({ error: 'not found' }, 404, allowedOrigin || '*');
+      return json(publicForumThread(thread), 200, allowedOrigin || '*');
+    }
+
+    if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405, allowedOrigin, cred);
+    if (!allowedOrigin) return json({ error: 'origin required' }, 403, null);
+
+    const session = await sessionFromRequest(this.env, request);
+    const body = await requestJson(request);
+    const who = this.forumIdentity(session, body);
+    if (!who.ok) return json({ error: who.error }, 400, allowedOrigin, cred);
+    const limits = linkedLimits(Boolean(session?.handle));
+    const msg = validateMessage(body.text, { maxText: limits.maxText });
+    if (!msg.ok) return json({ error: msg.error }, 400, allowedOrigin, cred);
+
+    const rateKey = `forum:${session?.xId || request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() || 'unknown'}`;
+    const rateState = this.rates.get(rateKey) || { lastMs: 0, times: [] };
+    this.rates.set(rateKey, rateState);
+    const rate = checkRate(rateState, Date.now(), { rateMs: limits.rateMs, maxPerMin: limits.maxPerMin });
+    if (!rate.ok) return json({ error: rate.error, waitMs: rate.waitMs }, 429, allowedOrigin, cred);
+    const dup = checkRepeat(rateState, msg.text);
+    if (!dup.ok) return json({ error: dup.error, waitMs: dup.waitMs }, 429, allowedOrigin, cred);
+
+    if (parsed.list) {
+      const thread = { id: id(), text: msg.text, nick: who.nick, handle: who.handle || null, ts: Date.now(), replies: [] };
+      this.forumThreads.push(thread);
+      await this.persistForum();
+      return json(publicForumThread(thread), 200, allowedOrigin, cred);
+    }
+
+    const thread = this.forumThreads.find(row => row.id === parsed.id);
+    if (!thread) return json({ error: 'not found' }, 404, allowedOrigin, cred);
+    thread.replies.push({ id: id(), text: msg.text, nick: who.nick, handle: who.handle || null, ts: Date.now() });
+    await this.persistForum();
+    return json(publicForumThread(thread), 200, allowedOrigin, cred);
   }
 
   async persistMutes() {
@@ -3132,6 +3111,17 @@ export class DashaLobby {
             ? origin || '*'
             : null;
       return this.handleGraph(request, allowedOrigin);
+    }
+
+    if (parseForumThreadPath(url.pathname)) {
+      const origin = request.headers.get('Origin');
+      const allowedOrigin =
+        origin && originAllowed(origin, this.env.ALLOWED_ORIGINS || '')
+          ? origin
+          : this.env.ALLOW_ANY_ORIGIN
+            ? origin || '*'
+            : null;
+      return this.handleForum(request, allowedOrigin);
     }
 
     if (url.pathname.startsWith('/simp/') || url.pathname.startsWith('/studio/') || url.pathname.startsWith('/chess/')) {
@@ -3460,7 +3450,7 @@ async function handleOAuth(request, env, allowedOrigin) {
         ? `/oauth/x/start?continue=1&return=${encodeURIComponent(back)}`
         : '/oauth/x/start?continue=1';
       return oauthHtmlResponse(
-        htmlPage('Connect X', `<h1>Connect X</h1><p>Dasha reads your public X identity across the site. It does not post for you.</p><p><a href="/privacy">Privacy</a></p><p><a href="${continueHref}">Continue with X</a></p>`),
+        htmlPage('Connect X', `<h1>Connect X</h1><p><a class="btn ghost" href="${continueHref}">Continue with X</a></p>`),
         200,
       );
     }
@@ -3521,7 +3511,7 @@ async function handleOAuth(request, env, allowedOrigin) {
       const scriptHandle = JSON.stringify(user.handle).replace(/</g, '\\u003c');
       const dest = parseOAuthReturn(st.cont) || 'https://www.getdasha.com/';
       const destJson = JSON.stringify(dest).replace(/</g, '\\u003c');
-      const destLabel = dest.endsWith('/graph') ? 'Open Graph' : dest.endsWith('/simp') ? 'Open Simp' : dest.endsWith('/chess') ? 'Open Chess' : dest.endsWith('/lobby') ? 'Open Lobby' : dest.endsWith('/faucet') ? 'Open Faucet' : 'Open Dasha';
+      const destLabel = dest.endsWith('/simp') ? 'Open Simp' : dest.endsWith('/chess') ? 'Open Chess' : dest.endsWith('/faucet') ? 'Open Faucet' : 'Open Dasha';
       const scriptNonce = randomUrlToken(18);
       const body = htmlPage(
         'Linked',
@@ -3693,24 +3683,17 @@ async function productEdge(request, url, env) {
   if ((request.method === 'GET' || request.method === 'HEAD') && isBountiesJsonPath(url.pathname)) {
     return bountiesFeedResponse(request);
   }
-  if (
-    (request.method === 'GET' || request.method === 'HEAD') &&
-    (url.pathname === '/how-to-buy' || url.pathname === '/how-to-buy/')
-  ) {
-    return new Response(request.method === 'HEAD' ? null : HOWTO_PAGE_HTML, {
-      status: 200,
-      headers: htmlHeaders({
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'public, max-age=120',
-        'X-Dasha-Edge': 'howto',
-      }),
-    });
+  if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverHowtoPath(url.pathname)) {
+    return Response.redirect('https://www.getdasha.com/', 308);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/simp')) {
     return simpPageResponse(request);
   }
-  if ((request.method === 'GET' || request.method === 'HEAD') && parseLearnPath(url.pathname)) {
-    return learnPageResponse(request, parseLearnPath(url.pathname));
+  if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverLearnPath(url.pathname)) {
+    return Response.redirect('https://www.getdasha.com/', 308);
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && (isLeftoverStudioPath(url.pathname) || isLeftoverDeskPath(url.pathname))) {
+    return Response.redirect('https://www.getdasha.com/', 308);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && isFaucetPagePath(url.pathname)) {
     return faucetPageResponse(request);
@@ -3726,11 +3709,10 @@ async function productEdge(request, url, env) {
     if (faucetRes) return faucetRes;
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/bounties')) {
-    return bountiesPageResponse(request);
+    return Response.redirect('https://www.getdasha.com/', 308);
   }
-  if (isExactPath(url.pathname, '/verse')) {
-    if (request.method === 'POST') return verseSubmitResponse(request, env);
-    if (request.method === 'GET' || request.method === 'HEAD') return versePageResponse(request);
+  if (isLeftoverVersePath(url.pathname)) {
+    return Response.redirect('https://www.getdasha.com/', 308);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/graph')) {
     return graphPageResponse(request);
@@ -3740,9 +3722,6 @@ async function productEdge(request, url, env) {
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/api/graph/expand') {
     return graphExpandResponse(request, env);
-  }
-  if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/dashaverse')) {
-    return Response.redirect(VERSE_WWW, 308);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/quiz')) {
     return Response.redirect(SIMP_WWW, 308);
@@ -3754,30 +3733,16 @@ async function productEdge(request, url, env) {
   if (url.pathname.replace(/\/$/, '') === '/simp/hold') {
     return simpHoldResponse(request.headers.get('Origin'));
   }
-  if (
-    (request.method === 'GET' || request.method === 'HEAD') &&
-    (url.pathname === '/howtobuy' || url.pathname === '/howtobuy/')
-  ) {
-    return Response.redirect('https://www.getdasha.com/how-to-buy', 308);
+  if (isForumApiPath(url.pathname)) {
+    const origin = request.headers.get('Origin');
+    const allowedOrigin = origin && originAllowed(origin, env.ALLOWED_ORIGINS || '') ? origin : env.ALLOW_ANY_ORIGIN ? origin || '*' : null;
+    return forumApiResponse(request, env, allowedOrigin);
   }
-  if (
-    (request.method === 'GET' || request.method === 'HEAD') &&
-    (url.pathname === '/forum' || url.pathname === '/forum/')
-  ) {
-    return Response.redirect(LOBBY_CHAT, 308);
+  if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverForumPath(url.pathname)) {
+    return Response.redirect('https://www.getdasha.com/', 308);
   }
-  if (
-    (request.method === 'GET' || request.method === 'HEAD') &&
-    (url.pathname === '/privacy' || url.pathname === '/privacy/')
-  ) {
-    return new Response(request.method === 'HEAD' ? null : PRIVACY_HTML, {
-      status: 200,
-      headers: htmlHeaders({
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'public, max-age=300',
-        'X-Dasha-Edge': 'privacy',
-      }),
-    });
+  if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverPrivacyPath(url.pathname)) {
+    return Response.redirect('https://www.getdasha.com/', 308);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/chess' || url.pathname === '/chess/')) {
     const html = await chessPageForRequest(request, env);
@@ -3826,6 +3791,7 @@ async function productEdge(request, url, env) {
   const originalHtml = html;
   html = sanitizePublicJsonLd(html);
   const stripped = html !== originalHtml;
+  html = stripHomeWebFonts(html);
   if (url.pathname === '/') {
     html = rewriteHomeFirstViewport(stripHomeSimpBoard(html));
   } else {
@@ -3901,14 +3867,14 @@ export default {
       if (oauthRes) return oauthRes;
     }
 
-    if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/privacy' || url.pathname === '/privacy/')) {
-      return new Response(request.method === 'HEAD' ? null : PRIVACY_HTML, {
-        status: 200,
-        headers: htmlHeaders({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' }),
-      });
+    if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverPrivacyPath(url.pathname)) {
+      return Response.redirect('https://www.getdasha.com/', 308);
     }
-    if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/forum' || url.pathname === '/forum/')) {
-      return Response.redirect(LOBBY_CHAT, 308);
+    if (isForumApiPath(url.pathname)) {
+      return forumApiResponse(request, env, allowedOrigin);
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverForumPath(url.pathname)) {
+      return Response.redirect('https://www.getdasha.com/', 308);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/.well-known/security.txt') {
       return securityTxtResponse(request, url.hostname);
@@ -3921,8 +3887,11 @@ export default {
     if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/simp')) {
       return simpPageResponse(request);
     }
-    if ((request.method === 'GET' || request.method === 'HEAD') && parseLearnPath(url.pathname)) {
-      return learnPageResponse(request, parseLearnPath(url.pathname));
+    if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverLearnPath(url.pathname)) {
+      return Response.redirect('https://www.getdasha.com/', 308);
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && (isLeftoverStudioPath(url.pathname) || isLeftoverDeskPath(url.pathname))) {
+      return Response.redirect('https://www.getdasha.com/', 308);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && isFaucetPagePath(url.pathname)) {
       return faucetPageResponse(request);
@@ -3936,11 +3905,10 @@ export default {
       if (faucetRes) return faucetRes;
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/bounties')) {
-      return Response.redirect(BOUNTIES_FEED_PAGE, 308);
+      return Response.redirect('https://www.getdasha.com/', 308);
     }
-    if (isExactPath(url.pathname, '/verse')) {
-      if (request.method === 'POST') return verseSubmitResponse(request, env);
-      if (request.method === 'GET' || request.method === 'HEAD') return versePageResponse(request);
+    if (isLeftoverVersePath(url.pathname)) {
+      return Response.redirect('https://www.getdasha.com/', 308);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/graph')) {
       return graphPageResponse(request);
@@ -3956,7 +3924,7 @@ export default {
       return env.LOBBY.get(env.LOBBY.idFromName('public')).fetch(request);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/dashaverse')) {
-      return Response.redirect(VERSE_WWW, 308);
+      return Response.redirect('https://www.getdasha.com/', 308);
     }
     if (url.pathname.replace(/\/$/, '') === '/simp/hold') {
       return simpHoldResponse(allowedOrigin);
@@ -4049,24 +4017,8 @@ export default {
     if ((request.method === 'GET' || request.method === 'HEAD') && isBountiesJsonPath(url.pathname)) {
       return bountiesFeedResponse(request);
     }
-    if (
-      (request.method === 'GET' || request.method === 'HEAD') &&
-      (url.pathname === '/how-to-buy' || url.pathname === '/how-to-buy/')
-    ) {
-      return new Response(request.method === 'HEAD' ? null : HOWTO_PAGE_HTML, {
-        status: 200,
-        headers: htmlHeaders({
-          'Content-Type': 'text/html; charset=utf-8',
-          'Cache-Control': 'public, max-age=120',
-          'X-Dasha-Edge': 'howto',
-        }),
-      });
-    }
-    if (
-      (request.method === 'GET' || request.method === 'HEAD') &&
-      (url.pathname === '/howtobuy' || url.pathname === '/howtobuy/')
-    ) {
-      return Response.redirect('https://www.getdasha.com/how-to-buy', 308);
+    if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverHowtoPath(url.pathname)) {
+      return Response.redirect('https://www.getdasha.com/', 308);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/chess' || url.pathname === '/chess/')) {
       const html = await chessPageForRequest(request, env);
@@ -4085,17 +4037,11 @@ export default {
     ) {
       return Response.redirect('https://www.getdasha.com/', 308);
     }
-    if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/studio')) {
-      return Response.redirect('https://www.getdasha.com/studio', 308);
+    if ((request.method === 'GET' || request.method === 'HEAD') && (isLeftoverStudioPath(url.pathname) || isLeftoverDeskPath(url.pathname))) {
+      return Response.redirect('https://www.getdasha.com/', 308);
     }
-    if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/lobby' || url.pathname === '/lobby/')) {
-      return new Response(request.method === 'HEAD' ? null : LOBBY_PAGE, {
-        status: 200,
-        headers: htmlHeaders({
-          'Content-Type': 'text/html; charset=utf-8',
-          'Cache-Control': 'public, max-age=120',
-        }),
-      });
+    if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverForumPath(url.pathname)) {
+      return Response.redirect('https://www.getdasha.com/', 308);
     }
 
     if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/health')) {

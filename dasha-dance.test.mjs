@@ -12,7 +12,7 @@ const landing = await readFile(new URL('./dasha-landing.html', root), 'utf8');
 const modSrc = await readFile(new URL('./dasha-lobby-mod.mjs', root), 'utf8');
 const wrangler = await readFile(new URL('./dasha-lobby-wrangler.jsonc', root), 'utf8');
 const awardChrome = await readFile(new URL('./dasha-award-chrome.mjs', root), 'utf8');
-const { default: worker, danceDockPath, injectDanceDock, rewriteHomeFirstViewport, simpPageHtml, versePageHtml, faucetPageHtml, learnPageHtml, bountiesPageHtml } = await import('./dasha-lobby-worker.mjs');
+const { default: worker, danceDockPath, injectDanceDock, rewriteHomeFirstViewport, simpPageHtml, faucetPageHtml, bountiesPageHtml } = await import('./dasha-lobby-worker.mjs');
 const { DANCE_CLIENT_JS, DANCE_CLIENT_SRI, ASSET_HASH } = await import('./dasha-lobby-static-gen.mjs');
 
 assert.equal(mint, '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump');
@@ -73,7 +73,7 @@ assert.match(DANCE_CLIENT_JS, /dasha-dance-speaker\{position:absolute;right:/);
 assert.equal(`sha384-${createHash('sha384').update(DANCE_CLIENT_JS).digest('base64')}`, DANCE_CLIENT_SRI);
 assert.match(ASSET_HASH, /^[0-9a-f]{16}$/);
 
-for (const path of ['/', '/lobby', '/lobby/', '/studio', '/dasha', '/simp', '/chess', '/verse', '/how-to-buy', '/bounties', '/learn', '/learn/crypto', '/faucet', '/graph', '/graph/']) {
+for (const path of ['/', '/lobby', '/lobby/', '/forum', '/forum/', '/studio', '/dasha', '/simp', '/chess', '/verse', '/how-to-buy', '/bounties', '/learn', '/learn/crypto', '/faucet', '/graph', '/graph/']) {
   assert.equal(danceDockPath(path), false, `danceDockPath(${path}) must be false`);
 }
 
@@ -85,8 +85,8 @@ assert.doesNotMatch(firstPaint, /dasha-dance/, 'first paint is headline + Buy, n
 assert.match(firstPaint, /IT'S TIME \$DASHA/);
 assert.match(firstPaint, /buy-dasha/);
 
-for (const html of [simpPageHtml(), versePageHtml(), faucetPageHtml(), learnPageHtml(), bountiesPageHtml({ listings: [] })]) {
-  assert.doesNotMatch(html, /dasha-dance\.js/, 'dock stays off /simp /verse /faucet /learn /bounties');
+for (const html of [simpPageHtml(), faucetPageHtml(), bountiesPageHtml({ listings: [] })]) {
+  assert.doesNotMatch(html, /dasha-dance\.js/, 'dock stays off /simp /faucet /bounties');
   assert.doesNotMatch(html, /<nav[^>]*dasha-dance|id="dasha-dance-nav"/i, 'dock must not grow a second nav');
 }
 
@@ -164,21 +164,24 @@ assert.doesNotMatch(graphHtml, /dasha-dance|three@0\.170/, '308 /graph must not 
 }
 
 {
-  const lobby = await worker.fetch(new Request('https://lobby.getdasha.com/lobby'), assets);
-  assert.equal(lobby.status, 200, 'lobby /lobby must stay 200');
-  const lobbyHtml = await lobby.text();
-  assert.doesNotMatch(lobbyHtml, /dasha-dance\.js/, 'lobby /lobby must not inject the dock');
+  const forum = await worker.fetch(new Request('https://lobby.getdasha.com/forum'), assets);
+  assert.equal(forum.status, 308, 'lobby /forum 308s home');
+  assert.equal(forum.headers.get('location'), 'https://www.getdasha.com/');
+}
+for (const [host, path] of [
+  ['lobby.getdasha.com', '/how-to-buy'],
+  ['www.getdasha.com', '/bounties'],
+  ['www.getdasha.com', '/how-to-buy'],
+]) {
+  const res = await worker.fetch(new Request(`https://${host}${path}`), assets);
+  assert.equal(res.status, 308, `${host}${path} 308s home`);
+  assert.equal(res.headers.get('location'), 'https://www.getdasha.com/');
 }
 for (const [host, path] of [
   ['lobby.getdasha.com', '/chess'],
-  ['lobby.getdasha.com', '/how-to-buy'],
   ['www.getdasha.com', '/simp'],
-  ['www.getdasha.com', '/verse'],
-  ['www.getdasha.com', '/bounties'],
-  ['www.getdasha.com', '/learn'],
   ['www.getdasha.com', '/faucet'],
   ['www.getdasha.com', '/chess'],
-  ['www.getdasha.com', '/how-to-buy'],
 ]) {
   const res = await worker.fetch(new Request(`https://${host}${path}`), assets);
   assert.equal(res.status, 200, `${host}${path} must stay 200`);

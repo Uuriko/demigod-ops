@@ -73,10 +73,11 @@
       '.faucet-hero{display:block;width:min(100%,720px);height:auto;background:#070608;cursor:pointer}' +
       '.faucet-card{display:grid;gap:14px;max-width:720px}' +
       '.faucet-q{margin:0;font-size:clamp(26px,5vw,42px);line-height:1.08}' +
-      '.faucet-go,.faucet-back{min-height:48px;min-width:48px;padding:0 16px;border:1px solid #dfff00;background:#dfff00;color:#070608;font:inherit;font-weight:900;text-transform:uppercase;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}' +
-      '.faucet-back{background:transparent;color:#f4eddb}' +
+      '.faucet-go,.faucet-back{min-height:48px;min-width:48px;padding:0 16px;border:1px solid #dfff00;background:#dfff00;color:#070608;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif;text-transform:uppercase;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}' +
+      '.faucet-back{background:transparent;color:#f4eddb;border-color:#f4eddb}' +
+      '.faucet-go:disabled{opacity:.7;color:#070608}' +
       '.faucet-nav{display:flex;flex-wrap:wrap;gap:8px}' +
-      '.faucet-ca,.faucet-mono{font:15px/1.4 Fragment Mono,ui-monospace,Menlo,Consolas,monospace;word-break:break-all;user-select:all;color:#7c4dff}' +
+      '.faucet-ca,.faucet-mono{font:15px/1.4 Fragment Mono,ui-monospace,Menlo,Consolas,monospace;word-break:break-all;user-select:all;color:#f4eddb}' +
       '.faucet-warn{color:#ff3b81}' +
       '.faucet-label{display:block;margin:.2rem 0;color:rgba(244,237,219,.7)}' +
       '.faucet-root input{width:100%;min-height:48px;padding:10px;box-sizing:border-box;background:#070608;color:#f4eddb;border:1px solid #dfff00;font:15px/1.4 Fragment Mono,ui-monospace,Menlo,Consolas,monospace}' +
@@ -194,9 +195,9 @@
         stage.appendChild(claimed);
         return;
       }
-      if (state.status && state.status.configured === false) {
+      if (!state.status || state.status.configured !== true || state.status.funded !== true) {
         stage.appendChild(hero(false));
-        live.textContent = 'not_configured';
+        live.textContent = state.status && state.status.configured === false ? 'not_configured' : 'treasury_empty';
         return;
       }
       if (state.card === 0) {
