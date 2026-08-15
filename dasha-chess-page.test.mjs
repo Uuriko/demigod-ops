@@ -17,6 +17,25 @@ assert.match(source, /id="tournament"/);
 assert.match(source, /id="tournament"[^>]*hidden[^>]*>[\s\S]*<h2>Play<\/h2>/, 'tournament chrome stays off first paint');
 assert.match(source, /textContent='Play';b\.dataset\.action='queue'/,
   'the ready state is one Play button');
+assert.match(source, /textContent='Prove';b\.dataset\.action='holder'/,
+  'holder next action is Prove, not Play');
+assert.match(source, /\{text:'Prove',action:'holder'\}/,
+  'nextPlay names Prove for an enrolled non-holder');
+assert.doesNotMatch(source, /board\.textContent=''/,
+  'paint must keep the 64 squares and update them in place');
+assert.match(source, /function startPoll\(\)[\s\S]*poll=setTimeout\(tick,800\)/,
+  'visible opponent and queue polls are 800ms');
+assert.match(source, /function retryReconcile\(\)[\s\S]*\},800\)/,
+  'visible reconcile retry is 800ms');
+assert.doesNotMatch(source, /draw\(\);loadLeaders\(\)/,
+  'a move must not refetch the ratings table');
+assert.doesNotMatch(source, /dasha-crop/,
+  'chess page must not ship crop marks');
+assert.doesNotMatch(source, /box-shadow:10px 10px 0/,
+  'board must not carry the 10px hot drop shadow');
+assert.doesNotMatch(source, /text-shadow:0 2px 0 #ff3b81/,
+  'pieces stay flat ink/paper, no glow');
+assert.doesNotMatch(source, /Your X identity holds your rating/);
 assert.match(source, /WWW='https:\/\/www\.getdasha\.com'/);
 assert.match(source, /WWW\+'\/chess\?challenge='/, 'invite share must use the www challenge URL');
 assert.doesNotMatch(source, /id="dasha-lobby"/, 'chess must not embed lobby chat');
