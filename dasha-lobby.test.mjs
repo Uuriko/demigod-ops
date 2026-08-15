@@ -30,7 +30,7 @@ assert.doesNotMatch(chessPage, /\/airdrop|\/earn|\/claim|\/graph/, 'chess chrome
   const ham = hamburgerHtml();
   const rail = roomRailHtml();
   const foot = slimFooterHtml();
-  assert.equal(DASHA_ROOMS.length, 10, 'live room list is the ten public rooms');
+  assert.equal(DASHA_ROOMS.length, 7, 'live room list is the seven public rooms');
   for (const room of DASHA_ROOMS) {
     assert.match(ham, new RegExp(`href="${room.href}">${room.label}<`), `hamburgerHtml must include ${room.label}`);
     assert.match(rail, new RegExp(`href="${room.href}"[\\s\\S]*?${room.label}`), `roomRailHtml must include ${room.label}`);
@@ -38,6 +38,9 @@ assert.doesNotMatch(chessPage, /\/airdrop|\/earn|\/claim|\/graph/, 'chess chrome
   }
   assert.doesNotMatch(ham + rail + foot, /\/graph/, 'chrome list must hide Graph');
   assert.doesNotMatch(ham + rail + foot, /\/faucet/, 'chrome list must hide Faucet');
+  assert.doesNotMatch(ham + rail + foot, /\/simp/, 'chrome list must hide Simp');
+  assert.doesNotMatch(ham + rail + foot, /\/dasha["']|>Desk</, 'chrome list must hide Desk');
+  assert.doesNotMatch(ham + rail + foot, /\/bounties/, 'chrome list must hide Bounties');
   assert.match(ham, /href="\/chess">Chess</);
   assert.match(foot, /padding:1\.25rem 1\.25rem calc\(180px/);
   assert.match(foot, /min-height:48px/);
@@ -54,11 +57,14 @@ assert.match(page, /class="dasha-word" href="https:\/\/www\.getdasha\.com\/">\$d
 assert.match(page, /class="dasha-slim[\s"]/, 'lobby must use the hamburger, not a door strip');
 assert.match(page, /class="dasha-rooms"/, 'lobby must number the real rooms');
 assert.match(page, /<b>\[01\]<\/b> Studio/, 'lobby rail starts at Studio');
-assert.match(page, /<b>\[04\]<\/b> Chess/, 'lobby rail includes Chess');
-assert.match(page, /<b>\[10\]<\/b> Privacy/, 'lobby rail ends at Privacy');
+assert.match(page, /<b>\[03\]<\/b> Chess/, 'lobby rail includes Chess');
+assert.match(page, /<b>\[07\]<\/b> Privacy/, 'lobby rail ends at Privacy');
 assert.doesNotMatch(page, /href="\/faucet"/, 'lobby chrome must not door to Faucet');
+assert.doesNotMatch(page, /href="\/simp"/, 'lobby chrome must not door to Simp');
+assert.doesNotMatch(page, /href="\/dasha"/, 'lobby chrome must not door to Desk');
+assert.doesNotMatch(page, /href="\/bounties"/, 'lobby chrome must not door to Bounties');
 assert.doesNotMatch(page.match(/class="dasha-rooms"[\s\S]*?<\/nav>/)?.[0] || '', /\/airdrop|\/earn|\/claim|\/graph/, 'lobby rail hides dead and shelved doors');
-assert.match(page, /class="dasha-next"[\s\S]*href="\/simp">Simp</, 'lobby next-up points at a live room');
+assert.match(page, /class="dasha-next"[\s\S]*href="\/chess">Chess</, 'lobby next-up points at a live room');
 assert.doesNotMatch(page, /href="\/graph"/, 'lobby must not door to shelved /graph');
 assert.doesNotMatch(page, /class="(?:brand|back)" href="\/"/, 'lobby navigation must not mislabel the lobby service root as Home');
 assert(/s\.integrity='sha384-[A-Za-z0-9+/=]+'/.test(page) && page.includes("s.crossOrigin='anonymous'"), 'dedicated lobby client must be SRI-pinned after Webflow sanitization');
@@ -178,6 +184,7 @@ assert.match(worker, /export function injectDanceDock\(html\) \{\s*return html;\
 assert(worker.includes('GRAPH_PAGE = GRAPH_PAGE_HTML'), '/graph must not grow the dance dock');
 assert(!worker.includes("path === '/' || path === '/lobby' || path === '/studio' || path === '/dasha'"), 'dock is off every path');
 assert(worker.includes('ensureHomeSimpMount') && worker.includes('injectHomeReveal'), 'home rewrite remounts the pretty board below the hero');
+assert(worker.includes('ensureHomeTapeMount') && worker.includes('DASHA_TAPE_EMBED_SRC'), 'home remounts the live pair chart above the board');
 assert(worker.includes('ensureHomeFaucetMount') && worker.includes('faucetMountHtml'), 'home remounts the live faucet toy after the board');
 assert(!worker.includes('ensureHomeSimpHop') && !worker.includes('dasha-simp-hop'), 'home #simp is the board, not a hop-only paragraph');
 assert(!worker.includes('class="dasha-quiz" data-simp-api'), 'home mount is not quiz chrome');
@@ -1172,7 +1179,7 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
   assert.doesNotMatch(verseHtml, /href="\/graph"/);
   assert.match(verseHtml, /href="\/verse">Verse</);
   assert.match(verseHtml.match(/<nav aria-label="Dasha">[\s\S]*?<\/nav>/)?.[0] || '', /href="\/chess">Chess</, 'verse hamburger must include Chess');
-  assert.match(verseHtml, /class="dasha-next"[\s\S]*href="\/simp">Simp</);
+  assert.match(verseHtml, /class="dasha-next"[\s\S]*href="\/chess">Chess</);
   assert.match(verseHtml, /<a href="https:\/\/www\.getdasha\.com\/">\$dasha<\/a> · <a class="buy-dasha"[^>]*>Buy \$dasha ↗<\/a> · <a href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats<\/a>/);
   assert.match(verseHtml.match(/<footer[\s\S]*?<\/footer>/i)?.[0] || '', /href="\/chess">Chess</, 'verse footer must include Chess');
   assert.doesNotMatch(verseHtml.replace(/<a class="buy-dasha"[^>]*>[\s\S]*?<\/a>/g, ''), /featured|getdasha\.com<\/p>|payTo|\/hold|53ux/i);
@@ -1544,6 +1551,9 @@ try {
     assert.match(hero, /Open Studio →/, `${label} must keep other action links in the DOM`);
     assert.match(html, /class="dasha-nav"/, `${label} must keep Designer nav in the DOM`);
     assert.match(html, new RegExp(`id="token"[\\s\\S]*${mint}[\\s\\S]*buy-dasha`), `${label} must keep CA + Buy in #token`);
+    assert.match(html, /id="dasha-tape"/, `${label} must keep a live chart room`);
+    assert.match(html, /id="dasha-tape-embed"/, `${label} chart uses the official pair embed`);
+    assert.match(html, /dexscreener\.com\/solana\/9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7\?embed=1/, `${label} chart embeds this pair only`);
     assert.match(html, /id="simp"/, `${label} must keep a #simp room`);
     assert.match(html, /id="dasha-simp-board"/, `${label} #simp remounts the pretty board`);
     assert.match(html, /simp-board\.js/, `${label} must load the board client below the hero`);
@@ -1551,10 +1561,11 @@ try {
     assert.match(html, /id="dasha-faucet"/, `${label} #faucet remounts the live faucet toy`);
     assert.match(html, /client\/faucet\.js/, `${label} must load faucet.js`);
     assert.match(html, /client\/faucet\.png/, `${label} must reuse faucet.png`);
-    assert.ok(html.indexOf('dasha-hero') < html.indexOf('dasha-simp-board'), `${label} board lives below the hero`);
+    assert.ok(html.indexOf('dasha-hero') < html.indexOf('dasha-tape'), `${label} chart lives below the hero`);
+    assert.ok(html.indexOf('dasha-tape') < html.indexOf('dasha-simp-board'), `${label} chart lives just above the board`);
     assert.ok(html.indexOf('dasha-simp-board') < html.indexOf('dasha-faucet'), `${label} faucet lives after the board`);
     assert.ok(html.indexOf('dasha-faucet') < html.indexOf('id="token"'), `${label} faucet lives before the mint band`);
-    assert.doesNotMatch(hero, /id="dasha-simp-board"|simp-board\.js|class="dasha-quiz"|dasha-faucet|faucet\.js/, `${label} hero first paint is not the board or faucet`);
+    assert.doesNotMatch(hero, /id="dasha-simp-board"|simp-board\.js|class="dasha-quiz"|dasha-faucet|faucet\.js|dasha-tape|dexscreener/, `${label} hero first paint is not the board, faucet, or chart`);
     assert.doesNotMatch(html, /not an airdrop|free money|official faucet/i, `${label} must not invent faucet disclaimer copy`);
     assert.doesNotMatch(html, /dasha-x-gate|CONNECT X\?|First visit|openHomeGate/i, `${label} must not paint a first-visit X gate`);
     assert.equal([...html.matchAll(/class="dasha-quiz"/g)].length, 0, `${label} must not mount quiz chrome on home`);
@@ -1571,16 +1582,16 @@ try {
     assert.doesNotMatch(html, /class="simp-/);
     const lowerNav = html.match(/<nav class="nav wrap">[\s\S]*?<\/nav>/i)?.[0] || '';
     assert.match(lowerNav, /href="\/studio">Studio</, `${label} lower nav must include Studio`);
-    assert.match(lowerNav, /href="\/simp">Simp</, `${label} lower nav must include Simp`);
+    assert.doesNotMatch(lowerNav, /href="\/simp"/, `${label} lower nav must not door to Simp`);
     assert.match(lowerNav, /href="\/chess">Chess</, `${label} lower nav must include Chess`);
     assert.doesNotMatch(lowerNav, /href="\/graph"/, `${label} lower nav must not door to shelved /graph`);
     assert.doesNotMatch(lowerNav, /href="\/faucet"/, `${label} lower nav must not door to Faucet`);
+    assert.doesNotMatch(lowerNav, /href="\/dasha"/, `${label} lower nav must not door to Desk`);
     assert.match(lowerNav, /href="\/verse">Verse</, `${label} lower nav must include Verse`);
-    assert.match(lowerNav, /href="\/bounties">Bounties</, `${label} lower nav must include Bounties`);
+    assert.doesNotMatch(lowerNav, /href="\/bounties"/, `${label} lower nav must not door to Bounties`);
     assert.doesNotMatch(lowerNav, /#token|buy-dasha/i, `${label} lower nav must not grow a Buy pill`);
     assert.match(lowerNav, /href="\/forum">Forum</, `${label} lower nav includes Forum`);
     assert.match(html, /href="\/forum"/, `${label} Forum stays in the footer`);
-    assert.match(html, /href="\/dasha"/, `${label} Desk stays in the footer`);
     assert.match(html, /href="\/chess">Chess</, `${label} Chess stays in the footer`);
     assert.doesNotMatch(html, /href=["']https:\/\/lobby\.getdasha\.com\/chess/, `${label} Chess must be same-origin`);
     assert.match(html, /\.simp-row\{display:grid;grid-template-columns:3\.2rem minmax\(0,1fr\) 3\.2rem/, `${label} must ship three-column board CSS`);
@@ -1592,9 +1603,8 @@ try {
   assert.match(injected, /class="dasha-slim[\s"]/, 'home rewrite must add the hamburger');
   assert.match(injected, /class="dasha-crop"/, 'home rewrite must add crop marks');
   assert.match(injected.match(/<header class="dasha-slim">[\s\S]*?<\/header>/)?.[0] || '', /href="\/chess">Chess</, 'home hamburger must include Chess');
-  assert.match(injected.match(/<header class="dasha-slim">[\s\S]*?<\/header>/)?.[0] || '', /href="\/simp">Simp</, 'home hamburger must include Simp');
-  assert.doesNotMatch(injected.match(/<header class="dasha-slim">[\s\S]*?<\/header>/)?.[0] || '', /href="\/faucet"/, 'home hamburger must not door to Faucet');
-  assert.doesNotMatch(injected.match(/<footer class="dasha-foot">[\s\S]*?<\/footer>/)?.[0] || '', /href="\/faucet"/, 'home footer must not door to Faucet');
+  assert.doesNotMatch(injected.match(/<header class="dasha-slim">[\s\S]*?<\/header>/)?.[0] || '', /href="\/simp"|href="\/dasha"|href="\/bounties"|href="\/faucet"/, 'home hamburger must not door to Simp, Desk, Bounties, or Faucet');
+  assert.doesNotMatch(injected.match(/<footer class="dasha-foot">[\s\S]*?<\/footer>/)?.[0] || '', /href="\/simp"|href="\/dasha"|href="\/bounties"|href="\/faucet"/, 'home footer must not door to Simp, Desk, Bounties, or Faucet');
   assert.doesNotMatch(injected.match(/<header class="dasha-slim">[\s\S]*?<\/header>/)?.[0] || '', /\/airdrop|\/graph/, 'home hamburger must hide dead and shelved doors');
   assert.doesNotMatch(injected, /dasha-next|Next up/, 'next-up stays off home first paint');
   assert.doesNotMatch(injected, /dasha-dance/, 'home rewrite must not stuff the dancer into the first viewport');
@@ -1804,7 +1814,7 @@ ${liveHomeFooter}
     assert.match(forumHtml, /class="dasha-rooms"/);
     assert.match(forumHtml, /<b>\[01\]<\/b> Studio/);
     assert.match(forumHtml, /<b>\[02\]<\/b> Forum/);
-    assert.match(forumHtml, /class="dasha-next"[\s\S]*href="\/simp">Simp</);
+    assert.match(forumHtml, /class="dasha-next"[\s\S]*href="\/chess">Chess</);
     assert.doesNotMatch(forumHtml, /href="\/graph"/);
     assert.doesNotMatch(forumHtml, /class="(?:brand|back)" href="\/"/);
     assert.match(forumHtml, /<footer\b/, 'lobby /forum must keep the slim footer');

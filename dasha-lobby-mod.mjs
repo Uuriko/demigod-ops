@@ -5,6 +5,20 @@
 
 export const MINT = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
 export const PAIR = '9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7';
+/** Official Dexscreener embed for this pair only. Candles + windows + info. */
+export const DASHA_TAPE_EMBED_SRC = `https://dexscreener.com/solana/${PAIR}?embed=1&loadChartSettings=0&trades=0&tabs=0&info=1&chartLeftToolbar=0&chartTheme=dark&theme=dark&chartStyle=0&chartType=usd&interval=15`;
+
+export function isDashaTapeEmbedSrc(src) {
+  try {
+    const u = new URL(String(src || ''));
+    const host = u.hostname.toLowerCase();
+    return (host === 'dexscreener.com' || host === 'www.dexscreener.com')
+      && u.pathname.toLowerCase() === `/solana/${PAIR}`.toLowerCase()
+      && u.searchParams.get('embed') === '1';
+  } catch {
+    return false;
+  }
+}
 export const WSOL = 'So11111111111111111111111111111111111111112';
 export const MAX_NICK = 18;
 export const MAX_TEXT = 200;

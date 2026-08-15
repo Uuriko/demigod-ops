@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import {
   MINT,
+  PAIR,
+  DASHA_TAPE_EMBED_SRC,
+  isDashaTapeEmbedSrc,
   PIN,
   MAX_SOCKETS,
   validateNick,
@@ -33,6 +36,11 @@ import {
 } from './dasha-lobby-mod.mjs';
 
 assert.equal(MINT, '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump');
+assert.equal(PAIR, '9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7');
+assert.equal(isDashaTapeEmbedSrc(DASHA_TAPE_EMBED_SRC), true);
+assert.equal(isDashaTapeEmbedSrc(`https://dexscreener.com/solana/${PAIR}?embed=1`), true);
+assert.equal(isDashaTapeEmbedSrc(`https://dexscreener.com/solana/${PAIR}`), false);
+assert.equal(isDashaTapeEmbedSrc('https://dexscreener.com/solana/otherpair?embed=1'), false);
 assert.equal(PIN.mint, MINT);
 assert.equal(PIN.text, 'Public lobby.');
 assert.equal(MAX_SOCKETS, 80, 'public room concurrent cap');

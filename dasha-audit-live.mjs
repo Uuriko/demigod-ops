@@ -16,7 +16,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve as resolvePath } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { JOIN_COOLDOWN_MS } from './dasha-lobby-mod.mjs';
+import { JOIN_COOLDOWN_MS, isDashaTapeEmbedSrc } from './dasha-lobby-mod.mjs';
 import { ANON_SOFT_CAP } from './dasha-lobby-x.mjs';
 import { MISLEADING_COIN_COPY, NEGATIVE_COIN_COPY, publicCopyFromHtml } from './dasha-public-copy.mjs';
 import { extractWebMetadata, metadataMismatches, WEBFLOW_METADATA } from './dasha-webflow-metadata.mjs';
@@ -185,12 +185,14 @@ export function sitemapUrls(xml) {
   return urls;
 }
 
+const QUIET_SITEMAP_ROUTES = new Set(['/learn', '/faucet', '/airdrop', '/earn', '/claim', '/dasha', '/simp', '/bounties']);
+
 export function homeOrphanedRoutes(xml, html) {
   const hrefs = new Set([...String(html || '').matchAll(/<a\b[^>]*\bhref=["']([^"']+)/gi)].map(match => {
     try { return new URL(match[1].replaceAll('&amp;', '&'), SITE).pathname.replace(/\/$/, '') || '/'; }
     catch { return ''; }
   }));
-  return sitemapUrls(xml).map(url => new URL(url).pathname.replace(/\/$/, '') || '/').filter(path => path !== '/' && !hrefs.has(path));
+  return sitemapUrls(xml).map(url => new URL(url).pathname.replace(/\/$/, '') || '/').filter(path => path !== '/' && !hrefs.has(path) && !QUIET_SITEMAP_ROUTES.has(path));
 }
 
 export function indexabilityViolations(url, page) {
@@ -234,7 +236,11 @@ export function htmlPolicyViolations(page) {
 /** Live Webflow shell allowlist; Dasha-owned cross-origin clients must also be SRI pinned. */
 export function executionViolations(html) {
   const source = String(html || '');
-  const violations = /<iframe\b/i.test(source) ? ['iframe'] : [];
+  const violations = [];
+  for (const tag of source.match(/<iframe\b[^>]*>/gi) || []) {
+    const src = tag.match(/\bsrc=["']([^"']+)["']/i)?.[1] || '';
+    if (!isDashaTapeEmbedSrc(src)) violations.push('iframe');
+  }
   for (const tag of source.match(/<script\b[^>]*\bsrc=["'][^"']+["'][^>]*>/gi) || []) {
     const attrs = Object.fromEntries([...tag.matchAll(/([\w:-]+)\s*=\s*(["'])(.*?)\2/gi)].map(match => [match[1].toLowerCase(), match[3].replaceAll('&amp;', '&')]));
     const src = attrs.src || '';

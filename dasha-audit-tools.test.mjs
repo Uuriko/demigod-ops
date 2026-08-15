@@ -80,6 +80,8 @@ assert.deepEqual(executionViolations('<script src="https://plugin.jup.ag/evil.js
 assert.deepEqual(executionViolations('<script src="https://evil.example/drain.js"></script>'), ['https://evil.example/drain.js']);
 assert.deepEqual(executionViolations('<script src="https://lobby.getdasha.com/client/studio.js"></script>'), ['https://lobby.getdasha.com/client/studio.js']);
 assert.deepEqual(executionViolations('<iframe src="https://example.com"></iframe>'), ['iframe']);
+assert.deepEqual(executionViolations('<iframe src="https://dexscreener.com/solana/9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7?embed=1&info=1"></iframe>'), []);
+assert.deepEqual(executionViolations('<iframe src="https://dexscreener.com/solana/otherpair?embed=1"></iframe>'), ['iframe']);
 assert.equal(hasPinnedSimpClient("s.integrity='sha384-abc=';s.crossOrigin='anonymous'"), true);
 assert.equal(hasPinnedSimpClient("const SIMP_SRI='sha384-abc=';s.integrity=SIMP_SRI;s.crossOrigin='anonymous'"), true);
 assert.equal(hasPinnedSimpClient("s.src='https://lobby.getdasha.com/client/simp-board.js'"), false);

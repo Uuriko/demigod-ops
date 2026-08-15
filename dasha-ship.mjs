@@ -24,6 +24,7 @@
  */
 import { createHash } from 'node:crypto';
 import { NEGATIVE_COIN_COPY } from './dasha-public-copy.mjs';
+import { isDashaTapeEmbedSrc } from './dasha-lobby-mod.mjs';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -165,7 +166,11 @@ function utf8Bytes(s) {
 }
 
 function checkExecutionBoundary(name, html, fail) {
-  if (/<iframe\b/i.test(html)) fail(`${name} contains an iframe`);
+  const frames = String(html || '').match(/<iframe\b[^>]*>/gi) || [];
+  for (const tag of frames) {
+    const src = tag.match(/\bsrc=["']([^"']+)["']/i)?.[1] || '';
+    if (!isDashaTapeEmbedSrc(src)) fail(`${name} contains an iframe`);
+  }
   for (const match of html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)) {
     const tag = match[0], src = match[1];
     if (name === 'how-to-buy' && src === 'https://plugin.jup.ag/plugin-v1.js') continue;
@@ -208,7 +213,7 @@ function fastGate() {
     if (/<a\b[^>]*href=["']https:\/\/(?:www\.)?dexscreener\.com/i.test(html)) fail(`${name} links the stale Dexscreener profile`);
   }
   if (desk.includes('/how-to-buy')) fail('desk links unpublished how-to-buy');
-  const workerHonesty = new Set(['/learn', '/faucet', '/airdrop', '/earn', '/claim']);
+  const workerHonesty = new Set(['/learn', '/faucet', '/airdrop', '/earn', '/claim', '/dasha', '/simp', '/bounties']);
   for (const match of sitemap.matchAll(/<loc>https:\/\/www\.getdasha\.com(\/[^<]*)<\/loc>/g)) {
     if (match[1] !== '/' && !workerHonesty.has(match[1]) && !landing.includes(`href="${match[1]}"`)) fail(`landing orphaned sitemap route ${match[1]}`);
   }
