@@ -25,6 +25,7 @@ assert(
   landing.includes('lobby.getdasha.com/client/simp-board.js'),
   'landing must load simp client from permanent host',
 );
+assert.doesNotMatch(client, /three@|import\(['"]three|from ['"]three|importmap/i, 'simp board client must ship zero Three.js');
 assert(client.includes('Link X to join'), 'client missing link state');
 assert(client.includes('Join board'), 'client missing join state');
 assert(client.includes('Leave board'), 'client missing leave state');

@@ -8,6 +8,7 @@ assert.match(source, /Dasha is white\. Anna is black\./);
 assert.match(source, /Rated games are public\./, 'replay discovery must be disclosed before play');
 assert.match(source, /https:\/\/lobby\.getdasha\.com/);
 assert.doesNotMatch(source, /chess\.com|lichess|iframe|<script\s+src=/i, 'chess must be first-party');
+assert.doesNotMatch(source, /three@|import\(['"]three|from ['"]three|importmap/i, 'chess page source must ship zero Three.js');
 assert.match(source, /One signature\. No transaction\. 24h access\./);
 assert.match(source, /Holder verified\. Access open for 24h\./);
 const simpClient = await readFile(new URL('./dasha-simp-board-client.js', import.meta.url), 'utf8');

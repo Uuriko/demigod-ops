@@ -28,6 +28,7 @@ assert.match(page, />Highlight me</);
 assert.match(page, /id="highlight-me"/);
 assert.match(page, />Buy on Jupiter</);
 assert.doesNotMatch(page, /id="dasha-lock"/);
+assert.doesNotMatch(page, /dasha-dance/, '/graph must not mount the bottom dancer');
 assert.match(page, new RegExp(`jup\\.ag/swap\\?sell=${wsol}&amp;buy=${mint}`));
 assert.match(page, new RegExp(`dexscreener\\.com/solana/${pair}`));
 assert.match(page, /id="hud-price"/);

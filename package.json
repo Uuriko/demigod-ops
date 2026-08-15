@@ -143,7 +143,7 @@
     "dasha:test:landing-mint": "node dasha-landing-mint-check.test.mjs",
     "dasha:test:culture": "node dasha-culture-seeds.test.mjs",
     "dasha:test:rally": "node dasha-culture-rally.test.mjs",
-    "dasha:test:lobby": "node dasha-lobby-assets-build.mjs --check && node dasha-lobby-mod.test.mjs && node dasha-lobby-x.test.mjs && node dasha-chess.test.mjs && node dasha-chess-worker.test.mjs && node dasha-chess-page.test.mjs && node dasha-lobby-embed-build.mjs --check && node dasha-graph.test.mjs && node dasha-learn-adapt.test.mjs && node dasha-learn.test.mjs && node dasha-faucet.test.mjs && node dasha-lobby.test.mjs && node dasha-simp-review.test.mjs && node dasha-audit-tools.test.mjs && node dasha-ship-readback.test.mjs",
+    "dasha:test:lobby": "node dasha-lobby-assets-build.mjs --check && node dasha-lobby-mod.test.mjs && node dasha-lobby-x.test.mjs && node dasha-chess.test.mjs && node dasha-chess-worker.test.mjs && node dasha-chess-page.test.mjs && node dasha-lobby-embed-build.mjs --check && node dasha-graph.test.mjs && node dasha-learn-adapt.test.mjs && node dasha-learn.test.mjs && node dasha-faucet.test.mjs && node dasha-dance.test.mjs && node dasha-lobby.test.mjs && node dasha-simp-review.test.mjs && node dasha-audit-tools.test.mjs && node dasha-ship-readback.test.mjs",
     "dasha:test:lobby:live": "node dasha-lobby-live.test.mjs",
     "dasha:lobby:embed": "node dasha-lobby-embed-build.mjs --write",
     "dasha:lobby:dev": "npx wrangler dev -c dasha-lobby-wrangler.jsonc",

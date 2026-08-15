@@ -94,6 +94,8 @@ import {
   FAUCET_CLIENT_JS,
   FAUCET_CLIENT_SRI,
   FAUCET_STILL_SRI,
+  DANCE_CLIENT_JS,
+  DANCE_CLIENT_SRI,
   LOBBY_PAGE_HTML,
   ASSET_HASH,
 } from './dasha-lobby-static-gen.mjs';
@@ -469,8 +471,8 @@ function bountiesBoardHtml(feed) {
 
 /** Worker-owned first HTML for /bounties. Tokens + Arial only. No Webflow first paint. */
 export function bountiesPageHtml(feed) {
-  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bounties</title>
-<body>${bountiesBoardHtml(feed)}</body></html>`;
+  return injectDanceDock(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bounties</title>
+<body>${bountiesBoardHtml(feed)}</body></html>`);
 }
 
 async function bountiesPageResponse(request) {
@@ -546,10 +548,27 @@ export function ensurePrivacyLink(html) {
   return page;
 }
 
-const HOWTO_PAGE_HTML = ensurePrivacyLink(HOWTO_HTML);
-const CHESS_PAGE = ensurePrivacyLink(CHESS_PAGE_HTML);
+/** Bottom dancer after first paint. Hidden on /graph. */
+export function danceDockPath(pathname) {
+  const path = String(pathname || '').replace(/\/$/, '') || '/';
+  if (path === '/graph') return false;
+  if (path.startsWith('/learn/')) return true;
+  return path === '/' || path === '/lobby' || path === '/studio' || path === '/dasha'
+    || path === '/simp' || path === '/chess' || path === '/verse' || path === '/how-to-buy'
+    || path === '/bounties' || path === '/learn' || path === '/faucet';
+}
+
+export function injectDanceDock(html) {
+  const page = String(html || '');
+  if (/dasha-dance\.js/i.test(page)) return page;
+  const boot = `<script>(function(){function go(){if(document.getElementById('dasha-dance-js'))return;var s=document.createElement('script');s.id='dasha-dance-js';s.src='https://lobby.getdasha.com/client/dasha-dance.js';s.integrity='${DANCE_CLIENT_SRI}';s.crossOrigin='anonymous';document.head.appendChild(s)}if(window.requestIdleCallback)requestIdleCallback(go,{timeout:400});else setTimeout(go,400)})();</script>`;
+  return /<\/body>/i.test(page) ? page.replace(/<\/body>/i, `${boot}</body>`) : page + boot;
+}
+
+const HOWTO_PAGE_HTML = injectDanceDock(ensurePrivacyLink(HOWTO_HTML));
+const CHESS_PAGE = injectDanceDock(ensurePrivacyLink(CHESS_PAGE_HTML));
 const GRAPH_PAGE = GRAPH_PAGE_HTML;
-const LOBBY_PAGE = ensurePrivacyLink(stripLobbySimpQuiz(LOBBY_PAGE_HTML));
+const LOBBY_PAGE = injectDanceDock(ensurePrivacyLink(stripLobbySimpQuiz(LOBBY_PAGE_HTML)));
 
 /** Replace leftover Webflow SRI on the worker-served studio.js tag. Other pins stay. */
 /** Live Studio nav CTA currently dumps people under the home lock at /#token. */
@@ -889,7 +908,7 @@ export function simpQuizFirstPaintHtml() {
 /** Worker-owned first HTML for /simp. Quiz is the page. Tokens only. No handle list. */
 export function simpPageHtml() {
   const perryDisplay = escapeHtml(String(publicPerryRow().display || '@PerryALPHA').slice(0, 20));
-  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Simp</title>
+  return injectDanceDock(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Simp</title>
 <style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}nav{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px}nav a{color:var(--paper);text-decoration:none;font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:13px;min-height:44px;display:inline-flex;align-items:center}h1{margin:0 0 .5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(3rem,12vw,6rem);line-height:.9}a{color:var(--acid)}.dasha-go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font-weight:900;text-decoration:none}#dasha-quiz,.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-quiz .dasha-go{margin:0 .5rem .75rem 0}#dasha-quiz ul{margin:.25rem 0 1rem;padding-left:1.2rem}</style>
 <body>
 <nav aria-label="Dasha"><a href="/">$dasha</a><a href="/lobby">Lobby</a><a href="/studio">Studio</a><a href="/chess">Chess</a><a href="/graph">Graph</a><a href="/how-to-buy">Buy</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></nav>
@@ -902,7 +921,7 @@ export function simpPageHtml() {
 <div id="dasha-quiz" class="dasha-quiz"><div id="dasha-simp-board">${simpQuizFirstPaintHtml()}</div></div>
 ${simpBoardClientScript()}
 ${WORKER_SITE_FOOTER}
-</body></html>`;
+</body></html>`);
 }
 
 async function simpPageResponse(request) {
@@ -1030,7 +1049,7 @@ export function learnPageHtml({ track = '', mod = '' } = {}) {
     : `<noscript>
 <p>Needs JavaScript.</p>
 </noscript>`;
-  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} — getdasha.com</title>
+  return injectDanceDock(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} — getdasha.com</title>
 <link rel="canonical" href="${canonical}">
 <meta name="description" content="Learn">
 <meta name="theme-color" content="#070608">
@@ -1043,7 +1062,7 @@ ${hop}
 ${noscript}
 ${learnClientScript()}
 ${siteFooter('/learn')}
-</body></html>`;
+</body></html>`);
 }
 
 function faucetClientScript() {
@@ -1053,7 +1072,7 @@ function faucetClientScript() {
 /** Worker-owned /faucet. Picture, dest, send. */
 export function faucetPageHtml() {
   const still = 'https://lobby.getdasha.com/client/faucet.png';
-  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Faucet — getdasha.com</title>
+  return injectDanceDock(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Faucet — getdasha.com</title>
 <link rel="canonical" href="https://www.getdasha.com/faucet">
 <meta name="description" content="Faucet">
 <meta name="theme-color" content="#070608">
@@ -1065,7 +1084,7 @@ export function faucetPageHtml() {
 </noscript>
 ${faucetClientScript()}
 ${siteFooter('/faucet')}
-</body></html>`;
+</body></html>`);
 }
 
 function magnetPageResponse(request, route) {
@@ -1163,7 +1182,7 @@ export function versePageHtml({ status = '', kind = '' } = {}) {
   const notice = status
     ? `<p class="status" role="status"${kind ? ` data-kind="${escapeHtml(kind)}"` : ''}>${escapeHtml(status)}</p>`
     : '';
-  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashaverse — getdasha.com</title>
+  return injectDanceDock(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashaverse — getdasha.com</title>
 <meta name="description" content="Other Dasha sites. Ours is the token.">
 <link rel="canonical" href="${VERSE_WWW}">
 <style>:root{color-scheme:dark;--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--line:rgba(244,237,219,.18);--muted:rgba(244,237,219,.62)}*{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--paper);font:16px/1.55 Arial,Helvetica,sans-serif}.wrap{width:min(720px,calc(100% - 32px));margin:0 auto;padding:28px 0 64px}nav{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px}nav a{color:var(--paper);text-decoration:none;font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:13px;min-height:44px;display:inline-flex;align-items:center}h1{margin:0 0 12px;font-size:clamp(2.4rem,8vw,3.6rem);line-height:.9;letter-spacing:-.05em;text-transform:uppercase;font-weight:950}.lede{color:var(--muted);margin:0 0 22px;max-width:48ch}h2{margin:0 0 8px;font-size:1.15rem;text-transform:uppercase}.site{border-top:1px solid var(--line);padding:18px 0}.host{margin:.4rem 0;color:var(--muted);font-size:.9rem}.btn,button{appearance:none;border:0;min-height:48px;padding:12px 18px;font:inherit;font-weight:900;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;background:var(--acid);color:var(--ink);text-transform:uppercase;letter-spacing:.05em;box-shadow:3px 3px 0 var(--hot)}.honest{color:var(--muted);font-size:.9rem}form{margin:28px 0 0;padding-top:22px;border-top:1px solid var(--line)}label{display:block;font-weight:800}input{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}.status{font-weight:800}.status[data-kind=bad]{color:var(--hot)}footer{margin-top:36px;color:var(--muted);font-size:.9rem;border-top:1px solid var(--line);padding-top:18px}footer a,a{color:var(--acid)}:focus-visible{outline:3px solid var(--acid);outline-offset:3px}</style>
@@ -1184,7 +1203,7 @@ ${notice}
 </form>
 </section>
 <footer><p><a href="/">Home</a> · <a href="/simp">Simp</a> · <a href="/graph">Graph</a> · <a href="/chess">Chess</a> · <a href="/bounties">Bounties</a> · <a href="/privacy">Privacy</a></p></footer>
-</main></body></html>`;
+</main></body></html>`);
 }
 
 function verseWantsJson(request) {
@@ -3567,6 +3586,12 @@ async function productEdge(request, url, env) {
   if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname.startsWith('/simp/photo/')) {
     return staticAssetResponse(request, env);
   }
+  if (
+    (request.method === 'GET' || request.method === 'HEAD') &&
+    (url.pathname === '/client/dasha-loop.mp3' || url.pathname === '/client/dasha-sheet.webp')
+  ) {
+    return staticAssetResponse(request, env);
+  }
   if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname.startsWith('/simp/card/')) {
     return Response.redirect(`https://lobby.getdasha.com${url.pathname}${url.search}`, 308);
   }
@@ -3758,6 +3783,7 @@ async function productEdge(request, url, env) {
   html = rewriteLobbyScriptIntegrity(html);
   html = rewriteStaleCdnFavicon(html);
   if (isExactPath(url.pathname, '/studio')) html = rewriteStudioBuyVerifyHref(html);
+  if (danceDockPath(url.pathname)) html = injectDanceDock(html);
   if (stripped) {
     // Also drop any leftover plain mentions in head comments (defensive).
     html = html.replace(/https?:\/\/x\.com\/potterlab/gi, 'https://www.getdasha.com/');
@@ -3928,6 +3954,18 @@ export default {
       url.pathname === '/client/faucet.png'
     ) {
       return staticAssetResponse(new Request(new URL('/simp/photo/faucet.png', request.url), request), env);
+    }
+    if (
+      (request.method === 'GET' || request.method === 'HEAD') &&
+      url.pathname === '/client/dasha-dance.js'
+    ) {
+      return jsAsset(DANCE_CLIENT_JS, allowedOrigin || '*', { headOnly: request.method === 'HEAD' });
+    }
+    if (
+      (request.method === 'GET' || request.method === 'HEAD') &&
+      (url.pathname === '/client/dasha-loop.mp3' || url.pathname === '/client/dasha-sheet.webp')
+    ) {
+      return staticAssetResponse(request, env);
     }
 
     // SEO + howto: also routed on www/apex getdasha.com (see dasha-lobby-wrangler.jsonc).
