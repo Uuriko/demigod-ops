@@ -279,7 +279,7 @@ assert.match(pageHtml, /<noscript>[\s\S]*client\/faucet\.png[\s\S]*<\/noscript>/
 assert.doesNotMatch(pageHtml.replace(/<noscript>[\s\S]*?<\/noscript>/, ''), /<h1>Faucet<\/h1>/);
 assert.match(pageHtml, /class="dasha-slim[\s"]/);
 assert.match(pageHtml, /href="\/verse">Verse</);
-assert.match(pageHtml, /footer a\{display:inline-flex;align-items:center;min-height:48px/);
+assert.match(pageHtml, /footer\.dasha-foot a,\.dasha-foot a\{display:inline-flex;align-items:center;min-height:48px/);
 assert.match(pageHtml, /data-faucet-still/);
 assert.match(pageHtml, /data-faucet-still-sri/);
 assert.ok(pageHtml.includes(FAUCET_STILL_SRI));
