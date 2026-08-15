@@ -185,7 +185,7 @@ export function sitemapUrls(xml) {
   return urls;
 }
 
-const QUIET_SITEMAP_ROUTES = new Set(['/learn', '/faucet', '/airdrop', '/earn', '/claim', '/dasha', '/simp', '/bounties']);
+const QUIET_SITEMAP_ROUTES = new Set(['/learn', '/faucet', '/airdrop', '/earn', '/claim', '/dasha', '/simp', '/bounties', '/privacy']);
 
 export function homeOrphanedRoutes(xml, html) {
   const hrefs = new Set([...String(html || '').matchAll(/<a\b[^>]*\bhref=["']([^"']+)/gi)].map(match => {

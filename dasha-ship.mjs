@@ -213,7 +213,7 @@ function fastGate() {
     if (/<a\b[^>]*href=["']https:\/\/(?:www\.)?dexscreener\.com/i.test(html)) fail(`${name} links the stale Dexscreener profile`);
   }
   if (desk.includes('/how-to-buy')) fail('desk links unpublished how-to-buy');
-  const workerHonesty = new Set(['/learn', '/faucet', '/airdrop', '/earn', '/claim', '/dasha', '/simp', '/bounties']);
+  const workerHonesty = new Set(['/learn', '/faucet', '/airdrop', '/earn', '/claim', '/dasha', '/simp', '/bounties', '/privacy']);
   for (const match of sitemap.matchAll(/<loc>https:\/\/www\.getdasha\.com(\/[^<]*)<\/loc>/g)) {
     if (match[1] !== '/' && !workerHonesty.has(match[1]) && !landing.includes(`href="${match[1]}"`)) fail(`landing orphaned sitemap route ${match[1]}`);
   }
