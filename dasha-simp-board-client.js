@@ -8,8 +8,9 @@
   var DEFAULT_API = 'https://lobby.getdasha.com';
   /** Canonical shareable deep link — www /simp mounts this client. */
   var QUIZ_INVITE_URL = 'https://www.getdasha.com/simp';
-  /** Quiz-invite Connect X on /simp. Home paints the pretty board only. */
+  /** Home scroll-ask + quiz-invite dismiss. Linked visitors never see either. */
   var GATE_LS = 'dasha_x_gate_v1';
+  var ASK_SS = 'dasha_x_ask_v1';
   var GATE_AUTOJOIN = 'dasha_x_gate_autojoin';
   var QUIZ_INVITE_SS = 'dasha_quiz_invite_v1';
   var QUIZ_CARDS = {
@@ -77,6 +78,20 @@
     } catch (e) {}
     try {
       sessionStorage.removeItem(GATE_AUTOJOIN);
+    } catch (e) {}
+  }
+
+  function askShown() {
+    try {
+      return sessionStorage.getItem(ASK_SS) === '1';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function markAskShown() {
+    try {
+      sessionStorage.setItem(ASK_SS, '1');
     } catch (e) {}
   }
 
@@ -233,6 +248,8 @@
     var prevBodyOverflow = '';
     var gateKeyHandler = null;
     var gateFocusReturn = null;
+    var askIo = null;
+    var askScroll = null;
 
     function setStatus(t, kind) {
       status.textContent = t;
@@ -693,6 +710,82 @@
       try {
         primary.focus();
       } catch (e) {}
+    }
+
+    function stopHomeConnectAsk() {
+      if (askIo) {
+        try {
+          askIo.disconnect();
+        } catch (e) {}
+        askIo = null;
+      }
+      if (askScroll) {
+        window.removeEventListener('scroll', askScroll);
+        askScroll = null;
+      }
+    }
+
+    /** Small card after the hero — never a first-paint blur gate. */
+    function openScrollConnectCard() {
+      if (!homeBoard || gateEl) return;
+      if (meData && meData.linked) return;
+      if (gateDismissed() || askShown()) return;
+      markAskShown();
+      gateEl = el('aside', 'simp-x-ask');
+      gateEl.id = 'dasha-x-ask';
+      gateEl.setAttribute('role', 'dialog');
+      gateEl.setAttribute('aria-label', 'Connect X');
+      var st = document.createElement('style');
+      st.textContent =
+        '.simp-x-ask{position:fixed;right:16px;bottom:calc(172px + env(safe-area-inset-bottom,0px));z-index:40;width:min(320px,calc(100vw - 32px));background:#f4eddb;color:#070608;border:3px solid #070608;box-shadow:6px 6px 0 #ff3b81;padding:16px 18px}' +
+        '.simp-x-ask p{margin:0 0 12px;font:700 15px/1.3 Arial,Helvetica,sans-serif}' +
+        '.simp-x-ask .x-go{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 18px;background:#dfff00;color:#070608;font:900 15px/1 Arial Black,Helvetica,sans-serif;text-transform:uppercase;border:3px solid #070608;box-shadow:4px 4px 0 #ff3b81;cursor:pointer}' +
+        '.simp-x-ask .x-skip{display:block;margin-top:8px;background:none;border:0;color:#070608;opacity:.55;font:700 13px/1.2 Arial,Helvetica,sans-serif;text-decoration:underline;cursor:pointer;min-height:44px}';
+      gateEl.appendChild(st);
+      gateEl.appendChild(el('p', '', 'Connect X to keep your score.'));
+      var go = el('button', 'x-go', 'Connect X');
+      go.type = 'button';
+      var skip = el('button', 'x-skip', 'Not now');
+      skip.type = 'button';
+      gateEl.appendChild(go);
+      gateEl.appendChild(skip);
+      document.body.appendChild(gateEl);
+      go.addEventListener('click', function () {
+        linkX();
+      });
+      skip.addEventListener('click', function () {
+        markGateDone();
+        closeGate();
+      });
+    }
+
+    function watchHomeConnectAsk() {
+      if (!homeBoard) return;
+      if (meData && meData.linked) return;
+      if (gateDismissed() || askShown()) return;
+      var armed = false;
+      var fire = function () {
+        if (armed) return;
+        armed = true;
+        stopHomeConnectAsk();
+        openScrollConnectCard();
+      };
+      var simp = document.getElementById('simp');
+      if (simp && 'IntersectionObserver' in window) {
+        askIo = new IntersectionObserver(
+          function (ents) {
+            if (ents.some(function (e) { return e.isIntersecting; })) fire();
+          },
+          { threshold: 0.12 },
+        );
+        askIo.observe(simp);
+      }
+      askScroll = function () {
+        if (window.scrollY < Math.round(window.innerHeight * 0.85)) return;
+        fire();
+      };
+      window.addEventListener('scroll', askScroll, { passive: true });
+      askScroll();
     }
 
     function afterLinkedJoin() {
@@ -1378,11 +1471,11 @@
           seasonLine.textContent = seasons.length ? 'Latest snapshot: ' + seasons[0].title : 'Lifetime board · no season snapshot yet.';
           paintBoard();
           connectBtn.hidden = !!(meData && meData.linked);
+          paintGate();
           if (!homeBoard) {
             paintMe();
             paintChallengeNote();
             paintLinkedChip();
-            paintGate();
           }
           setStatus('', 'ok');
         })
@@ -1521,7 +1614,7 @@
     }
     window.addEventListener('message', onXLinkedMessage);
 
-    // /simp?quiz=1 → auto-start quiz + ask to connect X. Home never opens a first-visit gate.
+    // /simp?quiz=1 → quiz-invite gate. Home waits for scroll past the hero.
     refresh().then(function () {
       if (wantsQuizInvite()) {
         if (homeBoard) {
@@ -1529,11 +1622,14 @@
           return;
         }
         runQuizInvite();
+        return;
       }
+      if (homeBoard) watchHomeConnectAsk();
     });
     return {
       destroy: function () {
         window.removeEventListener('message', onXLinkedMessage);
+        stopHomeConnectAsk();
         closeGate();
         hideQuizConnectBar();
         hideResultSticky();

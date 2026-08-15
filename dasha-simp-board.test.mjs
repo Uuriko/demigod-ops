@@ -34,6 +34,16 @@ assert(!client.includes('openHomeGate'), 'home first-visit X gate must be gone')
 assert(!client.includes('#7c4dff'), 'gate/share cards must not use violet');
 assert(!client.includes('--cream'), 'board CSS must not keep a cream leftover');
 assert(client.includes('dasha_x_gate_v1') && client.includes('Not now'), 'quiz-invite gate dismiss + storage stay');
+assert(client.includes('function openScrollConnectCard') && client.includes('function watchHomeConnectAsk'), 'home Connect X ask waits for scroll');
+assert(client.includes('IntersectionObserver') && client.includes("getElementById('simp')"), 'scroll ask watches #simp');
+assert(client.includes('dasha_x_ask_v1') && client.includes('dasha-x-ask'), 'scroll ask is once per session and a small card');
+assert(!/FIRST VISIT|CONNECT X\?/.test(client), 'scroll ask must not use the old first-visit kicker');
+{
+  const askCssStart = client.indexOf("'.simp-x-ask{");
+  const askCss = askCssStart >= 0 ? client.slice(askCssStart, askCssStart + 900) : '';
+  assert(askCss.includes('position:fixed') && askCss.includes('width:min(320px'), 'scroll ask is a small fixed card');
+  assert(!askCss.includes('backdrop-filter') && !askCss.includes('inset:0'), 'scroll ask must not be a full-viewport blur gate');
+}
 assert(client.includes('Connect X + take the quiz') || client.includes('Simp quiz invite'), 'quiz invite connect prompt stays on /simp');
 assert(
   !/Optional — everything still works if you skip|Not required\. Simp quiz|neither is required|Optional · first visit/i.test(client),
@@ -126,6 +136,7 @@ assert(client.includes('homeBoard') && client.includes("homeQuiz.href = '/simp'"
 assert(client.includes('rows.slice(0, 10)') && client.includes('Show more'), 'home board is top 10 plus Show more');
 assert(client.includes("el('button', 'simp-connect', 'Connect X')"), 'Connect X is a quiet board button, not a first-paint modal');
 assert(client.includes('simp-quiz-go') && client.includes('box-shadow:4px 4px 0 #ff3b81'), 'Take the quiz is an acid button with a hard hot offset');
+assert(client.includes("el('button', 'x-skip', 'Not now')") && client.includes('markGateDone()'), 'scroll ask dismiss persists in localStorage');
 assert(client.includes("el('p', 'simp-empty', 'Empty.')"), 'empty board is one quiet line');
 assert(client.includes("el('details', 'simp-tools')") && client.includes("el('summary', '', 'More')"), 'secondary board tools must stay under More');
 assert.equal((client.match(/Post result on X/g) || []).length, 1, 'result screen regained a second X share action');
@@ -334,6 +345,79 @@ try {
   assert.equal(await page.evaluate(() => window.DashaSimpBoard.wantsQuizInvite()), true);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   assert.deepEqual(errors, []);
+
+  const home = await context.newPage();
+  const homeErrors = [];
+  home.on('pageerror', (error) => homeErrors.push(String(error)));
+  await home.route('https://www.getdasha.com/', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: '<style>body{margin:0}</style><div id="hero" style="height:100vh"></div><div id="simp"><div id="dasha-simp-board"></div></div>',
+    }),
+  );
+  await home.route('https://lobby.getdasha.com/simp/**', (route) => {
+    const path = new URL(route.request().url()).pathname;
+    const data =
+      path === '/simp/board'
+        ? { editorial: [{ rank: 1, display: '@PerryALPHA', href: 'https://x.com/PerryALPHA' }], measured: [] }
+        : path === '/simp/seasons'
+          ? { seasons: [] }
+          : { linked: false, enrolled: false };
+    return route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(data),
+      headers: {
+        'Access-Control-Allow-Origin': 'https://www.getdasha.com',
+        'Access-Control-Allow-Credentials': 'true',
+      },
+    });
+  });
+  await home.goto('https://www.getdasha.com/');
+  await home.addScriptTag({ content: client });
+  await home.waitForFunction(() => document.querySelector('.simp-handle'));
+  assert.equal(await home.locator('#dasha-x-ask').count(), 0, 'first paint must not show the Connect X card');
+  await home.evaluate(() => document.getElementById('simp').scrollIntoView());
+  await home.locator('#dasha-x-ask').waitFor();
+  assert.equal(await home.locator('#dasha-x-ask .x-go').textContent(), 'Connect X');
+  assert.equal(await home.locator('.simp-x-ask').evaluate((n) => getComputedStyle(n).position), 'fixed');
+  await home.getByRole('button', { name: 'Not now' }).click();
+  assert.equal(await home.locator('#dasha-x-ask').count(), 0);
+  assert.equal(await home.evaluate(() => localStorage.getItem('dasha_x_gate_v1')), '1');
+  await home.evaluate(() => document.getElementById('hero').scrollIntoView());
+  await home.evaluate(() => document.getElementById('simp').scrollIntoView());
+  assert.equal(await home.locator('#dasha-x-ask').count(), 0, 'dismissed ask must not return in-session');
+  assert.deepEqual(homeErrors, []);
+
+  const linked = await context.newPage();
+  await linked.route('https://www.getdasha.com/', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: '<style>body{margin:0}</style><div id="hero" style="height:100vh"></div><div id="simp"><div id="dasha-simp-board"></div></div>',
+    }),
+  );
+  await linked.route('https://lobby.getdasha.com/simp/**', (route) => {
+    const path = new URL(route.request().url()).pathname;
+    const data =
+      path === '/simp/board'
+        ? { editorial: [{ rank: 1, display: '@PerryALPHA', href: 'https://x.com/PerryALPHA' }], measured: [] }
+        : path === '/simp/seasons'
+          ? { seasons: [] }
+          : { linked: true, enrolled: true, x: { display: '@test', handle: 'test' } };
+    return route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(data),
+      headers: {
+        'Access-Control-Allow-Origin': 'https://www.getdasha.com',
+        'Access-Control-Allow-Credentials': 'true',
+      },
+    });
+  });
+  await linked.goto('https://www.getdasha.com/');
+  await linked.addScriptTag({ content: client });
+  await linked.waitForFunction(() => document.querySelector('.simp-handle'));
+  await linked.evaluate(() => document.getElementById('simp').scrollIntoView());
+  await linked.waitForTimeout(200);
+  assert.equal(await linked.locator('#dasha-x-ask').count(), 0, 'linked visitors never see the Connect X card');
 } finally {
   await browser.close();
 }
