@@ -21,9 +21,10 @@ const bank = publicBank();
 assert.equal(bank.mint, mint);
 assert.equal(Object.hasOwn(bank, 'disclaimer'), false, 'bank must not ship a disclaimer lecture');
 assert.match(JSON.stringify(bank), /how-to-buy/);
-const BANNED = /not an airdrop|not earn|not [“"]i earned \$dasha|she is not the dev|\bnot the dev\b|association is not endorsement|association ≠ endorsement|neither is required|we will not ask for a phrase|this is not advice|\bnot advice\b/i;
+const BANNED = /not an airdrop|not earn|not [“"]i earned \$dasha|she is not the dev|\bnot the dev\b|association is not endorsement|association ≠ endorsement|neither is required|we will not ask for a phrase|this is not advice|\bnot advice\b|We never take your card|Nobody from \$dasha|We never take the phrase|We never take a card|Who from \$dasha will ask|A tx is not required to pass|We do not tell you which|Other networks sell inference\. We do not|If someone else has the phrase, they have the keys\. We do not|you do not have to buy to pass|No transaction required|No purchase required/i;
 const bankNotesChips = bank.modules.flatMap((row) => [
-  row.goal, row.body, row.note, row.prompt,
+  row.goal, row.body, row.note, row.prompt, row.fallback?.prompt,
+  ...(row.proves || []).flatMap((p) => [p.prompt, ...(p.choices || [])]),
   ...(row.chips || []).map((chip) => chip.text),
 ]).join('\n');
 assert.doesNotMatch(bankNotesChips, BANNED, 'bank notes/chips must not lecture');
@@ -102,7 +103,8 @@ assert.equal((hubVisible.match(/<h1>Learn<\/h1>/g) || []).length, 1, 'hub HTML h
 assert.equal((hubVisible.match(/id="learn-mint"/g) || []).length, 1, 'hub HTML has one mint');
 assert.match(hubVisible, /id="learn-mint-copy"/);
 assert.doesNotMatch(hubHtml, /<noscript>[\s\S]*<h1>Learn<\/h1>[\s\S]*<\/noscript>/, 'hub noscript must not reprint Learn + mint');
-assert.match(hubHtml, /href="\/learn" aria-current="page"/);
+assert.match(hubHtml, /class="dasha-slim[\s"]/);
+assert.match(hubHtml, /href="\/verse">Verse</);
 assert.match(hubHtml, /min-height:48px/);
 assert.doesNotMatch(hubHtml, /id="dasha-quiz"/);
 assert.ok(hubHtml.includes(mint));
@@ -112,7 +114,7 @@ assert.match(hubHtml, /LEARN_CLIENT_SRI|integrity="/);
 assert.match(hubHtml, /client\/learn\.js/);
 assert.match(hubHtml, /<title>Learn — getdasha.com<\/title>|<h1>Learn<\/h1>/);
 assert.doesNotMatch(hubHtml.replace(/<script type="application\/json"[\s\S]*?<\/script>/, ''), /not an airdrop|not earn|not official|not advice|she is not the dev|association is not endorsement|MATCH, not verified|tiny sample for newbies|agents do not claim/i);
-assert.match(hubHtml, /href="\/learn"/);
+assert.match(hubHtml, /href="https:\/\/x\.com\/dash_eats"/);
 
 const c08 = learnPageHtml({ track: 'crypto', mod: 'C08' });
 assert.doesNotMatch(c08, /id="dasha-learn-static"/, 'module pages hide hub chrome by omitting it');

@@ -150,7 +150,7 @@ const FORMATS = [
 ];
 let format = FORMATS[0];
 const PHOTOS = [
-  // Public stills from @dash_eats / @PerryALPHA 4HL harvest (docs/X-RESEARCH-DASHA-IMAGES-2026-08-08.md). Association ≠ endorsement.
+  // Public stills from @dash_eats / @PerryALPHA 4HL harvest (docs/X-RESEARCH-DASHA-IMAGES-2026-08-08.md).
   ['hero', 'https://pbs.twimg.com/media/Gkoqvc4WIAAYPJM.jpg'],
   ['portrait', 'https://pbs.twimg.com/profile_images/556455602331742208/KWkVe0TV.jpeg'],
   ['pink', 'https://pbs.twimg.com/media/HMGsRZ8XgAEEPrS.jpg'],

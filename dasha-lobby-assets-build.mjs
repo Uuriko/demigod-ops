@@ -146,23 +146,27 @@ function build() {
   const graphSrc = loadClient('dasha-graph-client.js');
   const learnSrc = loadClient('dasha-learn-client.js');
   const faucetSrc = loadClient('dasha-faucet-client.js');
+  const danceSrc = loadClient('dasha-dance-client.js');
   assertSingleClient(lobbySrc, 'dasha-lobby-client.js', 'global.DashaLobby');
   assertSingleClient(simpSrc, 'dasha-simp-board-client.js', 'global.DashaSimpBoard');
   assertSingleClient(graphSrc, 'dasha-graph-client.js', 'global.DashaGraph');
   assertSingleClient(learnSrc, 'dasha-learn-client.js', 'global.DashaLearn');
   assertSingleClient(faucetSrc, 'dasha-faucet-client.js', 'global.DashaFaucet');
+  assertSingleClient(danceSrc, 'dasha-dance-client.js', 'global.DashaDance');
   const lobby = minifyJs(lobbySrc);
   const simp = minifyJs(simpSrc);
   const studio = minifyJs(studioSrc);
   const graph = minifyJs(graphSrc);
   const learn = minifyJs(learnSrc);
   const faucet = minifyJs(faucetSrc);
+  const dance = minifyJs(danceSrc);
   const lobbySri = sri(lobby);
   const simpSri = sri(simp);
   const studioSri = sri(studio);
   const graphSri = sri(graph);
   const learnSri = sri(learn);
   const faucetSri = sri(faucet);
+  const danceSri = sri(dance);
   const robots = readFileSync(join(root, 'dasha-robots.txt'), 'utf8').trim() + '\n';
   const sitemap = readFileSync(join(root, 'dasha-sitemap.xml'), 'utf8')
     .replace(/<!--[\s\S]*?-->\n?/g, '')
@@ -174,6 +178,8 @@ function build() {
   const socialCard = readFileSync(join(root, 'dasha-worker-assets/og/dasha-social-card.png'));
   const faucetStill = readFileSync(join(root, 'dasha-worker-assets/simp/photo/faucet.png'));
   const faucetStillSri = sri(faucetStill);
+  const danceSheet = readFileSync(join(root, 'dasha-worker-assets/client/dasha-sheet.webp'));
+  const danceLoop = readFileSync(join(root, 'dasha-worker-assets/client/dasha-loop.mp3'));
   const worker = readFileSync(join(root, 'dasha-lobby-worker.mjs'), 'utf8');
   const workerDependencies = [
     'dasha-lobby-mod.mjs',
@@ -186,6 +192,7 @@ function build() {
     'dasha-learn-bank.mjs',
     'dasha-faucet.mjs',
     'dasha-magnet-pages.mjs',
+    'dasha-award-chrome.mjs',
   ].map(file => readFileSync(join(root, file), 'utf8')).join('\n');
   const wrangler = readFileSync(join(root, 'dasha-lobby-wrangler.jsonc'), 'utf8');
   const hash = createHash('sha256')
@@ -218,11 +225,17 @@ function build() {
         '\n' +
         faucet +
         '\n' +
+        dance +
+        '\n' +
         lobbyPage +
         '\n' +
         socialCard.toString('base64') +
         '\n' +
-        faucetStill.toString('base64'),
+        faucetStill.toString('base64') +
+        '\n' +
+        danceSheet.toString('base64') +
+        '\n' +
+        danceLoop.toString('base64'),
     )
     .digest('hex')
     .slice(0, 16);
@@ -238,6 +251,8 @@ function build() {
     learnSri,
     faucetSri,
     faucetStillSri,
+    danceSri,
+    danceBytes: dance.length,
     learnBytes: learn.length,
     faucetBytes: faucet.length,
     robotsBytes: robots.length,
@@ -265,6 +280,8 @@ export const LEARN_CLIENT_SRI = ${JSON.stringify(learnSri)};
 export const FAUCET_CLIENT_JS = \`${escTemplate(faucet)}\`;
 export const FAUCET_CLIENT_SRI = ${JSON.stringify(faucetSri)};
 export const FAUCET_STILL_SRI = ${JSON.stringify(faucetStillSri)};
+export const DANCE_CLIENT_JS = \`${escTemplate(dance)}\`;
+export const DANCE_CLIENT_SRI = ${JSON.stringify(danceSri)};
 export const LOBBY_PAGE_HTML = \`${escTemplate(lobbyPage)}\`;
 export const ASSET_HASH = ${JSON.stringify(hash)};
 `,

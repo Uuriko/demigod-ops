@@ -439,7 +439,6 @@ export function quizResultForAttempt(attempt, { now = Date.now(), rng = Math.ran
     lane: attempt.lane,
     copy: quizCopy(title, attempt.lane),
     share: quizShareLine(title, attempt.lane),
-    disclaimer: 'Association is not endorsement.',
     completedAt: now,
   };
 }
@@ -881,7 +880,6 @@ export function meStatus(store, session) {
                 lane: profile.quiz.lane,
                 copy: profile.quiz.copy,
                 share: profile.quiz.share,
-                disclaimer: profile.quiz.disclaimer,
                 resultUrl: profile.quiz.resultUrl,
                 points: profile.quiz.points,
                 vibe: profile.quiz.vibe,

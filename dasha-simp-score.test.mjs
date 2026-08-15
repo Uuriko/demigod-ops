@@ -239,7 +239,8 @@ assert.equal(walkIds(2).ids[0], 'minsk-vegas');
 assert.ok(quizDone.quiz.copy.split(/[.!?]+\s/).filter(Boolean).length >= 2, 'result copy must be 2–3 sentences');
 assert.equal(quizDone.quiz.share, `${quizDone.quiz.title} · ${quizDone.quiz.lane}`);
 assert.doesNotMatch(quizDone.quiz.share, /\d+\/\d+/);
-assert.equal(quizDone.quiz.disclaimer, 'Association is not endorsement.');
+assert.equal('disclaimer' in quizDone.quiz, false);
+assert.equal(meStatus(quizDone.store, quizSession).board.quiz.disclaimer, undefined);
 assert.equal('mode' in quizDone.quiz, false);
 assert.equal(meStatus(quizDone.store, quizSession).board.quiz.share, quizDone.quiz.share);
 

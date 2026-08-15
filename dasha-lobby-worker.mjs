@@ -94,6 +94,8 @@ import {
   FAUCET_CLIENT_JS,
   FAUCET_CLIENT_SRI,
   FAUCET_STILL_SRI,
+  DANCE_CLIENT_JS,
+  DANCE_CLIENT_SRI,
   LOBBY_PAGE_HTML,
   ASSET_HASH,
 } from './dasha-lobby-static-gen.mjs';
@@ -104,6 +106,18 @@ import {
   isFaucetPagePath,
 } from './dasha-faucet.mjs';
 import { magnetPageHtml, magnetRoute } from './dasha-magnet-pages.mjs';
+import {
+  AWARD_CHROME_CSS,
+  AWARD_CROP_CSS,
+  AWARD_RAIL_CSS,
+  AWARD_SLIM_CSS,
+  BUY_HREF,
+  cropTicksHtml,
+  hamburgerHtml,
+  nextUpChipHtml,
+  roomRailHtml,
+  slimFooterHtml,
+} from './dasha-award-chrome.mjs';
 import {
   applyGraphHighlight,
   dropGraphHighlight,
@@ -196,13 +210,6 @@ export function stripHomeSimpBoard(html) {
 const HOME_SKIP_RE = /<a\b[^>]*(?:\bclass=["'][^"']*\bskip(?:-link)?\b[^"']*["']|>\s*Skip to )[^>]*>[\s\S]*?<\/a>/gi;
 const HOME_HERO_RE = /<main\b|<header\b[^>]*\bdasha-hero\b|<header\b|<section\b/i;
 const LOBBY_CHAT = 'https://www.getdasha.com/lobby';
-const HOME_BAND = "IT'S TIME $DASHA · HOW U CRYING AT THE CASINO AND U CAN'T EVEN GET IN · GO AHEAD AND DOUBT ME SEE WHAT HAPPENS · YOU'RE NOT GONNA BELIEVE THIS · WELL IM STILL ALIVE · THEY ARE ANGELS ACTUALLY · ";
-const HOME_POSTERS = [
-  ['How u crying at the casino and u can’t even get in', '/studio#look=poster&format=square&line=How%20u%20crying%20at%20the%20casino%20and%20u%20can%E2%80%99t%20even%20get%20in&src=home'],
-  ['It’s time $dasha', '/studio#look=ticket&format=story&line=It%E2%80%99s%20time%20%24dasha&src=home'],
-  ['Well im still alive', '/studio#look=signal&format=banner&line=Well%20im%20still%20alive&src=home'],
-  ['Graph', '/graph'],
-];
 function simpBoardClientScript() {
   return `<script>(function(){var s=document.createElement('script');s.src='https://lobby.getdasha.com/client/simp-board.js';s.integrity='${SIMP_BOARD_SRI}';s.crossOrigin='anonymous';s.defer=true;document.head.appendChild(s)})();</script>`;
 }
@@ -265,31 +272,20 @@ function stripHomeAtmosphere(html) {
         : rule.replace(/background(?:-image)?\s*:[^;}]+;?/, 'background:#070608;'));
 }
 
-function homeFirstViewportHtml(sri) {
-  const band = escapeHtml(HOME_BAND);
-  const line = escapeHtml("IT'S TIME $DASHA");
-  const assoc = escapeHtml('References describe internet culture. Not endorsement.');
-  const posters = HOME_POSTERS.map(([label, href]) =>
-    `<a href="${escapeHtml(href)}">${escapeHtml(label)}</a>`).join('');
-  return `<section id="dasha-lock" aria-label="$DASHA"><style>html,body,body.body,.dasha-root,.dasha{background:#070608!important;background-image:none!important}#dasha-home-cta,.dasha-hero,main.dasha>.nav{display:none!important}#dasha-home h1,#dasha-lock h1{color:#f4eddb!important}#dasha-lock{box-sizing:border-box;margin:0;padding:0;background:#070608;color:#f4eddb;font:16px/1.45 Arial,Helvetica,sans-serif}#dasha-lock .dasha-band{overflow:hidden;background:#dfff00;color:#070608}#dasha-lock .dasha-band-track{display:inline-block;white-space:nowrap;padding:.45rem 0;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;letter-spacing:.08em;text-transform:uppercase;animation:dasha-band 28s linear infinite}#dasha-lock .dasha-band:hover .dasha-band-track{animation-play-state:paused}@keyframes dasha-band{to{transform:translateX(-50%)}}#dasha-lock header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;padding:.6rem 1rem}#dasha-lock .dasha-brand{display:inline-flex;align-items:center;gap:.5rem;color:#f4eddb;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:1.25rem;text-decoration:none;text-transform:uppercase}#dasha-lock .dasha-brand img{width:28px;height:28px}#dasha-lock nav{display:flex;flex-wrap:wrap;gap:.5rem 1rem}#dasha-lock nav a{display:inline-flex;align-items:center;min-height:48px;color:#f4eddb;font-weight:900;text-transform:uppercase;text-decoration:none}#dasha-lock h1{margin:0 1rem .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(2rem,5vw,3.25rem);line-height:.9;text-transform:uppercase}#dasha-lock .dasha-quiz{margin:0 1rem .5rem;max-height:18rem;overflow:auto}#dasha-lock .dasha-posters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem;margin:0 1rem .5rem}#dasha-lock .dasha-posters a{display:flex;align-items:flex-end;min-height:6.5rem;max-height:8.5rem;padding:.6rem;background:#dfff00;color:#070608;box-shadow:4px 4px 0 #ff3b81;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-transform:uppercase;text-decoration:none;font-size:.8rem;line-height:1.05}#dasha-lock .dasha-assoc{margin:0 1rem .75rem;font-size:.85rem}#dasha-lock .dasha-x-wrap{margin:.15rem 1rem .85rem}#dasha-lock a.dasha-x{display:inline-flex;align-items:center;min-height:52px;padding:0 1.15rem;background:#dfff00;color:#070608;box-shadow:4px 4px 0 #ff3b81;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(1.15rem,3vw,1.65rem);letter-spacing:.04em;text-transform:uppercase;text-decoration:none}#dasha-lock nav a[href*="dash_eats"]{color:#dfff00}@media(prefers-reduced-motion:reduce){#dasha-lock .dasha-band-track{animation:none}}@media(max-width:640px){#dasha-lock .dasha-posters{grid-template-columns:1fr}}</style><div class="dasha-band" aria-hidden="true"><div class="dasha-band-track">${band}${band}</div></div><header><a class="dasha-brand" href="/">$DASHA <img src="/favicon.svg" alt="" width="36" height="36"></a><nav aria-label="Main"><a href="/studio">Studio</a><a href="#simp">Simp</a><a href="/graph">Graph</a><a href="/verse">Verse</a><a href="/bounties">Bounties</a><a href="/how-to-buy">How to buy</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></nav></header><h1>${line}</h1><p class="dasha-x-wrap"><a class="dasha-x" href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats ↗</a></p><div id="simp"><div id="dasha-simp-board" class="dasha-quiz" data-simp-api="https://lobby.getdasha.com"><noscript>Answer in the browser — questions are not in this HTML.</noscript></div></div><div class="dasha-posters" aria-label="Studio and Graph">${posters}</div><p class="dasha-assoc">${assoc}</p><script src="https://lobby.getdasha.com/client/simp-board.js" integrity="${sri}" crossorigin="anonymous" defer></script></section>`;
-}
-
 const HOME_CULTURE_NAV = '<a href="/studio">Studio</a><a href="/simp">Simp</a><a href="/graph">Graph</a><a href="/verse">Verse</a><a href="/bounties">Bounties</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a>';
 
 /** Hidden Webflow `main.dasha > nav` — same labels as lock nav after #49. No Buy. */
 function alignHomeLowerNav(html) {
-  return String(html || '').replace(/<nav\b[^>]*>[\s\S]*?<\/nav>/gi, (nav, offset, page) => {
-    const before = page.slice(0, offset);
-    const lockAt = Math.max(before.lastIndexOf('id="dasha-lock"'), before.lastIndexOf("id='dasha-lock'"));
-    if (lockAt >= 0 && !/<\/section>/i.test(page.slice(lockAt, offset))) return nav;
+  return String(html || '').replace(/<nav\b[^>]*>[\s\S]*?<\/nav>/gi, (nav) => {
+    if (!/\bclass=["'][^"']*\b(?:nav|dasha-nav)\b/.test(nav)) return nav;
     if (!/\/studio|\/lobby|\/bounties|#token|buy-dasha/i.test(nav)) return nav;
     return nav.replace(/>[\s\S]*<\/nav>/i, `>${HOME_CULTURE_NAV}</nav>`);
   });
 }
 
-const HOME_BUY_HREF = `https://jup.ag/swap?sell=${WSOL}&buy=${MINT}`;
+const HOME_BUY_HREF = BUY_HREF;
 const HOME_BUY_PILL = `<a class="pill primary buy-dasha" href="${HOME_BUY_HREF}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a>`;
-const HOME_CALM_CSS = '.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),#dasha-lock .dasha-band,#dasha-lock header,#dasha-lock .dasha-posters,#dasha-lock .dasha-x-wrap,#dasha-lock .dasha-assoc{display:none!important}';
+const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer{display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + AWARD_SLIM_CSS + AWARD_CROP_CSS;
 
 function injectHomeCalmCss(html) {
   const page = String(html || '');
@@ -341,17 +337,32 @@ function ensureHomeSimpMount(html, sri = SIMP_BOARD_SRI) {
   return html + mount;
 }
 
-/** www/apex / only: first paint is headline + Buy $dasha. Live `#dasha-home` is a wrapper, not this rewrite. */
+/** www/apex / only: first paint is headline + Buy $dasha. Never emit #dasha-lock. */
 export function rewriteHomeFirstViewport(html, sri = SIMP_BOARD_SRI) {
   let page = demoteHomeNavMint(stripHomeForumHrefs(stripHomeAtmosphere(stripHomeWebFonts(stripHomeCtaDecoy(String(html || ''))))));
+  page = page.replace(/<section\b[^>]*\bid=["']dasha-lock["'][^>]*>[\s\S]*?<\/section>/gi, '');
   page = injectHomeCalmCss(page);
-  if (!/id=["']dasha-lock["']/i.test(page) && !/<header\b[^>]*\bdasha-hero\b/i.test(page)) {
-    const at = homeFirstInsertAt(page);
-    page = page.slice(0, at) + homeFirstViewportHtml(sri) + page.slice(at);
-  }
   page = ensureHomeBuyPill(page);
-  page = ensureHomeSimpMount(page, sri);
+  if (/<header\b[^>]*\bdasha-hero\b/i.test(page)) page = ensureHomeSimpMount(page, sri);
+  page = ensureHomeAwardChrome(page);
   return rewriteLeftoverLobbyHrefs(alignHomeLowerNav(page));
+}
+
+function ensureHomeAwardChrome(html) {
+  let page = String(html || '');
+  if (!/class=["'][^"']*\bdasha-slim\b/.test(page)) {
+    const at = homeFirstInsertAt(page);
+    page = page.slice(0, at) + hamburgerHtml({ buy: true }) + page.slice(at);
+  }
+  if (!/class=["']dasha-crop["']/.test(page)) {
+    const at = homeFirstInsertAt(page);
+    page = page.slice(0, at) + cropTicksHtml() + page.slice(at);
+  }
+  if (!/class=["']dasha-foot["']/.test(page)) {
+    const foot = slimFooterHtml().replace('<footer>', '<footer class="dasha-foot">');
+    page = /<\/body>/i.test(page) ? page.replace(/<\/body>/i, `${foot}</body>`) : page + foot;
+  }
+  return page;
 }
 
 /** /lobby is chat only. Quiz lives on / #simp and /simp. Drops leftover mount/style/script. Idempotent. */
@@ -464,13 +475,13 @@ function bountiesBoardHtml(feed) {
     : '<p>No open bounties</p>';
   const payoutNote = unpaid ? '<p>Payouts are not configured yet.</p>' : '';
   const buy = `https://jup.ag/swap?sell=${WSOL}&buy=${MINT}`;
-  return `<section id="dasha-bounties" aria-label="Bounties"><style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}#dasha-bounties{box-sizing:border-box;min-height:100vh;margin:0;padding:0 0 2rem;background:var(--ink);color:var(--paper);font:16px/1.45 Arial,Helvetica,sans-serif}#dasha-bounties header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;padding:.6rem 1rem}#dasha-bounties .dasha-brand{display:inline-flex;align-items:center;gap:.5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:1.25rem;text-decoration:none;text-transform:uppercase}#dasha-bounties .dasha-brand img{width:28px;height:28px}#dasha-bounties nav{display:flex;flex-wrap:wrap;gap:.5rem 1rem}#dasha-bounties nav a{display:inline-flex;align-items:center;min-height:48px;color:var(--paper);font-weight:900;text-transform:uppercase;text-decoration:none}#dasha-bounties h1,#dasha-bounties h2{margin:1.25rem 1rem .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-transform:uppercase}#dasha-bounties h1{margin-top:.5rem;color:var(--paper);font-size:clamp(2rem,5vw,3.25rem);line-height:.9}#dasha-bounties p{margin:.5rem 1rem}#dasha-bounties a{color:var(--acid)}#dasha-bounties a.go,#dasha-bounties button{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font:inherit;font-weight:900;text-decoration:none;border:0;box-shadow:4px 4px 0 var(--hot)}#dasha-bounties .amt{color:var(--hot)}#dasha-bounties ul{list-style:none;margin:0 1rem;padding:0}#dasha-bounties li{border-top:1px solid var(--acid);padding:.75rem 0}#dasha-bounties li:first-child{border-top:0}#dasha-bounties li p{margin:.25rem 0}#dasha-bounties form{margin:0 1rem}#dasha-bounties label{display:block}#dasha-bounties input,#dasha-bounties textarea{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}#dasha-bounties textarea{min-height:6rem}#dasha-bounties footer{margin:2rem 1rem 0;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-bounties footer code{color:var(--paper);word-break:break-all}</style><header><a class="dasha-brand" href="/">$DASHA <img src="/favicon.svg" alt="" width="36" height="36"></a><nav aria-label="Main"><a href="/studio">Studio</a><a href="/simp">Simp</a><a href="/graph">Graph</a><a href="/chess">Chess</a><a href="/bounties">Bounties</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></nav></header><h1>Bounties</h1><p>Post a project. Other people run spare compute on it.</p><p><a class="go" href="#dasha-bounty-post">Post a project</a></p><p><a class="go" href="mailto:potter@trydemigod.com?subject=I%20have%20excess%20compute">I have excess compute</a></p><h2 id="dasha-bounty-post">Post</h2><form action="mailto:potter@trydemigod.com" method="get"><input type="hidden" name="subject" value="Dasha bounty"><p><label>Project name <input name="name" required></label></p><p><label>What to run <textarea name="body" required></textarea></label></p><p><label>Contact <input name="contact"></label> <a href="/privacy">Privacy</a></p><p><button type="submit">Post a project</button></p></form><p>This sends a request. It is not a live listing.</p><h2>Work</h2>${payoutNote}${work}<footer id="token"><p><code>${MINT}</code> · <a href="${buy}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a></p></footer>${WORKER_SITE_FOOTER}</section>`;
+  return `<section id="dasha-bounties" aria-label="Bounties"><style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}${AWARD_CHROME_CSS}#dasha-bounties{box-sizing:border-box;min-height:100vh;margin:0;padding:0 0 2rem;background:var(--ink);color:var(--paper);font:16px/1.45 Arial,Helvetica,sans-serif}#dasha-bounties h1,#dasha-bounties h2{margin:1.25rem 1rem .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-transform:uppercase}#dasha-bounties h1{margin-top:.5rem;color:var(--paper);font-size:clamp(2rem,5vw,3.25rem);line-height:.9}#dasha-bounties p{margin:.5rem 1rem}#dasha-bounties a{color:var(--acid)}#dasha-bounties a.go,#dasha-bounties button{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font:inherit;font-weight:900;text-decoration:none;border:0;box-shadow:4px 4px 0 var(--hot)}#dasha-bounties .amt{color:var(--hot)}#dasha-bounties ul{list-style:none;margin:0 1rem;padding:0}#dasha-bounties li{border-top:1px solid var(--acid);padding:.75rem 0}#dasha-bounties li:first-child{border-top:0}#dasha-bounties li p{margin:.25rem 0}#dasha-bounties form{margin:0 1rem}#dasha-bounties label{display:block}#dasha-bounties input,#dasha-bounties textarea{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}#dasha-bounties textarea{min-height:6rem}#dasha-bounties footer{margin:2rem 1rem 0;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-bounties footer code{color:var(--paper);word-break:break-all}</style>${cropTicksHtml()}${hamburgerHtml({ path: '/bounties' })}<h1>Bounties</h1><p>Post a project. Other people run spare compute on it.</p><p><a class="go" href="#dasha-bounty-post">Post a project</a></p><p><a class="go" href="mailto:potter@trydemigod.com?subject=I%20have%20excess%20compute">I have excess compute</a></p><h2 id="dasha-bounty-post">Post</h2><form action="mailto:potter@trydemigod.com" method="get"><input type="hidden" name="subject" value="Dasha bounty"><p><label>Project name <input name="name" required></label></p><p><label>What to run <textarea name="body" required></textarea></label></p><p><label>Contact <input name="contact"></label> <a href="/privacy">Privacy</a></p><p><button type="submit">Post a project</button></p></form><p>This sends a request. It is not a live listing.</p><h2>Work</h2>${payoutNote}${work}<footer id="token"><p><code>${MINT}</code> · <a href="${buy}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a></p></footer>${siteFooter('/bounties')}</section>`;
 }
 
 /** Worker-owned first HTML for /bounties. Tokens + Arial only. No Webflow first paint. */
 export function bountiesPageHtml(feed) {
-  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bounties</title>
-<body>${bountiesBoardHtml(feed)}</body></html>`;
+  return injectDanceDock(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bounties</title>
+<body>${bountiesBoardHtml(feed)}</body></html>`);
 }
 
 async function bountiesPageResponse(request) {
@@ -500,11 +511,8 @@ export function injectBountiesBoard(html, feed) {
 }
 
 const PRIVACY_A = '<a href="/privacy">Privacy</a>';
-const FOOTER_LINKS = '<a href="/studio">Studio</a> · <a href="/lobby">Lobby</a> · <a href="/simp">Simp</a> · <a href="/learn">Learn</a> · <a href="/faucet">Faucet</a> · <a href="/airdrop">Airdrop</a> · <a href="/earn">Earn</a> · <a href="/graph">Graph</a> · <a href="/chess">Chess</a> · <a href="/verse">Verse</a> · <a href="/bounties">Bounties</a> · <a href="/how-to-buy">How to buy</a> · <a href="/privacy">Privacy</a>';
-function siteFooter(current = '') {
-  let links = FOOTER_LINKS;
-  if (current) links = links.replace(`<a href="${current}">`, `<a href="${current}" aria-current="page">`);
-  return `<footer><style>footer a{display:inline-flex;align-items:center;min-height:48px;min-width:48px;padding:0 .4rem}</style><p>${links}</p></footer>`;
+function siteFooter(_current = '') {
+  return slimFooterHtml();
 }
 const WORKER_SITE_FOOTER = siteFooter();
 
@@ -515,6 +523,8 @@ export function ensurePrivacyLink(html) {
 
   const footer = page.match(/<footer\b[^>]*>[\s\S]*?<p\b[^>]*>[\s\S]*?<\/p>/i);
   if (footer && /<a\b/i.test(footer[0])) {
+    const n = (footer[0].match(/<a\b/gi) || []).length;
+    if (n <= 3 && /\$dasha/i.test(footer[0]) && /buy-dasha|jup\.ag/i.test(footer[0])) return page;
     let next = footer[0];
     const howTo = next.match(/<a\b[^>]*href=["']\/how-to-buy\/?["'][^>]*>[\s\S]*?<\/a>/i);
     if (howTo) next = next.replace(howTo[0], `${howTo[0]} · ${PRIVACY_A}`);
@@ -546,10 +556,27 @@ export function ensurePrivacyLink(html) {
   return page;
 }
 
-const HOWTO_PAGE_HTML = ensurePrivacyLink(HOWTO_HTML);
-const CHESS_PAGE = ensurePrivacyLink(CHESS_PAGE_HTML);
+/** Bottom dancer after first paint. Hidden on /graph. */
+export function danceDockPath(pathname) {
+  const path = String(pathname || '').replace(/\/$/, '') || '/';
+  if (path === '/graph') return false;
+  if (path.startsWith('/learn/')) return true;
+  return path === '/' || path === '/lobby' || path === '/studio' || path === '/dasha'
+    || path === '/simp' || path === '/chess' || path === '/verse' || path === '/how-to-buy'
+    || path === '/bounties' || path === '/learn' || path === '/faucet';
+}
+
+export function injectDanceDock(html) {
+  const page = String(html || '');
+  if (/dasha-dance\.js/i.test(page)) return page;
+  const boot = `<script>(function(){function go(){if(document.getElementById('dasha-dance-js'))return;var s=document.createElement('script');s.id='dasha-dance-js';s.src='https://lobby.getdasha.com/client/dasha-dance.js';s.integrity='${DANCE_CLIENT_SRI}';s.crossOrigin='anonymous';document.head.appendChild(s)}if(window.requestIdleCallback)requestIdleCallback(go,{timeout:400});else setTimeout(go,400)})();</script>`;
+  return /<\/body>/i.test(page) ? page.replace(/<\/body>/i, `${boot}</body>`) : page + boot;
+}
+
+const HOWTO_PAGE_HTML = injectDanceDock(ensurePrivacyLink(HOWTO_HTML));
+const CHESS_PAGE = injectDanceDock(ensurePrivacyLink(CHESS_PAGE_HTML));
 const GRAPH_PAGE = GRAPH_PAGE_HTML;
-const LOBBY_PAGE = ensurePrivacyLink(stripLobbySimpQuiz(LOBBY_PAGE_HTML));
+const LOBBY_PAGE = injectDanceDock(ensurePrivacyLink(stripLobbySimpQuiz(LOBBY_PAGE_HTML)));
 
 /** Replace leftover Webflow SRI on the worker-served studio.js tag. Other pins stay. */
 /** Live Studio nav CTA currently dumps people under the home lock at /#token. */
@@ -867,10 +894,12 @@ function send(ws, obj) {
   }
 }
 
-function htmlPage(title, body) {
+function htmlPage(title, body, { chrome = false, path = '/privacy' } = {}) {
+  const extra = chrome ? AWARD_CHROME_CSS : '';
+  const lead = chrome ? `${cropTicksHtml()}${hamburgerHtml({ path })}` : '';
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
-<style>body{font:16px/1.45 Arial,Helvetica,sans-serif;background:#070608;color:#f4eddb;max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:#dfff00}code{color:#c8b6ff}</style>
-<body>${body}</body></html>`;
+<style>body{font:16px/1.45 Arial,Helvetica,sans-serif;background:#070608;color:#f4eddb;max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:#dfff00}code{color:#f4eddb}${extra}</style>
+<body>${lead}${body}</body></html>`;
 }
 
 const SIMP_WWW = 'https://www.getdasha.com/simp';
@@ -889,10 +918,11 @@ export function simpQuizFirstPaintHtml() {
 /** Worker-owned first HTML for /simp. Quiz is the page. Tokens only. No handle list. */
 export function simpPageHtml() {
   const perryDisplay = escapeHtml(String(publicPerryRow().display || '@PerryALPHA').slice(0, 20));
-  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Simp</title>
-<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}nav{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px}nav a{color:var(--paper);text-decoration:none;font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:13px;min-height:44px;display:inline-flex;align-items:center}h1{margin:0 0 .5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(3rem,12vw,6rem);line-height:.9}a{color:var(--acid)}.dasha-go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font-weight:900;text-decoration:none}#dasha-quiz,.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-quiz .dasha-go{margin:0 .5rem .75rem 0}#dasha-quiz ul{margin:.25rem 0 1rem;padding-left:1.2rem}</style>
+  return injectDanceDock(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Simp</title>
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}${AWARD_CHROME_CSS}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}h1{margin:0 0 .5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(3rem,12vw,6rem);line-height:.9}a{color:var(--acid)}.dasha-go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font-weight:900;text-decoration:none}#dasha-quiz,.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-quiz .dasha-go{margin:0 .5rem .75rem 0}#dasha-quiz ul{margin:.25rem 0 1rem;padding-left:1.2rem}</style>
 <body>
-<nav aria-label="Dasha"><a href="/">$dasha</a><a href="/lobby">Lobby</a><a href="/studio">Studio</a><a href="/chess">Chess</a><a href="/graph">Graph</a><a href="/how-to-buy">Buy</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></nav>
+${cropTicksHtml()}
+${hamburgerHtml({ path: '/simp' })}
 <h1>Simp</h1>
 <p>How big of a Dasha simp are you?</p>
 <p>Take the quiz. Ranked by lore and contributions.</p>
@@ -901,8 +931,8 @@ export function simpPageHtml() {
 <p>${perryDisplay} · editorial #1 · not measured</p>
 <div id="dasha-quiz" class="dasha-quiz"><div id="dasha-simp-board">${simpQuizFirstPaintHtml()}</div></div>
 ${simpBoardClientScript()}
-${WORKER_SITE_FOOTER}
-</body></html>`;
+${siteFooter('/simp')}
+</body></html>`);
 }
 
 async function simpPageResponse(request) {
@@ -1030,12 +1060,14 @@ export function learnPageHtml({ track = '', mod = '' } = {}) {
     : `<noscript>
 <p>Needs JavaScript.</p>
 </noscript>`;
-  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} — getdasha.com</title>
+  return injectDanceDock(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} — getdasha.com</title>
 <link rel="canonical" href="${canonical}">
 <meta name="description" content="Learn">
 <meta name="theme-color" content="#070608">
-<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}h1{margin:0 0 .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(2.6rem,10vw,5rem);line-height:.9;text-transform:uppercase}a{color:var(--acid)}.learn-go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-decoration:none;text-transform:uppercase}#dasha-learn{margin-top:1rem}.learn-ca{display:block;margin:12px 0;padding:12px;border:1px solid rgba(244,237,219,.18);font-family:ui-monospace,Menlo,Consolas,monospace;word-break:break-all;user-select:all}footer{margin-top:36px;color:rgba(244,237,219,.62)}footer a{color:var(--acid);display:inline-flex;align-items:center;min-height:48px;min-width:48px;padding:0 .4rem}@media(prefers-reduced-motion:reduce)*{transition:none!important;animation:none!important}</style>
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}${AWARD_CHROME_CSS}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}h1{margin:0 0 .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(2.6rem,10vw,5rem);line-height:.9;text-transform:uppercase}a{color:var(--acid)}.learn-go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-decoration:none;text-transform:uppercase}#dasha-learn{margin-top:1rem}.learn-ca{display:block;margin:12px 0;padding:12px;border:1px solid rgba(244,237,219,.18);font-family:ui-monospace,Menlo,Consolas,monospace;word-break:break-all;user-select:all}footer{margin-top:36px;color:rgba(244,237,219,.62)}footer a{color:var(--acid);display:inline-flex;align-items:center;min-height:48px;min-width:48px;padding:0 .4rem}@media(prefers-reduced-motion:reduce)*{transition:none!important;animation:none!important}</style>
 <body>
+${cropTicksHtml()}
+${hamburgerHtml({ path: '/learn' })}
 ${hubChrome}
 ${hop}
 <div id="dasha-learn" data-track="${escapeHtml(track)}" data-mod="${escapeHtml(mod)}"></div>
@@ -1043,7 +1075,7 @@ ${hop}
 ${noscript}
 ${learnClientScript()}
 ${siteFooter('/learn')}
-</body></html>`;
+</body></html>`);
 }
 
 function faucetClientScript() {
@@ -1053,19 +1085,21 @@ function faucetClientScript() {
 /** Worker-owned /faucet. Picture, dest, send. */
 export function faucetPageHtml() {
   const still = 'https://lobby.getdasha.com/client/faucet.png';
-  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Faucet — getdasha.com</title>
+  return injectDanceDock(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Faucet — getdasha.com</title>
 <link rel="canonical" href="https://www.getdasha.com/faucet">
 <meta name="description" content="Faucet">
 <meta name="theme-color" content="#070608">
-<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}a{color:var(--acid)}.faucet-hero{display:block;width:min(100%,720px);height:auto;background:#070608}footer{margin-top:36px;color:rgba(244,237,219,.62)}footer a{color:var(--acid);display:inline-flex;align-items:center;min-height:48px;min-width:48px;padding:0 .4rem;font-family:"Arial Black",Helvetica,Arial,sans-serif}@media(prefers-reduced-motion:reduce)*{transition:none!important;animation:none!important}</style>
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}${AWARD_CHROME_CSS}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}a{color:var(--acid)}.faucet-hero{display:block;width:min(100%,720px);height:auto;background:#070608}footer{margin-top:36px;color:rgba(244,237,219,.62)}footer a{color:var(--acid);display:inline-flex;align-items:center;min-height:48px;min-width:48px;padding:0 .4rem;font-family:"Arial Black",Helvetica,Arial,sans-serif}@media(prefers-reduced-motion:reduce)*{transition:none!important;animation:none!important}</style>
 <body>
+${cropTicksHtml()}
+${hamburgerHtml({ path: '/faucet' })}
 <div id="dasha-faucet" data-faucet-still="${still}" data-faucet-still-sri="${FAUCET_STILL_SRI}"></div>
 <noscript>
 <img class="faucet-hero" src="${still}" integrity="${FAUCET_STILL_SRI}" crossorigin="anonymous" alt="">
 </noscript>
 ${faucetClientScript()}
 ${siteFooter('/faucet')}
-</body></html>`;
+</body></html>`);
 }
 
 function magnetPageResponse(request, route) {
@@ -1163,12 +1197,12 @@ export function versePageHtml({ status = '', kind = '' } = {}) {
   const notice = status
     ? `<p class="status" role="status"${kind ? ` data-kind="${escapeHtml(kind)}"` : ''}>${escapeHtml(status)}</p>`
     : '';
-  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashaverse — getdasha.com</title>
+  return injectDanceDock(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashaverse — getdasha.com</title>
 <meta name="description" content="Other Dasha sites. Ours is the token.">
 <link rel="canonical" href="${VERSE_WWW}">
-<style>:root{color-scheme:dark;--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--line:rgba(244,237,219,.18);--muted:rgba(244,237,219,.62)}*{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--paper);font:16px/1.55 Arial,Helvetica,sans-serif}.wrap{width:min(720px,calc(100% - 32px));margin:0 auto;padding:28px 0 64px}nav{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px}nav a{color:var(--paper);text-decoration:none;font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:13px;min-height:44px;display:inline-flex;align-items:center}h1{margin:0 0 12px;font-size:clamp(2.4rem,8vw,3.6rem);line-height:.9;letter-spacing:-.05em;text-transform:uppercase;font-weight:950}.lede{color:var(--muted);margin:0 0 22px;max-width:48ch}h2{margin:0 0 8px;font-size:1.15rem;text-transform:uppercase}.site{border-top:1px solid var(--line);padding:18px 0}.host{margin:.4rem 0;color:var(--muted);font-size:.9rem}.btn,button{appearance:none;border:0;min-height:48px;padding:12px 18px;font:inherit;font-weight:900;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;background:var(--acid);color:var(--ink);text-transform:uppercase;letter-spacing:.05em;box-shadow:3px 3px 0 var(--hot)}.honest{color:var(--muted);font-size:.9rem}form{margin:28px 0 0;padding-top:22px;border-top:1px solid var(--line)}label{display:block;font-weight:800}input{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}.status{font-weight:800}.status[data-kind=bad]{color:var(--hot)}footer{margin-top:36px;color:var(--muted);font-size:.9rem;border-top:1px solid var(--line);padding-top:18px}footer a,a{color:var(--acid)}:focus-visible{outline:3px solid var(--acid);outline-offset:3px}</style>
-<body><main class="wrap">
-<nav aria-label="Dasha"><a href="/">$dasha</a><a href="/simp">Simp</a><a href="/graph">Graph</a><a href="/chess">Chess</a><a href="/bounties">Bounties</a></nav>
+<style>:root{color-scheme:dark;--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--line:rgba(244,237,219,.18);--muted:rgba(244,237,219,.62)}*{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--paper);font:16px/1.55 Arial,Helvetica,sans-serif}${AWARD_CHROME_CSS}${AWARD_RAIL_CSS}.wrap{width:min(720px,calc(100% - 32px));margin:0 auto;padding:28px 0 64px}h1{margin:0 0 12px;font-size:clamp(2.4rem,8vw,3.6rem);line-height:.9;letter-spacing:-.05em;text-transform:uppercase;font-weight:950;font-family:"Arial Black",Arial,Helvetica,sans-serif}.lede{color:var(--muted);margin:0 0 22px;max-width:48ch}h2{margin:0 0 8px;font-size:1.15rem;text-transform:uppercase}.site{border-top:1px solid var(--line);padding:18px 0}.host{margin:.4rem 0;color:var(--muted);font-size:.9rem}.btn,button{appearance:none;border:0;min-height:48px;padding:12px 18px;font:inherit;font-weight:900;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;background:var(--acid);color:var(--ink);text-transform:uppercase;letter-spacing:.05em;box-shadow:3px 3px 0 var(--hot)}.honest{color:var(--muted);font-size:.9rem}form{margin:28px 0 0;padding-top:22px;border-top:1px solid var(--line)}label{display:block;font-weight:800}input{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}.status{font-weight:800}.status[data-kind=bad]{color:var(--hot)}footer{margin-top:36px;color:var(--muted);font-size:.9rem;border-top:1px solid var(--line);padding-top:18px}footer a,a{color:var(--acid)}:focus-visible{outline:3px solid var(--acid);outline-offset:3px}</style>
+<body>${cropTicksHtml()}${hamburgerHtml({ path: '/verse' })}<main class="wrap">
+${nextUpChipHtml()}
 <h1>Dashaverse</h1>
 <p class="lede">Other Dasha sites. Ours is the token. Send the next one.</p>
 ${cards}
@@ -1183,8 +1217,8 @@ ${notice}
 <p><button type="submit">Send it</button></p>
 </form>
 </section>
-<footer><p><a href="/">Home</a> · <a href="/simp">Simp</a> · <a href="/graph">Graph</a> · <a href="/chess">Chess</a> · <a href="/bounties">Bounties</a> · <a href="/privacy">Privacy</a></p></footer>
-</main></body></html>`;
+${siteFooter('/verse')}
+</main></body></html>`);
 }
 
 function verseWantsJson(request) {
@@ -1262,12 +1296,11 @@ const PRIVACY_HTML = htmlPage('Dasha privacy', `<h1>Privacy</h1>
 <h2>Control and deletion</h2>
 <p>Unlink clears the signed browser session. Leave Board removes your profile, claims, active quiz state, current linked result, holder challenge, chess rating, games and tournaments involving you, and your rows from retained season snapshots. Anonymous aggregate counts remain.</p>
 <p>For access or deletion requests, email <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>. Do not include wallet keys or seed phrases.</p>
-${WORKER_SITE_FOOTER}`);
+${WORKER_SITE_FOOTER}`, { chrome: true, path: '/privacy' });
 
 const NOT_FOUND_HTML = htmlPage('Page not found — $dasha', `<h1>Page not found</h1>
 <p>This path is not a Dasha page.</p>
-<p><a href="https://www.getdasha.com/">Home</a> · <a href="https://www.getdasha.com/lobby">Lobby</a> · <a href="https://www.getdasha.com/simp">Simp</a> · <a href="https://www.getdasha.com/verse">Verse</a> · <a href="https://www.getdasha.com/how-to-buy">How to buy</a></p>
-${WORKER_SITE_FOOTER}`);
+${WORKER_SITE_FOOTER}`, { chrome: true, path: '/' });
 
 // Existing cherries mark (studio/assets/favicon.svg). Do not restyle.
 const DASHA_FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Dasha">
@@ -3567,6 +3600,12 @@ async function productEdge(request, url, env) {
   if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname.startsWith('/simp/photo/')) {
     return staticAssetResponse(request, env);
   }
+  if (
+    (request.method === 'GET' || request.method === 'HEAD') &&
+    (url.pathname === '/client/dasha-loop.mp3' || url.pathname === '/client/dasha-sheet.webp')
+  ) {
+    return staticAssetResponse(request, env);
+  }
   if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname.startsWith('/simp/card/')) {
     return Response.redirect(`https://lobby.getdasha.com${url.pathname}${url.search}`, 308);
   }
@@ -3758,6 +3797,7 @@ async function productEdge(request, url, env) {
   html = rewriteLobbyScriptIntegrity(html);
   html = rewriteStaleCdnFavicon(html);
   if (isExactPath(url.pathname, '/studio')) html = rewriteStudioBuyVerifyHref(html);
+  if (danceDockPath(url.pathname)) html = injectDanceDock(html);
   if (stripped) {
     // Also drop any leftover plain mentions in head comments (defensive).
     html = html.replace(/https?:\/\/x\.com\/potterlab/gi, 'https://www.getdasha.com/');
@@ -3928,6 +3968,18 @@ export default {
       url.pathname === '/client/faucet.png'
     ) {
       return staticAssetResponse(new Request(new URL('/simp/photo/faucet.png', request.url), request), env);
+    }
+    if (
+      (request.method === 'GET' || request.method === 'HEAD') &&
+      url.pathname === '/client/dasha-dance.js'
+    ) {
+      return jsAsset(DANCE_CLIENT_JS, allowedOrigin || '*', { headOnly: request.method === 'HEAD' });
+    }
+    if (
+      (request.method === 'GET' || request.method === 'HEAD') &&
+      (url.pathname === '/client/dasha-loop.mp3' || url.pathname === '/client/dasha-sheet.webp')
+    ) {
+      return staticAssetResponse(request, env);
     }
 
     // SEO + howto: also routed on www/apex getdasha.com (see dasha-lobby-wrangler.jsonc).
