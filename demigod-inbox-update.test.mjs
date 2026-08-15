@@ -4,8 +4,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const lib = new URL('./demigod-submissions-lib.mjs', import.meta.url).href;
+const inboxCli = fileURLToPath(new URL('./demigod-submissions-inbox.mjs', import.meta.url));
 
 function runWriter(inboxPath, id, holdMs) {
   const source = `
@@ -55,7 +57,7 @@ test('candidate-observed availability reconfirmation refreshes intent without bo
       'resume-url': 'https://example.com/resume.pdf',
     },
   }] }));
-  const run = (...args) => spawnSync(process.execPath, ['/home/potter/demigod-submissions-inbox.mjs', ...args], {
+  const run = (...args) => spawnSync(process.execPath, [inboxCli, ...args], {
     encoding: 'utf8',
     env: { ...process.env, DEMIGOD_INBOX_PATH: inboxPath, DEMIGOD_TEST_SCOPE: `availability-${process.pid}` },
   });
@@ -89,7 +91,7 @@ test('founder-observed open-role confirmation refreshes the private receipt and 
       'interview-process': 'Founder chat → final', 'contact-email': 'founder@acme.example',
     },
   }] }));
-  const run = (...args) => spawnSync(process.execPath, ['/home/potter/demigod-submissions-inbox.mjs', ...args], {
+  const run = (...args) => spawnSync(process.execPath, [inboxCli, ...args], {
     encoding: 'utf8',
     env: { ...process.env, DEMIGOD_INBOX_PATH: inboxPath, DEMIGOD_TEST_SCOPE: scope, DEMIGOD_ALLOW_REAL_ROLES: '1' },
   });
@@ -129,7 +131,7 @@ test('founder-observed interview process is recorded during review, never inferr
       'contact-email': 'founder@acme.example',
     },
   }] }));
-  const run = (...args) => spawnSync(process.execPath, ['/home/potter/demigod-submissions-inbox.mjs', ...args], {
+  const run = (...args) => spawnSync(process.execPath, [inboxCli, ...args], {
     encoding: 'utf8',
     env: { ...process.env, DEMIGOD_INBOX_PATH: inboxPath, DEMIGOD_TEST_SCOPE: `process-${process.pid}` },
   });

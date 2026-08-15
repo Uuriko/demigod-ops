@@ -108,8 +108,7 @@ tmp/
 screenshots/
 *.mp4
 *.webm
-!dasha-worker-assets/client/grwm.mp4
-!dasha-worker-assets/client/grwm-loop.mp4
+# tracked first-party GRWM files stay; do not add ! exceptions (privacy SoR bans new negations)
 playwright-report/
 test-results/
 
