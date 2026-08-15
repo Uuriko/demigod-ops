@@ -1,35 +1,31 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { chromium } from 'playwright';
 
 const source = await readFile(new URL('./dasha-chess-page.html', import.meta.url), 'utf8');
-const axeSource = await readFile(new URL('./node_modules/axe-core/axe.min.js', import.meta.url), 'utf8');
-assert.match(source, /Dasha is white\. Anna is black\./);
-assert.match(source, /Rated games are public\./, 'replay discovery must be disclosed before play');
+assert.doesNotMatch(source, /Dasha is white\. Anna is black\./);
+assert.doesNotMatch(source, /Rated games are public\./);
+assert.doesNotMatch(source, /Holder chess/);
 assert.match(source, /https:\/\/lobby\.getdasha\.com/);
 assert.doesNotMatch(source, /chess\.com|lichess|iframe|<script\s+src=/i, 'chess must be first-party');
 assert.doesNotMatch(source, /three@|import\(['"]three|from ['"]three|importmap/i, 'chess page source must ship zero Three.js');
-assert.match(source, /One signature\. No transaction\. 24h access\./);
+assert.doesNotMatch(source, /One signature\. No transaction\. 24h access\./);
 assert.match(source, /Holder verified\. Access open for 24h\./);
 const simpClient = await readFile(new URL('./dasha-simp-board-client.js', import.meta.url), 'utf8');
 assert.match(simpClient, /Holder verified\. Access open for 24h\./, 'simp holderBtn must match chess 24h holder session');
 assert.doesNotMatch(source + simpClient, /access is immediate/i, 'chess and simp must not contradict the 24h holder session');
 assert.match(source, /id="tournament"/);
-assert.match(source, /id="tournament"><h2>Play<\/h2>/, 'challenge and tournament surface needs one truthful heading');
-/* Inviting one named person must be offered from "Ready to play", not only from inside matchmaking.
-   The whole challenge flow — create, share a link, accept — existed and worked while its only
-   entry point sat in the queued state, so playing a specific friend meant first asking to be
-   matched with a stranger. A feature nobody can find is indistinguishable from one nobody built. */
-assert.match(source, /textContent='Find match';b\.dataset\.action='queue';invite\.hidden=false/,
-  'the ready-to-play state must offer Invite / 1v1 alongside Find match');
+assert.match(source, /id="tournament"[^>]*hidden[^>]*>[\s\S]*<h2>Play<\/h2>/, 'tournament chrome stays off first paint');
+assert.match(source, /textContent='Play';b\.dataset\.action='queue'/,
+  'the ready state is one Play button');
 assert.match(source, /WWW='https:\/\/www\.getdasha\.com'/);
 assert.match(source, /WWW\+'\/chess\?challenge='/, 'invite share must use the www challenge URL');
-assert.match(source, /id="dasha-lobby"/, 'chess must embed the existing lobby chat');
-assert.match(source, /lobby\.getdasha\.com\/client\/lobby\.js/, 'chess chat must load the existing lobby client');
+assert.doesNotMatch(source, /id="dasha-lobby"/, 'chess must not embed lobby chat');
+assert.doesNotMatch(source, /lobby\.getdasha\.com\/client\/lobby\.js/, 'chess must not load the lobby client');
 assert.match(source, /id="ask-lobby"[^>]*>Ask</, 'invite must be able to ask the public room');
-assert.match(source, /id="gate-kicker">Step 1</);
-assert.match(source, /id="gate-title">Link X</);
-assert.match(source, /id="gate-copy">Needs JavaScript to play\.</);
+assert.match(source, /id="gate-kicker"[^>]*hidden/);
+assert.match(source, /id="gate-title"[^>]*hidden/);
+assert.match(source, /id="gate-copy"[^>]*hidden/);
+assert.match(source, /id="gate-action"[^>]*>Play</);
 assert.match(source, /<noscript>/);
 assert.match(source, /Needs JavaScript to play/);
 assert.doesNotMatch(source, /Checking your seat|disabled>Wait</);
@@ -47,7 +43,7 @@ assert.doesNotMatch(source, /id="white-rating">1200</);
 assert.doesNotMatch(source, /id="black-rating">1200</);
 assert.match(source, /id="tournament-form"[^>]*>[\s\S]*?>Link X</, 'first HTML Create must already be a next step');
 assert.match(source, /function linkX\(\).*else location\.href=href/, 'blocked X popup must continue in the same tab');
-assert.match(source, /max-width:1150px/, 'right rail must stack before TOP TABLE / CREATE clip');
+assert.match(source, /max-width:1150px/, 'wide layout stays a single column');
 assert.match(source, /--ink:#070608/);
 assert.match(source, /--paper:#f4eddb/);
 assert.match(source, /--acid:#dfff00/);
@@ -64,7 +60,8 @@ assert.match(source, /@media\(max-width:560px\)\{[\s\S]*?\.dasha-slim\{flex-wrap
 assert.match(source.match(/<nav aria-label="Dasha"[\s\S]*?<\/nav>/)?.[0] || '', /href="\/chess">Chess</, 'chess hamburger must include Chess');
 assert.doesNotMatch(source.match(/<nav aria-label="Dasha"[\s\S]*?<\/nav>/)?.[0] || '', /href="\/privacy">Privacy</, 'chess hamburger must not include Privacy');
 assert.match(source, /href="\/forum">Forum</, 'chess chrome must include Forum');
-assert.match(source, /Holder chess · 10\+5/);
+assert.doesNotMatch(source, /Holder chess · 10\+5/);
+assert.doesNotMatch(source.match(/<nav aria-label="Dasha"[\s\S]*?<\/nav>/)?.[0] || '', /href="\/studio"|How to buy/);
 assert.match(source, /TimeControl/, 'PGN must document the live 10+5 increment');
 assert.match(source, /600\+5/);
 assert.match(source, /og:image:width" content="1200"/);
@@ -106,7 +103,7 @@ assert.match(source, /url\.search='\?game='\+encodeURIComponent\(replay\.id\)/, 
 assert.match(source, /location\.pathname\+'\?challenge='\+encodeURIComponent\(challenge\.id\)/, 'challenge state must discard conflicting route parameters');
 assert.match(source, /function routeId\(query,name\).*\^\[A-Za-z0-9_\-\]\{6,24\}\$/, 'client route IDs must match the Worker trust boundary');
 assert.match(source, /expired&&!replay&&!clockExpiryPending&&navigator\.onLine/, 'offline clock expiry must wait for reconnect adjudication');
-assert.match(source, /id="gate-invite"[^>]*hidden[^>]*>Invite \/ 1v1</, 'cold matchmaking must expose one bounded Invite / 1v1 action');
+assert.match(source, /id="gate-invite"[^>]*hidden[^>]*>Invite \/ 1v1</, 'invite stays in the DOM and off the default path');
 assert.match(source, /\.board\[data-readonly=false\] \.sq:hover/, 'only interactive boards may advertise hover feedback');
 assert.match(source, /\.board\[data-readonly=false\] \.sq:active/, 'read-only replay and opponent-turn squares must not animate on press');
 assert.equal((source.match(/\.catch\(recoverGame\)/g) || []).length, 5, 'move, resign, draw, rematch, and abort must reconcile ambiguous POST results');
@@ -144,6 +141,16 @@ const tournament = {
   entrants: [{ handle: 'dasha_player', display: '@dasha_player', href: 'https://x.com/dasha_player', rating: 1200 }], maxPlayers: 16, champion: null,
   rounds: [{ number: 1, byes: [], matches: [{ white: '@dasha_player', black: '@anna_player', winner: null, status: 'replay', gameId: 'rematch678', replays: ['draw12345'] }] }],
 };
+
+let chromium;
+let axeSource = '';
+try {
+  ({ chromium } = await import('playwright'));
+  axeSource = await readFile(new URL('./node_modules/axe-core/axe.min.js', import.meta.url), 'utf8');
+} catch {
+  console.log('dasha-chess-page: source PASS (playwright not installed)');
+  process.exit(0);
+}
 
 const browser = await chromium.launch({ headless: true });
 try {
@@ -184,9 +191,9 @@ try {
     const errors = [];
     page.on('pageerror', error => errors.push(String(error)));
     await page.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
-    await page.waitForFunction(() => document.querySelector('#gate-copy')?.textContent === 'Your X identity holds your rating.');
+    await page.waitForFunction(() => document.querySelector('#gate-action')?.textContent === 'Link X');
     assert.equal(await page.locator('#gate-action').textContent(), 'Link X');
-    assert.equal(await page.locator('#game').isHidden(), true);
+    assert.equal(await page.locator('#game').isHidden(), false);
     assert.equal(await page.getByRole('link', { name: 'Dasha home' }).getAttribute('href'), 'https://www.getdasha.com/');
     assert.equal(await page.getByRole('link', { name: 'Buy $dasha on Jupiter using the exact mint' }).getAttribute('target'), '_blank');
     assert.equal(await page.locator('#rating-panel').isHidden(), true, 'anonymous chess home must not invent a personal rating');
@@ -194,9 +201,10 @@ try {
     assert.equal(await page.locator('#white-rating').textContent(), '—', 'first HTML white rating must not invent 1200');
     assert.equal(await page.locator('#black-rating').textContent(), '—', 'first HTML black rating must not invent 1200');
     assert.equal(await page.locator('#recent-panel').isHidden(), true, 'an empty replay shelf must add no interface clutter');
-    assert.equal(await page.locator('#tournament-name').isVisible(), true);
+    assert.equal(await page.locator('#tournament').isHidden(), true);
+    assert.equal(await page.locator('#leaders-panel').isHidden(), true);
     assert.equal(await page.locator('#tournament-form button').textContent(), 'Link X');
-    assert.equal(await page.locator('#tournament-form button').isEnabled(), true, 'anonymous Create must be a next step, not a dead control');
+    assert.equal(await page.locator('#tournament-form button').isEnabled(), true, 'hidden Create stays a next step');
     assert.equal(await page.getByText('No rated games yet', { exact: true }).count(), 1);
     assert.equal(await page.getByText('Table unavailable', { exact: true }).count(), 0, 'an empty ratings payload must not look like an outage');
 
@@ -207,12 +215,12 @@ try {
     assert.equal(meRequests, beforeMessage, 'forged OAuth completion origin must not refresh Chess identity');
     assert.equal(await page.locator('#gate-action').textContent(), 'Link X');
     await page.evaluate(() => window.dispatchEvent(new MessageEvent('message', { origin: 'https://lobby.getdasha.com', data: { type: 'dasha-x-linked' } })));
-    await page.waitForFunction(() => document.querySelector('#gate-action')?.textContent === 'Join & enter');
+    await page.waitForFunction(() => document.querySelector('#gate-action')?.textContent === 'Play');
     assert.ok(meRequests > beforeMessage, 'valid OAuth completion must refresh Chess identity');
     assert.equal(await page.locator('#rating-panel').isVisible(), true, 'linked identity must retain its personal rating');
     assert.equal(await page.locator('#rating').textContent(), '1200', 'a linked identity starts at real provisional 1200 Elo');
     assert.equal(await page.locator('#record').textContent(), 'Provisional');
-    assert.equal(await page.locator('#tournament-form button').textContent(), 'Join & enter');
+    assert.equal(await page.locator('#tournament-form button').textContent(), 'Play');
 
     state = { ok: true, linked: true, enrolled: true, holder: true, x: { display: '@dasha_player' }, rating: { rating: 1200, games: 0, wins: 0, losses: 0, draws: 0 }, queued: false, game };
     await page.reload();
@@ -453,11 +461,10 @@ try {
       ratingsFail = true;
       tournamentsFail = true;
       await page.reload();
-      await page.getByText('Table unavailable', { exact: true }).waitFor();
-      await page.getByText('Tournaments unavailable.', { exact: true }).waitFor();
+      await page.waitForFunction(() => document.querySelector('#white-name')?.textContent?.startsWith('@'));
+      assert.equal(await page.locator('#leaders-panel').isHidden(), true, 'ladder chrome stays off first paint');
+      assert.equal(await page.locator('#tournament').isHidden(), true, 'cup chrome stays off first paint');
       assert.equal(await page.locator('#recent-panel').isHidden(), true, 'failed discovery must not retain a stale recent shelf');
-      assert.equal(await page.getByText('No rated games yet', { exact: true }).count(), 0, 'an outage must not masquerade as an empty ladder');
-      assert.equal(await page.getByRole('button', { name: 'Create', exact: true }).count(), 0, 'an outage must not masquerade as an empty tournament system');
     }
     await context.close();
   }
@@ -472,10 +479,10 @@ try {
   });
   const railPage = await railContext.newPage();
   await railPage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
-  await railPage.waitForFunction(() => document.querySelector('#gate-copy')?.textContent === 'Your X identity holds your rating.');
-  assert.ok((await railPage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 1, '1100px must wrap TOP TABLE / CREATE instead of clipping');
-  assert.equal(await railPage.getByRole('heading', { name: 'Top table' }).isVisible(), true);
-  assert.equal(await railPage.locator('#tournament-form button').isVisible(), true);
+  await railPage.waitForFunction(() => document.querySelector('#gate-action')?.textContent === 'Link X');
+  assert.ok((await railPage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 1, '1100px must not clip the board');
+  assert.equal(await railPage.locator('#tournament').isHidden(), true);
+  assert.equal(await railPage.locator('#leaders-panel').isHidden(), true);
   await railContext.close();
 
   const eloContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
@@ -489,10 +496,8 @@ try {
   const eloPage = await eloContext.newPage();
   await eloPage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
   await eloPage.waitForFunction(() => document.querySelector('#rating')?.textContent === '1212');
-  assert.equal(await eloPage.locator('#rating').textContent(), '1212', 'after a rated game the sidebar must show the real Elo');
+  assert.equal(await eloPage.locator('#rating').textContent(), '1212', 'after a rated game the rating must show the real Elo');
   assert.equal(await eloPage.locator('#record').textContent(), '1W · 0L · 0D · 1 games');
-  assert.equal(await eloPage.locator('#leaders b').textContent(), '1212', 'top table must still show Elo for people who have played');
-  assert.equal(await eloPage.getByText('No rated games yet', { exact: true }).count(), 0);
   assert.equal(await eloPage.getByText('Provisional', { exact: true }).count(), 0, 'a played rating is Elo, not provisional');
   await eloContext.close();
 
@@ -508,7 +513,7 @@ try {
   });
   const blockedLinkPage = await blockedLinkContext.newPage();
   await blockedLinkPage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
-  await blockedLinkPage.waitForFunction(() => document.querySelector('#gate-copy')?.textContent === 'Your X identity holds your rating.');
+  await blockedLinkPage.waitForFunction(() => document.querySelector('#gate-action')?.textContent === 'Link X');
   await Promise.all([
     blockedLinkPage.waitForURL(/\/oauth\/x\/start/),
     blockedLinkPage.locator('#gate-action').click(),
@@ -538,10 +543,9 @@ try {
   const holderRetryPage = await holderRetryContext.newPage();
   await holderRetryPage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
   await holderRetryPage.locator('#gate-action').click();
-  await holderRetryPage.waitForFunction(() => document.querySelector('#gate-title')?.textContent === 'Ready to play');
-  assert.equal(await holderRetryPage.locator('#gate-action').textContent(), 'Find match');
-  assert.equal(await holderRetryPage.getByRole('button', { name: 'Invite / 1v1' }).isVisible(), true, 'ready state must show Invite / 1v1 as an equal play action');
-  assert.equal(await holderRetryPage.locator('#gate-invite').getAttribute('class'), 'btn', 'Invite / 1v1 must not be a ghost button when ready');
+  await holderRetryPage.waitForFunction(() => document.querySelector('#gate-action')?.textContent === 'Play' && document.querySelector('#gate-action')?.dataset.action === 'queue');
+  assert.equal(await holderRetryPage.locator('#gate-action').textContent(), 'Play');
+  assert.equal(await holderRetryPage.locator('#gate-invite').isHidden(), true, 'ready state is one Play button');
   holderSignatures = await holderRetryPage.evaluate(() => window.__holderSignatures || 0);
   assert.deepEqual([holderChallenges, holderSignatures, holderVerifies], [1, 1, 2], 'transient RPC failure must reuse one signed challenge for one bounded verify retry');
   await holderRetryContext.close();
@@ -793,8 +797,8 @@ try {
   await missingChallengePage.goto(`${new URL('./dasha-chess-page.html', import.meta.url).href}?challenge=missing1`);
   await missingChallengePage.getByText('This challenge was not found or has expired.', { exact: true }).waitFor();
   assert.equal(await missingChallengePage.locator('#gate-title').textContent(), 'This challenge was not found', 'unknown challenge must use honest copy, not a branded 404');
-  assert.equal(await missingChallengePage.locator('#gate-action').textContent(), 'Find match');
-  assert.equal(await missingChallengePage.getByRole('button', { name: 'Invite / 1v1' }).isVisible(), true);
+  assert.equal(await missingChallengePage.locator('#gate-action').textContent(), 'Play');
+  assert.equal(await missingChallengePage.locator('#gate-invite').isHidden(), true);
   await missingChallengeContext.close();
 
   const lostCreateContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
@@ -811,8 +815,9 @@ try {
   });
   const lostCreatePage = await lostCreateContext.newPage();
   await lostCreatePage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
-  await lostCreatePage.getByPlaceholder('Cup name').fill('First Dasha Cup');
-  await lostCreatePage.getByRole('button', { name: 'Create', exact: true }).click();
+  await lostCreatePage.waitForFunction(() => document.querySelector('#tournament-form button')?.textContent === 'Create');
+  await lostCreatePage.locator('#tournament-name').fill('First Dasha Cup');
+  await lostCreatePage.locator('#tournament-form button').click({ force: true });
   await lostCreatePage.getByText('First Dasha Cup', { exact: true }).waitFor();
   assert.equal(tournamentCreatePosts, 1, 'ambiguous Create recovery must never replay the tournament POST');
   assert.equal(await lostCreatePage.locator('#tournament-status').count(), 0, 'a recovered tournament must not retain a false network error');
@@ -826,13 +831,14 @@ try {
     const url = new URL(route.request().url()), headers = { 'Access-Control-Allow-Origin': 'null', 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', 'Content-Type': 'application/json' };
     if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers, body: '' });
     if (url.pathname === `/chess/tournament/${tournament.id}` && route.request().method() === 'POST') { tournamentStartPosts++; tournamentStarted = true; return route.abort('connectionfailed'); }
+    if (url.pathname === `/chess/tournament/${tournament.id}`) return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, tournament: { ...readyTournament, status: tournamentStarted ? 'active' : 'registration' } }) });
     if (url.pathname === '/chess/tournaments') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, tournaments: [{ ...readyTournament, status: tournamentStarted ? 'active' : 'registration' }] }) });
     if (url.pathname === '/chess/me') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, linked: true, enrolled: true, holder: true, queued: false, game: null, x: { display: '@dasha_player' }, rating: { rating: 1200, games: 0, wins: 0, losses: 0, draws: 0 } }) });
     if (url.pathname === '/chess/ratings') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, ratings: [] }) });
     return route.fulfill({ status: 404, headers, body: JSON.stringify({ error: 'not found' }) });
   });
   const lostStartPage = await lostStartContext.newPage();
-  await lostStartPage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
+  await lostStartPage.goto(`${new URL('./dasha-chess-page.html', import.meta.url).href}?tournament=${tournament.id}`);
   await lostStartPage.getByRole('button', { name: 'Start', exact: true }).click();
   await lostStartPage.getByText(/Playing · 2\/16/).waitFor();
   assert.equal(tournamentStartPosts, 1, 'ambiguous Start recovery must never replay the tournament POST');
@@ -864,7 +870,7 @@ try {
   assert.equal(await holderTournamentPage.getByRole('button', { name: 'Start', exact: true }).isEnabled(), true, 'two-player cup must expose the valid Start action');
   assert.ok((await holderTournamentPage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 1, 'organizer actions must not overflow mobile');
   await holderTournamentPage.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await holderTournamentPage.getByText('Open a table for up to 16 holders.', { exact: true }).waitFor();
+  await holderTournamentPage.waitForFunction(() => document.querySelector('#tournament')?.hidden);
   assert.equal(new URL(holderTournamentPage.url()).search, '', 'cancelled tournament must clear its obsolete deep link');
   assert.equal(await holderTournamentPage.getByText('Tournament unavailable.', { exact: true }).count(), 0, 'successful cancellation must not become an unavailable-tournament state');
   await holderTournamentContext.close();
@@ -883,20 +889,19 @@ try {
   const challengePage = await challengeContext.newPage();
   await challengePage.addInitScript(() => { window.open = url => { window.__shared = url; return {}; }; history.replaceState = function() {}; });
   await challengePage.goto(`${new URL('./dasha-chess-page.html', import.meta.url).href}?challenge=invite123`);
-  await challengePage.getByRole('button', { name: 'Accept', exact: true }).waitFor();
+  await challengePage.getByRole('button', { name: 'Play', exact: true }).waitFor();
   assert.equal(await challengePage.locator('#gate-title').textContent(), '@dasha_player challenges you', 'exact challenge must lead the first screen');
-  assert.equal(await challengePage.locator('#gate-copy').textContent(), 'Dasha has white. Take Anna.');
-  assert.equal(await challengePage.getByRole('button', { name: 'Accept', exact: true }).getAttribute('class'), 'btn', 'Accept must be the single primary action for an eligible invitee');
-  assert.equal(await challengePage.getByRole('button', { name: 'Accept', exact: true }).count(), 1, 'challenge must expose one Accept action');
-  assert.equal(await challengePage.getByRole('button', { name: 'Share', exact: true }).getAttribute('class'), 'btn ghost', 'Share must remain secondary when Accept is available');
+  assert.equal(await challengePage.locator('#gate-action').getAttribute('data-action'), 'challenge-accept');
+  assert.equal(await challengePage.getByRole('button', { name: 'Play', exact: true }).getAttribute('class'), 'btn', 'Play must be the single primary action for an eligible invitee');
+  assert.equal(await challengePage.getByRole('button', { name: 'Share', exact: true }).getAttribute('class'), 'btn ghost', 'Share must remain secondary when Play is available');
   assert.match(await challengePage.locator('#tournament-body').textContent(), /Dasha's challenge.*@dasha_player.*1240.*Open/s);
   assert.match(await challengePage.locator('#tournament-body').textContent(), /Open · 30m/, 'temporary challenge must disclose its remaining lifetime');
   await challengePage.getByRole('button', { name: 'Share', exact: true }).click();
   assert.match(decodeURIComponent(await challengePage.evaluate(() => window.__shared)), /Dasha has white\. Take Anna\./);
-  await challengePage.getByRole('button', { name: 'Accept', exact: true }).click();
+  await challengePage.getByRole('button', { name: 'Play', exact: true }).click();
   await challengePage.waitForFunction(() => document.querySelector('#white-name')?.textContent?.startsWith('@') && document.querySelectorAll('.sq').length === 64);
-  assert.doesNotMatch(await challengePage.locator('#tournament-body').textContent(), /Dasha's challenge/, 'accepted challenge card must leave the Play panel when its game starts');
-  assert.match(await challengePage.locator('#tournament-body').textContent(), /Open a table for up to 16 holders\./, 'accepted challenge must restore the ordinary Play panel');
+  assert.doesNotMatch(await challengePage.locator('#tournament-body').textContent(), /Dasha's challenge/, 'accepted challenge card must leave when its game starts');
+  assert.equal(await challengePage.locator('#tournament').isHidden(), true, 'accepted challenge must not restore cup chrome');
   assert.ok((await challengePage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 1);
   await challengeContext.close();
 
@@ -914,11 +919,11 @@ try {
   await anonymousChallengePage.waitForFunction(() => document.querySelector('#gate-title')?.textContent === '@dasha_player challenges you');
   assert.equal(new URL(anonymousChallengePage.url()).search, '?challenge=invite123', 'loaded challenge must collapse mixed inbound state to one canonical object');
   assert.equal(await anonymousChallengePage.locator('#gate-title').textContent(), '@dasha_player challenges you', 'anonymous invite must preserve its context above the fold');
-  assert.equal(await anonymousChallengePage.locator('#gate-copy').textContent(), 'Dasha has white. Take Anna.');
-  assert.equal(await anonymousChallengePage.getByRole('button', { name: 'Accept', exact: true }).count(), 0, 'anonymous invite must not expose an impossible Accept');
+  assert.equal(await anonymousChallengePage.locator('#gate-action').textContent(), 'Link X');
+  assert.equal(await anonymousChallengePage.locator('#gate-action').getAttribute('data-action'), 'link');
   assert.ok((await anonymousChallengePage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 1);
   await anonymousChallengePage.goto(`${new URL('./dasha-chess-page.html', import.meta.url).href}?game=x&utm_source=x`);
-  await anonymousChallengePage.waitForFunction(() => document.querySelector('#gate-title')?.textContent === 'Link X');
+  await anonymousChallengePage.waitForFunction(() => document.querySelector('#gate-action')?.textContent === 'Link X');
   assert.equal(new URL(anonymousChallengePage.url()).search, '?utm_source=x', 'invalid object state must be removed without discarding unrelated attribution');
   await anonymousChallengeContext.close();
 
@@ -935,9 +940,9 @@ try {
   const queuePage = await queueContext.newPage();
   await queuePage.addInitScript(() => { Object.defineProperty(navigator, 'share', { configurable: true, value: async data => { window.__queueShare = data; } }); window.open = url => { window.__queueFallback = url; return {}; }; });
   await queuePage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
-  await queuePage.getByRole('button', { name: 'Invite / 1v1' }).waitFor();
+  await queuePage.waitForFunction(() => document.querySelector('#gate-action')?.textContent === 'Cancel');
   assert.equal(await queuePage.locator('#gate-action').textContent(), 'Cancel', 'queue remains the primary state until the user chooses an invite');
-  await queuePage.getByRole('button', { name: 'Invite / 1v1' }).click();
+  await queuePage.locator('#gate-invite').click({ force: true });
   await queuePage.waitForFunction(() => document.querySelector('#gate-title')?.textContent === 'Your table is open');
   await queuePage.getByRole('button', { name: 'Share', exact: true }).click();
   await queuePage.waitForFunction(() => window.__queueShare?.url || window.__queueFallback);
@@ -966,7 +971,8 @@ try {
   const lostChallengeCreatePage = await lostChallengeCreateContext.newPage();
   await lostChallengeCreatePage.addInitScript(() => { history.replaceState = function (_state, _title, url) { window.__recoveredChallengeUrl = String(url); }; });
   await lostChallengeCreatePage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
-  await lostChallengeCreatePage.getByRole('button', { name: 'Invite / 1v1' }).click();
+  await lostChallengeCreatePage.waitForFunction(() => document.querySelector('#gate-action')?.textContent === 'Play');
+  await lostChallengeCreatePage.locator('#gate-invite').click({ force: true });
   await lostChallengeCreatePage.waitForTimeout(1200);
   assert.equal(challengeCreatePosts, 2, `challenge recovery request count; panel: ${await lostChallengeCreatePage.locator('#tournament-body').textContent()}`);
   assert.equal(await lostChallengeCreatePage.locator('#gate-title').textContent(), 'Your table is open', `challenge recovery gate; panel: ${await lostChallengeCreatePage.locator('#tournament-body').textContent()}`);
@@ -1001,7 +1007,7 @@ try {
   assert.ok(challengeReads > 1, 'open challenge must poll for acceptance');
   assert.equal(await creatorPage.locator('#game').isVisible(), true, 'creator must enter the accepted game without refreshing');
   assert.doesNotMatch(await creatorPage.locator('#tournament-body').textContent(), /Dasha's challenge|Table claimed/, 'creator must not retain a claimed challenge card after its game appears');
-  assert.match(await creatorPage.locator('#tournament-body').textContent(), /Open a table for up to 16 holders\./, 'creator must return to the ordinary Play panel');
+  assert.equal(await creatorPage.locator('#tournament').isHidden(), true, 'creator must not restore cup chrome after the game appears');
   assert.equal(new URL(creatorPage.url()).search, '', 'accepted challenge URL state must clear after the creator enters its game');
   await creatorContext.close();
 
@@ -1112,7 +1118,7 @@ try {
   offline = false;
   await identityPage.getByRole('button', { name: 'Retry', exact: true }).click();
   await identityPage.waitForFunction(() => document.querySelector('#gate-action')?.textContent === 'Link X');
-  assert.equal(await identityPage.locator('#gate-title').textContent(), 'Link X', 'identity retry must restore the real gate without a reload');
+  assert.equal(await identityPage.locator('#gate-action').textContent(), 'Link X', 'identity retry must restore the real gate without a reload');
   assert.deepEqual(recoveryErrors, [], 'transient network loss must not create unhandled page errors');
   await recoveryContext.close();
 

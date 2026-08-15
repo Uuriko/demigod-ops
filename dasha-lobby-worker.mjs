@@ -1244,7 +1244,7 @@ function escapeHtml(value) {
 
 export function personalizeChessPage(html, { title, description, url, robots = 'index,follow' }) {
   const safeTitle = escapeHtml(String(title || 'Dasha Chess').slice(0, 100));
-  const safeDescription = escapeHtml(String(description || 'Dasha versus Anna. Holder-only rated chess.').slice(0, 180));
+  const safeDescription = escapeHtml(String(description || 'Chess.').slice(0, 180));
   const safeUrl = escapeHtml(String(url || WWW_CHESS));
   const safeRobots = robots === 'noindex,follow' ? robots : 'index,follow';
   return html
