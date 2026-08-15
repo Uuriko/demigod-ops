@@ -173,7 +173,7 @@ for (let route = 0; route < QUIZ_LANES.length; route++) {
   assert.equal(seen.size, QUIZ_PRACTICE_LENGTH);
 }
 assert.equal(new Set(routeFirstQuestions).size, QUIZ_LANES.length, 'the opening answer must select distinct branches');
-const sourcedIds = ['sailor-fuku', 'tatu-theme', 'comfry-job', 'klaasje-never', 'softness-poet', 'letterman', 'bad-behaviour', 'scary-cap', 'worms-brain', 'anna-cohost', 'freckle-pens', 'materialists-daisy', 'rachel-comey'];
+const sourcedIds = ['sailor-fuku', 'tatu-theme', 'comfry-job', 'klaasje-never', 'softness-poet', 'letterman', 'bad-behaviour', 'scary-cap', 'worms-brain', 'anna-cohost', 'freckle-pens', 'materialists-daisy', 'rachel-comey', 'sailor-socialism', 'first-feature', 'birthday', 'wobble-debut', 'mills-college', 'charli-mean-girls', 'meet-anna', 'white-lotus', 'info-whores', 'anna-cameo', 'pvt-chat', 'klaasje-recast', 'wellbutrin-freud', 'ypu-extremism', 'bohemian-layabouts'];
 for (const id of sourcedIds) assert(QUIZ_QUESTIONS.some(question => question.id === id), `missing sourced question ${id}`);
 const publicQuizCopy = QUIZ_QUESTIONS.flatMap(question => [question.prompt, ...question.choices, question.note, question.source]).concat(
   Object.values(QUIZ_SURPRISES).flatMap(surprise => [surprise.title, surprise.body]),
