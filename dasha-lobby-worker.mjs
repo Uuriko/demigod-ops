@@ -395,7 +395,7 @@ function ensureHomeSimpMount(html) {
 }
 
 function grwmMountHtml() {
-  return `<section id="grwm" aria-label="GRWM"><style>#grwm{margin:0}#grwm .grwm-play{display:block;width:100%;padding:0;border:0;background:#160f1d;cursor:pointer}#grwm .grwm-loop,#grwm .grwm-still{display:block;width:100%;height:min(72svh,640px);object-fit:cover;background:#160f1d}#grwm .grwm-full{width:min(100%,720px);padding:0;border:2px solid #dfff00;background:#070608}#grwm .grwm-full video{display:block;width:100%;height:auto;max-height:86svh;background:#070608}#grwm .grwm-close{min-height:48px;width:100%;border:0;background:#dfff00;color:#070608;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif}</style><button type="button" class="grwm-play" aria-label="Play GRWM"><video class="grwm-loop" src="/client/grwm-loop.mp4" poster="/client/grwm.jpg" muted loop playsinline autoplay></video></button><dialog class="grwm-full"><video src="/client/grwm.mp4" poster="/client/grwm.jpg" controls playsinline></video><button type="button" class="grwm-close">Close</button></dialog><script>(function(){var root=document.getElementById('grwm');if(!root)return;var play=root.querySelector('.grwm-play');var box=root.querySelector('.grwm-full');var full=box&&box.querySelector('video');var close=root.querySelector('.grwm-close');var loop=root.querySelector('.grwm-loop');if(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches&&loop){loop.removeAttribute('autoplay');loop.pause();}if(play&&box)play.addEventListener('click',function(){if(box.showModal)box.showModal();else box.setAttribute('open','');if(full){full.currentTime=0;var go=full.play();if(go&&go.catch)go.catch(function(){})}});if(close)close.addEventListener('click',function(){if(full)full.pause();if(box.close)box.close();else box.removeAttribute('open')})})();</script></section>`;
+  return `<section id="grwm" aria-label="GRWM"><style>#grwm{margin:0;display:grid;place-items:center;background:#070608}#grwm .grwm-phone{position:relative;width:min(100%,calc(70svh * 720 / 1280));max-height:70svh;aspect-ratio:720/1280;box-sizing:border-box;padding:10px;background:#f4eddb}#grwm video{display:block;width:100%;height:100%;object-fit:cover;background:#070608}#grwm .grwm-go{position:absolute;inset:10px;display:grid;place-items:center;border:0;background:rgba(7,6,8,.28);cursor:pointer}#grwm .grwm-go i{width:72px;height:72px;background:#dfff00;clip-path:polygon(32% 22%,82% 50%,32% 78%);box-shadow:6px 6px 0 #ff3b81}#grwm.is-on .grwm-go{display:none}</style><div class="grwm-phone"><video poster="/client/grwm.jpg" src="/client/grwm.mp4" playsinline preload="metadata" controls></video><button type="button" class="grwm-go" aria-label="Play GRWM"><i></i></button></div><script>(function(){var root=document.getElementById('grwm');if(!root)return;var v=root.querySelector('video');var go=root.querySelector('.grwm-go');function on(){root.classList.add('is-on')}if(go&&v)go.addEventListener('click',function(){on();var p=v.play();if(p&&p.catch)p.catch(function(){})});if(v)v.addEventListener('play',on)})();</script></section>`;
 }
 
 function ensureHomeGrwmMount(html) {
@@ -3721,7 +3721,7 @@ async function productEdge(request, url, env) {
   }
   if (
     (request.method === 'GET' || request.method === 'HEAD') &&
-    (url.pathname === '/client/dasha-loop.mp3' || url.pathname === '/client/dasha-face.webp' || url.pathname === '/client/dasha.glb' || url.pathname === '/client/grwm-loop.mp4' || url.pathname === '/client/grwm.mp4' || url.pathname === '/client/grwm.jpg')
+    (url.pathname === '/client/dasha-loop.mp3' || url.pathname === '/client/dasha-face.webp' || url.pathname === '/client/dasha.glb' || url.pathname === '/client/grwm.mp4' || url.pathname === '/client/grwm.jpg')
   ) {
     return staticAssetResponse(request, env);
   }
@@ -4075,7 +4075,7 @@ export default {
     }
     if (
       (request.method === 'GET' || request.method === 'HEAD') &&
-      (url.pathname === '/client/dasha-loop.mp3' || url.pathname === '/client/dasha-face.webp' || url.pathname === '/client/dasha.glb' || url.pathname === '/client/grwm-loop.mp4' || url.pathname === '/client/grwm.mp4' || url.pathname === '/client/grwm.jpg')
+      (url.pathname === '/client/dasha-loop.mp3' || url.pathname === '/client/dasha-face.webp' || url.pathname === '/client/dasha.glb' || url.pathname === '/client/grwm.mp4' || url.pathname === '/client/grwm.jpg')
     ) {
       return staticAssetResponse(request, env);
     }
