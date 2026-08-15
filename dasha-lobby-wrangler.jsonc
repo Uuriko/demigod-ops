@@ -3,6 +3,8 @@
   // Live: https://lobby.getdasha.com  ·  wss://lobby.getdasha.com/ws
   // Faucet secret: wrangler secret put FAUCET_KEYPAIR  (do not invent or commit a value)
   // Optional var: FAUCET_AMOUNT_RAW (default 100000000)
+  // Optional var: FAUCET_RENT_CAP_LAMPORTS (default 20 * live ATA rent)
+  // Optional var: FAUCET_SOL_FLOOR_LAMPORTS (default live ATA rent + fee)
   "name": "dasha-lobby",
   "account_id": "5a919d6c1785d47e15e10c24450a8ff7",
   "workers_dev": true,

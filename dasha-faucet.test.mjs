@@ -5,8 +5,10 @@ import { createSessionToken, signPayload } from './dasha-lobby-x.mjs';
 import { assertPublicSafe } from './dasha-simp-score.mjs';
 import {
   ASSOCIATED_TOKEN_PROGRAM,
+  ATA_ACCOUNT_BYTES,
   ATA_RENT_LAMPORTS,
   DEFAULT_AMOUNT_RAW,
+  DEFAULT_RENT_ATA_COUNT,
   DECIMALS,
   DashaFaucet,
   FEE_LAMPORTS,
@@ -28,6 +30,8 @@ import {
   faucetConfigured,
   faucetDestOk,
   faucetPublicStatus,
+  faucetRentCapLamports,
+  faucetSolFloorLamports,
   faucetSiwsFields,
   faucetWalletMessage,
   hashIp,
@@ -35,11 +39,13 @@ import {
   last4,
   notConfigured,
   parseFaucetKeypair,
+  parseRentExemption,
   preflightFaucet,
   sendFaucetTransfer,
   siwsDomainOk,
   siwsMessageDomain,
   solscanUrl,
+  utcDay,
 } from './dasha-faucet.mjs';
 import { isValidSolanaAddress } from './dasha-simp-actions.mjs';
 
@@ -65,7 +71,15 @@ assert.deepEqual(faucetPublicStatus({}).body, { configured: false, error: 'not_c
 assert.equal(faucetPublicStatus({}).status, 501);
 assert.equal(solscanUrl('sig1'), 'https://solscan.io/tx/sig1');
 assert.equal(ATA_RENT_LAMPORTS, 2039280);
+assert.equal(ATA_ACCOUNT_BYTES, 165);
+assert.equal(DEFAULT_RENT_ATA_COUNT, 20);
 assert.equal(FEE_LAMPORTS, 5000);
+assert.equal(faucetRentCapLamports({}, ATA_RENT_LAMPORTS), 20 * ATA_RENT_LAMPORTS);
+assert.equal(faucetRentCapLamports({ FAUCET_RENT_CAP_LAMPORTS: '2039280' }, ATA_RENT_LAMPORTS), 2039280);
+assert.equal(faucetSolFloorLamports({}, ATA_RENT_LAMPORTS), ATA_RENT_LAMPORTS + FEE_LAMPORTS);
+assert.equal(utcDay(Date.parse('2026-08-15T23:00:00Z')), '2026-08-15');
+assert.equal(parseRentExemption(2039280), 2039280);
+assert.equal(parseRentExemption(null), null);
 
 assert.match(sitemap, /<loc>https:\/\/www\.getdasha\.com\/faucet<\/loc>/);
 assert.doesNotMatch(sitemap, /\/earn<\/loc>|\/airdrop<\/loc>|\/claim-rewards<\/loc>/);
@@ -74,6 +88,8 @@ assert.match(clientSrc, /global\.DashaFaucet/);
 assert.match(clientSrc, /a tiny sample for newbies\. not an airdrop\. not earn\./);
 assert.match(clientSrc, /Agents do not claim this faucet/);
 assert.match(clientSrc, /SIWS is dest-proof, not a claim-airdrop signature/);
+assert.match(clientSrc, /current ATA rent/);
+assert.match(clientSrc, /faucet paused/);
 assert.match(clientSrc, /solana:signIn|signIn/);
 assert.match(clientSrc, /we will not ask for a phrase/i);
 assert.match(clientSrc, /MATCH, not verified/);
@@ -98,6 +114,8 @@ assert.doesNotMatch(clientSrc, /hasPositiveTokenBalance/);
 assert.match(faucetSrc, /kind: 'faucet_dest'/);
 assert.match(faucetSrc, /idFromName/);
 assert.match(faucetSrc, /classifyDest/);
+assert.match(faucetSrc, /getMinimumBalanceForRentExemption/);
+assert.match(faucetSrc, /rent-reserve/);
 assert.doesNotMatch(faucetSrc, /hasPositiveTokenBalance/);
 assert.doesNotMatch(faucetSrc, /joinBoard/);
 assert.doesNotMatch(faucetSrc, /HELIUS_|payTo/);
@@ -454,6 +472,7 @@ function rpcMock({
   destExists = false,
   dest = destWallet.address,
   destWalletAccount = null,
+  rent = ATA_RENT_LAMPORTS,
   sendCount = { n: 0 },
   fail = '',
 } = {}) {
@@ -493,6 +512,10 @@ function rpcMock({
       }
       if (row.method === 'getSignatureStatuses') {
         return { jsonrpc: '2.0', id: row.id, result: { value: [{ confirmationStatus: 'confirmed' }] } };
+      }
+      if (row.method === 'getMinimumBalanceForRentExemption') {
+        if (fail === 'no_rent') return { jsonrpc: '2.0', id: row.id, error: { message: 'unavailable' } };
+        return { jsonrpc: '2.0', id: row.id, result: rent };
       }
       return { jsonrpc: '2.0', id: row.id, error: { message: 'unexpected' } };
     };
@@ -539,6 +562,49 @@ try {
     amountRaw: DEFAULT_AMOUNT_RAW,
   });
   assert.equal(row.error, 'rpc_unavailable');
+  assert.equal(row.status, 503);
+} finally {
+  globalThis.fetch = nativeFetch;
+}
+
+globalThis.fetch = rpcMock({ fail: 'no_rent' });
+try {
+  const row = await preflightFaucet({
+    endpoints: ['https://api.mainnet-beta.solana.com'],
+    treasury: parsed,
+    dest: destWallet.address,
+    amountRaw: DEFAULT_AMOUNT_RAW,
+  });
+  assert.equal(row.error, 'rpc_unavailable');
+  assert.equal(row.status, 503);
+} finally {
+  globalThis.fetch = nativeFetch;
+}
+
+globalThis.fetch = rpcMock({ rent: 3_000_000, sol: ATA_RENT_LAMPORTS + FEE_LAMPORTS + 1 });
+try {
+  const row = await preflightFaucet({
+    endpoints: ['https://api.mainnet-beta.solana.com'],
+    treasury: parsed,
+    dest: destWallet.address,
+    amountRaw: DEFAULT_AMOUNT_RAW,
+  });
+  assert.equal(row.error, 'treasury_rent');
+  assert.equal(row.status, 503);
+} finally {
+  globalThis.fetch = nativeFetch;
+}
+
+globalThis.fetch = rpcMock({ destExists: true, sol: FEE_LAMPORTS + 1 });
+try {
+  const row = await preflightFaucet({
+    endpoints: ['https://api.mainnet-beta.solana.com'],
+    treasury: parsed,
+    dest: destWallet.address,
+    amountRaw: DEFAULT_AMOUNT_RAW,
+  });
+  assert.equal(row.ok, false);
+  assert.equal(row.error, 'faucet_paused');
   assert.equal(row.status, 503);
 } finally {
   globalThis.fetch = nativeFetch;
@@ -599,6 +665,101 @@ try {
   globalThis.fetch = nativeFetch;
 }
 
+const capEnv = {
+  ...env,
+  FAUCET: memoryFaucet(env),
+  FAUCET_KEYPAIR: treasury.json,
+  FAUCET_RENT_CAP_LAMPORTS: String(ATA_RENT_LAMPORTS),
+};
+const capA = await createSessionToken(capEnv, { xId: 'fx-cap-a', handle: 'capa' });
+const capB = await createSessionToken(capEnv, { xId: 'fx-cap-b', handle: 'capb' });
+await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/wallet/verify', {
+  method: 'POST',
+  headers: {
+    Origin: 'https://www.getdasha.com',
+    Cookie: `__Host-dasha_x=${capA}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ dest: destWallet.address, last4: last4(destWallet.address), paste: true }),
+}), capEnv);
+await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/wallet/verify', {
+  method: 'POST',
+  headers: {
+    Origin: 'https://www.getdasha.com',
+    Cookie: `__Host-dasha_x=${capB}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ dest: destWallet.address, last4: last4(destWallet.address), paste: true }),
+}), capEnv);
+const capSend = { n: 0 };
+globalThis.fetch = rpcMock({ sendCount: capSend });
+try {
+  const capFirst = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/claim', {
+    method: 'POST',
+    headers: {
+      Origin: 'https://www.getdasha.com',
+      Cookie: `__Host-dasha_x=${capA}`,
+      'Content-Type': 'application/json',
+      'CF-Connecting-IP': '203.0.113.21',
+    },
+    body: '{}',
+  }), capEnv);
+  assert.equal(capFirst.status, 200);
+  assert.equal(capSend.n, 1);
+  const capSecond = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/claim', {
+    method: 'POST',
+    headers: {
+      Origin: 'https://www.getdasha.com',
+      Cookie: `__Host-dasha_x=${capB}`,
+      'Content-Type': 'application/json',
+      'CF-Connecting-IP': '203.0.113.22',
+    },
+    body: '{}',
+  }), capEnv);
+  assert.equal(capSecond.status, 503);
+  assert.equal((await capSecond.json()).error, 'faucet_paused');
+  assert.equal(capSend.n, 1);
+  assert.ok(capEnv.FAUCET.names().some((n) => n.startsWith('rent:')));
+} finally {
+  globalThis.fetch = nativeFetch;
+}
+
+const floorEnv = {
+  ...env,
+  FAUCET: memoryFaucet(env),
+  FAUCET_KEYPAIR: treasury.json,
+  FAUCET_SOL_FLOOR_LAMPORTS: '10000000',
+};
+const floorTok = await createSessionToken(floorEnv, { xId: 'fx-floor', handle: 'floor' });
+await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/wallet/verify', {
+  method: 'POST',
+  headers: {
+    Origin: 'https://www.getdasha.com',
+    Cookie: `__Host-dasha_x=${floorTok}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ dest: destWallet.address, last4: last4(destWallet.address), paste: true }),
+}), floorEnv);
+const floorSend = { n: 0 };
+globalThis.fetch = rpcMock({ sendCount: floorSend, sol: ATA_RENT_LAMPORTS + FEE_LAMPORTS + 1 });
+try {
+  const floorClaim = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/claim', {
+    method: 'POST',
+    headers: {
+      Origin: 'https://www.getdasha.com',
+      Cookie: `__Host-dasha_x=${floorTok}`,
+      'Content-Type': 'application/json',
+      'CF-Connecting-IP': '203.0.113.23',
+    },
+    body: '{}',
+  }), floorEnv);
+  assert.equal(floorClaim.status, 503);
+  assert.equal((await floorClaim.json()).error, 'faucet_paused');
+  assert.equal(floorSend.n, 0);
+} finally {
+  globalThis.fetch = nativeFetch;
+}
+
 const sendCount = { n: 0 };
 globalThis.fetch = rpcMock({ sendCount });
 try {
@@ -611,6 +772,14 @@ try {
   assert.equal(sent.ok, true);
   assert.ok(sent.signature);
   assert.equal(sent.mint, mint);
+  const readyOk = await preflightFaucet({
+    endpoints: ['https://api.mainnet-beta.solana.com'],
+    treasury: parsed,
+    dest: destWallet.address,
+    amountRaw: DEFAULT_AMOUNT_RAW,
+  });
+  assert.equal(readyOk.ok, true);
+  assert.equal(readyOk.rentLamports, ATA_RENT_LAMPORTS);
   assert.equal(sent.amountRaw, 100000000);
   assert.match(sent.solscan, /^https:\/\/solscan\.io\/tx\//);
   assert.equal(sendCount.n, 1);
@@ -685,6 +854,7 @@ try {
   const names = funded.FAUCET.names();
   assert.ok(names.some((n) => n.startsWith('x:')));
   assert.ok(names.some((n) => n.startsWith('ip:')));
+  assert.ok(names.some((n) => n.startsWith('rent:')));
   assert.ok(!names.includes('public'));
 } finally {
   globalThis.fetch = nativeFetch;

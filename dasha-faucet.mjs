@@ -20,7 +20,10 @@ export const SYSTEM_PROGRAM = '11111111111111111111111111111111';
 export const SIWS_DOMAINS = new Set(['getdasha.com', 'www.getdasha.com', 'lobby.getdasha.com']);
 export const DECIMALS = 6;
 export const DEFAULT_AMOUNT_RAW = 100_000_000;
+/** Today's getMinimumBalanceForRentExemption(165). SIMD-0437 is documented and still inactive — query live. */
 export const ATA_RENT_LAMPORTS = 2_039_280;
+export const ATA_ACCOUNT_BYTES = 165;
+export const DEFAULT_RENT_ATA_COUNT = 20;
 export const FEE_LAMPORTS = 5_000;
 export const COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
 export const PENDING_MS = 15 * 60_000;
@@ -188,6 +191,31 @@ export function faucetAmountRaw(env = {}) {
   if (raw == null || raw === '') return DEFAULT_AMOUNT_RAW;
   const n = Number(raw);
   if (!Number.isInteger(n) || n <= 0 || n > Number.MAX_SAFE_INTEGER) return DEFAULT_AMOUNT_RAW;
+  return n;
+}
+
+export function envInt(raw, fallback) {
+  if (raw == null || raw === '') return fallback;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 0 || n > Number.MAX_SAFE_INTEGER) return fallback;
+  return n;
+}
+
+export function faucetRentCapLamports(env = {}, rent = ATA_RENT_LAMPORTS) {
+  return envInt(env.FAUCET_RENT_CAP_LAMPORTS, DEFAULT_RENT_ATA_COUNT * rent);
+}
+
+export function faucetSolFloorLamports(env = {}, rent = ATA_RENT_LAMPORTS) {
+  return envInt(env.FAUCET_SOL_FLOOR_LAMPORTS, rent + FEE_LAMPORTS);
+}
+
+export function utcDay(now = Date.now()) {
+  return new Date(now).toISOString().slice(0, 10);
+}
+
+export function parseRentExemption(result) {
+  const n = Number(result);
+  if (!Number.isInteger(n) || n <= 0) return null;
   return n;
 }
 
@@ -445,7 +473,7 @@ async function rpcOne(endpoints, method, params) {
   throw lastError || new Error('rpc');
 }
 
-export async function preflightFaucet({ endpoints, treasury, dest, amountRaw }) {
+export async function preflightFaucet({ endpoints, treasury, dest, amountRaw, env = {} }) {
   let destInfo;
   try {
     destInfo = await rpcOne(endpoints, 'getAccountInfo', [dest, { encoding: 'base64' }]);
@@ -467,6 +495,7 @@ export async function preflightFaucet({ endpoints, treasury, dest, amountRaw }) 
       { jsonrpc: '2.0', id: 2, method: 'getBalance', params: [treasury.address] },
       { jsonrpc: '2.0', id: 3, method: 'getTokenAccountBalance', params: [treasuryAta] },
       { jsonrpc: '2.0', id: 4, method: 'getAccountInfo', params: [destAta, { encoding: 'base64' }] },
+      { jsonrpc: '2.0', id: 5, method: 'getMinimumBalanceForRentExemption', params: [ATA_ACCOUNT_BYTES] },
     ]);
   } catch {
     return { ok: false, status: 503, error: 'rpc_unavailable' };
@@ -481,14 +510,19 @@ export async function preflightFaucet({ endpoints, treasury, dest, amountRaw }) 
   try { tokens = BigInt(tokenAmount); } catch { return { ok: false, status: 503, error: 'treasury_empty' }; }
   if (tokens < BigInt(amountRaw)) return { ok: false, status: 503, error: 'treasury_empty' };
   const destExists = Boolean(rows[3]?.result?.value);
-  const need = (destExists ? 0 : ATA_RENT_LAMPORTS) + FEE_LAMPORTS;
+  const rentLamports = parseRentExemption(rows[4]?.result);
+  if (rentLamports == null) return { ok: false, status: 503, error: 'rpc_unavailable' };
+  const need = (destExists ? 0 : rentLamports) + FEE_LAMPORTS;
   if (sol < need) return { ok: false, status: 503, error: 'treasury_rent' };
+  const floor = faucetSolFloorLamports(env, rentLamports);
+  if (sol < floor) return { ok: false, status: 503, error: 'faucet_paused' };
   return {
     ok: true,
     blockhash,
     treasuryAta,
     destAta,
     destExists,
+    rentLamports,
     mint: MINT,
     amountRaw,
   };
@@ -555,6 +589,18 @@ async function faucetWrite(env, kind, id, key, value) {
   }));
 }
 
+async function rentOp(env, op, body) {
+  const day = body.day;
+  const stub = faucetStub(env, 'rent', day);
+  if (!stub) throw new Error('faucet store missing');
+  const res = await stub.fetch(new Request(`https://faucet.internal/${op}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }));
+  return res.json().catch(() => ({ ok: false, error: 'faucet_paused' }));
+}
+
 export class DashaFaucet {
   constructor(state, env) {
     this.state = state;
@@ -564,6 +610,29 @@ export class DashaFaucet {
   async fetch(request) {
     const url = new URL(request.url);
     const key = decodeURIComponent(url.pathname.replace(/^\//, ''));
+    if (request.method === 'POST' && (key === 'rent-reserve' || key === 'rent-release')) {
+      const body = await request.json().catch(() => ({}));
+      const day = String(body.day || '');
+      const add = Number(body.add);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isInteger(add) || add < 0) {
+        return Response.json({ ok: false, error: 'bad rent' }, { status: 400 });
+      }
+      const storeKey = `faucetRent:${day}`;
+      const row = (await this.state.storage.get(storeKey)) || { spent: 0, day };
+      const spent = Number(row.spent) || 0;
+      if (key === 'rent-release') {
+        const next = { spent: Math.max(0, spent - add), day };
+        await this.state.storage.put(storeKey, next);
+        return Response.json({ ok: true, spent: next.spent });
+      }
+      const cap = Number(body.cap);
+      if (!Number.isInteger(cap) || cap < 0 || spent + add > cap) {
+        return Response.json({ ok: false, error: 'faucet_paused', spent });
+      }
+      const next = { spent: spent + add, day };
+      await this.state.storage.put(storeKey, next);
+      return Response.json({ ok: true, spent: next.spent });
+    }
     if (!key || key.length > 200) return Response.json({ error: 'bad key' }, { status: 400 });
     if (request.method === 'GET') {
       return Response.json({ value: (await this.state.storage.get(key)) ?? null });
@@ -733,13 +802,24 @@ export async function handleFaucetApi(request, env, { json, allowedOrigin, endpo
     }
     const keypair = parseFaucetKeypair(env.FAUCET_KEYPAIR);
     const amountRaw = faucetAmountRaw(env);
-    const ready = await preflightFaucet({ endpoints, treasury: keypair, dest, amountRaw });
+    const ready = await preflightFaucet({ endpoints, treasury: keypair, dest, amountRaw, env });
     if (!ready.ok) return json({ error: ready.error }, ready.status, allowedOrigin, cred);
+    const rentAdd = ready.destExists ? 0 : ready.rentLamports;
+    const day = utcDay();
+    if (rentAdd > 0) {
+      const reserved = await rentOp(env, 'rent-reserve', {
+        day,
+        add: rentAdd,
+        cap: faucetRentCapLamports(env, ready.rentLamports),
+      });
+      if (!reserved?.ok) return json({ error: 'faucet_paused' }, 503, allowedOrigin, cred);
+    }
     const pending = { dest, amountRaw, ts: Date.now(), ipHash, pending: true };
     await faucetWrite(env, 'x', xId, `faucetClaim:${xId}`, pending);
     const sent = await sendFaucetTransfer({ endpoints, keypair, dest, amountRaw, preflight: ready });
     if (!sent.ok) {
       await faucetWrite(env, 'x', xId, `faucetClaim:${xId}`, { ...pending, pending: false, ts: 0 });
+      if (rentAdd > 0) await rentOp(env, 'rent-release', { day, add: rentAdd });
       return json({ error: sent.error }, sent.status, allowedOrigin, cred);
     }
     const done = { dest, signature: sent.signature, amountRaw, ts: Date.now(), ipHash };

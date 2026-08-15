@@ -229,7 +229,7 @@
         stage.appendChild(el('p', '', ui + ' $dasha'));
         stage.appendChild(el('p', 'faucet-mono', 'raw ' + raw));
         stage.appendChild(el('p', 'faucet-ca', MINT));
-        stage.appendChild(el('p', 'faucet-lede', '1 / 30 days. Treasury pays ~0.00203928 SOL rent if this wallet has no $dasha ATA yet.'));
+        stage.appendChild(el('p', 'faucet-lede', '1 / 30 days. Treasury pays current ATA rent if this wallet has no $dasha ATA yet.'));
         stage.appendChild(el('p', 'faucet-mono', state.dest));
         var go = el('button', 'faucet-go', 'Send sample');
         go.type = 'button';
@@ -365,7 +365,8 @@
         }
         state.card = 3;
         paint();
-        live.textContent = (res.data && res.data.error) || ('claim ' + res.status);
+        var err = (res.data && res.data.error) || ('claim ' + res.status);
+        live.textContent = err === 'faucet_paused' ? 'faucet paused' : err;
       }).catch(function () {
         state.card = 3;
         paint();
