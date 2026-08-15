@@ -167,9 +167,9 @@ assert(worker.includes('SIMP_BOARD_SRI') && worker.includes('client/simp-board.j
 assert(worker.includes('injectDanceDock') && worker.includes('client/dasha-dance.js') && worker.includes('DANCE_CLIENT_SRI'), 'worker injects the idle dance dock');
 assert(worker.includes('GRAPH_PAGE = GRAPH_PAGE_HTML'), '/graph must not grow the dance dock');
 assert(worker.includes("path === '/' || path === '/lobby' || path === '/studio' || path === '/dasha'"), 'dock rooms are / /lobby /studio /dasha only');
-assert(worker.includes('ensureHomeSimpHop') && worker.includes('dasha-simp-hop') && worker.includes('injectHomeReveal'), 'home rewrite mounts a static quiz hop below the hero');
-assert(!worker.includes('ensureHomeSimpMount'), 'home must not remount the board client');
-assert(!worker.includes('class="dasha-quiz" data-simp-api'), 'home hop is not quiz chrome');
+assert(worker.includes('ensureHomeSimpMount') && worker.includes('injectHomeReveal'), 'home rewrite remounts the pretty board below the hero');
+assert(!worker.includes('ensureHomeSimpHop') && !worker.includes('dasha-simp-hop'), 'home #simp is the board, not a hop-only paragraph');
+assert(!worker.includes('class="dasha-quiz" data-simp-api'), 'home mount is not quiz chrome');
 assert(worker.includes('stripLobbySimpQuiz') && worker.includes('stripLobbySimpQuiz(LOBBY_PAGE_HTML)'), 'first-party /lobby must not mount the quiz');
 assert(!worker.includes('SIMP_QUIZ_JS'), 'must not invent a second quiz client');
 assert(worker.includes('simpSharePageHtml') && worker.includes('og:image:alt'), 'www /simp/r is type-first share HTML');
@@ -1515,9 +1515,11 @@ try {
     assert.match(html, /class="dasha-nav"/, `${label} must keep Designer nav in the DOM`);
     assert.match(html, new RegExp(`id="token"[\\s\\S]*${mint}[\\s\\S]*buy-dasha`), `${label} must keep CA + Buy in #token`);
     assert.match(html, /id="simp"/, `${label} must keep a #simp room`);
-    assert.match(html, /class="dasha-simp-hop"/, `${label} #simp is a static hop`);
-    assert.match(html, /href="\/simp">Take the quiz</, `${label} hop must point at /simp`);
-    assert.doesNotMatch(html, /id="dasha-simp-board"|simp-board\.js|dasha-x-gate|CONNECT X\?|First visit/i, `${label} first paint must not load the board client or a modal`);
+    assert.match(html, /id="dasha-simp-board"/, `${label} #simp remounts the pretty board`);
+    assert.match(html, /simp-board\.js/, `${label} must load the board client below the hero`);
+    assert.ok(html.indexOf('dasha-hero') < html.indexOf('dasha-simp-board'), `${label} board lives below the hero`);
+    assert.doesNotMatch(hero, /id="dasha-simp-board"|simp-board\.js|class="dasha-quiz"/, `${label} hero first paint is not the board`);
+    assert.doesNotMatch(html, /dasha-x-gate|CONNECT X\?|First visit|openHomeGate/i, `${label} must not paint a first-visit X gate`);
     assert.equal([...html.matchAll(/class="dasha-quiz"/g)].length, 0, `${label} must not mount quiz chrome on home`);
     assert.match(html, /id="dasha-home-reveal"/, `${label} must reveal rooms once`);
     assert.doesNotMatch(html, /WebFont\.load|webfont\.js/, `${label} must drop WebFont.load`);
@@ -1526,7 +1528,8 @@ try {
     assert.doesNotMatch(html, /\/forum/, `${label} must drop Forum hrefs`);
     assert.doesNotMatch(html, /--hot-deep|rgba\(124,\s*77,\s*255/, `${label} must drop the violet wash and --hot-deep`);
     assert.doesNotMatch(hero, /system-ui/, `${label} hero must not use system-ui`);
-    assert.doesNotMatch(html, /<form\b|wallet-connect|payTo|\/oauth|class="simp-|score=/i);
+    assert.doesNotMatch(html, /<form\b|wallet-connect|payTo|\/oauth|score=/i);
+    assert.doesNotMatch(html, /class="simp-/);
     const lowerNav = html.match(/<nav class="nav wrap">[\s\S]*?<\/nav>/i)?.[0] || '';
     assert.match(lowerNav, /href="\/studio">Studio</, `${label} lower nav must include Studio`);
     assert.match(lowerNav, /href="\/simp">Simp</, `${label} lower nav must include Simp`);
@@ -1539,7 +1542,8 @@ try {
     assert.match(html, /href="\/dasha"/, `${label} Desk stays in the footer`);
     assert.match(html, /href="\/chess">Chess</, `${label} Chess stays in the footer`);
     assert.doesNotMatch(html, /href=["']https:\/\/lobby\.getdasha\.com\/chess/, `${label} Chess must be same-origin`);
-    assert.doesNotMatch(html, /\.simp-/);
+    assert.match(html, /\.simp-row\{display:grid;grid-template-columns:3\.2rem minmax\(0,1fr\) 3\.2rem/, `${label} must ship three-column board CSS`);
+    assert.doesNotMatch(html, /\.simp-(badge|evidence|open|privacy|basis|badges|season|actions|tool-actions|action|tool|me|tools)\b/, `${label} must drop leftover board soup CSS`);
     return hero;
   };
   const injected = rewriteHomeFirstViewport(stripHomeSimpBoard(webflowHome));
@@ -1552,7 +1556,7 @@ try {
   assert.match(injected, /<a class="skip-link" href="#content">Skip to content<\/a>/, 'Designer skip → #content must stay when the hero is #content');
   assert.match(injected, /id="dasha-home"/, 'live Webflow wrapper id=dasha-home must not block the hero');
   assert.match(injected, new RegExp(mint));
-  assert.equal(rewriteHomeFirstViewport(injected), injected, 'second pass must not duplicate calm CSS, Buy pill, hop, or reveal');
+  assert.equal(rewriteHomeFirstViewport(injected), injected, 'second pass must not duplicate calm CSS, Buy pill, board mount, or reveal');
   assert.equal([...injected.matchAll(/id=["']dasha-lock["']/g)].length, 0);
   const alreadyBuy = rewriteHomeFirstViewport(stripHomeSimpBoard(webflowHome.replace(
     '<p class="actions"><a href="/studio">Open Studio →</a><a href="/lobby">Open lobby →</a></p>',

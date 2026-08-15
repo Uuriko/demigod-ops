@@ -8,7 +8,7 @@
   var DEFAULT_API = 'https://lobby.getdasha.com';
   /** Canonical shareable deep link — www /simp mounts this client. */
   var QUIZ_INVITE_URL = 'https://www.getdasha.com/simp';
-  /** Quiz-invite Connect X on /simp. Home never loads this client. */
+  /** Quiz-invite Connect X on /simp. Home paints the pretty board only. */
   var GATE_LS = 'dasha_x_gate_v1';
   var GATE_AUTOJOIN = 'dasha_x_gate_autojoin';
   var QUIZ_INVITE_SS = 'dasha_quiz_invite_v1';
@@ -20,7 +20,7 @@
     'Dasha curious': { image: '/simp/photo/weekend.jpg', quote: 'All I want is free healthcare, honey', source: '1011745071983296512' }
   };
   var QUIZ_PHOTOS = Object.keys(QUIZ_CARDS).map(function (key) { return QUIZ_CARDS[key].image; });
-  var BOARD_CSS = '.simp-board-root{max-width:36rem;margin:0 auto;color:#f4eddb;font-family:Arial,Helvetica,sans-serif}.simp-lede{margin:0 0 1.75rem;font:900 clamp(1.35rem,3.4vw,2rem)/1.15 "Arial Black",Helvetica,Arial,sans-serif}.simp-lede a{color:#dfff00;text-decoration:none}.simp-board{display:grid}.simp-row{display:grid;grid-template-columns:3.2rem minmax(0,1fr) 3.2rem;gap:.8rem;align-items:baseline;padding:.8rem 0;border-bottom:1px solid rgba(244,237,219,.18);background:none}.simp-rank{color:#dfff00;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}.simp-handle{color:#f4eddb;font-weight:900;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.simp-pts{color:rgba(244,237,219,.5);text-align:right;font-variant-numeric:tabular-nums}.simp-empty,.simp-status{margin:0;color:rgba(244,237,219,.42)}.simp-status:empty{display:none}';
+  var BOARD_CSS = '.simp-board-root{max-width:36rem;margin:0 auto;color:#f4eddb;font-family:Arial,Helvetica,sans-serif}.simp-lede{margin:0 0 1.75rem;font:900 clamp(1.35rem,3.4vw,2rem)/1.15 "Arial Black",Helvetica,Arial,sans-serif}.simp-lede a{color:#dfff00;text-decoration:none}.simp-board{display:grid}.simp-row{display:grid;grid-template-columns:3.2rem minmax(0,1fr) 3.2rem;gap:.8rem;align-items:baseline;padding:.8rem 0;border-bottom:1px solid rgba(244,237,219,.18);background:none}.simp-rank{color:#dfff00;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}.simp-handle{color:#f4eddb;font-weight:900;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.simp-pts{color:rgba(244,237,219,.5);text-align:right;font-variant-numeric:tabular-nums}.simp-empty,.simp-status{margin:0;color:rgba(244,237,219,.42)}.simp-status:empty{display:none}.simp-more{margin:1.25rem 0 0;padding:0;border:0;background:none;color:#dfff00;font:900 1rem/1.2 "Arial Black",Helvetica,Arial,sans-serif;cursor:pointer}';
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -137,6 +137,8 @@
     opts = opts || {};
     if (!root) return null;
     var base = apiBase(opts, root);
+    var homeBoard = isHomePath();
+    var homeOpen = false;
     root.innerHTML = '';
     root.classList.add('simp-board-root');
     root.setAttribute('role', 'region');
@@ -159,7 +161,16 @@
     quizActions.appendChild(retakeBtn);
     var quizBox = el('div', 'simp-quiz-box'); quizBox.hidden = true;
     quiz.appendChild(quizNote); quiz.appendChild(quizActions); quiz.appendChild(quizBox);
-    root.appendChild(quiz);
+    if (homeBoard) {
+      var hop = el('p', 'simp-lede', 'How big of a Dasha simp are you? ');
+      var hopA = document.createElement('a');
+      hopA.href = '/simp';
+      hopA.textContent = 'Take the quiz';
+      hop.appendChild(hopA);
+      root.appendChild(hop);
+    } else {
+      root.appendChild(quiz);
+    }
 
     var status = el('p', 'simp-status', 'Loading board…');
     status.setAttribute('role', 'status');
@@ -192,9 +203,11 @@
     toolActions.appendChild(holderBtn);
     tools.appendChild(toolActions);
     var seasonLine = el('p', 'simp-season', '');     tools.appendChild(seasonLine);
-    root.appendChild(actions);
-    root.appendChild(meLine);
-    root.appendChild(tools);
+    if (!homeBoard) {
+      root.appendChild(actions);
+      root.appendChild(meLine);
+      root.appendChild(tools);
+    }
 
     var boardData = null;
     var meData = null;
@@ -369,7 +382,17 @@
         list.appendChild(el('p', 'simp-empty', 'Empty.'));
         return;
       }
-      rows.forEach(function (entry) { list.appendChild(rowClean(entry)); });
+      var shown = homeBoard && !homeOpen ? rows.slice(0, 10) : rows;
+      shown.forEach(function (entry) { list.appendChild(rowClean(entry)); });
+      if (homeBoard && rows.length > 10 && !homeOpen) {
+        var more = el('button', 'simp-more', 'Show more');
+        more.type = 'button';
+        more.addEventListener('click', function () {
+          homeOpen = true;
+          paintBoard();
+        });
+        list.appendChild(more);
+      }
     }
 
     function paintMe() {
@@ -1342,10 +1365,12 @@
           var seasons = (pair[2].data && pair[2].data.seasons) || [];
           seasonLine.textContent = seasons.length ? 'Latest snapshot: ' + seasons[0].title : 'Lifetime board · no season snapshot yet.';
           paintBoard();
-          paintMe();
-          paintChallengeNote();
-          paintLinkedChip();
-          paintGate();
+          if (!homeBoard) {
+            paintMe();
+            paintChallengeNote();
+            paintLinkedChip();
+            paintGate();
+          }
           setStatus('', 'ok');
         })
         .catch(function () {
@@ -1483,9 +1508,15 @@
     }
     window.addEventListener('message', onXLinkedMessage);
 
-    // /simp?quiz=1 → auto-start quiz + ask to connect X. Home never loads this client.
+    // /simp?quiz=1 → auto-start quiz + ask to connect X. Home never opens a first-visit gate.
     refresh().then(function () {
-      if (wantsQuizInvite()) runQuizInvite();
+      if (wantsQuizInvite()) {
+        if (homeBoard) {
+          try { location.replace('/simp' + location.search + location.hash); } catch (e) {}
+          return;
+        }
+        runQuizInvite();
+      }
     });
     return {
       destroy: function () {

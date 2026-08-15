@@ -188,7 +188,7 @@ export function ensureHtmlLang(html) {
     /\blang\s*=/i.test(attrs) ? tag : `<html lang="en"${attrs}>`);
 }
 
-/** Dead .simp-* rules still shipped in proxied Webflow HTML. Home also drops the board mount. */
+/** Dead .simp-* rules still shipped in proxied Webflow HTML. Home remounts a clean board after this strip. */
 const SIMP_LEFTOVER_STYLE_RE = /\.simp-(?:board|row|rank|handle|badges|badge|evidence|open|status|privacy|basis|pts|season|tool-actions|actions|action|tools|tool|me)\b/i;
 
 /** Drop leftover CSS rules whose selectors mention dead board/frame classes. */
@@ -197,7 +197,7 @@ function stripLeftoverStyleRules(html, leftoverRe) {
     block.replace(/[^{}]+\{[^{}]*\}/g, (rule) => leftoverRe.test(rule.slice(0, rule.indexOf('{'))) ? '' : rule));
 }
 
-/** Drop leftover Webflow board chrome. Home #simp is a static hop, not the board client. */
+/** Drop leftover Webflow board chrome. Home remounts a clean #simp board after this strip. */
 export function stripHomeSimpBoard(html) {
   let out = String(html || '');
   out = out.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, (block) =>
@@ -302,8 +302,7 @@ const HOME_BUY_PILL = `<a class="pill primary buy-dasha" href="${HOME_BUY_HREF}"
 const HOME_CARNIVAL_HIDE = '#lobby,#remix,#stills,#oss,#voice,.poster-grid,#token h2,#token .section-title,#token .assoc,#token .disclaimer,#token .poster,#token .tape{display:none!important}';
 const HOME_FOLD_CSS = '#simp,#token,main.dasha>section{content-visibility:auto;contain-intrinsic-size:auto 720px}';
 const HOME_SCROLL_CSS = 'html{scroll-behavior:auto!important}.dasha{overflow-x:visible!important}#token,#token *{view-timeline:none!important;animation-timeline:none!important;scroll-timeline:none!important}';
-const HOME_HOP_CSS = '.dasha-simp-hop{margin:0;font:900 clamp(1.35rem,3.4vw,2rem)/1.15 "Arial Black",Helvetica,Arial,sans-serif;color:#f4eddb}.dasha-simp-hop a{color:#dfff00;text-decoration:none}';
-const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer{display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + HOME_SCROLL_CSS + HOME_HOP_CSS + HOME_CARNIVAL_HIDE + HOME_FOLD_CSS + AWARD_SLIM_CSS + AWARD_CROP_CSS + AWARD_ROOM_CSS;
+const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer{display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + HOME_SCROLL_CSS + HOME_CARNIVAL_HIDE + HOME_FOLD_CSS + AWARD_SLIM_CSS + AWARD_CROP_CSS + AWARD_ROOM_CSS;
 
 function injectHomeCalmCss(html) {
   const page = String(html || '');
@@ -342,17 +341,14 @@ function ensureHomeBuyPill(html) {
   });
 }
 
-function ensureHomeSimpHop(html) {
+function ensureHomeSimpMount(html) {
   const page = String(html || '');
-  if (/class=["'][^"']*\bdasha-simp-hop\b/i.test(page) && /id=["']simp["']/i.test(page)) return page;
-  const hop = '<div id="simp"><p class="dasha-simp-hop">How big of a Dasha simp are you? <a href="/simp">Take the quiz</a></p></div>';
-  if (/id=["']simp["']/i.test(page)) {
-    return page.replace(/<(div|section)\b[^>]*\bid=["']simp["'][^>]*>[\s\S]*?<\/\1>/i, hop);
-  }
+  if (/id=["']dasha-simp-board["']/i.test(page)) return page;
+  const mount = `<div id="simp"><style>${AWARD_BOARD_CSS}</style><div id="dasha-simp-board" data-simp-api="https://lobby.getdasha.com"><noscript>Needs JavaScript.</noscript></div></div>${simpBoardClientScript()}`;
   const hero = page.match(/<header\b[^>]*\bdasha-hero\b[^>]*>[\s\S]*?<\/header>/i);
   if (!hero) return page;
   const at = page.indexOf(hero[0]) + hero[0].length;
-  return page.slice(0, at) + hop + page.slice(at);
+  return page.slice(0, at) + mount + page.slice(at);
 }
 
 function injectHomeReveal(html) {
@@ -370,7 +366,7 @@ export function rewriteHomeFirstViewport(html) {
   page = page.replace(/<section\b[^>]*\bid=["']dasha-lock["'][^>]*>[\s\S]*?<\/section>/gi, '');
   page = injectHomeCalmCss(page);
   page = ensureHomeBuyPill(page);
-  if (/<header\b[^>]*\bdasha-hero\b/i.test(page)) page = ensureHomeSimpHop(page);
+  if (/<header\b[^>]*\bdasha-hero\b/i.test(page)) page = ensureHomeSimpMount(page);
   page = ensureHomeAwardChrome(page);
   page = injectHomeReveal(page);
   return rewriteLeftoverLobbyHrefs(alignHomeLowerNav(page));

@@ -122,8 +122,8 @@ assert(!landing.includes('10Q') && !landing.includes('20Q'),
 );
 assert(!client.includes("el('details', 'simp-breakdown')") && !client.includes('simp-badge'), 'board rows must drop breakdown and badge chrome');
 assert(client.includes('rowClean') && client.includes("el('span', 'simp-rank'") && client.includes("el('span', 'simp-pts'"), 'board row is rank · handle · number');
-assert(!client.includes('homeBoard') && !client.includes("hopA.href = '/simp'"), 'board client is /simp only — no home hop/top-10 branch');
-assert(!client.includes('rows.slice(0, 10)'), 'board client must not truncate to a home top 10');
+assert(client.includes('homeBoard') && client.includes("hopA.href = '/simp'"), 'home paints the pretty board and hops the quiz to /simp');
+assert(client.includes('rows.slice(0, 10)') && client.includes('Show more'), 'home board is top 10 plus Show more');
 assert(client.includes("el('p', 'simp-empty', 'Empty.')"), 'empty board is one quiet line');
 assert(client.includes("el('details', 'simp-tools')") && client.includes("el('summary', '', 'More')"), 'secondary board tools must stay under More');
 assert.equal((client.match(/Post result on X/g) || []).length, 1, 'result screen regained a second X share action');
