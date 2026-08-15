@@ -9,6 +9,8 @@ import {
   checkRepeat,
   pruneHistory,
   pruneForumThreads,
+  publicForumRow,
+  publicForumThread,
   parseForumThreadPath,
   MAX_FORUM_THREADS,
   MAX_FORUM_REPLIES,
@@ -139,6 +141,27 @@ assert.equal(withReplies[0].replies[0].text, 'r2');
 assert.deepEqual(parseForumThreadPath('/forum/threads'), { list: true, id: '' });
 assert.deepEqual(parseForumThreadPath('/forum/threads/abc123'), { list: false, id: 'abc123' });
 assert.equal(parseForumThreadPath('/forum'), null);
+{
+  const row = publicForumRow({
+    id: 't1',
+    text: 'first line is the topic\nmore',
+    ts: 100,
+    nick: 'ava',
+    replies: [{ id: 'r1', text: 'reply', ts: 200, nick: 'ben' }],
+  });
+  assert.equal(row.replies, 1);
+  assert.equal(row.lastTs, 200);
+  assert.equal(row.text, 'first line is the topic\nmore');
+  const open = publicForumThread({
+    id: 't1',
+    text: 'first line is the topic\nmore',
+    ts: 100,
+    nick: 'ava',
+    replies: [{ id: 'r1', text: 'reply', ts: 200, nick: 'ben' }],
+  });
+  assert.equal(open.replies.length, 1);
+  assert.equal(open.replies[0].text, 'reply');
+}
 
 assert.equal(parseClientFrame('{"type":"hello","nick":"ava"}').ok, true);
 assert.equal(parseClientFrame('{"type":"chat","text":"gm"}').ok, true);

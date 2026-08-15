@@ -307,15 +307,21 @@ export function pruneForumThreads(list) {
   return out;
 }
 
-export function publicForumRow(row) {
+function publicForumPost(row) {
   const out = { id: row.id, text: row.text, ts: row.ts };
   if (row.handle) out.handle = row.handle;
   else if (row.nick) out.nick = row.nick;
   return out;
 }
 
+export function publicForumRow(row) {
+  const replies = Array.isArray(row.replies) ? row.replies : [];
+  const last = replies.length ? replies[replies.length - 1] : null;
+  return { ...publicForumPost(row), replies: replies.length, lastTs: last?.ts || row.ts };
+}
+
 export function publicForumThread(thread) {
-  return { ...publicForumRow(thread), replies: (thread.replies || []).map(publicForumRow) };
+  return { ...publicForumPost(thread), replies: (thread.replies || []).map(publicForumPost) };
 }
 
 export function parseForumThreadPath(pathname) {

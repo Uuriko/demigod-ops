@@ -52,6 +52,11 @@ assert.match(client, /type: 'hello'/);
 assert.match(client, /getElementById\('dasha-lobby'\)/);
 assert.match(client, /getElementById\('dasha-forum'\)/);
 assert.match(client, /mountForum/);
+assert.match(client, /forum-replies/);
+assert.match(client, /lastTs/);
+assert.match(client, /topicTitle/);
+assert.doesNotMatch(client, /Discourse|Latest|Unread|Hot/);
+assert.doesNotMatch(page, /Discourse|Latest|Unread|Hot/);
 assert.doesNotMatch(client, /Be first\./);
 assert.doesNotMatch(client, /verify mint/);
 assert.doesNotMatch(client, /Connected — enter a nick/);
@@ -101,6 +106,12 @@ const listedBody = await listed.json();
 assert.equal(listedBody.threads.length, 1);
 assert.equal(listedBody.threads[0].id, createdBody.id);
 assert.equal(listedBody.threads[0].text, 'first post is the thread');
+assert.equal(listedBody.threads[0].replies, 0);
+assert.equal(listedBody.threads[0].lastTs, createdBody.ts);
+
+const second = await room.handleForum(forumReq('/forum/threads', { method: 'POST', body: { text: 'newer topic', nick: 'cam' }, ip: '198.51.100.12' }), 'https://www.getdasha.com');
+assert.equal(second.status, 200);
+const secondBody = await second.json();
 
 const replied = await room.handleForum(forumReq(`/forum/threads/${createdBody.id}`, { method: 'POST', body: { text: 'one level reply', nick: 'ben' }, ip: '198.51.100.10' }), 'https://www.getdasha.com');
 assert.equal(replied.status, 200);
@@ -108,6 +119,14 @@ const repliedBody = await replied.json();
 assert.equal(repliedBody.replies.length, 1);
 assert.equal(repliedBody.replies[0].text, 'one level reply');
 assert.equal(repliedBody.replies[0].nick, 'ben');
+
+const bumped = await room.handleForum(forumReq('/forum/threads'), '*');
+const bumpedBody = await bumped.json();
+assert.equal(bumpedBody.threads.length, 2);
+assert.equal(bumpedBody.threads[0].id, createdBody.id);
+assert.equal(bumpedBody.threads[0].replies, 1);
+assert.equal(bumpedBody.threads[0].lastTs, repliedBody.replies[0].ts);
+assert.equal(bumpedBody.threads[1].id, secondBody.id);
 
 const got = await room.handleForum(forumReq(`/forum/threads/${createdBody.id}`), '*');
 assert.equal(got.status, 200);
@@ -129,7 +148,7 @@ const hist = state.storage.data.get('history');
 assert.equal(hist[0].id, 'keep-chat');
 assert.equal(hist[0].text, 'gm');
 assert.ok(Array.isArray(state.storage.data.get('forumThreads')));
-assert.equal(state.storage.data.get('forumThreads').length, 2);
+assert.equal(state.storage.data.get('forumThreads').length, 3);
 
 const workerEnv = {
   ALLOWED_ORIGINS: env.ALLOWED_ORIGINS,
@@ -161,6 +180,6 @@ for (const host of ['www.getdasha.com', 'getdasha.com', 'lobby.getdasha.com']) {
 
 const apiList = await workerModule.default.fetch(forumReq('/forum/threads'), workerEnv);
 assert.equal(apiList.status, 200);
-assert.ok((await apiList.json()).threads.length >= 2);
+assert.ok((await apiList.json()).threads.length >= 3);
 
 console.log('dasha-forum: PASS');

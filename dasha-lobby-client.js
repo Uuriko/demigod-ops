@@ -749,9 +749,12 @@
       tick();
     }
 
-    function rowEl(item, cls) {
-      var row = el(cls === 'forum-row' ? 'button' : 'div', cls);
-      if (cls === 'forum-row') row.type = 'button';
+    function topicTitle(text) {
+      return String(text || '').split(/\r?\n/, 1)[0];
+    }
+
+    function postEl(item, cls) {
+      var row = el('div', cls);
       var whoLabel = item.handle ? '@' + item.handle : item.nick || '';
       var meta = el('span', 'forum-meta', whoLabel + (item.ts ? (whoLabel ? ' · ' : '') + timeLabel(item.ts) : ''));
       var body = el('span', 'forum-body');
@@ -761,10 +764,19 @@
       return row;
     }
 
+    function listRow(item) {
+      var row = el('button', 'forum-row');
+      row.type = 'button';
+      row.appendChild(el('span', 'forum-body', topicTitle(item.text)));
+      row.appendChild(el('span', 'forum-replies', String(item.replies || 0)));
+      row.appendChild(el('span', 'forum-when', timeLabel(item.lastTs || item.ts)));
+      return row;
+    }
+
     function paintList(threads) {
       list.textContent = '';
       (threads || []).forEach(function (t) {
-        var row = rowEl(t, 'forum-row');
+        var row = listRow(t);
         row.addEventListener('click', function () {
           openThread(t.id);
         });
@@ -774,9 +786,9 @@
 
     function paintThread(data) {
       threadBox.textContent = '';
-      threadBox.appendChild(rowEl(data, 'forum-post'));
+      threadBox.appendChild(postEl(data, 'forum-post'));
       (data.replies || []).forEach(function (r) {
-        threadBox.appendChild(rowEl(r, 'forum-reply'));
+        threadBox.appendChild(postEl(r, 'forum-reply'));
       });
     }
 

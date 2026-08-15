@@ -2898,7 +2898,7 @@ export class DashaLobby {
 
     if (request.method === 'GET') {
       if (parsed.list) {
-        const threads = this.forumThreads.map(thread => publicForumRow(thread)).reverse();
+        const threads = this.forumThreads.map(thread => publicForumRow(thread)).sort((a, b) => (b.lastTs || 0) - (a.lastTs || 0));
         return json({ threads }, 200, allowedOrigin || '*');
       }
       const thread = this.forumThreads.find(row => row.id === parsed.id);
