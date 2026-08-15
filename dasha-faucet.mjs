@@ -231,6 +231,16 @@ export function last4(addr) {
   return String(addr || '').slice(-4);
 }
 
+export function destShapeError(dest, four) {
+  const d = String(dest || '').trim();
+  const f = String(four || '').trim();
+  if (/t\.me|telegram/i.test(d)) return 'dest_not_wallet';
+  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(d)) return 'dest_not_wallet';
+  if (d === MINT) return 'dest_mint';
+  if (f && last4(d) !== f) return 'last-4 does not match';
+  return null;
+}
+
 export function faucetConfigured(env = {}) {
   return Boolean(parseFaucetKeypair(env.FAUCET_KEYPAIR));
 }
@@ -942,7 +952,10 @@ export async function handleFaucetApi(request, env, { json, allowedOrigin, endpo
     if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405, allowedOrigin, cred);
     if (!allowedOrigin) return json({ error: 'origin required' }, 403, null);
     if (!configured) return failUnconfigured();
-    const dest = String((await requestJson(request)).dest || '');
+    const destBody = await requestJson(request);
+    const dest = String(destBody.dest || '');
+    const shape = destShapeError(dest, destBody.last4);
+    if (shape) return json({ error: shape }, 400, allowedOrigin, cred);
     const destClass = await classifyDestLive(endpoints, dest);
     return json({
       ok: destClass.ok,
@@ -961,7 +974,8 @@ export async function handleFaucetApi(request, env, { json, allowedOrigin, endpo
     const xId = String(session.xId);
     if (body.paste || body.last4) {
       const dest = String(body.dest || body.publicKey || '');
-      if (last4(dest) !== String(body.last4 || '')) return json({ error: 'last-4 does not match' }, 400, allowedOrigin, cred);
+      const shape = destShapeError(dest, body.last4);
+      if (shape) return json({ error: shape }, 400, allowedOrigin, cred);
       const destClass = await classifyDestLive(endpoints, dest);
       if (!destClass.ok) return json({ error: destClass.error }, destClass.status, allowedOrigin, cred);
       await faucetWrite(env, 'x', xId, `faucetDest:${xId}`, { dest, method: 'paste', kind: destClass.kind, ts: Date.now() });

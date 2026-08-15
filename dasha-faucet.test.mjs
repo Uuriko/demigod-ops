@@ -38,6 +38,7 @@ import {
   hashIp,
   isOnCurveAddress,
   last4,
+  destShapeError,
   notConfigured,
   parseFaucetKeypair,
   parseRentExemption,
@@ -102,6 +103,20 @@ assert.match(clientSrc, /MATCH, not verified/);
 assert.match(clientSrc, /dasha-x-linked/);
 assert.match(clientSrc, /signedMessage/);
 assert.match(clientSrc, /dasha-faucet-static/);
+assert.match(clientSrc, /destShapeError/);
+assert.match(clientSrc, /last-4 does not match/);
+assert.match(clientSrc, /dest_not_wallet/);
+assert.match(clientSrc, /dest_token/);
+assert.match(clientSrc, /faucet-quiet/);
+assert.match(clientSrc, /faucet-back/);
+assert.match(clientSrc, /holdCard/);
+assert.match(clientSrc, /aria-label/);
+assert.match(clientSrc, /\/airdrop/);
+assert.match(clientSrc, /\/earn/);
+assert.match(clientSrc, /state\.card = 6/);
+assert.match(clientSrc, /\/faucet\/dest-check/);
+assert.doesNotMatch(clientSrc, /JSON\.stringify\(res\.data\)/);
+assert.doesNotMatch(clientSrc, /live\.textContent = raw/);
 assert.match(clientSrc, /waiting for the chain\. no fake bar\./);
 assert.match(clientSrc, /it's a sample/);
 assert.match(clientSrc, /that word has a room at \/airdrop/);
@@ -217,6 +232,11 @@ assert.equal(classifyDest({ address: destWallet.address, account: { owner: TOKEN
 assert.equal(classifyDest({ address: destWallet.address, account: { owner: TOKEN_PROGRAM, space: 165 }, onCurve: true }).error, 'dest_token');
 assert.equal(classifyDest({ address: destWallet.address, account: { owner: TOKEN_2022_PROGRAM, space: 165 }, onCurve: true }).error, 'dest_token');
 assert.equal(classifyDest({ address: destWallet.address, account: { owner: ASSOCIATED_TOKEN_PROGRAM }, onCurve: true }).error, 'dest_not_wallet');
+assert.equal(destShapeError('https://t.me/dashacommunity', ''), 'dest_not_wallet');
+assert.equal(destShapeError('53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'.slice(0, 20), ''), 'dest_not_wallet');
+assert.equal(destShapeError(mint, ''), 'dest_mint');
+assert.equal(destShapeError(destWallet.address, 'xxxx'), 'last-4 does not match');
+assert.equal(destShapeError(destWallet.address, last4(destWallet.address)), null);
 
 const now = Date.parse('2026-08-15T00:00:00Z');
 assert.equal(claimCooldown(null, now), null);
@@ -259,7 +279,10 @@ assert.equal(FAUCET_CLIENT_SRI, faucetSri, 'FAUCET_CLIENT_SRI must hash served c
 const pageHtml = workerModule.faucetPageHtml();
 assert.match(pageHtml, /<link rel="canonical" href="https:\/\/www\.getdasha\.com\/faucet">/);
 assert.match(pageHtml, /id="dasha-faucet"/);
-assert.match(pageHtml, /id="dasha-faucet-static"/);
+assert.match(pageHtml, /<noscript>[\s\S]*<h1>Faucet<\/h1>[\s\S]*<\/noscript>/);
+assert.doesNotMatch(pageHtml.replace(/<noscript>[\s\S]*?<\/noscript>/, ''), /<h1>Faucet<\/h1>/);
+assert.match(pageHtml, /href="\/faucet" aria-current="page"/);
+assert.match(pageHtml, /footer a\{display:inline-flex;align-items:center;min-height:48px/);
 assert.ok(pageHtml.includes(mint));
 assert.match(pageHtml, /Arial Black/);
 assert.match(pageHtml, /client\/faucet\.js/);
@@ -392,6 +415,38 @@ const offCurve = await workerModule.default.fetch(new Request('https://lobby.get
 }), funded);
 assert.equal(offCurve.status, 400);
 assert.equal((await offCurve.json()).error, 'dest_pda');
+
+const last4Miss = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/wallet/verify', {
+  method: 'POST',
+  headers: {
+    Origin: 'https://www.getdasha.com',
+    Cookie: `__Host-dasha_x=${sessionToken}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ dest: destWallet.address, last4: 'xxxx', paste: true }),
+}), funded);
+assert.equal(last4Miss.status, 400);
+assert.equal((await last4Miss.json()).error, 'last-4 does not match');
+
+const telegramPaste = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/wallet/verify', {
+  method: 'POST',
+  headers: {
+    Origin: 'https://www.getdasha.com',
+    Cookie: `__Host-dasha_x=${sessionToken}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ dest: 'https://t.me/dashacommunity', last4: 'nity', paste: true }),
+}), funded);
+assert.equal(telegramPaste.status, 400);
+assert.equal((await telegramPaste.json()).error, 'dest_not_wallet');
+
+const destCheckLast4 = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/dest-check', {
+  method: 'POST',
+  headers: { Origin: 'https://www.getdasha.com', 'Content-Type': 'application/json' },
+  body: JSON.stringify({ dest: destWallet.address, last4: 'xxxx' }),
+}), funded);
+assert.equal(destCheckLast4.status, 400);
+assert.equal((await destCheckLast4.json()).error, 'last-4 does not match');
 
 const pasteOk = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/wallet/verify', {
   method: 'POST',

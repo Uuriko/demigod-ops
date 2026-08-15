@@ -56,14 +56,51 @@
       '.faucet-stamp{display:inline-flex;align-items:center;min-height:36px;padding:0 10px;border:2px solid #dfff00;color:#dfff00;font-weight:900;letter-spacing:.06em}' +
       '.faucet-stamp.is-no{border-color:#ff3b81;color:#ff3b81}' +
       '.faucet-stamp.is-ink{background:#dfff00;color:#070608}' +
-      '.faucet-go,.faucet-choice{min-height:48px;min-width:48px;padding:0 16px;border:1px solid #dfff00;background:#dfff00;color:#070608;font:inherit;font-weight:900;text-transform:uppercase;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}' +
+      '.faucet-go,.faucet-choice,.faucet-back{min-height:48px;min-width:48px;padding:0 16px;border:1px solid #dfff00;background:#dfff00;color:#070608;font:inherit;font-weight:900;text-transform:uppercase;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}' +
+      '.faucet-back{background:transparent;color:#f4eddb}' +
       '.faucet-choice{background:#070608;color:#f4eddb;width:100%;text-align:left}' +
       '.faucet-choices{display:grid;gap:10px}' +
       '.faucet-ca,.faucet-mono{font:15px/1.4 Fragment Mono,ui-monospace,Menlo,Consolas,monospace;word-break:break-all;user-select:all;color:#7c4dff}' +
       '.faucet-warn{color:#ff3b81}' +
+      '.faucet-label{display:block;margin:.2rem 0;color:rgba(244,237,219,.7)}' +
       '.faucet-root input{width:100%;min-height:48px;padding:10px;box-sizing:border-box;background:#070608;color:#f4eddb;border:1px solid #dfff00;font:15px/1.4 Fragment Mono,ui-monospace,Menlo,Consolas,monospace}' +
-      '.faucet-hops{display:flex;flex-wrap:wrap;gap:8px}' +
+      '.faucet-hops,.faucet-quiet{display:flex;flex-wrap:wrap;gap:12px}' +
+      '.faucet-quiet a{min-height:48px;min-width:48px;display:inline-flex;align-items:center;color:#dfff00}' +
       '@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}';
+  }
+
+  function destShapeError(dest, four) {
+    dest = String(dest || '').trim();
+    four = String(four || '').trim();
+    if (/t\.me|telegram/i.test(dest)) return 'dest_not_wallet';
+    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(dest)) return 'dest_not_wallet';
+    if (dest === MINT) return 'dest_mint';
+    if (four && dest.slice(-4) !== four) return 'last-4 does not match';
+    return '';
+  }
+
+  function humanError(code) {
+    var key = String(code || '').trim();
+    if (!key || key.charAt(0) === '{') return 'claim failed.';
+    var map = {
+      dest_not_wallet: 'dest_not_wallet',
+      dest_token: 'dest_token',
+      dest_mint: 'dest_mint',
+      dest_pda: 'dest_pda',
+      'last-4 does not match': 'last-4 does not match',
+      'link X first': 'link X first',
+      'already claimed': 'already claimed',
+      confirming: 'still confirming. wait, then retry.',
+      treasury_empty: 'treasury empty. try later.',
+      faucet_paused: 'faucet paused',
+      treasury_rent: 'treasury needs rent. try later.',
+      rpc_unavailable: 'rpc down. try later.',
+      not_configured: 'faucet not configured.',
+      'invalid faucet challenge': 'wallet sign-in failed.',
+      siws_domain: 'sign-in domain mismatch.',
+      'non-json response': 'server did not answer.'
+    };
+    return map[key] || key;
   }
 
   function copyText(text, btn) {
@@ -89,6 +126,32 @@
     box.appendChild(learn);
     box.appendChild(el('p', 'faucet-lede', 'Neither is required.'));
     root.appendChild(box);
+  }
+
+  function quietHops(root) {
+    var box = el('div', 'faucet-quiet');
+    [['/learn', 'Learn'], ['/how-to-buy', 'How to buy'], ['/airdrop', 'Airdrop'], ['/earn', 'Earn']].forEach(function (pair) {
+      var a = el('a', '', pair[1]);
+      a.href = pair[0];
+      box.appendChild(a);
+    });
+    root.appendChild(box);
+  }
+
+  function labeledInput(id, labelText, attrs) {
+    var wrap = el('div');
+    var lab = el('label', 'faucet-label', labelText);
+    lab.setAttribute('for', id);
+    var input = el('input');
+    input.id = id;
+    input.setAttribute('aria-label', labelText);
+    Object.keys(attrs || {}).forEach(function (k) {
+      if (k === 'maxLength') input.maxLength = attrs[k];
+      else input.setAttribute(k, attrs[k]);
+    });
+    wrap.appendChild(lab);
+    wrap.appendChild(input);
+    return { wrap: wrap, input: input };
   }
 
   function mintBlock(root) {
@@ -145,7 +208,8 @@
 
     var state = {
       card: 0, me: null, status: null, dest: '', kind: '', siwsDown: false, sent: null,
-      last4Ok: false, phraseStamped: false, mintMatched: false, note: ''
+      last4Ok: false, phraseStamped: false, mintMatched: false, note: '',
+      holdCard: false, destError: '', fail: ''
     };
     var xPopup = null;
     var xTimer = 0;
@@ -183,6 +247,23 @@
       return String(addr || '').slice(-4);
     }
 
+    function backTo(n) {
+      var b = el('button', 'faucet-back', 'Back');
+      b.type = 'button';
+      b.addEventListener('click', function () {
+        state.holdCard = true;
+        state.card = n;
+        state.fail = '';
+        state.destError = '';
+        paint();
+      });
+      return b;
+    }
+
+    function showErr(code) {
+      return el('p', 'faucet-q faucet-warn', humanError(code));
+    }
+
     function receiptStub(box, dest, nextAt) {
       var stub = el('div', 'faucet-stub');
       stub.appendChild(el('h2', 'faucet-q', 'Ticket stub'));
@@ -192,6 +273,7 @@
       stub.appendChild(el('p', 'faucet-lede', 'no cash value'));
       stub.appendChild(el('div', 'faucet-hole', ''));
       if (nextAt) stub.appendChild(el('p', 'faucet-lede', 'Next at ' + new Date(nextAt).toISOString()));
+      quietHops(stub);
       box.appendChild(stub);
     }
 
@@ -245,7 +327,7 @@
         p.appendChild(nd);
         intro.appendChild(p);
         var picks = el('div', 'faucet-choices');
-        picks.appendChild(choice("it's a sample", function () { state.note = ''; state.card = 1; paint(); }));
+        picks.appendChild(choice("it's a sample", function () { state.note = ''; state.holdCard = false; state.card = 1; paint(); }));
         picks.appendChild(choice('airdrop', function () {
           state.note = "there isn't one. that word has a room at /airdrop.";
           paint();
@@ -272,18 +354,30 @@
           }
           intro.appendChild(fix);
         }
+        quietHops(intro);
         stage.appendChild(intro);
         return;
       }
       if (state.card === 1) {
         var xCard = ticket(1);
-        xCard.appendChild(el('h2', 'faucet-q', 'Connect X'));
-        xCard.appendChild(el('p', '', 'One linked X account. One sample / 30 days. No referrals.'));
-        if (state.me && state.me.linked) {
+        xCard.appendChild(backTo(0));
+        if (state.me && state.me.linked && !state.holdCard) {
           state.card = 2;
           paint();
           return;
         }
+        if (state.me && state.me.linked) {
+          xCard.appendChild(el('h2', 'faucet-q', 'X linked'));
+          xCard.appendChild(el('p', '', 'Dest next. Back keeps dest and X.'));
+          var destGo = el('button', 'faucet-go', 'Destination');
+          destGo.type = 'button';
+          destGo.addEventListener('click', function () { state.card = 2; paint(); });
+          xCard.appendChild(destGo);
+          stage.appendChild(xCard);
+          return;
+        }
+        xCard.appendChild(el('h2', 'faucet-q', 'Connect X'));
+        xCard.appendChild(el('p', '', 'One linked X account. One sample / 30 days. No referrals.'));
         var btn = el('button', 'faucet-go', 'Connect X');
         btn.type = 'button';
         btn.addEventListener('click', function () { startX(); });
@@ -293,6 +387,7 @@
       }
       if (state.card === 2) {
         var destCard = ticket(2);
+        destCard.appendChild(backTo(1));
         destCard.appendChild(el('h2', 'faucet-q', 'Destination'));
         destCard.appendChild(el('p', 'faucet-lede', 'SIWS is dest-proof, not a claim-airdrop signature.'));
         if (!state.dest) {
@@ -301,34 +396,38 @@
           siws.addEventListener('click', function () { bindSiws(siws); });
           destCard.appendChild(siws);
           destCard.appendChild(el('p', 'faucet-lede', 'Or paste. Check the last 4.'));
-          var input = el('input', '', '');
-          input.placeholder = 'Solana address';
-          input.autocomplete = 'off';
-          input.spellcheck = false;
-          var last = el('input', '', '');
-          last.placeholder = 'last 4';
-          last.autocomplete = 'off';
-          last.maxLength = 4;
+          var destField = labeledInput('dasha-faucet-dest', 'Destination wallet', {
+            autocomplete: 'off',
+            spellcheck: 'false',
+            placeholder: 'Solana address'
+          });
+          var lastField = labeledInput('dasha-faucet-last4', 'Last 4 of destination', {
+            autocomplete: 'off',
+            placeholder: 'last 4',
+            maxLength: 4
+          });
           var paste = el('button', 'faucet-go', 'Use pasted address');
           paste.type = 'button';
-          paste.addEventListener('click', function () { bindPaste(input.value, last.value); });
-          destCard.appendChild(input);
-          destCard.appendChild(last);
+          paste.addEventListener('click', function () { bindPaste(destField.input.value, lastField.input.value); });
+          destCard.appendChild(destField.wrap);
+          destCard.appendChild(lastField.wrap);
           destCard.appendChild(paste);
+          if (state.destError) destCard.appendChild(showErr(state.destError));
         } else {
           destCard.appendChild(el('p', 'faucet-match', last4Of(state.dest) + ' MATCH'));
           destCard.appendChild(el('p', 'faucet-ca', state.dest));
           destCard.appendChild(stamp(state.kind || 'IS_WALLET'));
           destCard.appendChild(el('p', '', 'Retype dest last-4.'));
-          var retype = el('input', '', '');
-          retype.placeholder = 'last 4';
-          retype.autocomplete = 'off';
-          retype.maxLength = 4;
-          retype.addEventListener('input', function () {
-            state.last4Ok = last4Of(state.dest) === String(retype.value || '').trim();
+          var retypeField = labeledInput('dasha-faucet-last4-retype', 'Retype last 4 to MATCH', {
+            autocomplete: 'off',
+            placeholder: 'last 4',
+            maxLength: 4
+          });
+          retypeField.input.addEventListener('input', function () {
+            state.last4Ok = last4Of(state.dest) === String(retypeField.input.value || '').trim();
             if (state.last4Ok && state.phraseStamped) { state.card = 3; paint(); }
           });
-          destCard.appendChild(retype);
+          destCard.appendChild(retypeField.wrap);
           var ink = el('button', state.phraseStamped ? 'faucet-stamp is-ink' : 'faucet-stamp', PHRASE);
           ink.type = 'button';
           ink.addEventListener('click', function () {
@@ -345,6 +444,7 @@
         var raw = state.status && state.status.amountRaw != null ? state.status.amountRaw : 100000000;
         var ui = state.status && state.status.amountUi != null ? state.status.amountUi : 100;
         var confirm = ticket(3);
+        confirm.appendChild(backTo(2));
         confirm.appendChild(el('h2', 'faucet-q', 'Confirm'));
         confirm.appendChild(el('p', 'faucet-match', last4Of(state.dest) + ' MATCH'));
         confirm.appendChild(el('p', 'faucet-ca', state.dest));
@@ -367,17 +467,18 @@
           paint();
         }));
         confirm.appendChild(mintBox);
-        var mintPaste = el('input', '', '');
-        mintPaste.placeholder = 'paste the real CA';
-        mintPaste.autocomplete = 'off';
-        mintPaste.spellcheck = false;
-        mintPaste.addEventListener('input', function () {
-          if (String(mintPaste.value || '').trim() === MINT) {
+        var mintField = labeledInput('dasha-faucet-mint-paste', 'Mint address', {
+          autocomplete: 'off',
+          spellcheck: 'false',
+          placeholder: 'paste the real CA'
+        });
+        mintField.input.addEventListener('input', function () {
+          if (String(mintField.input.value || '').trim() === MINT) {
             state.mintMatched = true;
             paint();
           }
         });
-        confirm.appendChild(mintPaste);
+        confirm.appendChild(mintField.wrap);
         if (state.mintMatched) {
           confirm.appendChild(el('p', 'faucet-ca', MINT));
           confirm.appendChild(el('p', 'faucet-lede', '1 / 30 days. Treasury pays current ATA rent if this wallet has no $dasha ATA yet.'));
@@ -399,6 +500,19 @@
         }
         stage.appendChild(sending);
         live.textContent = 'waiting for JSON';
+        return;
+      }
+      if (state.card === 6) {
+        var fail = ticket(4);
+        fail.appendChild(backTo(3));
+        fail.appendChild(showErr(state.fail || 'claim failed.'));
+        fail.appendChild(el('p', 'faucet-lede', 'no fake send. dest and X stay. retry from confirm.'));
+        var retry = el('button', 'faucet-go', 'Back to confirm');
+        retry.type = 'button';
+        retry.addEventListener('click', function () { state.card = 3; state.fail = ''; paint(); });
+        fail.appendChild(retry);
+        stage.appendChild(fail);
+        live.textContent = humanError(state.fail);
         return;
       }
       if (state.card === 5) {
@@ -487,8 +601,9 @@
           btn.disabled = false;
           if (!res) return;
           if (!res.data || !res.data.ok) {
-            live.textContent = (res.data && res.data.error) || 'verify failed';
-            if (res.data && res.data.error === 'dest_token') stage.appendChild(stamp('token'));
+            state.destError = humanError((res.data && res.data.error) || 'verify failed');
+            live.textContent = state.destError;
+            paint();
             return;
           }
           state.dest = res.data.dest;
@@ -500,35 +615,69 @@
         })
         .catch(function (err) {
           btn.disabled = false;
-          live.textContent = String(err.message || err).slice(0, 120);
+          state.destError = humanError(err && err.message);
+          live.textContent = state.destError;
+          paint();
         });
+    }
+
+    function showDestError(code) {
+      state.destError = humanError(code);
+      live.textContent = state.destError;
+      paint();
     }
 
     function bindPaste(dest, four) {
       dest = String(dest || '').trim();
       four = String(four || '').trim();
-      fetchJson(base + '/faucet/wallet/verify', {
+      var shape = destShapeError(dest, four);
+      if (shape) {
+        showDestError(shape);
+        return;
+      }
+      function afterWallet() {
+        if (!state.me || !state.me.linked) {
+          showDestError('link X first');
+          return Promise.resolve();
+        }
+        return fetchJson(base + '/faucet/wallet/verify', {
+          method: 'POST',
+          credentials: 'include',
+          mode: 'cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dest: dest, last4: four, paste: true })
+        }).then(function (res) {
+          if (!res.data || !res.data.ok) {
+            showDestError((res.data && res.data.error) || 'paste rejected');
+            return;
+          }
+          state.dest = res.data.dest;
+          state.kind = res.data.kind || 'IS_WALLET';
+          state.last4Ok = false;
+          state.phraseStamped = false;
+          state.destError = '';
+          state.card = 2;
+          paint();
+        });
+      }
+      fetchJson(base + '/faucet/dest-check', {
         method: 'POST',
         credentials: 'include',
         mode: 'cors',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dest: dest, last4: four, paste: true })
+        body: JSON.stringify({ dest: dest, last4: four })
       }).then(function (res) {
-        if (!res.data || !res.data.ok) {
-          live.textContent = (res.data && res.data.error) || 'paste rejected';
-          if (res.data && (res.data.error === 'dest_token' || res.data.error === 'dest_mint')) {
-            var card = stage.querySelector('.faucet-ticket') || stage;
-            card.appendChild(stamp('token'));
-          }
+        var err = res.data && res.data.error;
+        if (err && err !== 'link X first') {
+          showDestError(err);
           return;
         }
-        state.dest = res.data.dest;
-        state.kind = res.data.kind || 'IS_WALLET';
-        state.last4Ok = false;
-        state.phraseStamped = false;
-        state.card = 2;
-        paint();
-      }).catch(function () { live.textContent = 'paste failed'; });
+        if (res.data && res.data.ok === false) {
+          showDestError(err || 'dest_not_wallet');
+          return;
+        }
+        return afterWallet();
+      }).catch(function () { return afterWallet(); });
     }
 
     function claim() {
@@ -552,14 +701,13 @@
           live.textContent = 'waiting for the chain. no fake bar.';
           return;
         }
-        state.card = 3;
+        state.fail = humanError((res.data && res.data.error) || ('claim ' + res.status));
+        state.card = 6;
         paint();
-        var err = (res.data && res.data.error) || ('claim ' + res.status);
-        live.textContent = err === 'faucet_paused' ? 'faucet paused' : err;
       }).catch(function () {
-        state.card = 3;
+        state.fail = 'claim failed.';
+        state.card = 6;
         paint();
-        live.textContent = 'claim failed';
       });
     }
 
@@ -590,7 +738,7 @@
       return fetchJson(base + '/faucet/me', { credentials: 'include', mode: 'cors' }).then(function (res) {
         state.me = res.data || {};
         if (state.me.dest) state.dest = state.me.dest;
-        if (state.me.linked && state.card === 1) {
+        if (state.me.linked && state.card === 1 && !state.holdCard) {
           stopXPoll();
           state.card = 2;
         }
@@ -661,7 +809,7 @@
     };
   }
 
-  var api = { mount: mount, MINT: MINT };
+  var api = { mount: mount, MINT: MINT, destShapeError: destShapeError, humanError: humanError };
   global.DashaFaucet = api;
   function boot() {
     hideLeftover();
