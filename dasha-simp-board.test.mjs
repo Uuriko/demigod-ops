@@ -71,7 +71,7 @@ assert(quizSmoke.includes("args.has('--live-write')") && !quizSmoke.includes("co
 assert(!worker.includes('simpQuizMetrics[xId]'), 'quiz metrics must not be keyed by X identity');
 assert(worker.includes("input?.event !== 'share'") && worker.includes('countQuizResult'), 'decision-grade quiz metrics must come from server transitions, not client event claims');
 assert(!/trackQuiz\('(start|retake|reach|answer|complete|result)'/.test(client), 'client must not submit authoritative quiz funnel events');
-assert(client.includes('Connect X to play') && worker.includes("error: 'link X to take the quiz'"), 'quiz start must require linked X');
+assert(client.includes("el('button', 'simp-connect', 'Connect X')") && worker.includes("error: 'link X to take the quiz'"), 'quiz start must require linked X');
 assert(client.includes('650') && client.includes('1100') && !client.includes("'Pause'"), 'feedback should advance briskly without an extra pause control');
 assert(client.includes('quizAnswerBusy'), 'double-tap answer guard missing');
 assert(client.includes('retakeQuiz') && client.includes("role','progressbar"), 'retake helper + quiet progress bar missing');
@@ -122,8 +122,10 @@ assert(!landing.includes('10Q') && !landing.includes('20Q'),
 );
 assert(!client.includes("el('details', 'simp-breakdown')") && !client.includes('simp-badge'), 'board rows must drop breakdown and badge chrome');
 assert(client.includes('rowClean') && client.includes("el('span', 'simp-rank'") && client.includes("el('span', 'simp-pts'"), 'board row is rank · handle · number');
-assert(client.includes('homeBoard') && client.includes("hopA.href = '/simp'"), 'home paints the pretty board and hops the quiz to /simp');
+assert(client.includes('homeBoard') && client.includes("homeQuiz.href = '/simp'"), 'home paints the pretty board and a Take the quiz button to /simp');
 assert(client.includes('rows.slice(0, 10)') && client.includes('Show more'), 'home board is top 10 plus Show more');
+assert(client.includes("el('button', 'simp-connect', 'Connect X')"), 'Connect X is a quiet board button, not a first-paint modal');
+assert(client.includes('simp-quiz-go') && client.includes('box-shadow:4px 4px 0 #ff3b81'), 'Take the quiz is an acid button with a hard hot offset');
 assert(client.includes("el('p', 'simp-empty', 'Empty.')"), 'empty board is one quiet line');
 assert(client.includes("el('details', 'simp-tools')") && client.includes("el('summary', '', 'More')"), 'secondary board tools must stay under More');
 assert.equal((client.match(/Post result on X/g) || []).length, 1, 'result screen regained a second X share action');
@@ -146,7 +148,7 @@ assert(client.includes('startQuiz()') && !client.includes("startQuiz('quick')") 
 assert(client.includes("action: 'start'") && !client.includes("action: 'start', mode"), 'start payload must not send a mode');
 assert(!client.includes('Quick quiz ·') && !client.includes('Deep quiz ·'), 'start status must not name Quick/Deep');
 assert(client.includes('Take the quiz') && !client.includes('quickBtn'), 'board must expose one start button');
-assert(client.includes('Connect X to play') && client.includes('You cannot play until you connect X'), 'unlinked visitors must be gated before start');
+assert(client.includes('Connect X') && client.includes('You cannot play until you connect X'), 'unlinked visitors must be asked to connect X before start');
 assert(client.includes('function showSharePush') && client.includes('dasha-share-push'), 'finish must open a share popup');
 assert(client.includes('Copy link') && client.includes("Share on X"), 'share popup must show copy and tweet');
 assert(worker.includes("error: 'link X to take the quiz'"), 'worker must refuse anonymous quiz start');

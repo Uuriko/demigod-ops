@@ -20,7 +20,7 @@
     'Dasha curious': { image: '/simp/photo/weekend.jpg', quote: 'All I want is free healthcare, honey', source: '1011745071983296512' }
   };
   var QUIZ_PHOTOS = Object.keys(QUIZ_CARDS).map(function (key) { return QUIZ_CARDS[key].image; });
-  var BOARD_CSS = '.simp-board-root{max-width:36rem;margin:0 auto;color:#f4eddb;font-family:Arial,Helvetica,sans-serif}.simp-lede{margin:0 0 1.75rem;font:900 clamp(1.35rem,3.4vw,2rem)/1.15 "Arial Black",Helvetica,Arial,sans-serif}.simp-lede a{color:#dfff00;text-decoration:none}.simp-board{display:grid}.simp-row{display:grid;grid-template-columns:3.2rem minmax(0,1fr) 3.2rem;gap:.8rem;align-items:baseline;padding:.8rem 0;border-bottom:1px solid rgba(244,237,219,.18);background:none}.simp-rank{color:#dfff00;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}.simp-handle{color:#f4eddb;font-weight:900;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.simp-pts{color:rgba(244,237,219,.5);text-align:right;font-variant-numeric:tabular-nums}.simp-empty,.simp-status{margin:0;color:rgba(244,237,219,.42)}.simp-status:empty{display:none}.simp-more{margin:1.25rem 0 0;padding:0;border:0;background:none;color:#dfff00;font:900 1rem/1.2 "Arial Black",Helvetica,Arial,sans-serif;cursor:pointer}';
+  var BOARD_CSS = '.simp-board-root{max-width:36rem;margin:0 auto;color:#f4eddb;font-family:Arial,Helvetica,sans-serif}.simp-lede{margin:0 0 1.25rem;font:900 clamp(1.35rem,3.4vw,2rem)/1.15 "Arial Black",Helvetica,Arial,sans-serif}.simp-home-actions,.simp-quiz-invite-actions{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 1.75rem;align-items:center}.simp-quiz-go,.simp-quiz-start{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 1.25rem;border:0;background:#dfff00;color:#070608;font:900 1rem/1 Arial,Helvetica,sans-serif;text-decoration:none;box-shadow:4px 4px 0 #ff3b81;cursor:pointer}.simp-connect{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 1.25rem;border:1px solid #f4eddb;background:none;color:#f4eddb;font:900 1rem/1 Arial,Helvetica,sans-serif;cursor:pointer}.simp-board{display:grid}.simp-row{display:grid;grid-template-columns:3.2rem minmax(0,1fr) 3.2rem;gap:.8rem;align-items:baseline;padding:.8rem 0;border-bottom:1px solid rgba(244,237,219,.18);background:none}.simp-rank{color:#dfff00;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}.simp-handle{color:#f4eddb;font-weight:900;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.simp-pts{color:rgba(244,237,219,.5);text-align:right;font-variant-numeric:tabular-nums}.simp-empty,.simp-status{margin:0;color:rgba(244,237,219,.42)}.simp-status:empty{display:none}.simp-more{margin:1.25rem 0 0;padding:0;border:0;background:none;color:#dfff00;font:900 1rem/1.2 "Arial Black",Helvetica,Arial,sans-serif;cursor:pointer}';
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -156,19 +156,27 @@
     quizBtn.setAttribute('aria-label', 'Start the Dasha simp quiz');
     var retakeBtn = el('button', 'simp-action', 'Retake quiz'); retakeBtn.type = 'button'; retakeBtn.hidden = true;
     retakeBtn.setAttribute('aria-label', 'Retake the simp quiz and update your board score');
+    var connectBtn = el('button', 'simp-connect', 'Connect X');
+    connectBtn.type = 'button';
+    connectBtn.setAttribute('aria-label', 'Connect X');
     var quizActions = el('div', 'simp-actions simp-quiz-invite-actions');
-    quizActions.appendChild(quizBtn);
-    quizActions.appendChild(retakeBtn);
     var quizBox = el('div', 'simp-quiz-box'); quizBox.hidden = true;
     quiz.appendChild(quizNote); quiz.appendChild(quizActions); quiz.appendChild(quizBox);
     if (homeBoard) {
-      var hop = el('p', 'simp-lede', 'How big of a Dasha simp are you? ');
-      var hopA = document.createElement('a');
-      hopA.href = '/simp';
-      hopA.textContent = 'Take the quiz';
-      hop.appendChild(hopA);
+      var hop = el('p', 'simp-lede', 'How big of a Dasha simp are you?');
+      var homeActions = el('div', 'simp-home-actions');
+      var homeQuiz = document.createElement('a');
+      homeQuiz.className = 'simp-quiz-go';
+      homeQuiz.href = '/simp';
+      homeQuiz.textContent = 'Take the quiz';
+      homeActions.appendChild(homeQuiz);
+      homeActions.appendChild(connectBtn);
       root.appendChild(hop);
+      root.appendChild(homeActions);
     } else {
+      quizActions.appendChild(quizBtn);
+      quizActions.appendChild(connectBtn);
+      quizActions.appendChild(retakeBtn);
       root.appendChild(quiz);
     }
 
@@ -405,13 +413,14 @@
       retakeBtn.hidden = true;
       quizBtn.disabled = false;
       retakeBtn.disabled = false;
+      connectBtn.hidden = !!(meData && meData.linked);
       if (!meData || !meData.linked) {
         actionBtn.textContent = 'Link X to join';
       actionBtn.setAttribute('aria-label', 'Link X to join the simp board');
         actionBtn.dataset.mode = 'link';
-        quizBtn.textContent = 'Connect X to play';
-        quizBtn.dataset.mode = 'link';
-        quizBtn.setAttribute('aria-label', 'Connect X to take the quiz');
+        quizBtn.textContent = 'Take the quiz';
+        quizBtn.dataset.mode = 'quiz';
+        quizBtn.setAttribute('aria-label', 'Start the Dasha simp quiz');
         quizNote.textContent = 'Connect X to take the quiz. You cannot play until you connect X.';
         return;
       }
@@ -1320,6 +1329,9 @@
       if (index >= 0 && index < buttons.length) { event.preventDefault(); buttons[index].click(); }
     });
 
+    connectBtn.addEventListener('click', function () {
+      linkX();
+    });
     quizBtn.addEventListener('click', function () {
       if (quizBtn.dataset.mode === 'link') {
         return linkX();
@@ -1365,6 +1377,7 @@
           var seasons = (pair[2].data && pair[2].data.seasons) || [];
           seasonLine.textContent = seasons.length ? 'Latest snapshot: ' + seasons[0].title : 'Lifetime board · no season snapshot yet.';
           paintBoard();
+          connectBtn.hidden = !!(meData && meData.linked);
           if (!homeBoard) {
             paintMe();
             paintChallengeNote();

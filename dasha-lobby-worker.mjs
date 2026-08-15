@@ -114,8 +114,10 @@ import {
   AWARD_SLIM_CSS,
   BUY_HREF,
   cropTicksHtml,
+  AWARD_FOOT_CSS,
   hamburgerHtml,
   nextUpChipHtml,
+  roomLinksHtml,
   roomRailHtml,
   slimFooterHtml,
 } from './dasha-award-chrome.mjs';
@@ -286,7 +288,7 @@ function stripHomeScrollToys(html) {
     .replace(/scroll-timeline(?:-name|-axis)?\s*:\s*(?!none\b)[^;}\"']+;?/gi, '');
 }
 
-const HOME_CULTURE_NAV = '<a href="/studio">Studio</a><a href="/simp">Simp</a><a href="/verse">Verse</a><a href="/bounties">Bounties</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a>';
+const HOME_CULTURE_NAV = roomLinksHtml();
 
 /** Hidden Webflow `main.dasha > nav` — same labels as lock nav after #49. No Buy. */
 function alignHomeLowerNav(html) {
@@ -302,7 +304,7 @@ const HOME_BUY_PILL = `<a class="pill primary buy-dasha" href="${HOME_BUY_HREF}"
 const HOME_CARNIVAL_HIDE = '#lobby,#remix,#stills,#oss,#voice,.poster-grid,#token h2,#token .section-title,#token .assoc,#token .disclaimer,#token .poster,#token .tape{display:none!important}';
 const HOME_FOLD_CSS = '#simp,#token,main.dasha>section{content-visibility:auto;contain-intrinsic-size:auto 720px}';
 const HOME_SCROLL_CSS = 'html{scroll-behavior:auto!important}.dasha{overflow-x:visible!important}#token,#token *{view-timeline:none!important;animation-timeline:none!important;scroll-timeline:none!important}';
-const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer{display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + HOME_SCROLL_CSS + HOME_CARNIVAL_HIDE + HOME_FOLD_CSS + AWARD_SLIM_CSS + AWARD_CROP_CSS + AWARD_ROOM_CSS;
+const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer{display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + HOME_SCROLL_CSS + HOME_CARNIVAL_HIDE + HOME_FOLD_CSS + AWARD_SLIM_CSS + AWARD_CROP_CSS + AWARD_ROOM_CSS + AWARD_FOOT_CSS;
 
 function injectHomeCalmCss(html) {
   const page = String(html || '');
@@ -383,7 +385,7 @@ function ensureHomeAwardChrome(html) {
     page = page.slice(0, at) + cropTicksHtml() + page.slice(at);
   }
   if (!/class=["']dasha-foot["']/.test(page)) {
-    const foot = slimFooterHtml().replace('<footer>', '<footer class="dasha-foot">');
+    const foot = slimFooterHtml();
     page = /<\/body>/i.test(page) ? page.replace(/<\/body>/i, `${foot}</body>`) : page + foot;
   }
   return page;

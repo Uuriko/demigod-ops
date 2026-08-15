@@ -142,13 +142,13 @@ Visible four. Violet is technical only. No sixth hex.
 
 **Home first viewport (2026-08-15 cleaner lock — and nothing else in that viewport):**
 1. Headline + Buy $dasha + the dancer. That is the whole first viewport. Never `#dasha-lock`, never a 100vh system-ui `$dasha` / “Take Simp.” decoy, never the acid ticker, never the quiz, never posters, never an association lecture.
-2. Slim hamburger + crop marks stay. No CA chip. No extra CTAs. Forum is not a door (`/forum` 308s to lobby chat).
+2. Slim hamburger + crop marks stay. Menu + footer share one live room list (`DASHA_ROOMS` in `dasha-award-chrome.mjs`): Studio, Lobby, Simp, Chess, Desk, Bounties, How to buy, Learn, Faucet, Verse, Privacy. Hide Graph. Forum is not a door (`/forum` 308s to lobby chat).
 3. Body / `.body` / `.dasha-root` ink `#070608`. No maroon `#1F041C`. No violet. No WebFont.load. No Inter / Geist / system-ui / Google Fonts.
 4. Cleaner, not more. No disclaimers, no weak copy. Do not write “not an airdrop”, “not earn”, “she is not the dev”, “association is not endorsement”, “neither is required”, “we will not ask for a phrase”.
 
 **Home rooms (native scroll — 2026-08-15):**
 1. `[01]` hero (existing `header.dasha-hero`). First paint unchanged.
-2. `[02]` `#simp` is the pretty board: top 10 rows plus a Show more button that reveals the rest. Load `simp-board.js` on `/`. Do not mount quiz chrome or `openHomeGate` on home. First paint stays headline + Buy + her; the board lives below that, not instead of it, and not behind a gate.
+2. `[02]` `#simp` is the pretty board: top 10 rows plus a Show more button that reveals the rest. Load `simp-board.js` on `/`. Do not mount `openHomeGate` on home. First paint stays headline + Buy + her; the board lives below that, not instead of it, and not behind a gate. Connect X is a quiet button on the board block. Take the quiz is an acid button (ink type, hard hot offset, min 48px) on home and `/simp`.
 3. `[03]` only if it earns the fold: a tight mint/buy band (`#token`). Hide leftover carnival (poster grid, extra CTAs, lecture) with `display:none` — do not delete Webflow nodes.
 4. Numbered rail is tiny acid Arial (`[01]`–`[0n]`). IntersectionObserver fade/up once (opacity + 12–20px). `prefers-reduced-motion`: no translate, instant opacity.
 5. Native scroll only. No Lenis, no Locomotive, no scroll-snap, no wheel `preventDefault`, no GSAP ScrollTrigger that owns the scrollbar. Kill `html{scroll-behavior:smooth}` and the `#token` view-timeline toy. `.dasha` must not trap `overflow-x`.
@@ -222,7 +222,7 @@ Use these as **aesthetic references**, not product pledges:
 
 | Surface | Job | Culture hooks |
 |---------|-----|----------------|
-| Home `/` | First viewport: headline + Buy $dasha + the dancer. No modal. Then `[02]` pretty board (top 10 + Show more) + `[03]` mint band. Native scroll. | Slim hamburger. Quiz chrome on `/simp`. Forum is not a door. `/rally` and `/graph` 308 home. |
+| Home `/` | First viewport: headline + Buy $dasha + the dancer. No modal. Then `[02]` pretty board (top 10 + Show more, Connect X + Take the quiz) + `[03]` mint band. Native scroll. | Slim hamburger + readable footer list every live room. Forum is not a door. `/rally` and `/graph` 308 home. |
 | Studio `/studio` | Meme generator | Topbar + footer @dash_eats; **no remote photo strip** (canvas is palette-only by gate) |
 | Desk `/dasha` | Mint, chart, neutral share pack | **Primary photo surface**: pbs avatar→X, culture tape strip, CA post |
 | How-to-buy `/how-to-buy` | Buy ladder (prepared; may be 404 live) | Source post + @dash_eats footer/nav |
@@ -236,6 +236,8 @@ Use these as **aesthetic references**, not product pledges:
 - [x] `#dasha-home-cta` 100vh decoy deleted even when live wraps the page in `#dasha-home`  
 - [x] Home rooms: `[01]` hero · `[02]` pretty board (top 10 + Show more) · `[03]` mint. Native scroll. Dancer pauses during scroll. Dock only on `/` `/lobby` `/studio` `/dasha`  
 - [x] Board row is three columns (`#12` · `@handle` · `48`) with matching CSS. Home loads `simp-board.js` below the hero; no first-visit X gate  
+- [x] Connect X is a quiet board button. Take the quiz is an acid button on home and `/simp`  
+- [x] Menu + footer share `DASHA_ROOMS` (includes Chess). Footer is paper on ink, 48px taps, padded above the dock. Graph stays hidden  
 - [x] No WebFont.load / Exo / Bangers / Raleway / system-ui / Google Fonts on home first paint  
 - [x] Body ink `#070608` (not maroon `#1F041C`); no violet / `--hot-deep` / extra visible hexes  
 - [x] Forum is not a home door; `/forum` 308s to lobby chat  
