@@ -171,7 +171,7 @@ assert(worker.includes('/how-to-buy'), 'how-to-buy route stays live');
 assert(worker.includes('rewriteStaleCdnFavicon(html)'), 'proxied product HTML must rewrite leftover CDN favicon.ico');
 assert(worker.includes('rewriteHomeFirstViewport(stripHomeSimpBoard(html))'), 'www/apex / must rewrite the first viewport after stripping leftover board chrome');
 assert(worker.includes('alignHomeLowerNav') && worker.includes('HOME_CULTURE_NAV'), 'home rewrite aligns the hidden Webflow nav');
-assert(worker.includes('id="dasha-home-calm"') && worker.includes('.dasha>nav.nav') && worker.includes('main.dasha>nav.nav') && worker.includes('main.dasha>nav.nav.wrap') && worker.includes('.dasha-hero .actions a:not(.buy-dasha)') && worker.includes('.dasha-hero .actions .pill:not(.buy-dasha)') && worker.includes('github.com/Uuriko/dasha-desk') && worker.includes('a[href^="/studio#"]'), 'home html-security injects first-paint hide CSS');
+assert(worker.includes('id="dasha-home-calm"') && worker.includes('.dasha>nav.nav') && worker.includes('main.dasha>nav.nav') && worker.includes('main.dasha>nav.nav.wrap') && worker.includes('.dasha-hero .actions a:not(.buy-dasha)') && worker.includes('.dasha-hero .actions .pill:not(.buy-dasha)') && worker.includes('github.com/Uuriko/dasha-desk') && worker.includes('a[href^="/studio#"]') && worker.includes('footer:not(.dasha-foot)'), 'home html-security injects first-paint hide CSS');
 assert.doesNotMatch(worker, /References describe internet culture|dasha-assoc|Not endorsement|association is not endorsement|we will not ask for a phrase/i, 'homeFirstViewportHtml must delete disclaimer copy, not hide it');
 assert(worker.includes('ensureHomeBuyPill') && worker.includes('HOME_BUY_PILL'), 'home rewrite ensures a Jupiter Buy pill');
 assert.doesNotMatch(worker, /function homeFirstViewportHtml|dasha-band|dasha-posters/, 'home rewrite must not emit the lock carnival');
@@ -1467,6 +1467,7 @@ try {
     assert.match(css, /\.dasha-hero \.actions \.pill:not\(\.buy-dasha\)/, `${label} must hide non-Buy hero pills`);
     assert.match(css, /github\.com\/Uuriko\/dasha-desk/, `${label} must hide desk source hrefs`);
     assert.match(css, /a\[href\^="\/studio#"\]/, `${label} must hide studio-hash CTAs`);
+    assert.match(css, /footer:not\(\.dasha-foot\)/, `${label} must hide leftover Studio/How to buy/Desk footer`);
     assert.match(css, /content-visibility:\s*auto/, `${label} must skip paint on below-fold rooms`);
     assert.match(css, /content:"\[01\]"/, `${label} must number the hero room`);
     assert.match(css, /#dasha-tape::before\{content:"\[02\]"/, `${label} must number the live chart`);
@@ -1559,7 +1560,7 @@ try {
   assert.match(injected, /class="dasha-crop"/, 'home rewrite must add crop marks');
   assert.match(injected.match(/<header class="dasha-slim">[\s\S]*?<\/header>/)?.[0] || '', /href="\/chess">Chess</, 'home hamburger must include Chess');
   assert.doesNotMatch(injected.match(/<header class="dasha-slim">[\s\S]*?<\/header>/)?.[0] || '', /href="\/studio"|href="\/how-to-buy"|href="\/simp"|href="\/dasha"|href="\/bounties"|href="\/faucet"/, 'home hamburger must not door to Studio, How to buy, Simp, Desk, Bounties, or Faucet');
-  assert.doesNotMatch(injected.match(/<footer class="dasha-foot">[\s\S]*?<\/footer>/)?.[0] || '', /href="\/simp"|href="\/dasha"|href="\/bounties"|href="\/faucet"/, 'home footer must not door to Simp, Desk, Bounties, or Faucet');
+  assert.doesNotMatch(injected.match(/<footer class="dasha-foot">[\s\S]*?<\/footer>/)?.[0] || '', /href="\/studio"|href="\/how-to-buy"|href="\/simp"|href="\/dasha"|href="\/bounties"|href="\/faucet"/, 'home footer must not door to Studio, How to buy, Simp, Desk, Bounties, or Faucet');
   assert.doesNotMatch(injected.match(/<header class="dasha-slim">[\s\S]*?<\/header>/)?.[0] || '', /\/airdrop|\/graph/, 'home hamburger must hide dead and shelved doors');
   assert.doesNotMatch(injected, /dasha-next|Next up/, 'next-up stays off home first paint');
   assert.doesNotMatch(injected, /dasha-dance/, 'home rewrite must not stuff the dancer into the first viewport');
