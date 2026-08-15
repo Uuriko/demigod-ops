@@ -43,7 +43,7 @@ assert.doesNotMatch(page, /dasha-rooms|dasha-next|welcome to the forum|how this 
 assert.match(page, /id="dasha-forum"/);
 assert.match(page, /id="dasha-lobby"/);
 assert.match(page, /wss:\/\/lobby\.getdasha\.com\/ws/);
-assert.match(page, /href="\/forum">Forum</);
+assert.doesNotMatch(page, /dasha-menu|href="\/forum">Forum</, 'leftover forum page must not render a Menu or Forum door');
 assert.match(page, /\.forum-send,.lobby-send[\s\S]*?background:var\(--acid\);color:var\(--ink\)/, 'forum send is acid fill + ink type');
 assert.match(page, /\.forum-back,.lobby-x-btn,.lobby-x-unlink\{background:transparent;color:var\(--paper\);border-color:var\(--paper\)/, 'forum ghost is paper on ink');
 assert.match(page, /\.lobby-send:disabled,.forum-send:disabled\{opacity:\.7/, 'forum disabled type stays readable');

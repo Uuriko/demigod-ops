@@ -122,9 +122,7 @@ import {
   cropTicksHtml,
   AWARD_FOOT_CSS,
   hamburgerHtml,
-  nextUpChipHtml,
   roomLinksHtml,
-  roomRailHtml,
   slimFooterHtml,
 } from './dasha-award-chrome.mjs';
 import {
@@ -325,8 +323,8 @@ function alignHomeLowerNav(html) {
 
 const HOME_BUY_HREF = BUY_HREF;
 const HOME_BUY_PILL = `<a class="pill primary buy-dasha" href="${HOME_BUY_HREF}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a>`;
-const HOME_CARNIVAL_HIDE = '#lobby,#remix,#stills,#oss,#voice,.poster-grid,#token h2,#token .section-title,#token .assoc,#token .disclaimer,#token .poster,#token .tape{display:none!important}';
-const HOME_FOLD_CSS = '#dasha-tape,#simp,#faucet,#token,main.dasha>section{content-visibility:auto;contain-intrinsic-size:auto 720px}';
+const HOME_CARNIVAL_HIDE = '#lobby,#remix,#stills,#oss,#voice,.poster-grid,#token h2,#token .section-title,#token .assoc,#token .disclaimer,#token .poster,#token .tape,.dasha-hero .micro{display:none!important}';
+const HOME_FOLD_CSS = '#dasha-tape,#simp,#chess,#faucet,#token,main.dasha>section{content-visibility:auto;contain-intrinsic-size:auto 720px}';
 const HOME_SCROLL_CSS = 'html{scroll-behavior:auto!important}.dasha{overflow-x:visible!important}#token,#token *{view-timeline:none!important;animation-timeline:none!important;scroll-timeline:none!important}';
 const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer,footer:not(.dasha-foot){display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + HOME_SCROLL_CSS + HOME_CARNIVAL_HIDE + HOME_FOLD_CSS + AWARD_SLIM_CSS + AWARD_CROP_CSS + AWARD_ROOM_CSS + AWARD_FOOT_CSS + AWARD_BTN_CSS;
 
@@ -426,10 +424,56 @@ function ensureHomeFaucetMount(html) {
   return page.slice(0, at) + mount + page.slice(at);
 }
 
+function scopeChessCss(css, root = '#chess') {
+  return String(css || '').replace(/(^|})(\s*)([^@{}][^{}]*)\{/g, (all, brace, space, sel) => {
+    const trimmed = sel.trim();
+    if (!trimmed) return all;
+    const scoped = trimmed.split(',').map((part) => {
+      const s = part.trim();
+      if (!s) return s;
+      if (s === '*') return `${root},${root} *`;
+      if (s === 'html' || s === 'body' || s === ':root') return root;
+      if (/^(html|body|:root)\b/.test(s)) return root + s.replace(/^(html|body|:root)/, '');
+      return `${root} ${s}`;
+    }).join(',');
+    return `${brace}${space}${scoped}{`;
+  });
+}
+
+/** Same chess game as /chess. Home section only — no Menu, no essay. */
+export function chessHomeMountHtml(page = CHESS_PAGE_HTML) {
+  const source = String(page || '');
+  const styles = [...source.matchAll(/<style>([\s\S]*?)<\/style>/g)].map(match => match[1]).join('\n');
+  const main = (source.match(/<main\b[^>]*>([\s\S]*?)<\/main>/) || ['', ''])[1];
+  const dialog = (source.match(/<dialog\b[\s\S]*?<\/dialog>/) || [''])[0];
+  const script = (source.match(/<script>([\s\S]*?)<\/script>/) || [''])[0];
+  const homeCss = '#chess .side,#chess .kicker,#chess #tournament,#chess #leaders-panel,#chess #recent-panel,#chess #rating-panel{display:none}#chess .wrap{width:min(720px,calc(100% - 20px));margin:auto}';
+  return `<section id="chess" aria-label="Chess"><style>${scopeChessCss(styles)}${homeCss}</style><div class="wrap">${main}</div>${dialog}${script ? `<script>${script}</script>` : ''}</section>`;
+}
+
+function ensureHomeChessMount(html) {
+  const page = String(html || '');
+  if (/id=["']chess["']/i.test(page) && /id=["']board["']/i.test(page) && /id=["']gate-action["']/i.test(page)) return page;
+  const mount = chessHomeMountHtml();
+  const faucet = page.match(/<(?:div|section)\b[^>]*\bid=["'](?:faucet|dasha-faucet)["'][^>]*>/i);
+  if (faucet) {
+    const at = page.indexOf(faucet[0]);
+    return page.slice(0, at) + mount + page.slice(at);
+  }
+  const simp = page.match(/<(?:div|section)\b[^>]*\bid=["']simp["'][^>]*>/i);
+  if (simp) {
+    const open = page.indexOf(simp[0]);
+    const after = page.indexOf('</div>', open);
+    const at = after >= 0 ? after + 6 : open + simp[0].length;
+    return page.slice(0, at) + mount + page.slice(at);
+  }
+  return page;
+}
+
 function injectHomeReveal(html) {
   const page = String(html || '');
   if (/id=["']dasha-home-reveal["']/i.test(page)) return page;
-  const tag = `<noscript><style>#simp,#faucet,#token{opacity:1;transform:none}</style></noscript><script id="dasha-home-reveal">(function(){var nodes=document.querySelectorAll('#simp,#faucet,#token');if(!nodes.length)return;if(!window.IntersectionObserver||(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)){for(var i=0;i<nodes.length;i++)nodes[i].classList.add('is-in');return}var io=new IntersectionObserver(function(ents){ents.forEach(function(e){if(e.isIntersecting){e.target.classList.add('is-in');io.unobserve(e.target)}})},{threshold:.12,rootMargin:'0px 0px -8% 0px'});for(var j=0;j<nodes.length;j++)io.observe(nodes[j])})();</script>`;
+  const tag = `<noscript><style>#simp,#chess,#faucet,#token{opacity:1;transform:none}</style></noscript><script id="dasha-home-reveal">(function(){var nodes=document.querySelectorAll('#simp,#chess,#faucet,#token');if(!nodes.length)return;if(!window.IntersectionObserver||(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)){for(var i=0;i<nodes.length;i++)nodes[i].classList.add('is-in');return}var io=new IntersectionObserver(function(ents){ents.forEach(function(e){if(e.isIntersecting){e.target.classList.add('is-in');io.unobserve(e.target)}})},{threshold:.12,rootMargin:'0px 0px -8% 0px'});for(var j=0;j<nodes.length;j++)io.observe(nodes[j])})();</script>`;
   return /<\/body>/i.test(page) ? page.replace(/<\/body>/i, `${tag}</body>`) : page + tag;
 }
 
@@ -445,6 +489,7 @@ export function rewriteHomeFirstViewport(html) {
     page = ensureHomeSimpMount(page);
     page = ensureHomeTapeMount(page);
     page = ensureHomeFaucetMount(page);
+    page = ensureHomeChessMount(page);
   }
   page = ensureHomeAwardChrome(page);
   page = injectHomeReveal(page);
