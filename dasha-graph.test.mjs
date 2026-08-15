@@ -38,11 +38,33 @@ assert.match(page, /href="\/verse">Verse</);
 assert.match(page, /href="\/how-to-buy">How to buy</);
 assert.match(page, /href="\/privacy">Privacy</);
 assert.doesNotMatch(page, /fonts\.googleapis|Google Fonts|font-family:[^;]*Inter/i);
+assert.doesNotMatch(page + client, /\bInter\b|Geist|fonts\.googleapis|system-ui/);
+assert.doesNotMatch(page, /clamp\([^)]*10rem/);
+assert.match(page, /clamp\(1\.1rem,\s*2\.8vw,\s*1\.7rem\)/);
+assert.doesNotMatch(page, /\.ticker\{[^}]*background:#dfff00/);
+assert.match(page, /\.ticker\{[^}]*background:#070608;color:#f4eddb/);
+assert.doesNotMatch(page, /button\.highlight|class="highlight"/);
+assert.doesNotMatch(page, /#highlight-me[^>]*(?:background:#dfff00)|background:#dfff00[^}]*#highlight-me/);
+assert.doesNotMatch(page + client + modSrc, /payTo/);
 assert.doesNotMatch(page, /wallet connect|siws|telegram|t\.me\/|official|verified|safe mint|Arkham|Nansen/i);
 assert.doesNotMatch(page + client, /Dasha Nekrasova|John Potter|potterlab/i);
 assert.match(client, /prefers-reduced-motion/);
 assert.match(client, /Holders: not loaded/);
+assert.match(client, /setStatus\('Holders: not loaded',\s*''\)/);
+assert.doesNotMatch(client, /setStatus\('Holders: not loaded',\s*'bad'\)/);
 assert.match(client, /holders unavailable — retry/);
+assert.match(client, /position\.set\(0, 3\.2, 11\)/);
+assert.match(client, /PerspectiveCamera\(42/);
+assert.match(client, /minDistance = 4\.2/);
+assert.match(client, /maxDistance = 22/);
+assert.doesNotMatch(client, /position\.set\(0,\s*8,\s*22\)/);
+assert.doesNotMatch(client, /PerspectiveCamera\(50/);
+{
+  const paintListFn = client.slice(client.indexOf('function paintList'), client.indexOf('function explorerHref'));
+  assert.doesNotMatch(paintListFn, /links\.forEach/);
+  assert.match(paintListFn, /shortId/);
+  assert.match(paintListFn, /nodePanel/);
+}
 assert.match(client, /import\('three'\)/);
 assert.match(client, /OrbitControls/);
 assert.match(client, /lobby\.getdasha\.com/);
@@ -253,7 +275,9 @@ assert.deepEqual(buildExpand({ owner: wallet, holdings: [] }), {
 });
 
 resetGraphCache();
-const rpc429 = async (url) => {
+const rpc429Methods = [];
+let solanaPosts = 0;
+const rpc429 = async (url, init = {}) => {
   if (String(url).includes('lite-api.jup.ag')) {
     return new Response(JSON.stringify([{ id: mint, name: 'dash_eats', symbol: 'dasha' }]), { status: 200 });
   }
@@ -262,6 +286,9 @@ const rpc429 = async (url) => {
       pair: { chainId: 'solana', pairAddress: pair, priceUsd: '0.02', liquidity: { usd: 50 }, volume: { h24: 9 }, fdv: 200 },
     }), { status: 200 });
   }
+  solanaPosts += 1;
+  const body = JSON.parse(init.body || '{}');
+  rpc429Methods.push(body.method);
   return new Response('rate limited', { status: 429, headers: { 'Retry-After': '0' } });
 };
 const snap = await fetchGraphSnapshot({}, { fetchImpl: rpc429, now: 1, endpoints: ['https://api.mainnet-beta.solana.com'] });
@@ -274,6 +301,11 @@ assert.equal(snap.holdersLoaded, false);
 assert.ok(!snap.nodes.some((node) => node.kind === 'wallet'));
 assert.equal(snap.dex.priceUsd, '0.02');
 assert.equal(snap.dex.liquidityUsd, 50);
+assert.equal(rpc429Methods.filter((method) => method === 'getTokenLargestAccounts').length, 1);
+const postsAfterFirst = solanaPosts;
+const snapAgain = await fetchGraphSnapshot({}, { fetchImpl: rpc429, now: 30_001, endpoints: ['https://api.mainnet-beta.solana.com'] });
+assert.equal(snapAgain.holdersLoaded, false);
+assert.equal(solanaPosts, postsAfterFirst);
 
 resetGraphCache();
 const methods = [];
@@ -311,6 +343,7 @@ assert.ok(hopSnap.pulses.some((pulse) => pulse.signature === 'sig1'));
 assert.equal(hopSnap.supply.uiAmountString, '999830000');
 assert.ok(methods.includes('getSignaturesForAddress'));
 assert.ok(methods.includes('getTokenSupply'));
+assert.equal(methods.filter((method) => method === 'getTokenLargestAccounts').length, 1);
 
 resetGraphCache();
 const expandEmpty = await fetchGraphExpand({}, wallet, {
@@ -338,6 +371,10 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
       assert.match(html, /Public chain\. Addresses, not people\. Not endorsement\./);
       assert.match(html, />Follow latest</);
       assert.match(html, new RegExp(mint));
+      assert.doesNotMatch(html, /clamp\([^)]*10rem/);
+      assert.doesNotMatch(html, /\bInter\b|Geist|fonts\.googleapis|system-ui/);
+      assert.doesNotMatch(html, /button\.highlight|class="highlight"/);
+      assert.match(html, /id="highlight-me"/);
     }
   }
   const hold = await workerModule.default.fetch(new Request(`https://${host}/simp/hold`), {});

@@ -17,7 +17,6 @@ export const SNAPSHOT_TTL_MS = 90_000;
 export const MAX_TXS = 8;
 export const SIG_LIMIT = 20;
 export const MAX_EXPAND_MINTS = 8;
-export const MAX_RETRY_WAIT_MS = 2000;
 
 const JUP_PASS = ['name', 'symbol', 'icon', 'launchpad', 'graduatedPool'];
 
@@ -130,10 +129,6 @@ function ensureNode(nodes, seen, id) {
   if (id === WSOL) node.symbol = 'WSOL';
   nodes.push(node);
   seen.add(id);
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export function collapseOwners(accounts) {
@@ -413,21 +408,11 @@ export async function solanaRpc(env, method, params, { fetchImpl = fetch, now = 
       return await rpcOnce(endpoint, method, params, fetchImpl);
     } catch (err) {
       lastErr = err;
-      if (err instanceof RpcUnavailable) {
-        lastWait = err.retryAfterSec;
-        const waitMs = Math.min(MAX_RETRY_WAIT_MS, Math.round(err.retryAfterSec * 1000));
-        if (waitMs > 0) await sleep(waitMs);
-        try {
-          return await rpcOnce(endpoint, method, params, fetchImpl);
-        } catch (retryErr) {
-          lastErr = retryErr;
-          if (retryErr instanceof RpcUnavailable) lastWait = retryErr.retryAfterSec;
-        }
-      }
+      if (err instanceof RpcUnavailable) lastWait = err.retryAfterSec;
     }
   }
   if (lastErr instanceof RpcUnavailable || lastWait) {
-    mem.cooldownUntil = now + Math.round((lastWait || 1) * 1000);
+    mem.cooldownUntil = now + Math.max(SNAPSHOT_TTL_MS, Math.round((lastWait || 0) * 1000));
     throw new RpcUnavailable(lastWait);
   }
   throw lastErr || new RpcUnavailable();
