@@ -210,6 +210,9 @@ const statusOk = faucetPublicStatus({ FAUCET_KEYPAIR: treasury.json });
 assert.equal(statusOk.status, 200);
 assert.equal(statusOk.body.amountRaw, 100000000);
 assert.equal(statusOk.body.mint, mint);
+assert.equal(statusOk.body.treasury, treasury.address);
+assert.equal(statusOk.body.treasury, parsed.address);
+assert.doesNotMatch(JSON.stringify(statusOk.body), /"seed"|"raw"|FAUCET_KEYPAIR/);
 
 const destAta = await associatedTokenAddress(destWallet.address);
 assert.equal(isOnCurveAddress(destAta.address), false);
@@ -398,7 +401,9 @@ const okStatusBody = await okStatus.json();
 assert.equal(okStatusBody.configured, true);
 assert.equal(okStatusBody.amountRaw, 100000000);
 assert.equal(okStatusBody.mint, mint);
+assert.equal(okStatusBody.treasury, treasury.address);
 assert.equal(assertPublicSafe(okStatusBody).ok, true);
+assert.doesNotMatch(JSON.stringify(okStatusBody), /"seed"|"raw"|FAUCET_KEYPAIR/);
 
 const noX = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/faucet/claim', {
   method: 'POST',
