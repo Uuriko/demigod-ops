@@ -402,7 +402,7 @@ export function rewriteHomeFirstViewport(html) {
   }
   page = ensureHomeAwardChrome(page);
   page = injectHomeReveal(page);
-  return rewriteLeftoverLobbyHrefs(alignHomeLowerNav(page));
+  return stripDanceDock(rewriteLeftoverLobbyHrefs(alignHomeLowerNav(page)));
 }
 
 function ensureHomeAwardChrome(html) {
@@ -618,14 +618,41 @@ export function danceDockPath(pathname) {
   return false;
 }
 
-export function injectDanceDock(html) {
-  return html;
+const DANCE_SHIP_RE = /dasha-dance|dasha\.glb|dasha-loop\.mp3|DashaDance/i;
+
+/** Drop leftover Webflow dance boots. Does not delete files on disk. */
+export function stripDanceDock(html) {
+  const page = String(html || '');
+  if (!DANCE_SHIP_RE.test(page)) return page;
+  let out = page;
+  out = out.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, (block) =>
+    DANCE_SHIP_RE.test(block) ? '' : block);
+  out = out.replace(/<audio\b[^>]*>[\s\S]*?<\/audio>/gi, (block) =>
+    DANCE_SHIP_RE.test(block) ? '' : block);
+  out = out.replace(/<(?:link|source|img|meta)\b[^>]*(?:dasha-dance|dasha\.glb|dasha-loop\.mp3)[^>]*>/gi, '');
+  out = out.replace(/<!--[\s\S]*?-->/g, (block) => (DANCE_SHIP_RE.test(block) ? '' : block));
+  out = out.replace(/<(div|aside|section|nav)\b[^>]*\bid=["']dasha-dance["'][^>]*>[\s\S]*?<\/\1>/gi, '');
+  out = out.replace(/<(button|div|aside)\b[^>]*(?:\bid=["']dasha-dance-[^"']+["']|\bclass=["'][^"']*\bdasha-dance-(?:speaker|hit)\b)[^>]*>[\s\S]*?<\/\1>/gi, '');
+  out = stripLeftoverStyleRules(out, /#dasha-dance|\.dasha-dance/i);
+  out = out.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, (block) =>
+    DANCE_SHIP_RE.test(block) ? '' : block);
+  if (DANCE_SHIP_RE.test(out)) {
+    out = out.replace(/dasha-dance(?:-[a-z0-9]+)?(?:\.js)?/gi, '');
+    out = out.replace(/dasha\.glb/gi, '');
+    out = out.replace(/dasha-loop\.mp3/gi, '');
+    out = out.replace(/DashaDance/g, '');
+  }
+  return out;
 }
 
-const HOWTO_PAGE_HTML = ensurePrivacyLink(HOWTO_HTML);
-const CHESS_PAGE = ensurePrivacyLink(CHESS_PAGE_HTML);
+export function injectDanceDock(html) {
+  return stripDanceDock(html);
+}
+
+const HOWTO_PAGE_HTML = stripDanceDock(ensurePrivacyLink(HOWTO_HTML));
+const CHESS_PAGE = stripDanceDock(ensurePrivacyLink(CHESS_PAGE_HTML));
 const GRAPH_PAGE = GRAPH_PAGE_HTML;
-const LOBBY_PAGE = injectDanceDock(ensurePrivacyLink(stripLobbySimpQuiz(LOBBY_PAGE_HTML)));
+const LOBBY_PAGE = stripDanceDock(ensurePrivacyLink(stripLobbySimpQuiz(LOBBY_PAGE_HTML)));
 
 /** Replace leftover Webflow SRI on the worker-served studio.js tag. Other pins stay. */
 /** Live Studio nav CTA currently dumps people under the home lock at /#token. */
@@ -3841,7 +3868,7 @@ async function productEdge(request, url, env) {
   html = rewriteLobbyScriptIntegrity(html);
   html = rewriteStaleCdnFavicon(html);
   if (isExactPath(url.pathname, '/studio')) html = rewriteStudioBuyVerifyHref(html);
-  if (danceDockPath(url.pathname)) html = injectDanceDock(html);
+  html = stripDanceDock(html);
   if (stripped) {
     // Also drop any leftover plain mentions in head comments (defensive).
     html = html.replace(/https?:\/\/x\.com\/potterlab/gi, 'https://www.getdasha.com/');

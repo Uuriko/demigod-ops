@@ -186,9 +186,10 @@ assert(!/getProgramAccounts/.test(worker), 'graph must not use getProgramAccount
 assert(worker.includes("isExactPath(url.pathname, '/dashaverse')") && worker.includes('VERSE_WWW'), ' /dashaverse aliases to /verse');
 assert(!worker.includes('injectBountiesBoard(stripBountiesIframe'), 'www /bounties must not paint through Webflow');
 assert(worker.includes('SIMP_BOARD_SRI') && worker.includes('client/simp-board.js'), 'www /simp mounts the existing board client');
-assert(worker.includes('export function danceDockPath') && worker.includes('export function injectDanceDock'), 'dock helpers stay');
+assert(worker.includes('export function danceDockPath') && worker.includes('export function injectDanceDock') && worker.includes('export function stripDanceDock'), 'dock helpers stay; leftover dance is stripped');
 assert.match(worker, /export function danceDockPath\([^)]*\) \{\s*return false;\s*\}/, 'danceDockPath is false for every path');
-assert.match(worker, /export function injectDanceDock\(html\) \{\s*return html;\s*\}/, 'injectDanceDock is a no-op');
+assert.match(worker, /export function injectDanceDock\(html\) \{\s*return stripDanceDock\(html\);\s*\}/, 'injectDanceDock strips leftover dance instead of mounting it');
+assert(worker.includes('html = stripDanceDock(html)'), 'proxied HTML always strips leftover dance boots');
 assert(worker.includes('GRAPH_PAGE = GRAPH_PAGE_HTML'), '/graph must not grow the dance dock');
 assert(!worker.includes("path === '/' || path === '/lobby' || path === '/studio' || path === '/dasha'"), 'dock is off every path');
 assert(worker.includes('ensureHomeSimpMount') && worker.includes('injectHomeReveal'), 'home rewrite remounts the pretty board below the hero');
@@ -232,7 +233,7 @@ assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no
 // Aggregate Studio funnel: bounded events in, authenticated counters out.
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { DashaLobby, bountiesPageHtml, danceDockPath, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectDanceDock, normalizeBountiesFeed, parseVerseSubmit, personalizeChessPage, publicFunnelSummary, rewriteHomeFirstViewport, rewriteLeftoverLobbyHrefs, rewriteLobbyScriptIntegrity, rewriteStaleCdnFavicon, rewriteStudioBuyVerifyHref, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripDeadLobbyForum, stripHomeSimpBoard, stripLobbySimpQuiz, unpaidBountiesHtmlHasPayoutAmounts, versePageHtml } = workerModule;
+const { DashaLobby, bountiesPageHtml, danceDockPath, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectDanceDock, normalizeBountiesFeed, parseVerseSubmit, personalizeChessPage, publicFunnelSummary, rewriteHomeFirstViewport, rewriteLeftoverLobbyHrefs, rewriteLobbyScriptIntegrity, rewriteStaleCdnFavicon, rewriteStudioBuyVerifyHref, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripDanceDock, stripDeadLobbyForum, stripHomeSimpBoard, stripLobbySimpQuiz, unpaidBountiesHtmlHasPayoutAmounts, versePageHtml } = workerModule;
 const { LOBBY_CLIENT_JS, SIMP_BOARD_JS, SIMP_BOARD_SRI, STUDIO_CLIENT_JS, LOBBY_CLIENT_SRI } = await import('./dasha-lobby-static-gen.mjs');
 const STUDIO_SRI = `sha384-${createHash('sha384').update(STUDIO_CLIENT_JS).digest('base64')}`;
 const LOBBY_SRI = `sha384-${createHash('sha384').update(LOBBY_CLIENT_JS).digest('base64')}`;
@@ -1594,7 +1595,13 @@ try {
   assert.match(injected.match(/<footer class="dasha-foot">[\s\S]*?<\/footer>/)?.[0] || '', /href="\/faucet">Faucet</, 'home footer must include Faucet');
   assert.doesNotMatch(injected.match(/<header class="dasha-slim">[\s\S]*?<\/header>/)?.[0] || '', /\/airdrop|\/graph/, 'home hamburger must hide dead and shelved doors');
   assert.doesNotMatch(injected, /dasha-next|Next up/, 'next-up stays off home first paint');
-  assert.doesNotMatch(injected, /dasha-dance/, 'home rewrite must not stuff the dancer into the first viewport');
+  assert.doesNotMatch(injected, /dasha-dance|dasha\.glb|dasha-loop\.mp3/, 'home rewrite must not stuff the dancer into the first viewport');
+  assert.doesNotMatch(
+    rewriteHomeFirstViewport(`${webflowHome}<div id="dasha-dance"></div><script src="/client/dasha-dance.js"></script><audio src="/client/dasha-loop.mp3"></audio>`),
+    /dasha-dance|dasha\.glb|dasha-loop\.mp3/,
+    'home rewrite must strip leftover Webflow dance boots',
+  );
+  assert.doesNotMatch(stripDanceDock('<div id="dasha-dance"></div><script src="/client/dasha.glb"></script>'), /dasha-dance|dasha\.glb/);
   assert.match(injected, /<a class="skip-link" href="#content">Skip to content<\/a>/, 'Designer skip → #content must stay when the hero is #content');
   assert.match(injected, /id="dasha-home"/, 'live Webflow wrapper id=dasha-home must not block the hero');
   assert.match(injected, new RegExp(mint));
@@ -1627,6 +1634,7 @@ try {
       assert.match(html, /<link href="\/favicon\.ico" rel="shortcut icon"/);
       assert.match(html, new RegExp(mint), `${host} / must keep the mint string`);
       assert.equal([...html.matchAll(/id=["']dasha-lock["']/g)].length, 0);
+      assert.doesNotMatch(html, /dasha-dance|dasha\.glb|dasha-loop\.mp3/, `${host} / rendered HTML must not ship the dancer`);
     }
     const studio = await workerModule.default.fetch(new Request('https://www.getdasha.com/studio'), {});
     const studioHtml = await studio.text();
