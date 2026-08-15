@@ -77,16 +77,17 @@ assert.equal(danceDockPath('/graph'), false);
 assert.equal(danceDockPath('/graph/'), false);
 assert.equal(danceDockPath('/'), true);
 assert.equal(danceDockPath('/lobby'), true);
+assert.equal(danceDockPath('/lobby/'), true);
 assert.equal(danceDockPath('/studio'), true);
 assert.equal(danceDockPath('/dasha'), true);
-assert.equal(danceDockPath('/simp'), true);
-assert.equal(danceDockPath('/chess'), true);
-assert.equal(danceDockPath('/verse'), true);
-assert.equal(danceDockPath('/how-to-buy'), true);
-assert.equal(danceDockPath('/bounties'), true);
-assert.equal(danceDockPath('/learn'), true);
-assert.equal(danceDockPath('/learn/crypto'), true);
-assert.equal(danceDockPath('/faucet'), true);
+assert.equal(danceDockPath('/simp'), false);
+assert.equal(danceDockPath('/chess'), false);
+assert.equal(danceDockPath('/verse'), false);
+assert.equal(danceDockPath('/how-to-buy'), false);
+assert.equal(danceDockPath('/bounties'), false);
+assert.equal(danceDockPath('/learn'), false);
+assert.equal(danceDockPath('/learn/crypto'), false);
+assert.equal(danceDockPath('/faucet'), false);
 
 const boot = injectDanceDock('<!doctype html><html><body><h1>IT\'S TIME $DASHA</h1><a class="buy-dasha">Buy $dasha ↗</a></body></html>');
 assert.match(boot, /lobby\.getdasha\.com\/client\/dasha-dance\.js/);
@@ -101,7 +102,7 @@ assert.match(firstPaint, /IT'S TIME \$DASHA/);
 assert.match(firstPaint, /buy-dasha/);
 
 for (const html of [simpPageHtml(), versePageHtml(), faucetPageHtml(), learnPageHtml(), bountiesPageHtml({ listings: [] })]) {
-  assert.match(html, /dasha-dance\.js/, 'worker-owned page must idle-load the dock');
+  assert.doesNotMatch(html, /dasha-dance\.js/, 'dock stays off /simp /verse /faucet /learn /bounties');
   assert.doesNotMatch(html, /<nav[^>]*dasha-dance|id="dasha-dance-nav"/i, 'dock must not grow a second nav');
 }
 
@@ -179,8 +180,14 @@ assert.match(graphHtml, /three@0\.170\.0/);
   }
 }
 
+{
+  const lobby = await worker.fetch(new Request('https://lobby.getdasha.com/lobby'), assets);
+  assert.equal(lobby.status, 200, 'lobby /lobby must stay 200');
+  const lobbyHtml = await lobby.text();
+  assert.match(lobbyHtml, /lobby\.getdasha\.com\/client\/dasha-dance\.js/, 'lobby /lobby must idle-load the dock');
+  assert.match(lobbyHtml, new RegExp(DANCE_CLIENT_SRI.replace(/[+/]/g, '\\$&')), 'lobby /lobby must pin dance SRI');
+}
 for (const [host, path] of [
-  ['lobby.getdasha.com', '/lobby'],
   ['lobby.getdasha.com', '/chess'],
   ['lobby.getdasha.com', '/how-to-buy'],
   ['www.getdasha.com', '/simp'],
@@ -194,8 +201,7 @@ for (const [host, path] of [
   const res = await worker.fetch(new Request(`https://${host}${path}`), assets);
   assert.equal(res.status, 200, `${host}${path} must stay 200`);
   const html = await res.text();
-  assert.match(html, /lobby\.getdasha\.com\/client\/dasha-dance\.js/, `${host}${path} must idle-load the dock from lobby`);
-  assert.match(html, new RegExp(DANCE_CLIENT_SRI.replace(/[+/]/g, '\\$&')), `${host}${path} must pin dance SRI`);
+  assert.doesNotMatch(html, /dasha-dance\.js/, `${host}${path} must not inject the dock`);
   assert.doesNotMatch(html, /tap to (?:play|hear)|Play music|click to play/i, `${host}${path} must not grow a play CTA`);
   assert.doesNotMatch(html, /Mixamo|Sketchfab|Spline/);
   assert.doesNotMatch(html, /payTo/);

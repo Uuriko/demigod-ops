@@ -30,20 +30,18 @@ assert(client.includes('Link X to join'), 'client missing link state');
 assert(client.includes('Join board'), 'client missing join state');
 assert(client.includes('Leave board'), 'client missing leave state');
 assert(client.includes('/oauth/x/start'), 'client must reuse OAuth start');
-// First-visit Connect X on homepage. Looking is free. Quiz needs X.
-assert(client.includes('openHomeGate();'), 'first-visit X gate missing');
-assert(client.includes('dasha_x_gate_v1') && client.includes('Not now'), 'gate dismiss + storage missing');
-assert(client.includes('First visit') && client.includes('Connect X?'), 'home gate kicker stays first-visit');
-assert(client.includes('Link X to play the quiz. Looking is free.'), 'home gate must say quiz needs X');
+assert(!client.includes('openHomeGate'), 'home first-visit X gate must be gone');
+assert(!client.includes('#7c4dff'), 'gate/share cards must not use violet');
+assert(!client.includes('--cream'), 'board CSS must not keep a cream leftover');
+assert(client.includes('dasha_x_gate_v1') && client.includes('Not now'), 'quiz-invite gate dismiss + storage stay');
+assert(client.includes('Connect X + take the quiz') || client.includes('Simp quiz invite'), 'quiz invite connect prompt stays on /simp');
 assert(
   !/Optional — everything still works if you skip|Not required\. Simp quiz|neither is required|Optional · first visit/i.test(client),
-  'home gate must not call X optional for the quiz',
+  'invite gate must not call X optional for the quiz',
 );
-assert(client.includes('simp-gate-open') && client.includes('buy-sticky'), 'gate must hide mobile buy sticky while open');
-assert(client.includes('Take quiz ↓') || client.includes('Take quiz'), 'gate must offer path to quiz');
-assert(client.includes('How big of a Dasha simp are you?') && client.includes('Take quiz'), 'simp quiz UI must remain in client');
-// Home gate must not trap scroll (quiz lives below the fold on Home).
-assert(!/simp-gate-open body\{overflow:hidden\}/.test(client.replace(/\s+/g, '')), 'home gate must not lock body scroll');
+assert(client.includes('simp-gate-open') && client.includes('buy-sticky'), 'invite gate must hide mobile buy sticky while open');
+assert(client.includes('How big of a Dasha simp are you?') && client.includes('Take the quiz'), 'simp quiz UI must remain in client');
+assert(!/simp-gate-open body\{overflow:hidden\}/.test(client.replace(/\s+/g, '')), 'invite gate must not lock body scroll');
 assert(client.indexOf("root.appendChild(quiz)") < client.indexOf("root.appendChild(list)"), 'quiz must render before leaderboard');
 assert(!/oauth\/x\/callback[\s\S]{0,1500}joinBoard/.test(worker), 'OAuth callback must not auto-enroll (client joins)');
 assert(client.includes('/simp/board') && client.includes('/simp/join') && client.includes('/simp/leave'), 'client missing API paths');
@@ -124,8 +122,8 @@ assert(!landing.includes('10Q') && !landing.includes('20Q'),
 );
 assert(!client.includes("el('details', 'simp-breakdown')") && !client.includes('simp-badge'), 'board rows must drop breakdown and badge chrome');
 assert(client.includes('rowClean') && client.includes("el('span', 'simp-rank'") && client.includes("el('span', 'simp-pts'"), 'board row is rank · handle · number');
-assert(client.includes('homeBoard') && client.includes("hopA.href = '/simp'"), 'home mounts the board plus one quiz hop');
-assert(client.includes('rows.slice(0, 10)'), 'home board is top 10');
+assert(!client.includes('homeBoard') && !client.includes("hopA.href = '/simp'"), 'board client is /simp only — no home hop/top-10 branch');
+assert(!client.includes('rows.slice(0, 10)'), 'board client must not truncate to a home top 10');
 assert(client.includes("el('p', 'simp-empty', 'Empty.')"), 'empty board is one quiet line');
 assert(client.includes("el('details', 'simp-tools')") && client.includes("el('summary', '', 'More')"), 'secondary board tools must stay under More');
 assert.equal((client.match(/Post result on X/g) || []).length, 1, 'result screen regained a second X share action');

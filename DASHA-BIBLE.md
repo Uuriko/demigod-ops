@@ -148,15 +148,15 @@ Visible four. Violet is technical only. No sixth hex.
 
 **Home rooms (native scroll — 2026-08-15):**
 1. `[01]` hero (existing `header.dasha-hero`). First paint unchanged.
-2. `[02]` board (`#simp`). Board only. One line above: “How big of a Dasha simp are you?” plus a single hop to `/simp`. Do not mount quiz chrome on home. Top 10 is enough.
+2. `[02]` `#simp` is a static hop: “How big of a Dasha simp are you?” plus a single link to `/simp`. Do not load `simp-board.js` on `/`. Do not mount quiz chrome or `openHomeGate` on home.
 3. `[03]` only if it earns the fold: a tight mint/buy band (`#token`). Hide leftover carnival (poster grid, extra CTAs, lecture) with `display:none` — do not delete Webflow nodes.
 4. Numbered rail is tiny acid Arial (`[01]`–`[0n]`). IntersectionObserver fade/up once (opacity + 12–20px). `prefers-reduced-motion`: no translate, instant opacity.
-5. Native scroll only. No Lenis, no Locomotive, no scroll-snap, no wheel `preventDefault`, no GSAP ScrollTrigger that owns the scrollbar.
+5. Native scroll only. No Lenis, no Locomotive, no scroll-snap, no wheel `preventDefault`, no GSAP ScrollTrigger that owns the scrollbar. Kill `html{scroll-behavior:smooth}` and the `#token` view-timeline toy. `.dasha` must not trap `overflow-x`.
 
-**Simp board (home `#simp` + `/simp`):**
-1. A row is three columns: `#12` · `@handle` · `48`. Acid rank, paper handle, quiet number. Hairline paper/18 divider. No cards, no pills, no “pts”, no badges, no breakdown, no evidence link, no holder-checked, no privacy lecture.
-2. `/simp` keeps the quiz + the same clean board. Full list on `/simp`. Empty state: one quiet line.
-3. This is the Dasha simp board, not Eliza. Do not iframe slop.cash.
+**Simp board (`/simp` only):**
+1. A row is three columns: `#12` · `@handle` · `48`. Acid rank, paper handle, quiet number. Hairline paper/18 divider. Matching `.simp-row` / `.simp-rank` / `.simp-handle` / `.simp-pts` CSS. No RANK/CONTRIBUTOR/SCORE headers, no cards, no pills, no “pts”, no badges, no Breakdown, no “linked” badge, no evidence link, no holder-checked, no privacy lecture, no cream leftover, no violet on gate/share cards.
+2. Quiz + board live on `/simp` only. Home `#simp` is the hop, not the client. Empty state: one quiet line.
+3. This is the Dasha simp board, not Eliza. Do not iframe slop.cash. Do not add a second people leaderboard. Chess `#leaders` stays the Elo table — empty/quiet until someone has played.
 
 **Bottom dancer (2026-08-15 lock — one skinned GLB, not a flipbook, not capsules):**
 1. Identity is **one mesh**: worker-hosted `/client/dasha.glb` (skin + in-place `step` clip). Same face, hair, body, clothes in every frame. Playback is Three.js `0.170.0` `GLTFLoader` + `AnimationMixer` (same pin as `/graph`). Clip root stays at origin.
@@ -164,7 +164,7 @@ Visible four. Violet is technical only. No sixth hex.
 3. Feet sit on an implied floor (ortho frustum). Client drives full-width X ping-pong and a real yaw turn (lerp, not a pop). Every few crossings: short look-at-camera beat, then back to travel.
 4. Pause the render loop while the user is scrolling, when the tab is hidden, or when the dock is off-screen. On scroll/touchmove/wheel: cancel rAF, do not render; restart ~150ms after the last scroll event; reset the clock so she does not lurch. While scrolling (and on low-end): `pixelRatio` 1. One WebGL context. `pointer-events` none on the dock except hit + speaker.
 5. Speaker is a **fixed DOM button on the right** (classic speaker + waves; waves die / strike when muted). Acid `#dfff00` on ink `#070608`. Never cover the home Buy CTA (dock `z-index:12`, sticky Buy is 40). Click speaker or dancer. Persist `localStorage.dashaMute`. Autoplay `/client/dasha-loop.mp3` (Umplix “Polygons N' Light”, CC0) with the gesture-unlock fallback.
-6. Dock is the one 3D object on home. Hidden on `/graph`. Reduced-motion / no-WebGL: still pose, no travel, no music (`/client/dasha-face.webp`). Home first paint stays headline + Buy $dasha; dock boots after first paint / idle.
+6. Dock rooms are `/` `/lobby` `/studio` `/dasha` only. Off `/simp` `/chess` `/faucet` `/learn` `/verse` `/bounties` `/how-to-buy` `/graph`. Reduced-motion / no-WebGL: still pose, no travel, no music (`/client/dasha-face.webp`). Home first paint stays headline + Buy $dasha; dock boots after first paint / idle.
 7. No Spline. No second 3D toy. No disclaimers / weak copy on the dock. No invented Meshy key. Do not rebuild the GLB or change her mesh. Do not touch Mixamo / Meshy. Swap the GLB if a later bake lands; do not change the mixer path.
 
 **Image policy for product HTML:**
@@ -222,7 +222,7 @@ Use these as **aesthetic references**, not product pledges:
 
 | Surface | Job | Culture hooks |
 |---------|-----|----------------|
-| Home `/` | First viewport: headline + Buy $dasha + the dancer. Then `[02]` board + `[03]` mint band. Native scroll. | Slim hamburger. Board is three columns. Quiz lives on `/simp`. Forum is not a door. |
+| Home `/` | First viewport: headline + Buy $dasha + the dancer. No modal. Then `[02]` hop to `/simp` + `[03]` mint band. Native scroll. | Slim hamburger. Quiz + board live on `/simp`. Forum is not a door. `/rally` 308s home. |
 | Studio `/studio` | Meme generator | Topbar + footer @dash_eats; **no remote photo strip** (canvas is palette-only by gate) |
 | Desk `/dasha` | Mint, chart, neutral share pack | **Primary photo surface**: pbs avatar→X, culture tape strip, CA post |
 | How-to-buy `/how-to-buy` | Buy ladder (prepared; may be 404 live) | Source post + @dash_eats footer/nav |
@@ -234,8 +234,8 @@ Use these as **aesthetic references**, not product pledges:
 - [x] Direct link to `https://x.com/dash_eats` on home + studio + desk (disk prepared)  
 - [x] Home first viewport: headline + Buy $dasha + the dancer. No ticker, quiz, posters, or association lecture in that viewport  
 - [x] `#dasha-home-cta` 100vh decoy deleted even when live wraps the page in `#dasha-home`  
-- [x] Home rooms: `[01]` hero · `[02]` board · `[03]` mint. Native scroll. Dancer pauses during scroll  
-- [x] Board row is three columns (`#12` · `@handle` · `48`). Home board-only + hop to `/simp`  
+- [x] Home rooms: `[01]` hero · `[02]` static hop · `[03]` mint. Native scroll. Dancer pauses during scroll. Dock only on `/` `/lobby` `/studio` `/dasha`  
+- [x] Board row is three columns (`#12` · `@handle` · `48`) with matching CSS on `/simp`. Home does not load `simp-board.js`  
 - [x] No WebFont.load / Exo / Bangers / Raleway / system-ui / Google Fonts on home first paint  
 - [x] Body ink `#070608` (not maroon `#1F041C`); no violet / `--hot-deep` / extra visible hexes  
 - [x] Forum is not a home door; `/forum` 308s to lobby chat  
