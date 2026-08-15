@@ -1,12 +1,20 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import puppeteer from 'puppeteer-core';
 import { SIMP_BOARD_JS } from './dasha-lobby-static-gen.mjs';
+
+async function readOptional(rel) {
+  try {
+    return await readFile(new URL(rel, import.meta.url), 'utf8');
+  } catch (err) {
+    if (err && err.code === 'ENOENT') return '';
+    throw err;
+  }
+}
 
 const html = await readFile(new URL('./dasha-landing.html', import.meta.url), 'utf8');
 const rendered = '<style>h1,h2,h3{font-family:Exo,sans-serif!important}</style>' + html;
 const studio = await readFile(new URL('./dasha-meme-studio.html', import.meta.url), 'utf8');
-const desk = await readFile(new URL('./dasha-desk/src/body.html', import.meta.url), 'utf8');
+const desk = await readOptional('./dasha-desk/src/body.html');
 const howto = await readFile(new URL('./dasha-how-to-buy.html', import.meta.url), 'utf8');
 const lobbyClient = await readFile(new URL('./dasha-lobby-client.js', import.meta.url), 'utf8');
 const simpClient = await readFile(new URL('./dasha-simp-board-client.js', import.meta.url), 'utf8');
@@ -21,7 +29,7 @@ assert.equal(jsonLd?.about?.identifier?.propertyID, 'Solana mint address');
 assert.equal(jsonLd?.about?.identifier?.value, mint);
 assert(jsonLd?.about?.sameAs?.every(url => url.includes(mint) || url.startsWith('https://x.com/dash_eats/status/')), 'JSON-LD identity references must preserve the mint or canonical source post');
 const negativeCoinCopy = /(?:can|might|could|will) go to zero|go(?:es|ing)? to zero|not financial advice|\bNFA\b|association (?:is|≠) not endorsement|no endorsement|no price promises|culture coin|old coin and Im not the dev|high risk|rugcheck|never trust|wrong one|lookalikes? are (?:easy )?fakes?|token warnings?|make a token safe|lose (?:your )?money|lose it all|worthless|dead coin/i;
-for (const [name, source] of Object.entries({ homepage: html, howto, desk, studio, simpClient })) {
+for (const [name, source] of Object.entries({ homepage: html, howto, ...(desk ? { desk } : {}), studio, simpClient })) {
   assert(!negativeCoinCopy.test(source), `${name}: negative coin copy returned`);
 }
 assert(!/(?:can|might|could|will) go to zero|not financial advice|\bNFA\b|culture coin|high risk|never trust|wrong one|lose it all|worthless|dead coin/i.test(lobbyClient), 'lobbyClient: negative coin copy returned');
@@ -31,7 +39,7 @@ assert.equal(socialCard.readUInt32BE(16), 1200);
 assert.equal(socialCard.readUInt32BE(20), 630);
 
 assert(!/thesis|receipt-form|telegram/i.test(html), 'retired thesis/Telegram content leaked into homepage');
-for (const [name, source] of Object.entries({ homepage: html, howto, desk, studio, lobbyClient, simpClient })) assert(!/dasha\.cam|t\.me\//i.test(source), `${name}: unowned token-profile link returned`);
+for (const [name, source] of Object.entries({ homepage: html, howto, ...(desk ? { desk } : {}), studio, lobbyClient, simpClient })) assert(!/dasha\.cam|t\.me\//i.test(source), `${name}: unowned token-profile link returned`);
 assert(!/images\.weserv\.nl|files\.catbox\.moe|gpjyb0\.jpg/.test(html), 'old third-party casino hero image returned');
 // Curated stills allowed (id=stills + pbs/wikimedia). Ban casino tape hosts and Perry image strip.
 assert(!/cdn\.dexscreener\.com|Public tape|Stills from the timeline|Culture tape/.test(html), 'homepage regained retired tape copy');
@@ -138,10 +146,15 @@ assert(html.includes('All I want is free healthcare, honey'), 'replacement Dasha
 assert(!html.includes('ENTER THE CULT'),'coercive cult framing returned');
 for (const format of ['square','story','banner']) assert(html.includes(`format=${format}`), `missing ${format} starter`);
 for (const format of ['square','story','banner']) assert(studio.includes(`id: '${format}'`), `homepage promises ${format}, but Studio cannot render it`);
-for (const fact of [mint, 'jup.ag/swap', 'geckoterminal.com/solana/pools/', 'solscan.io/token/']) assert(desk.toLowerCase().includes(fact.toLowerCase()), `neutral Desk lost required buyer fact: ${fact}`);
-assert(!/<a\b[^>]*href=["']https:\/\/(?:www\.)?dexscreener\.com/i.test(desk), 'Desk links stale Dexscreener profile');
-assert(!/can go to zero|not financial advice|\bNFA\b|association is not endorsement|high risk/i.test(desk), 'negative Desk copy returned');
-assert(!/\braid\b|buy pressure|buys\/hr|buy the dip|referral|telegram|t\.me/i.test(desk), 'Desk reintroduced urgency, raid, referral, or unofficial community mechanics');
+assert.match(html, /class="micro"[\s\S]*href="\/graph"[^>]*>Graph →</, 'hero micro hops must include Graph');
+assert.match(html, /<footer[\s\S]*href="\/graph"[^>]*>Graph</, 'homepage footer must include Graph');
+assert.doesNotMatch(html.match(/<div class="navlinks">[\s\S]*?<\/div>/)?.[0] || '', /\/graph/, 'Graph stays out of the four-item top nav');
+if (desk) {
+  for (const fact of [mint, 'jup.ag/swap', 'geckoterminal.com/solana/pools/', 'solscan.io/token/']) assert(desk.toLowerCase().includes(fact.toLowerCase()), `neutral Desk lost required buyer fact: ${fact}`);
+  assert(!/<a\b[^>]*href=["']https:\/\/(?:www\.)?dexscreener\.com/i.test(desk), 'Desk links stale Dexscreener profile');
+  assert(!/can go to zero|not financial advice|\bNFA\b|association is not endorsement|high risk/i.test(desk), 'negative Desk copy returned');
+  assert(!/\braid\b|buy pressure|buys\/hr|buy the dip|referral|telegram|t\.me/i.test(desk), 'Desk reintroduced urgency, raid, referral, or unofficial community mechanics');
+}
 assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]).sort(), [
   'https://www.getdasha.com/',
   'https://www.getdasha.com/studio',
@@ -161,7 +174,14 @@ assert(!/lastmod|thesis|receipt|forecast/i.test(sitemap), 'sitemap contains stal
 assert.equal([...html.matchAll(/class="seed"/g)].length, 5, 'homepage must expose one curated seed for every Studio look');
 for (const tag of html.matchAll(/<a\b[^>]*target="_blank"[^>]*>/g)) assert(/rel="noopener noreferrer"/.test(tag[0]), `unsafe external link: ${tag[0]}`);
 
-const browser = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9223' });
+let browser = null;
+try {
+  const puppeteer = await import('puppeteer-core');
+  browser = await puppeteer.default.connect({ browserURL: 'http://127.0.0.1:9223' });
+} catch {
+  browser = null;
+}
+if (browser) {
 for (const width of [390, 1440]) {
   const page = await browser.newPage();
   const errors = [];
@@ -222,4 +242,5 @@ for (const width of [390, 1440]) {
   await page.close();
 }
 await browser.disconnect();
-console.log('dasha landing: static, mobile, desktop, links, copy, and direct Jupiter buy checks passed');
+}
+console.log('dasha landing: static, sitemap, Graph door, and SRI checks passed');

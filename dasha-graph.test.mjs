@@ -304,20 +304,15 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
 }
 
 resetGraphCache();
-const nativeFetch = globalThis.fetch;
-globalThis.fetch = rpc429;
-try {
-  const api = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/api/graph'), {});
-  assert.equal(api.status, 200);
-  assert.match(api.headers.get('cache-control') || '', /s-maxage=90/);
-  const body = await api.json();
-  assert.equal(body.mint, mint);
-  assert.equal(body.pair, pair);
-  assert.equal(body.rings[1].empty, true);
-  assert.equal(body.rings[1].reason, 'rpc_unavailable');
-  assert.ok(!JSON.stringify(body).includes('demo'));
-} finally {
-  globalThis.fetch = nativeFetch;
-}
+await fetchGraphSnapshot({}, { fetchImpl: rpc429, now: 1, endpoints: ['https://api.mainnet-beta.solana.com'] });
+const api = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/api/graph'), {});
+assert.equal(api.status, 200);
+assert.match(api.headers.get('cache-control') || '', /s-maxage=90/);
+const body = await api.json();
+assert.equal(body.mint, mint);
+assert.equal(body.pair, pair);
+assert.equal(body.rings[1].empty, true);
+assert.equal(body.rings[1].reason, 'rpc_unavailable');
+assert.ok(!JSON.stringify(body).includes('demo'));
 
 console.log('dasha-graph: PASS');

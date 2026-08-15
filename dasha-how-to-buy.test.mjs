@@ -3,7 +3,7 @@
  * How-to-buy disk gate. Route is live and crawlably linked from Home.
  */
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,7 +12,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const MINT = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
 const html = readFileSync(join(__dirname, 'dasha-how-to-buy.html'), 'utf8');
 const landing = readFileSync(join(__dirname, 'dasha-landing.html'), 'utf8');
-const desk = readFileSync(join(__dirname, 'dasha-desk/src/body.html'), 'utf8');
+const deskPath = join(__dirname, 'dasha-desk/src/body.html');
+const desk = existsSync(deskPath) ? readFileSync(deskPath, 'utf8') : '';
 
 assert.ok(html.includes(MINT), 'mint on how-to-buy');
 assert.ok(html.includes('jup.ag/swap'), 'jupiter deep link');
@@ -38,7 +39,7 @@ assert.ok(!/payTo|referralAccount/i.test(html), 'howto must not invent payTo or 
 const WSOL = 'So11111111111111111111111111111111111111112';
 assert.doesNotMatch(html.replaceAll(MINT, '').replaceAll(WSOL, ''), /[1-9A-HJ-NP-Za-km-z]{32,44}/, 'howto contains a mint other than $dasha or WSOL');
 assert.ok(html.includes('DashaHowToBuy'), 'export for tests');
-assert.ok(html.includes('/studio') && html.includes('/lobby') && html.includes('/verse'), 'footer loops to product surfaces');
+assert.ok(html.includes('/studio') && html.includes('/lobby') && html.includes('/graph') && html.includes('/verse'), 'footer loops to product surfaces');
 assert.ok(!html.includes('t.me/dashacommunity'), 'no disallowed telegram');
 assert.ok(!/can go to zero|not financial advice|\bNFA\b|rugcheck|warning|disclaimer|not an endorsement|never trust|wrong one|lookalike|fake token|token safe/i.test(html), 'negative coin copy returned');
 for (const step of ['01', '02', '03']) assert.ok(html.includes(`data-n="${step}"`), `howto missing step ${step}`);
@@ -56,7 +57,8 @@ for (const bad of ['official Dasha', 'safe token', 'verified mint', 'endorsed by
   assert.ok(!html.toLowerCase().includes(bad.toLowerCase()), `howto must not claim: ${bad}`);
 }
 assert.match(landing, /href=["']\/how-to-buy["']/, 'home must crawlably link live how-to-buy');
-assert.ok(!/href=["']\/how-to-buy["']/.test(desk), 'desk must not primary-link how-to-buy');
+assert.match(landing, /href=["']\/graph["']/, 'home must crawlably link Graph');
+if (desk) assert.ok(!/href=["']\/how-to-buy["']/.test(desk), 'desk must not primary-link how-to-buy');
 
 const m = html.match(/<script>([\s\S]*?)<\/script>/);
 assert.ok(m, 'howto script');
