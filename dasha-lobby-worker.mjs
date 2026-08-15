@@ -344,7 +344,6 @@ function ensureHomeSimpMount(html, sri = SIMP_BOARD_SRI) {
 /** www/apex / only: first paint is headline + Buy $dasha. Live `#dasha-home` is a wrapper, not this rewrite. */
 export function rewriteHomeFirstViewport(html, sri = SIMP_BOARD_SRI) {
   let page = demoteHomeNavMint(stripHomeForumHrefs(stripHomeAtmosphere(stripHomeWebFonts(stripHomeCtaDecoy(String(html || ''))))));
-  page = page.replace(/href=["']#content["']/gi, 'href="#simp"');
   page = injectHomeCalmCss(page);
   if (!/id=["']dasha-lock["']/i.test(page) && !/<header\b[^>]*\bdasha-hero\b/i.test(page)) {
     const at = homeFirstInsertAt(page);
@@ -891,8 +890,9 @@ export function simpQuizFirstPaintHtml() {
 export function simpPageHtml() {
   const perryDisplay = escapeHtml(String(publicPerryRow().display || '@PerryALPHA').slice(0, 20));
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Simp</title>
-<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}h1{margin:0 0 .5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(3rem,12vw,6rem);line-height:.9}a{color:var(--acid)}.dasha-go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font-weight:900;text-decoration:none}#dasha-quiz,.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-quiz .dasha-go{margin:0 .5rem .75rem 0}#dasha-quiz ul{margin:.25rem 0 1rem;padding-left:1.2rem}</style>
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}nav{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px}nav a{color:var(--paper);text-decoration:none;font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:13px;min-height:44px;display:inline-flex;align-items:center}h1{margin:0 0 .5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(3rem,12vw,6rem);line-height:.9}a{color:var(--acid)}.dasha-go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font-weight:900;text-decoration:none}#dasha-quiz,.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-quiz .dasha-go{margin:0 .5rem .75rem 0}#dasha-quiz ul{margin:.25rem 0 1rem;padding-left:1.2rem}</style>
 <body>
+<nav aria-label="Dasha"><a href="/">$dasha</a><a href="/lobby">Lobby</a><a href="/studio">Studio</a><a href="/chess">Chess</a><a href="/graph">Graph</a><a href="/how-to-buy">Buy</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></nav>
 <h1>Simp</h1>
 <p>How big of a Dasha simp are you?</p>
 <p>Take the quiz. Ranked by lore and contributions.</p>

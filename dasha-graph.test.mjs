@@ -41,6 +41,11 @@ assert.doesNotMatch(page, /fonts\.googleapis|Google Fonts|font-family:[^;]*Inter
 assert.doesNotMatch(page + client, /\bInter\b|Geist|fonts\.googleapis|system-ui/);
 assert.doesNotMatch(page, /clamp\([^)]*10rem/);
 assert.match(page, /clamp\(1\.1rem,\s*2\.8vw,\s*1\.7rem\)/);
+assert.match(page, /\.status\{[^}]*bottom:6\.4rem/, 'status must sit above the wrapped footer');
+assert.match(page, /\.keys\{[^}]*bottom:6\.4rem/, 'keys must sit above the wrapped footer');
+assert.match(page, /\.foot\{[^}]*background:#070608/, 'footer must cover the canvas so links do not stack on the title');
+assert.match(page, /#list\{[^}]*inset:auto 0 6rem/, 'list must clear the footer row');
+assert.doesNotMatch(page, /bottom:3\.1rem/, 'old footer-overlap offsets must be gone');
 assert.doesNotMatch(page, /\.ticker\{[^}]*background:#dfff00/);
 assert.match(page, /\.ticker\{[^}]*background:#070608;color:#f4eddb/);
 assert.doesNotMatch(page, /button\.highlight|class="highlight"/);
