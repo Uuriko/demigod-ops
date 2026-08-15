@@ -1,16 +1,18 @@
 /**
  * Public $DASHA chain graph client. Three r170 + OrbitControls from jsDelivr.
- * Browser talks only to same-origin /api/graph — no public RPC.
+ * Snapshot is same-origin /api/graph. X + hold proof talk to lobby with credentials.
  */
 (function (global) {
   'use strict';
   var MINT = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
   var PAIR = '9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7';
+  var LOBBY = 'https://lobby.getdasha.com';
   var INK = 0x070608;
   var PAPER = 0xf4eddb;
   var ACID = 0xdfff00;
   var HOT = 0xff3b81;
-  var data = { nodes: [], links: [], pulses: [], holdersLoaded: true, dex: {}, supply: null };
+  var data = { nodes: [], links: [], pulses: [], holdersLoaded: true, dex: {}, supply: null, highlights: [] };
+  var highlightBusy = false;
   var labelsOn = true;
   var listOn = false;
   var followOn = false;
@@ -83,6 +85,11 @@
     list.innerHTML = '';
     data.nodes.forEach(function (node) {
       var li = document.createElement('li');
+      if (node.role === 'highlight' && node.handle) {
+        li.innerHTML = '<strong>highlight</strong> <a href="' + esc(node.href || ('https://x.com/' + node.handle)) + '" target="_blank" rel="noopener noreferrer">@' + esc(node.handle) + '</a>';
+        list.appendChild(li);
+        return;
+      }
       var bits = [node.id];
       if (node.symbol) bits.unshift(node.symbol);
       if (node.uiAmountString) bits.push(node.uiAmountString);
@@ -101,6 +108,15 @@
   }
   function nodePanel(node) {
     selected = node;
+    if (node.role === 'highlight' && node.handle) {
+      showPanel(
+        '<h2>@' + esc(node.handle) + '</h2>' +
+        '<p>opt-in highlight</p>' +
+        '<div class="row"><a href="' + esc(node.href || ('https://x.com/' + node.handle)) + '" target="_blank" rel="noopener noreferrer">Open X</a>' +
+        '<button type="button" data-close="1">Close</button></div>'
+      );
+      return;
+    }
     var amount = node.uiAmountString ? '<p>' + esc(node.uiAmountString) + '</p>' : '';
     var supply = node.id === MINT && data.supply && (data.supply.uiAmountString || data.supply.uiAmount != null)
       ? '<p>Supply ' + esc(data.supply.uiAmountString || String(data.supply.uiAmount)) + '</p>' : '';
@@ -146,24 +162,33 @@
       if (t.dataset.close) closePanel();
       if (t.dataset.copy) copy(t.dataset.copy);
       if (t.dataset.expand) expand(t.dataset.expand);
+      if (t.dataset.connectX) startX();
     });
   }
   function nodeColor(node) {
     if (node.id === MINT) return ACID;
-    if (node.hot) return HOT;
+    if (node.role === 'highlight' || node.hot) return HOT;
     return PAPER;
   }
   function layout(nodes) {
     var i = 0;
-    var extras = nodes.filter(function (n) { return n.id !== MINT && n.id !== PAIR; });
+    var extras = nodes.filter(function (n) { return n.id !== MINT && n.id !== PAIR && n.role !== 'highlight'; });
+    var marks = nodes.filter(function (n) { return n.role === 'highlight'; });
     nodes.forEach(function (node) {
       if (node.id === MINT) { node.x = 0; node.y = 0; node.z = 0; return; }
       if (node.id === PAIR) { node.x = 6.2; node.y = 0.4; node.z = 0.2; return; }
+      if (node.role === 'highlight') return;
       var t = extras.length ? (i++ / extras.length) * Math.PI * 2 : 0;
       var r = node.role === 'program' ? 14 : node.role === 'token' ? 10 : 11.5;
       node.x = Math.cos(t) * r;
       node.y = Math.sin(t * 1.7) * 2.4;
       node.z = Math.sin(t) * r;
+    });
+    marks.forEach(function (node, index) {
+      var t = marks.length ? (index / marks.length) * Math.PI * 2 : 0;
+      node.x = Math.cos(t) * 5.2;
+      node.y = 1.2;
+      node.z = Math.sin(t) * 5.2;
     });
   }
   function startScene(THREE, OrbitControls) {
@@ -226,8 +251,8 @@
           color: nodeColor(node),
           roughness: 0.42,
           metalness: 0.08,
-          emissive: node.id === MINT || node.hot ? nodeColor(node) : 0x000000,
-          emissiveIntensity: node.id === MINT ? 0.22 : node.hot ? 0.18 : 0,
+          emissive: node.id === MINT || node.role === 'highlight' || node.hot ? nodeColor(node) : 0x000000,
+          emissiveIntensity: node.id === MINT ? 0.22 : (node.role === 'highlight' || node.hot) ? 0.18 : 0,
         });
         var mesh = new THREE.Mesh(geo(node), mat);
         mesh.position.set(node.x, node.y, node.z);
@@ -244,7 +269,7 @@
         var pts = [new THREE.Vector3(a.x, a.y, a.z), new THREE.Vector3(b.x, b.y, b.z)];
         var line = new THREE.Line(
           new THREE.BufferGeometry().setFromPoints(pts),
-          new THREE.LineBasicMaterial({ color: link.kind === 'transfer' ? HOT : PAPER, transparent: true, opacity: 0.62 })
+          new THREE.LineBasicMaterial({ color: link.kind === 'transfer' || link.kind === 'highlight' ? HOT : PAPER, transparent: true, opacity: 0.62 })
         );
         group.add(line);
       });
@@ -274,11 +299,20 @@
       data.nodes.forEach(function (node) {
         var v = new THREE.Vector3(node.x, node.y, node.z).project(camera);
         if (v.z > 1) return;
-        var span = document.createElement('span');
-        span.textContent = node.symbol || (node.id === MINT ? '$DASHA' : shortId(node.id));
-        span.style.left = ((v.x + 1) / 2 * w) + 'px';
-        span.style.top = ((-v.y + 1) / 2 * h) + 'px';
-        labelLayer.appendChild(span);
+        var elLabel;
+        if (node.role === 'highlight' && node.handle) {
+          elLabel = document.createElement('a');
+          elLabel.href = node.href || ('https://x.com/' + node.handle);
+          elLabel.target = '_blank';
+          elLabel.rel = 'noopener noreferrer';
+          elLabel.textContent = '@' + node.handle;
+        } else {
+          elLabel = document.createElement('span');
+          elLabel.textContent = node.symbol || (node.id === MINT ? '$DASHA' : shortId(node.id));
+        }
+        elLabel.style.left = ((v.x + 1) / 2 * w) + 'px';
+        elLabel.style.top = ((-v.y + 1) / 2 * h) + 'px';
+        labelLayer.appendChild(elLabel);
       });
     }
     function hit(ev) {
@@ -293,7 +327,7 @@
       var node = hit(ev);
       if (!node) return;
       var now = Date.now();
-      if (clicks.id === node.id && now - clicks.at < 400) expand(node.id);
+      if (clicks.id === node.id && now - clicks.at < 400 && node.role !== 'highlight') expand(node.id);
       clicks = { id: node.id, at: now };
       nodePanel(node);
     });
@@ -350,14 +384,31 @@
       },
     };
   }
+  function highlightNodes(rows) {
+    var seen = new Set();
+    var nodes = [];
+    var links = [];
+    (rows || []).forEach(function (row) {
+      var handle = String(row && row.handle || '').replace(/^@/, '').toLowerCase();
+      if (!/^[a-z0-9_]{1,15}$/.test(handle) || seen.has(handle)) return;
+      seen.add(handle);
+      var href = row.href && /^https:\/\/x\.com\/[A-Za-z0-9_]{1,15}$/.test(row.href) ? row.href : ('https://x.com/' + handle);
+      var id = '@' + handle;
+      nodes.push({ id: id, role: 'highlight', kind: 'highlight', handle: handle, href: href, until: row.until, hot: true });
+      links.push({ source: MINT, target: id, kind: 'highlight' });
+    });
+    return { nodes: nodes, links: links };
+  }
   function applySnapshot(body) {
+    var marks = highlightNodes(body && body.highlights);
     data = {
-      nodes: body.nodes || [],
-      links: body.links || [],
+      nodes: (body.nodes || []).concat(marks.nodes),
+      links: (body.links || []).concat(marks.links),
       pulses: body.pulses || [],
       holdersLoaded: body.holdersLoaded !== false,
       dex: body.dex || {},
       supply: body.supply || null,
+      highlights: marks.nodes.map(function (node) { return { handle: node.handle, href: node.href, until: node.until }; }),
     };
     paintHud(data.dex);
     if (!data.holdersLoaded) setStatus('Holders: not loaded', 'bad');
@@ -378,9 +429,128 @@
           pulses: [],
           holdersLoaded: false,
           dex: {},
+          highlights: [],
           rings: { 1: { empty: true, reason: 'rpc_unavailable' } },
         });
       });
+  }
+  function fetchJson(url, init) {
+    return fetch(url, init).then(function (res) {
+      return res.text().then(function (raw) {
+        var parsed = null;
+        if (raw) { try { parsed = JSON.parse(raw); } catch (e) { parsed = { error: 'non-json response' }; } }
+        return { ok: res.ok, status: res.status, data: parsed || {} };
+      });
+    });
+  }
+  function base58(bytes) {
+    var alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+    var digits = [0];
+    for (var i = 0; i < bytes.length; i++) {
+      var carry = bytes[i];
+      for (var j = 0; j < digits.length; j++) {
+        carry += digits[j] << 8;
+        digits[j] = carry % 58;
+        carry = (carry / 58) | 0;
+      }
+      while (carry) { digits.push(carry % 58); carry = (carry / 58) | 0; }
+    }
+    var out = '';
+    for (var z = 0; z < bytes.length - 1 && bytes[z] === 0; z++) out += '1';
+    for (var k = digits.length - 1; k >= 0; k--) out += alphabet[digits[k]];
+    return out;
+  }
+  function graphReturn() {
+    try {
+      if (location.hostname === 'lobby.getdasha.com') return 'https://lobby.getdasha.com/graph';
+    } catch (e) {}
+    return 'https://www.getdasha.com/graph';
+  }
+  function startX() {
+    var href = LOBBY + '/oauth/x/start?return=' + encodeURIComponent(graphReturn());
+    var popup = window.open(href, 'dasha_x', 'width=520,height=700');
+    if (popup) setStatus('Connect X to be highlighted.');
+    else location.href = href;
+  }
+  function showConnectPrompt() {
+    setStatus('Connect X to be highlighted.');
+    showPanel(
+      '<h2>Connect X</h2><p>Connect X to be highlighted.</p>' +
+      '<div class="row"><button type="button" data-connect-x="1">Connect X</button>' +
+      '<button type="button" data-close="1">Close</button></div>'
+    );
+  }
+  function proveHold() {
+    var wallet = (global.phantom && global.phantom.solana) || global.solflare || global.solana;
+    if (!wallet || !wallet.connect || !wallet.signMessage) {
+      if (/Android|iPhone|iPad|iPod/i.test((global.navigator && global.navigator.userAgent) || '')) {
+        location.href = 'https://phantom.app/ul/browse/' + encodeURIComponent(location.href) + '?ref=' + encodeURIComponent(location.origin);
+      } else setStatus('Open this page in a Solana wallet', 'bad');
+      return;
+    }
+    highlightBusy = true;
+    var btn = $('highlight-me');
+    if (btn) btn.disabled = true;
+    setStatus('Prove hold…');
+    wallet.connect().then(function (connected) {
+      var key = wallet.publicKey || (connected && connected.publicKey);
+      if (!key) throw new Error('wallet returned no public key');
+      key = key.toString();
+      return fetchJson(LOBBY + '/api/graph/wallet/challenge', {
+        method: 'POST',
+        credentials: 'include',
+        mode: 'cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publicKey: key }),
+      }).then(function (res) { return { res: res, key: key }; });
+    }).then(function (pair) {
+      if (!pair.res.data || !pair.res.data.ok) throw new Error((pair.res.data && pair.res.data.error) || 'challenge failed');
+      return wallet.signMessage(new TextEncoder().encode(pair.res.data.message), 'utf8').then(function (signed) {
+        var signature = signed.signature || signed;
+        if (!signature) throw new Error('wallet returned an incomplete signature');
+        return fetchJson(LOBBY + '/api/graph/highlight', {
+          method: 'POST',
+          credentials: 'include',
+          mode: 'cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            challenge: pair.res.data.challenge,
+            publicKey: pair.key,
+            signature: base58(signature),
+          }),
+        });
+      });
+    }).then(function (res) {
+      highlightBusy = false;
+      if (btn) btn.disabled = false;
+      if (!res.data || !res.data.ok) throw new Error((res.data && res.data.error) || 'highlight failed');
+      setStatus('Highlighted as @' + ((res.data.highlight && res.data.highlight.handle) || ''), '');
+      applySnapshot({
+        nodes: data.nodes.filter(function (node) { return node.role !== 'highlight'; }),
+        links: data.links.filter(function (link) { return link.kind !== 'highlight'; }),
+        pulses: data.pulses,
+        holdersLoaded: data.holdersLoaded,
+        dex: data.dex,
+        supply: data.supply,
+        highlights: res.data.highlights || (res.data.highlight ? [res.data.highlight] : []),
+      });
+    }).catch(function (err) {
+      highlightBusy = false;
+      if (btn) btn.disabled = false;
+      setStatus(String(err.message || err).slice(0, 140), 'bad');
+    });
+  }
+  function highlightMe() {
+    if (highlightBusy) return;
+    setStatus('Checking…');
+    fetchJson(LOBBY + '/oauth/x/status', { method: 'GET', credentials: 'include', mode: 'cors', cache: 'no-store' })
+      .then(function (res) {
+        var data = res.data || {};
+        if (!data.configured) { setStatus('X link not configured', 'bad'); return; }
+        if (!data.linked) { showConnectPrompt(); return; }
+        proveHold();
+      })
+      .catch(function () { setStatus('Could not check X status', 'bad'); });
   }
   function onKey(ev) {
     if (ev.key === 'Escape') closePanel();
@@ -410,6 +580,14 @@
       listBtn.setAttribute('aria-pressed', listOn ? 'true' : 'false');
       paintList();
     });
+    var highlightBtn = $('highlight-me');
+    if (highlightBtn) highlightBtn.addEventListener('click', highlightMe);
+    window.addEventListener('message', function (ev) {
+      if (!ev || !ev.data || ev.data.type !== 'dasha-x-linked') return;
+      if (ev.origin !== LOBBY) return;
+      closePanel();
+      setStatus('X linked — prove hold to be highlighted.');
+    });
     var status = $('status');
     if (status) {
       status.style.cursor = 'pointer';
@@ -436,5 +614,5 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
-  global.DashaGraph = { load: load, expand: expand };
+  global.DashaGraph = { load: load, expand: expand, highlight: highlightMe };
 })(typeof window !== 'undefined' ? window : globalThis);

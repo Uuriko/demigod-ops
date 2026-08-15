@@ -135,6 +135,8 @@ assert(worker.includes('unpaidBountiesHtmlHasPayoutAmounts'), 'unpaid /bounties 
 assert(worker.includes("'X-Dasha-Edge': 'verse'") && worker.includes('versePageHtml'), 'www /verse is worker-owned first HTML');
 assert(worker.includes("'X-Dasha-Edge': 'graph'") && worker.includes('GRAPH_PAGE'), 'www /graph is worker-owned first HTML');
 assert(worker.includes("url.pathname === '/api/graph'") && worker.includes("url.pathname === '/api/graph/expand'"), 'worker exposes public graph APIs');
+assert(worker.includes('/api/graph/highlight') && worker.includes('/api/graph/wallet/challenge'), 'worker exposes graph highlight proof');
+assert(worker.includes("kind: 'graph_highlight'"), 'graph highlight must use its own SIWS kind');
 assert(!/getProgramAccounts/.test(worker), 'graph must not use getProgramAccounts');
 assert(worker.includes("isExactPath(url.pathname, '/dashaverse')") && worker.includes('VERSE_WWW'), ' /dashaverse aliases to /verse');
 assert(!worker.includes('injectBountiesBoard(stripBountiesIframe'), 'www /bounties must not paint through Webflow');
@@ -1020,7 +1022,7 @@ assert.equal(crossSessionSummary.studio.openToEdit, null, 'cross-session event r
 assert.equal(crossSessionSummary.quiz.startToComplete, null, 'aggregate quiz events must not masquerade as conversion above one');
 assert.equal(crossSessionSummary.chess.completionToReplayShare, null, 'repeat replay shares must not break or inflate the public funnel');
 assert.equal(crossSessionSummary.chess.replayShareIntentToHandoff, 0.833, 'a bounded intent-to-handoff ratio remains useful');
-const { createSessionToken, signPayload } = await import('./dasha-lobby-x.mjs');
+const { createSessionToken, signPayload, verifyPayload } = await import('./dasha-lobby-x.mjs');
 
 for (const path of ['/', '/lobby', '/oauth/x/start?return=%2Flobby', '/client/studio.js']) {
   const redirected = await workerModule.default.fetch(new Request(`http://lobby.getdasha.com${path}`), {});
@@ -1174,6 +1176,16 @@ const oauthContinue = await workerModule.default.fetch(new Request('https://lobb
 assert.equal(oauthContinue.status, 302);
 assert.match(oauthContinue.headers.get('set-cookie') || '', /^__Host-dasha_x_oauth=.+Path=\/.*HttpOnly.*Secure.*SameSite=Lax/i);
 assert.match(oauthContinue.headers.get('location') || '', /code_challenge_method=S256/);
+const oauthGraphStart = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/oauth/x/start?return=/graph'), oauthEnv);
+assert.equal(oauthGraphStart.status, 200);
+assert.match(await oauthGraphStart.text(), /continue=1&amp;return=https%3A%2F%2Fwww\.getdasha\.com%2Fgraph|continue=1&return=https%3A%2F%2Fwww\.getdasha\.com%2Fgraph/);
+const oauthEvilStart = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/oauth/x/start?return=https://evil.example/phish'), oauthEnv);
+assert.doesNotMatch(await oauthEvilStart.text(), /evil\.example/);
+const oauthGraphContinue = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/oauth/x/start?continue=1&return=/graph'), oauthEnv);
+assert.equal(oauthGraphContinue.status, 302);
+const oauthCookie = (oauthGraphContinue.headers.get('set-cookie') || '').match(/__Host-dasha_x_oauth=([^;]+)/)?.[1];
+const oauthState = await verifyPayload(oauthEnv.LOBBY_SESSION_SECRET, oauthCookie);
+assert.equal(oauthState.cont, 'https://www.getdasha.com/graph');
 assert.match(worker, /<script nonce="\$\{scriptNonce\}">/);
 assert.match(worker, /privateHtmlHeaders\(\{[\s\S]*?'Content-Type': 'text\/html; charset=utf-8'[\s\S]*?\}, scriptNonce\)/);
 
@@ -1181,6 +1193,7 @@ const privacy = await workerModule.default.fetch(new Request('https://lobby.getd
 assert.equal(privacy.status, 200);
 const privacyText = await privacy.text();
 assert.match(privacyText, /does not store the X access token[\s\S]*Completed chess games are public replays showing both X handles, ratings, moves, result, and completion time/);
+assert.match(privacyText, /opt in to graph highlight[\s\S]*public X handle on \/graph until that proof expires, or until you leave the Board or unlink/);
 assert.match(privacyText, /Leave Board removes[\s\S]*chess rating, games and tournaments involving you[\s\S]*potter@trydemigod\.com/);
 assert.equal(privacy.headers.get('x-robots-tag'), null);
 for (const host of ['lobby.getdasha.com', 'www.getdasha.com']) {
