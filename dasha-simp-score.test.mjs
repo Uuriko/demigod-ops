@@ -41,6 +41,10 @@ import {
   quizCopy,
   quizShareLine,
   submitQuiz,
+  applyLearnAward,
+  learnAwardPoints,
+  LEARN_CAP_28D,
+  LEARN_CAP_LIFETIME,
 } from './dasha-simp-score.mjs';
 
 const now = Date.parse('2026-08-08T12:00:00Z');
@@ -502,5 +506,71 @@ const fancy = scoreProfile(
   { now },
 );
 assert.equal(fancy.total, LINKED_X_POINTS);
+
+// --- learn component: first-pass only, caps, holder 0, forbidden signals ---
+assert.equal(learnAwardPoints({}), 4);
+assert.equal(learnAwardPoints({ difficulty: 2 }), 6);
+assert.equal(learnAwardPoints({ tool: 'siws' }), 6);
+assert.equal(learnAwardPoints({ difficulty: 2, tool: 'live-buy' }), 8);
+assert.equal(s0.components.learn, 0);
+assert.equal(publicRules.learn.cap_rolling_28d, LEARN_CAP_28D);
+assert.equal(publicRules.learn.cap_lifetime, LEARN_CAP_LIFETIME);
+assert.equal(applyLearnAward({}, null, { moduleId: 'C01' }, { now }).status, 401);
+assert.equal(
+  applyLearnAward({}, session, { moduleId: 'C01', purchases: 1 }, { now }).ok,
+  false,
+);
+assert.equal(
+  applyLearnAward({}, session, { moduleId: 'C01', balance: 9 }, { now }).error,
+  'forbidden signal',
+);
+assert.equal(
+  applyLearnAward({}, session, { moduleId: 'C01', bagSize: 2 }, { now }).ok,
+  false,
+);
+assert.equal(
+  applyLearnAward({}, session, { moduleId: 'C01', referrals: 1 }, { now }).ok,
+  false,
+);
+const learnSession = { xId: 'learn-1', handle: 'pupil' };
+const learnFirst = applyLearnAward({}, learnSession, { moduleId: 'C01', difficulty: 0 }, { now });
+assert.equal(learnFirst.ok, true);
+assert.equal(learnFirst.created, true);
+assert.equal(learnFirst.awarded, true);
+assert.equal(learnFirst.points, 4);
+assert.equal(scoreProfile(learnFirst.profile, { now }).components.learn, 4);
+assert.equal(scoreProfile(learnFirst.profile, { now }).components.holder, 0);
+assert.equal(meStatus(learnFirst.store, learnSession).enrolled, true);
+assert.equal(meStatus(learnFirst.store, learnSession).board.components.learn, 4);
+const learnRetake = applyLearnAward(learnFirst.store, learnSession, { moduleId: 'C01', difficulty: 2, tool: 'siws' }, { now: now + 1 });
+assert.equal(learnRetake.awarded, false);
+assert.equal(learnRetake.retake, true);
+assert.equal(scoreProfile(learnRetake.profile, { now: now + 1 }).components.learn, 4);
+const learnHard = applyLearnAward(learnFirst.store, learnSession, { moduleId: 'C12', difficulty: 2, tool: 'live-buy' }, { now: now + 2 });
+assert.equal(learnHard.points, 8);
+assert.equal(scoreProfile(learnHard.profile, { now: now + 2 }).components.learn, 12);
+const flood = [];
+let floodStore = {};
+for (let i = 0; i < 20; i++) {
+  const id = `C${String((i % 12) + 1).padStart(2, '0')}`;
+  const unique = i < 12 ? id : `A${String((i % 10) + 1).padStart(2, '0')}`;
+  const row = applyLearnAward(floodStore, { xId: 'cap', handle: 'cap' }, { moduleId: unique, difficulty: 2, tool: 'siws' }, { now: now + i });
+  floodStore = row.store;
+  flood.push(row);
+}
+assert.equal(scoreProfile(floodStore.cap, { now: now + 20 }).components.learn <= LEARN_CAP_28D, true);
+assert.equal(scoreProfile(floodStore.cap, { now: now + 20 }).components.holder, 0);
+const lifeAwards = Array.from({ length: 20 }, (_, i) => ({
+  kind: 'learn',
+  moduleId: `I${String((i % 10) + 1).padStart(2, '0')}`,
+  points: 8,
+  at: now - (i < 10 ? 40 * day : i * day),
+}));
+assert.equal(scoreProfile({ handle: 'life', enrolledAt: now, awards: lifeAwards }, { now }).components.learn, LEARN_CAP_LIFETIME);
+const learnBoard = buildPublicBoard(Object.values(learnHard.store), { now: now + 2 });
+assert.equal(learnBoard.measured[0].components.learn, 12);
+assert.equal(assertPublicSafe(learnBoard).ok, true);
+assert.equal(assertPublicSafe(meStatus(learnHard.store, learnSession)).ok, true);
+assert.equal(JSON.stringify(meStatus(learnHard.store, learnSession)).includes('learn-1'), false);
 
 console.log('dasha-simp-score: PASS');

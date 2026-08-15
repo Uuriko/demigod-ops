@@ -134,6 +134,10 @@ assert(worker.includes("'X-Dasha-Edge': 'bounties'") && worker.includes('bountie
 assert(worker.includes('unpaidBountiesHtmlHasPayoutAmounts'), 'unpaid /bounties HTML must have a payout-amount proof');
 assert(worker.includes("'X-Dasha-Edge': 'verse'") && worker.includes('versePageHtml'), 'www /verse is worker-owned first HTML');
 assert(worker.includes("'X-Dasha-Edge': 'graph'") && worker.includes('GRAPH_PAGE'), 'www /graph is worker-owned first HTML');
+assert(worker.includes("'X-Dasha-Edge': 'learn'") && worker.includes('learnPageHtml'), 'www /learn is worker-owned first HTML');
+assert(worker.includes('client/learn.js') && worker.includes('LEARN_CLIENT_SRI'), 'www /learn mounts the learn client');
+assert(worker.includes("path === '/simp/learn'"), 'worker exposes /simp/learn awards');
+assert(!worker.includes("isExactPath(url.pathname, '/hold')") && !worker.includes("isExactPath(url.pathname, '/academy')"), 'no new colliding commerce/academy routes');
 assert(worker.includes("url.pathname === '/api/graph'") && worker.includes("url.pathname === '/api/graph/expand'"), 'worker exposes public graph APIs');
 assert(worker.includes('/api/graph/highlight') && worker.includes('/api/graph/wallet/challenge'), 'worker exposes graph highlight proof');
 assert(worker.includes("kind: 'graph_highlight'"), 'graph highlight must use its own SIWS kind');
@@ -818,7 +822,7 @@ for (const path of ['/studio', '/studio/']) {
     assert.match(section, /href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats</, `${label} nav must include @dash_eats`);
     assert.doesNotMatch(section.match(/<nav\b[\s\S]*?<\/nav>/i)?.[0] || '', /53ux|Buy|jup\.ag|#token|\/forum/i, `${label} must keep CA and Buy out of the top nav`);
     assert.match(section, /<footer\b[^>]*id="token"/, `${label} must keep CA + Buy in a token footer`);
-    assert.match(section, /<a href="\/studio">Studio<\/a> · <a href="\/lobby">Lobby<\/a> · <a href="\/simp">Simp<\/a> · <a href="\/graph">Graph<\/a> · <a href="\/verse">Verse<\/a> · <a href="\/bounties">Bounties<\/a> · <a href="\/how-to-buy">How to buy<\/a> · <a href="\/privacy">Privacy<\/a>/, `${label} must keep the site footer`);
+    assert.match(section, /<a href="\/studio">Studio<\/a> · <a href="\/lobby">Lobby<\/a> · <a href="\/simp">Simp<\/a> · <a href="\/learn">Learn<\/a> · <a href="\/graph">Graph<\/a> · <a href="\/verse">Verse<\/a> · <a href="\/bounties">Bounties<\/a> · <a href="\/how-to-buy">How to buy<\/a> · <a href="\/privacy">Privacy<\/a>/, `${label} must keep the site footer`);
     assert.match(section, /53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump/, `${label} footer must show the mint`);
     assert.match(section, /jup\.ag\/swap\?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump/, `${label} footer must keep Buy`);
     assert.match(section, /<label>Contact <input name="contact"><\/label> <a href="\/privacy">Privacy<\/a>/, `${label} must put Privacy next to contact`);
@@ -1051,6 +1055,7 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
     'https://www.getdasha.com/verse',
     'https://www.getdasha.com/chess',
     'https://www.getdasha.com/graph',
+    'https://www.getdasha.com/learn',
   ]) {
     assert.match(sitemapBody, new RegExp(`<loc>${loc.replaceAll('.', '\\.')}</loc>`), `${host} sitemap must list ${loc}`);
   }
@@ -1063,6 +1068,7 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
   const robotsBody = await robots.text();
   assert.match(robotsBody, /Allow: \/verse/, `${host} robots must allow /verse`);
   assert.match(robotsBody, /Allow: \/graph/, `${host} robots must allow /graph`);
+  assert.match(robotsBody, /Allow: \/learn/, `${host} robots must allow /learn`);
 }
 
 {
