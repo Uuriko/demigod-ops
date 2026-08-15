@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
-import { DASHA_ROOMS, hamburgerHtml, roomRailHtml, slimFooterHtml } from './dasha-award-chrome.mjs';
+import { AWARD_BTN_CSS, AWARD_CHROME_CSS, DASHA_ROOMS, hamburgerHtml, roomRailHtml, slimFooterHtml } from './dasha-award-chrome.mjs';
 
 const root = new URL('./', import.meta.url);
 const landing = await readFile(new URL('./dasha-landing.html', root), 'utf8');
@@ -10,12 +10,25 @@ const page = await readFile(new URL('./dasha-lobby-page.html', root), 'utf8');
 const client = await readFile(new URL('./dasha-lobby-client.js', root), 'utf8');
 const worker = await readFile(new URL('./dasha-lobby-worker.mjs', root), 'utf8');
 const chessPage = await readFile(new URL('./dasha-chess-page.html', root), 'utf8');
+const simpClient = await readFile(new URL('./dasha-simp-board-client.js', root), 'utf8');
+const studioEmbed = await readFile(new URL('./dasha-studio-embed.js', root), 'utf8');
+const studioPage = await readFile(new URL('./dasha-meme-studio.html', root), 'utf8');
 const wrangler = await readFile(new URL('./dasha-lobby-wrangler.jsonc', root), 'utf8');
 const mint = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
 
 assert(!landing.includes('id="dasha-lobby"'), 'landing must not mount lobby');
 assert(page.includes('id="dasha-lobby"'), 'dedicated lobby mount missing');
 assert(chessPage.includes('id="dasha-lobby"'), 'chess must embed the existing lobby chat');
+assert.match(chessPage, /\.btn\{[^}]*background:var\(--acid\);color:var\(--ink\)/, 'chess primary is acid fill + ink type');
+assert.match(chessPage, /\.btn\.ghost\{[^}]*color:var\(--paper\);border:1px solid var\(--paper\)/, 'chess ghost is paper on ink');
+assert.match(chessPage, /\.btn:disabled\{opacity:\.7/, 'chess disabled type stays readable');
+assert.doesNotMatch(chessPage, /\.btn:disabled\{opacity:\.5/);
+assert.match(simpClient, /\.simp-quiz-go,.simp-quiz-start,.simp-action,.simp-tool\{[^}]*background:#dfff00;color:#070608/, 'quiz go and board actions are acid fill + ink type');
+assert.match(simpClient, /\.simp-connect\{[^}]*border:1px solid #f4eddb;background:none;color:#f4eddb/, 'Connect X is paper on ink');
+assert.match(simpClient, /\.simp-more\{[^}]*color:#dfff00;font:900 1rem/, 'Show more is acid on ink');
+assert.doesNotMatch(simpClient, /\.simp-quiz-choice\{[^}]*color:#fff/, 'quiz choices are not white type');
+assert.match(simpClient, /\.simp-quiz-choice\{[^}]*color:#f4eddb/, 'quiz choices are paper on ink');
+assert.doesNotMatch(simpClient, /opacity:\.55/, 'board button type is not faded to .55');
 assert(chessPage.includes('Invite / 1v1'), 'chess 1v1 must be a first-class gate action');
 assert.match(chessPage, /id="gate-title">Link X</);
 assert.match(chessPage, /Needs JavaScript to play/);
@@ -47,6 +60,16 @@ assert.doesNotMatch(chessPage, /\/airdrop|\/earn|\/claim|\/graph/, 'chess chrome
   assert.match(ham, /href="\/chess">Chess</);
   assert.match(foot, /padding:1\.25rem 1\.25rem calc\(180px/);
   assert.match(foot, /min-height:48px/);
+  assert.match(AWARD_BTN_CSS, /a\.pill\.primary,a\.buy-dasha,.w-button[\s\S]*?background:#dfff00!important;color:#070608!important/, 'primary Buy is acid fill + ink type');
+  assert.match(AWARD_BTN_CSS, /a\.btn\.ghost[\s\S]*?color:#f4eddb!important;border:1px solid #f4eddb!important/, 'ghost / Connect X is paper on ink');
+  assert.match(AWARD_BTN_CSS, /a\.btn:disabled[^{]*\{opacity:\.7/, 'disabled type stays at .7');
+  assert.doesNotMatch(AWARD_BTN_CSS, /color:#fff|color:white/i, 'no white type on buttons');
+  assert.doesNotMatch(AWARD_BTN_CSS, /\.simp-/, 'shared lock stays off leftover Simp CSS');
+  assert.match(AWARD_CHROME_CSS, /background:#dfff00!important;color:#070608!important/, 'chrome ships the button lock');
+  assert.match(studioEmbed, /\.btn\.primary\{background:var\(--acid\);border-color:var\(--acid\);color:var\(--ink\)/, 'studio primary is acid fill + ink type');
+  assert.match(studioEmbed, /\.btn\{[\s\S]*?background:transparent;color:var\(--paper\)/, 'studio ghost is paper on ink');
+  assert.match(studioEmbed, /\.chip\{min-height:48px[\s\S]*?color:var\(--paper\)/, 'studio chips are 48px paper on ink');
+  assert.match(studioPage, /\.btn\.primary\{background:var\(--acid\);border-color:var\(--acid\);color:var\(--ink\)/, 'studio page primary is acid fill + ink type');
 }
 assert.match(chessPage, /href="\/forum">Forum</, 'chess page chrome must include Forum');
 assert.doesNotMatch(chessPage, /#08070a|#f5eedf|#72d6ff|#c8b6ff/);
@@ -1199,7 +1222,8 @@ const oauthStart = await workerModule.default.fetch(new Request('https://lobby.g
 assert.equal(oauthStart.status, 200);
 {
   const oauthStartHtml = await oauthStart.text();
-  assert.match(oauthStartHtml, /Continue with X/);
+  assert.match(oauthStartHtml, /<a class="btn ghost" href="[^"]+">Continue with X<\/a>/);
+  assert.match(oauthStartHtml, /background:#dfff00!important;color:#070608!important/);
   assert.doesNotMatch(oauthStartHtml, /\/privacy|public X identity|does not post for you/);
 }
 const oauthContinue = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/oauth/x/start?continue=1'), oauthEnv);
@@ -1447,6 +1471,9 @@ try {
     assert.match(css, /\.dasha\{overflow-x:visible/, `${label} must drop the overflow-x trap`);
     assert.match(css, /view-timeline:none/, `${label} must kill the #token view-timeline toy`);
     assert.doesNotMatch(css, /\.buy-dasha\{display:none/, `${label} must not hide Buy`);
+    assert.match(css, /a\.pill\.primary,a\.buy-dasha,.w-button[\s\S]*?background:#dfff00!important;color:#070608!important/, `${label} Buy lock is acid fill + ink type`);
+    assert.match(css, /a\.btn\.ghost[\s\S]*?color:#f4eddb!important;border:1px solid #f4eddb!important/, `${label} ghost buttons are paper on ink`);
+    assert.match(css, /a\.btn:disabled[^{]*\{opacity:\.7/, `${label} disabled type stays readable`);
     assert.equal([...String(html).matchAll(/id=["']dasha-home-calm["']/g)].length, 1, `${label} must inject calm CSS once`);
   };
   const assertHomeBuyPill = (scope, label) => {
@@ -1515,7 +1542,7 @@ try {
     assert.match(html, /href="\/chess">Chess</, `${label} Chess stays in the footer`);
     assert.doesNotMatch(html, /href=["']https:\/\/lobby\.getdasha\.com\/chess/, `${label} Chess must be same-origin`);
     assert.match(html, /\.simp-row\{display:grid;grid-template-columns:3\.2rem minmax\(0,1fr\) 3\.2rem/, `${label} must ship three-column board CSS`);
-    assert.doesNotMatch(html, /\.simp-(badge|evidence|open|privacy|basis|badges|season|actions|tool-actions|action|tool|me|tools)\b/, `${label} must drop leftover board soup CSS`);
+    assert.doesNotMatch(html, /\.simp-(badge|evidence|open|privacy|basis|badges|season|me)\b/, `${label} must drop leftover board soup CSS`);
     return hero;
   };
   const injected = rewriteHomeFirstViewport(stripHomeSimpBoard(webflowHome));
@@ -1821,6 +1848,10 @@ ${liveHomeFooter}
   assert.match(studioNavFixed, /jup\.ag\/swap\?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump/, 'Studio body Jupiter door must stay');
   assert.doesNotMatch(studioNavFixed, /dgcta[^>]*#token|#token[^>]*Buy \/ verify/);
   assert.equal(rewriteStudioBuyVerifyHref(studioNavFixed), studioNavFixed, 'studio Buy/verify rewrite must be idempotent');
+  const studioPage = rewriteStudioBuyVerifyHref('<!doctype html><html><head><title>Studio</title></head><body><button class="w-button">Go</button></body></html>');
+  assert.match(studioPage, /id="dasha-btn-lock"/, 'studio pages get the button contrast lock');
+  assert.match(studioPage, /background:#dfff00!important;color:#070608!important/);
+  assert.equal(rewriteStudioBuyVerifyHref(studioPage), studioPage, 'studio button lock inject must be idempotent');
   assert.equal(
     rewriteStudioBuyVerifyHref('<a class="dgcta" href="https://www.getdasha.com/#token">Buy / verify →</a>'),
     '<a class="dgcta" href="/how-to-buy">Buy / verify →</a>',

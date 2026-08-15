@@ -113,6 +113,7 @@ import {
 import { magnetPageHtml, magnetRoute } from './dasha-magnet-pages.mjs';
 import {
   AWARD_BOARD_CSS,
+  AWARD_BTN_CSS,
   AWARD_CHROME_CSS,
   AWARD_CROP_CSS,
   AWARD_RAIL_CSS,
@@ -326,7 +327,7 @@ const HOME_BUY_PILL = `<a class="pill primary buy-dasha" href="${HOME_BUY_HREF}"
 const HOME_CARNIVAL_HIDE = '#lobby,#remix,#stills,#oss,#voice,.poster-grid,#token h2,#token .section-title,#token .assoc,#token .disclaimer,#token .poster,#token .tape{display:none!important}';
 const HOME_FOLD_CSS = '#dasha-tape,#simp,#faucet,#token,main.dasha>section{content-visibility:auto;contain-intrinsic-size:auto 720px}';
 const HOME_SCROLL_CSS = 'html{scroll-behavior:auto!important}.dasha{overflow-x:visible!important}#token,#token *{view-timeline:none!important;animation-timeline:none!important;scroll-timeline:none!important}';
-const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer{display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + HOME_SCROLL_CSS + HOME_CARNIVAL_HIDE + HOME_FOLD_CSS + AWARD_SLIM_CSS + AWARD_CROP_CSS + AWARD_ROOM_CSS + AWARD_FOOT_CSS;
+const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer{display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + HOME_SCROLL_CSS + HOME_CARNIVAL_HIDE + HOME_FOLD_CSS + AWARD_SLIM_CSS + AWARD_CROP_CSS + AWARD_ROOM_CSS + AWARD_FOOT_CSS + AWARD_BTN_CSS;
 
 function injectHomeCalmCss(html) {
   const page = String(html || '');
@@ -668,7 +669,7 @@ const FORUM_PAGE = LOBBY_PAGE;
 /** Replace leftover Webflow SRI on the worker-served studio.js tag. Other pins stay. */
 /** Live Studio nav CTA currently dumps people under the home lock at /#token. */
 export function rewriteStudioBuyVerifyHref(html) {
-  return String(html || '').replace(
+  let page = String(html || '').replace(
     /<a\b([^>]*\bdgcta\b[^>]*)>(\s*Buy\s*\/\s*verify[^<]*)<\/a>/gi,
     (full, attrs, text) => {
       const next = attrs.replace(
@@ -678,6 +679,10 @@ export function rewriteStudioBuyVerifyHref(html) {
       return `<a${next}>${text}</a>`;
     },
   );
+  if (/<\/head>/i.test(page) && !/id=["']dasha-btn-lock["']/i.test(page)) {
+    page = page.replace(/<\/head>/i, `<style id="dasha-btn-lock">${AWARD_BTN_CSS}</style></head>`);
+  }
+  return page;
 }
 
 export function rewriteStudioScriptIntegrity(html, sri = STUDIO_CLIENT_SRI) {
@@ -989,7 +994,7 @@ function send(ws, obj) {
 }
 
 function htmlPage(title, body, { chrome = false, path = '/' } = {}) {
-  const extra = chrome ? AWARD_CHROME_CSS : '';
+  const extra = chrome ? AWARD_CHROME_CSS : AWARD_BTN_CSS;
   const lead = chrome ? `${cropTicksHtml()}${hamburgerHtml({ path })}` : '';
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
 <style>body{font:16px/1.45 Arial,Helvetica,sans-serif;background:#070608;color:#f4eddb;max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:#dfff00}code{color:#f4eddb}${extra}</style>
@@ -3384,7 +3389,7 @@ async function handleOAuth(request, env, allowedOrigin) {
         ? `/oauth/x/start?continue=1&return=${encodeURIComponent(back)}`
         : '/oauth/x/start?continue=1';
       return oauthHtmlResponse(
-        htmlPage('Connect X', `<h1>Connect X</h1><p><a href="${continueHref}">Continue with X</a></p>`),
+        htmlPage('Connect X', `<h1>Connect X</h1><p><a class="btn ghost" href="${continueHref}">Continue with X</a></p>`),
         200,
       );
     }
