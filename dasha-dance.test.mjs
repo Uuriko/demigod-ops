@@ -29,6 +29,7 @@ assert.match(danceSrc, /dashaMute/);
 assert.match(danceSrc, /playsInline/);
 assert.match(danceSrc, /autoplay/);
 assert.match(danceSrc, /prefers-reduced-motion/);
+assert.match(danceSrc, /if \(prefersReduced\(\)\) return;/, 'reduced-motion hides the dock and skips audio');
 assert.match(danceSrc, /pagehide/);
 assert.match(danceSrc, /requestAnimationFrame/);
 assert.doesNotMatch(danceSrc, /Math\.sin/);

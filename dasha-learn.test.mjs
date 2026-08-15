@@ -103,7 +103,8 @@ assert.equal((hubVisible.match(/<h1>Learn<\/h1>/g) || []).length, 1, 'hub HTML h
 assert.equal((hubVisible.match(/id="learn-mint"/g) || []).length, 1, 'hub HTML has one mint');
 assert.match(hubVisible, /id="learn-mint-copy"/);
 assert.doesNotMatch(hubHtml, /<noscript>[\s\S]*<h1>Learn<\/h1>[\s\S]*<\/noscript>/, 'hub noscript must not reprint Learn + mint');
-assert.match(hubHtml, /href="\/learn" aria-current="page"/);
+assert.match(hubHtml, /class="dasha-ham"/);
+assert.match(hubHtml, /href="\/chess">Chess</);
 assert.match(hubHtml, /min-height:48px/);
 assert.doesNotMatch(hubHtml, /id="dasha-quiz"/);
 assert.ok(hubHtml.includes(mint));
@@ -113,7 +114,7 @@ assert.match(hubHtml, /LEARN_CLIENT_SRI|integrity="/);
 assert.match(hubHtml, /client\/learn\.js/);
 assert.match(hubHtml, /<title>Learn — getdasha.com<\/title>|<h1>Learn<\/h1>/);
 assert.doesNotMatch(hubHtml.replace(/<script type="application\/json"[\s\S]*?<\/script>/, ''), /not an airdrop|not earn|not official|not advice|she is not the dev|association is not endorsement|MATCH, not verified|tiny sample for newbies|agents do not claim/i);
-assert.match(hubHtml, /href="\/learn"/);
+assert.match(hubHtml, /href="https:\/\/x\.com\/dash_eats"/);
 
 const c08 = learnPageHtml({ track: 'crypto', mod: 'C08' });
 assert.doesNotMatch(c08, /id="dasha-learn-static"/, 'module pages hide hub chrome by omitting it');

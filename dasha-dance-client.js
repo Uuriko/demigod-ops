@@ -146,7 +146,8 @@
 
   function mount() {
     if (dead || document.getElementById('dasha-dance')) return;
-    reduced = prefersReduced();
+    if (prefersReduced()) return;
+    reduced = false;
     muted = readMute();
     var style = document.createElement('style');
     style.textContent = css();

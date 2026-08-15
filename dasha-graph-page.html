@@ -26,11 +26,8 @@ a{color:inherit}button{font:inherit}[hidden]{display:none!important}
 .chrome{position:fixed;inset:0 auto auto 0;z-index:3;width:100%;pointer-events:none}
 .chrome>*{pointer-events:auto}
 .top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.4rem 1rem;padding:.45rem 1rem 0}
-.brand{font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:1.1rem;letter-spacing:-.04em;text-decoration:none;text-transform:uppercase}
-.brand span{color:#dfff00}
-nav{display:flex;flex-wrap:wrap;gap:.35rem .9rem}
-nav a{display:inline-flex;align-items:center;min-height:44px;font:900 11px/1 Arial,Helvetica,sans-serif;letter-spacing:.08em;text-transform:uppercase;text-decoration:none}
-nav a[aria-current=page]{color:#dfff00}
+.dasha-ham{display:flex;align-items:center;gap:.65rem;width:100%}.dasha-word{display:inline-flex;align-items:center;min-height:48px;color:#f4eddb;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900;font-size:1.1rem;letter-spacing:-.04em;text-decoration:none;text-transform:uppercase}.dasha-ham-buy{margin-left:auto;display:inline-flex;align-items:center;min-height:48px;padding:0 1rem;background:#dfff00;color:#070608;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900;text-decoration:none;text-transform:uppercase}.dasha-menu{position:relative}.dasha-menu summary{list-style:none;cursor:pointer;min-height:48px;min-width:48px;display:inline-flex;align-items:center;justify-content:center;color:#f4eddb;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900;text-transform:uppercase}.dasha-menu summary::-webkit-details-marker{display:none}.dasha-menu nav{position:absolute;right:0;top:100%;z-index:90;display:grid;min-width:11rem;padding:.4rem .7rem;background:#070608;border:1px solid #dfff00}.dasha-menu nav a{display:inline-flex;align-items:center;min-height:48px;color:#f4eddb;font-weight:900;text-transform:uppercase;text-decoration:none}
+@media(prefers-reduced-motion:no-preference){@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:180ms}}
 .hero{padding:0 1rem;pointer-events:none}
 .hero h1{margin:.2rem 0 0;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(1.1rem,2.8vw,1.7rem);line-height:.78;letter-spacing:-.07em;text-transform:uppercase}
 .hero h1 em{font-style:normal;color:#dfff00}
@@ -75,7 +72,7 @@ nav a[aria-current=page]{color:#dfff00}
 <body>
 <header class="chrome">
   <div class="top">
-    <a class="brand" href="https://www.getdasha.com/" aria-label="Dasha home">$<span>DASHA</span></a>
+    <header class="dasha-ham"><a class="dasha-word" href="https://www.getdasha.com/" aria-label="Dasha home">$dasha</a><a class="buy-dasha dasha-ham-buy" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha</a><details class="dasha-menu"><summary aria-label="Menu">Menu</summary><nav aria-label="Dasha"><a href="/studio">Studio</a><a href="/lobby">Lobby</a><a href="/graph">Graph</a><a href="/verse">Verse</a></nav></details></header>
   </div>
   <div class="hero">
     <h1>$DASHA <em>GRAPH</em></h1>
@@ -106,8 +103,8 @@ nav a[aria-current=page]{color:#dfff00}
 <footer class="foot">
   <nav aria-label="Dasha">
     <a href="https://www.getdasha.com/">$dasha</a>
-    <a href="/graph" aria-current="page">Graph</a>
     <a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a>
+    <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a>
   </nav>
   <code id="mint">53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump</code>
   <a href="https://solscan.io/token/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Explorer</a>
