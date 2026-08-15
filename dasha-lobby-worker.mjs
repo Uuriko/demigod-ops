@@ -323,6 +323,7 @@ function stripHomeLeftoverChrome(html) {
   page = page.replace(/<(div|section)\b[^>]*\bclass=["'](?:[^"']*\s)?poster-grid(?:\s|["'])[^>]*>[\s\S]*?<\/\1>/gi, '');
   page = page.replace(/<a\b[^>]*\bclass=["'](?:[^"']*\s)?poster-tile(?:\s|["'])[^>]*>[\s\S]*?<\/a>/gi, '');
   page = page.replace(/<(div|section)\b[^>]*\bclass=["'](?:[^"']*\s)?poster(?:\s|["'])[^>]*>[\s\S]*?<\/\1>/gi, '');
+  page = page.replace(/<figure\b[^>]*\bclass=["'](?:[^"']*\s)?hero-still(?:\s|["'])[^>]*>[\s\S]*?<\/figure>/gi, '');
   page = page.replace(/<nav\b[^>]*>[\s\S]*?<\/nav>/gi, (nav) => (
     /\bclass=["'][^"']*\b(?:nav|dasha-nav)\b/.test(nav) ? '' : nav
   ));
@@ -337,7 +338,7 @@ const HOME_BUY_PILL = `<a class="pill primary buy-dasha" href="${HOME_BUY_HREF}"
 const HOME_CARNIVAL_HIDE = '#lobby,#remix,#oss,#voice,.poster-grid,#token h2,#token .section-title,#token .assoc,#token .disclaimer,#token .poster,#token .tape,.dasha-hero .micro{display:none!important}';
 const HOME_FOLD_CSS = '#grwm,#dasha-tape,#stills,#simp,#chess,#faucet,#token,main.dasha>section{content-visibility:auto;contain-intrinsic-size:auto 720px}';
 const HOME_SCROLL_CSS = 'html{scroll-behavior:auto!important}.dasha{overflow-x:visible!important}#token,#token *{view-timeline:none!important;animation-timeline:none!important;scroll-timeline:none!important}';
-const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer,footer:not(.dasha-foot){display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + HOME_SCROLL_CSS + HOME_CARNIVAL_HIDE + HOME_FOLD_CSS + AWARD_SLIM_CSS + AWARD_CROP_CSS + AWARD_INK_CSS + AWARD_ROOM_CSS + AWARD_FOOT_CSS + AWARD_BTN_CSS;
+const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .hero-still,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer,footer:not(.dasha-foot){display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + HOME_SCROLL_CSS + HOME_CARNIVAL_HIDE + HOME_FOLD_CSS + AWARD_SLIM_CSS + AWARD_CROP_CSS + AWARD_INK_CSS + AWARD_ROOM_CSS + AWARD_FOOT_CSS + AWARD_BTN_CSS;
 
 function injectHomeCalmCss(html) {
   const page = String(html || '');
@@ -438,10 +439,11 @@ const HOME_STILLS = [
   ['berlinale', 'berlinale'],
   ['cotton', 'sailor-fuku'],
   ['hero', 'comfry-job'],
+  ['pony', ''],
   ['press', 'wobble-sxsw'],
   ['bull', ''],
-  ['profile', ''],
   ['weekend', 'minsk-vegas'],
+  ['profile', ''],
 ];
 
 /** First-party stills below the tape. Almost no words. Not in the hero. */

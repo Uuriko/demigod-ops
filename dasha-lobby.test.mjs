@@ -19,6 +19,8 @@ const mint = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
 assert(!landing.includes('id="dasha-lobby"'), 'landing must not mount lobby');
 assert(page.includes('id="dasha-lobby"'), 'dedicated lobby mount missing');
 assert(!chessPage.includes('id="dasha-lobby"'), 'chess must not embed lobby chat');
+assert.match(chessPage, /class="chess-still"/, 'chess keeps one still on the side');
+assert.doesNotMatch(chessPage, /class="chess-stills"/, 'chess must not park stills on the board');
 assert.match(chessPage, /\.btn\{[^}]*background:var\(--acid\);color:var\(--ink\)/, 'chess primary is acid fill + ink type');
 assert.match(chessPage, /\.btn\.ghost\{[^}]*color:var\(--paper\);border:1px solid var\(--paper\)/, 'chess ghost is paper on ink');
 assert.match(chessPage, /\.btn:disabled\{opacity:\.7/, 'chess disabled type stays readable');
@@ -238,11 +240,14 @@ assert(worker.includes("anon:${randomUrlToken(9)}") || worker.includes('anon:${'
 assert(worker.includes('id="grwm"') && worker.includes('/client/grwm.mp4') && worker.includes('/client/grwm.jpg'), 'home mounts first-party GRWM after the hero');
 assert.ok((await stat(new URL('./dasha-worker-assets/client/grwm.mp4', root))).size < 20 * 1024 * 1024, 'grwm.mp4 must stay under 20 MiB');
 assert.ok((await stat(new URL('./dasha-worker-assets/client/grwm.jpg', root))).size > 1000, 'grwm.jpg must exist');
+for (const name of ['scary', 'berlinale', 'cotton', 'hero', 'pony', 'press', 'bull', 'weekend', 'profile']) {
+  assert.ok((await stat(new URL(`./dasha-worker-assets/simp/photo/${name}.jpg`, root))).size > 1000, `${name}.jpg must be hosted first-party`);
+}
 assert(worker.includes('poster="/client/grwm.jpg"') && worker.includes('preload="metadata"') && worker.includes('playsinline') && worker.includes(' controls'), 'GRWM is a native poster+controls video');
 assert(!/id=["']grwm["'][\s\S]{0,1800}autoplay/.test(worker), 'GRWM must not autoplay');
 assert(!worker.includes('grwm-loop') && !worker.includes('video.twimg.com') && !worker.includes('pbs.twimg.com'), 'GRWM must not hotlink X or ship a loop');
 assert(worker.includes('overflow-x:auto') && worker.includes('scroll-snap-type:x mandatory'), 'stills strip is a horizontal flick');
-assert(worker.includes('data-quiz="${quiz}"') && worker.includes('dasha-still-quiz') && worker.includes("'scary-cap'"), 'a still can jump into a matching quiz question');
+assert(worker.includes('data-quiz="${quiz}"') && worker.includes('dasha-still-quiz') && worker.includes("'scary-cap'") && worker.includes("['pony', '']"), 'a still can jump into a matching quiz question');
 assert.match(worker, /#stills \.still:hover,#stills \.still:focus-visible\{transform:rotate/, 'stills tilt on hover/focus');
 {
   const stillsFn = worker.slice(worker.indexOf('function stillsMountHtml'), worker.indexOf('function stripLeftoverStills'));
@@ -1471,6 +1476,7 @@ try {
     assert.match(css, /\.dasha>nav\.nav/, `${label} must hide embed nav`);
     assert.match(css, /\.dasha-nav/, `${label} must hide Designer DashaNav`);
     assert.match(css, /\.dasha-hero \.poster/, `${label} must hide hero poster`);
+    assert.match(css, /\.dasha-hero \.hero-still/, `${label} must keep stills out of the hero`);
     assert.match(css, /\.dasha-hero \.price/, `${label} must hide hero price`);
     assert.match(css, /\.dasha-hero \.actions a:not\(\.buy-dasha\)/, `${label} must hide non-Buy hero actions`);
     assert.match(css, /\.dasha-hero \.actions \.pill:not\(\.buy-dasha\)/, `${label} must hide non-Buy hero pills`);
@@ -1553,7 +1559,14 @@ try {
     assert.ok(html.indexOf('id="stills"') < html.indexOf('dasha-simp-board'), `${label} stills live above the board`);
     assert.match(html, /class="stills-grid"/, `${label} stills are a quiet first-party flick`);
     assert.match(html, /data-quiz="scary-cap"/, `${label} SCARY still seeds the cap question`);
-    assert.doesNotMatch(html.match(/<section id="stills"[\s\S]*?<\/section>/)?.[0] || '', /photo\/(?:archive|sweet|public|chart)\.jpg/, `${label} stills skip leftover frames`);
+    {
+      const stills = html.match(/<section id="stills"[\s\S]*?<\/section>/)?.[0] || '';
+      assert.doesNotMatch(stills, /photo\/(?:archive|sweet|public|chart|media)\.jpg/, `${label} stills skip leftover frames`);
+      assert.doesNotMatch(stills, /pbs\.twimg|upload\.wikimedia/, `${label} stills are first-party`);
+      for (const name of ['scary', 'berlinale', 'cotton', 'hero', 'pony', 'press', 'bull', 'weekend', 'profile']) {
+        assert.match(stills, new RegExp(`/simp/photo/${name}\\.jpg`), `${label} stills include ${name}`);
+      }
+    }
     assert.match(html, /id="grwm"/, `${label} GRWM sits after the hero`);
     assert.ok(html.indexOf('id="grwm"') < html.indexOf('id="dasha-tape"'), `${label} GRWM sits before the chart`);
     assert.match(html, /poster="\/client\/grwm\.jpg"/, `${label} GRWM uses the first-party poster`);

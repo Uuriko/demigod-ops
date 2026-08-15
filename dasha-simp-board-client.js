@@ -16,7 +16,7 @@
   var QUIZ_CARDS = {
     'Dasha scholar': { image: '/simp/photo/bull.jpg', quote: 'It’s time $dasha', source: '2085544531739754651' },
     'Confirmed simp': { image: '/simp/photo/weekend.jpg', quote: 'How u crying at the casino and u can’t even get in', source: '2085405075686801789' },
-    'Deep in the lore': { image: '/simp/photo/chart.jpg', quote: 'It’s time this time', source: '2085524407225884699' },
+    'Deep in the lore': { image: '/simp/photo/press.jpg', quote: 'It’s time this time', source: '2085524407225884699' },
     'Watching respectfully': { image: '/simp/photo/profile.jpg', quote: 'Did you buy my coin', source: '2008730208350990657' },
     'Dasha curious': { image: '/simp/photo/weekend.jpg', quote: 'All I want is free healthcare, honey', source: '1011745071983296512' }
   };
