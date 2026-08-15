@@ -67,7 +67,7 @@ import {
   submitQuiz,
   applyLearnAward,
 } from './dasha-simp-score.mjs';
-import { publicBank, isLearnTrack, isLearnModuleId, MODULE_BY_ID } from './dasha-learn-bank.mjs';
+import { isLearnTrack, isLearnModuleId, MODULE_BY_ID } from './dasha-learn-bank.mjs';
 import {
   applyHolderProof,
   hasPositiveTokenBalance,
@@ -616,7 +616,7 @@ function siteFooter(_current = '') {
 }
 const WORKER_SITE_FOOTER = siteFooter();
 
-const PRIVACY_HREF_RE = /href=["'](?:\/(?:privacy|legal|privacy-policy)\/?|https?:\/\/(?:www\.)?getdasha\.com\/(?:privacy|legal|privacy-policy)\/?)["']/i;
+const PRIVACY_HREF_RE = /href=["'](?:\/(?:privacy|legal|privacy-policy|learn)(?:\/[^"'#?]*)?\/?|https?:\/\/(?:www\.)?getdasha\.com\/(?:privacy|legal|privacy-policy|learn)(?:\/[^"'#?]*)?\/?)["']/i;
 
 /** Kill leftover Privacy / legal doors and lecture copy. Does not invent a replacement. */
 export function stripPrivacyHrefs(html) {
@@ -638,6 +638,11 @@ export function ensurePrivacyLink(html) {
 function isLeftoverPrivacyPath(pathname) {
   const path = String(pathname || '').replace(/\/+$/, '') || '/';
   return path === '/privacy' || path === '/legal' || path === '/privacy-policy';
+}
+
+function isLeftoverLearnPath(pathname) {
+  const path = String(pathname || '').replace(/\/+$/, '') || '/';
+  return path === '/learn' || path.startsWith('/learn/');
 }
 
 /** Dock is off. Dance files stay on disk; nothing mounts them. */
@@ -1093,10 +1098,6 @@ function simpHoldResponse(origin) {
   return json({ configured: false, error: 'not_configured' }, 501, origin);
 }
 
-function learnClientScript() {
-  return `<script src="https://lobby.getdasha.com/client/learn.js" integrity="${LEARN_CLIENT_SRI}" crossorigin="anonymous" defer></script>`;
-}
-
 export function parseLearnPath(pathname) {
   const m = String(pathname || '').replace(/\/$/, '').match(/^\/learn(?:\/([^/]+))?(?:\/([^/]+))?$/);
   if (!m) return null;
@@ -1106,54 +1107,6 @@ export function parseLearnPath(pathname) {
   if (mod && !isLearnModuleId(mod)) return { invalid: true };
   if (mod && MODULE_BY_ID.get(mod)?.track !== track) return { invalid: true };
   return { track, mod };
-}
-
-/** Worker-owned /learn. No leftover #dasha-quiz. No second score. */
-export function learnPageHtml({ track = '', mod = '' } = {}) {
-  const row = mod ? MODULE_BY_ID.get(mod) : null;
-  const title = row ? `${row.id} — Learn` : 'Learn';
-  const canonical = track
-    ? `https://www.getdasha.com/learn/${track}${mod ? `/${mod}` : ''}`
-    : 'https://www.getdasha.com/learn';
-  const bank = JSON.stringify(publicBank()).replace(/</g, '\\u003c');
-  const hop = row?.hop?.href
-    ? `<p><a class="learn-go" href="${escapeHtml(row.hop.href)}">${escapeHtml(row.hop.label || 'Hop')}</a></p>`
-    : '';
-  const lede = track ? escapeHtml(row?.goal || 'Learn') : 'Learn';
-  const mint = escapeHtml(MINT);
-  const hubChrome = track
-    ? ''
-    : `<div id="dasha-learn-static">
-<h1>Learn</h1>
-<code class="learn-ca" id="learn-mint">${mint}</code>
-<button type="button" class="learn-go" id="learn-mint-copy">Copy mint</button>
-</div>`;
-  const noscript = track
-    ? `<noscript>
-<h1>Learn</h1>
-<p>${lede}</p>
-<code class="learn-ca">${mint}</code>
-<p>Needs JavaScript.</p>
-</noscript>`
-    : `<noscript>
-<p>Needs JavaScript.</p>
-</noscript>`;
-  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} — getdasha.com</title>
-<link rel="canonical" href="${canonical}">
-<meta name="description" content="Learn">
-<meta name="theme-color" content="#070608">
-<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}${AWARD_CHROME_CSS}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}h1{margin:0 0 .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(2.6rem,10vw,5rem);line-height:.9;text-transform:uppercase}a{color:var(--acid)}.learn-go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-decoration:none;text-transform:uppercase}#dasha-learn{margin-top:1rem}.learn-ca{display:block;margin:12px 0;padding:12px;border:1px solid rgba(244,237,219,.18);font-family:ui-monospace,Menlo,Consolas,monospace;word-break:break-all;user-select:all}footer{margin-top:36px;color:rgba(244,237,219,.62)}footer a{color:var(--acid);display:inline-flex;align-items:center;min-height:48px;min-width:48px;padding:0 .4rem}@media(prefers-reduced-motion:reduce)*{transition:none!important;animation:none!important}</style>
-<body>
-${cropTicksHtml()}
-${hamburgerHtml({ path: '/learn' })}
-${hubChrome}
-${hop}
-<div id="dasha-learn" data-track="${escapeHtml(track)}" data-mod="${escapeHtml(mod)}"></div>
-<script type="application/json" id="dasha-learn-bank">${bank}</script>
-${noscript}
-${learnClientScript()}
-${siteFooter('/learn')}
-</body></html>`;
 }
 
 function faucetClientScript() {
@@ -1217,26 +1170,6 @@ async function faucetApiResponse(request, env, allowedOrigin) {
   });
 }
 
-function learnPageResponse(request, parsed) {
-  if (parsed?.invalid) {
-    return new Response(request.method === 'HEAD' ? null : NOT_FOUND_HTML, {
-      status: 404,
-      headers: htmlHeaders({
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'public, max-age=120',
-        'X-Dasha-Edge': 'html-404',
-      }),
-    });
-  }
-  return new Response(request.method === 'HEAD' ? null : learnPageHtml(parsed || {}), {
-    status: 200,
-    headers: htmlHeaders({
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'public, max-age=120',
-      'X-Dasha-Edge': 'learn',
-    }),
-  });
-}
 
 const VERSE_WWW = 'https://www.getdasha.com/verse';
 const VERSE_SITES = [
@@ -3801,8 +3734,8 @@ async function productEdge(request, url, env) {
   if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/simp')) {
     return simpPageResponse(request);
   }
-  if ((request.method === 'GET' || request.method === 'HEAD') && parseLearnPath(url.pathname)) {
-    return learnPageResponse(request, parseLearnPath(url.pathname));
+  if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverLearnPath(url.pathname)) {
+    return Response.redirect('https://www.getdasha.com/', 308);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && isFaucetPagePath(url.pathname)) {
     return faucetPageResponse(request);
@@ -4028,8 +3961,8 @@ export default {
     if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/simp')) {
       return simpPageResponse(request);
     }
-    if ((request.method === 'GET' || request.method === 'HEAD') && parseLearnPath(url.pathname)) {
-      return learnPageResponse(request, parseLearnPath(url.pathname));
+    if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverLearnPath(url.pathname)) {
+      return Response.redirect('https://www.getdasha.com/', 308);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && isFaucetPagePath(url.pathname)) {
       return faucetPageResponse(request);

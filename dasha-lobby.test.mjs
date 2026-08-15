@@ -30,7 +30,7 @@ assert.doesNotMatch(chessPage, /\/airdrop|\/earn|\/claim|\/graph/, 'chess chrome
   const ham = hamburgerHtml();
   const rail = roomRailHtml();
   const foot = slimFooterHtml();
-  assert.equal(DASHA_ROOMS.length, 6, 'live room list is the six public rooms');
+  assert.equal(DASHA_ROOMS.length, 5, 'live room list is the five public rooms');
   for (const room of DASHA_ROOMS) {
     assert.match(ham, new RegExp(`href="${room.href}">${room.label}<`), `hamburgerHtml must include ${room.label}`);
     assert.match(rail, new RegExp(`href="${room.href}"[\\s\\S]*?${room.label}`), `roomRailHtml must include ${room.label}`);
@@ -42,6 +42,7 @@ assert.doesNotMatch(chessPage, /\/airdrop|\/earn|\/claim|\/graph/, 'chess chrome
   assert.doesNotMatch(ham + rail + foot, /\/dasha["']|>Desk</, 'chrome list must hide Desk');
   assert.doesNotMatch(ham + rail + foot, /\/bounties/, 'chrome list must hide Bounties');
   assert.doesNotMatch(ham + rail + foot, /\/privacy|>Privacy</, 'chrome list must hide Privacy');
+  assert.doesNotMatch(ham + rail + foot, /\/learn|>Learn</, 'chrome list must hide Learn');
   assert.match(ham, /href="\/chess">Chess</);
   assert.match(foot, /padding:1\.25rem 1\.25rem calc\(180px/);
   assert.match(foot, /min-height:48px/);
@@ -59,7 +60,8 @@ assert.match(page, /class="dasha-slim[\s"]/, 'lobby must use the hamburger, not 
 assert.match(page, /class="dasha-rooms"/, 'lobby must number the real rooms');
 assert.match(page, /<b>\[01\]<\/b> Studio/, 'lobby rail starts at Studio');
 assert.match(page, /<b>\[03\]<\/b> Chess/, 'lobby rail includes Chess');
-assert.match(page, /<b>\[06\]<\/b> Verse/, 'lobby rail ends at Verse');
+assert.match(page, /<b>\[05\]<\/b> Verse/, 'lobby rail ends at Verse');
+assert.doesNotMatch(page, /href="\/learn"/, 'lobby chrome must not door to Learn');
 assert.doesNotMatch(page, /href="\/privacy"/, 'lobby chrome must not door to Privacy');
 assert.doesNotMatch(page, /href="\/faucet"/, 'lobby chrome must not door to Faucet');
 assert.doesNotMatch(page, /href="\/simp"/, 'lobby chrome must not door to Simp');
@@ -165,8 +167,8 @@ assert(worker.includes("'X-Dasha-Edge': 'bounties'") && worker.includes('bountie
 assert(worker.includes('unpaidBountiesHtmlHasPayoutAmounts'), 'unpaid /bounties HTML must have a payout-amount proof');
 assert(worker.includes("'X-Dasha-Edge': 'verse'") && worker.includes('versePageHtml'), 'www /verse is worker-owned first HTML');
 assert(worker.includes('GRAPH_PAGE = GRAPH_PAGE_HTML') && worker.includes("Response.redirect('https://www.getdasha.com/', 308)"), 'www /graph is shelved; source stays, route 308s home');
-assert(worker.includes("'X-Dasha-Edge': 'learn'") && worker.includes('learnPageHtml'), 'www /learn is worker-owned first HTML');
-assert(worker.includes('client/learn.js') && worker.includes('LEARN_CLIENT_SRI'), 'www /learn mounts the learn client');
+assert(worker.includes('isLeftoverLearnPath') && !worker.includes('learnPageHtml'), 'leftover /learn 308s home; no Learn page');
+assert(worker.includes('client/learn.js') && worker.includes('LEARN_CLIENT_SRI'), 'learn client bytes may still be served');
 assert(worker.includes("path === '/simp/learn'"), 'worker exposes /simp/learn awards');
 assert(worker.includes("'X-Dasha-Edge': 'faucet'") && worker.includes('faucetPageHtml'), 'www /faucet is worker-owned first HTML');
 assert(worker.includes('client/faucet.js') && worker.includes('FAUCET_CLIENT_SRI'), 'www /faucet mounts the faucet client');
@@ -471,7 +473,7 @@ for (const path of ['/studio', '/studio/']) {
     assert.doesNotMatch(html, /Take Simp|Ranked by lore|founding #1|not measured/);
     assert.match(html, /<a href="https:\/\/www\.getdasha\.com\/">\$dasha<\/a> · <a class="buy-dasha"[^>]*>Buy \$dasha ↗<\/a> · <a href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats<\/a>/, `${label} footer must keep \$dasha + Buy + @dash_eats`);
     assert.match(html.match(/<footer[\s\S]*?<\/footer>/i)?.[0] || '', /href="\/chess">Chess</, `${label} footer must include Chess`);
-    assert.match(html.match(/<footer[\s\S]*?<\/footer>/i)?.[0] || '', /href="\/learn">Learn</, `${label} footer must include Learn`);
+    assert.doesNotMatch(html.match(/<footer[\s\S]*?<\/footer>/i)?.[0] || '', /href="\/learn">Learn</, `${label} footer must not include Learn`);
     assert.match(html, /id="dasha-quiz"[\s\S]*How big of a Dasha simp are you\?/);
     assert.match(html, /<noscript><p>Needs JavaScript\.<\/p><\/noscript>/);
     assert.doesNotMatch(html, /Pick your strongest lane/);
@@ -1139,12 +1141,12 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
     'https://www.getdasha.com/simp',
     'https://www.getdasha.com/verse',
     'https://www.getdasha.com/chess',
-    'https://www.getdasha.com/learn',
     'https://www.getdasha.com/faucet',
   ]) {
     assert.match(sitemapBody, new RegExp(`<loc>${loc.replaceAll('.', '\\.')}</loc>`), `${host} sitemap must list ${loc}`);
   }
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/privacy/, `${host} sitemap must not feature /privacy`);
+  assert.doesNotMatch(sitemapBody, /getdasha\.com\/learn/, `${host} sitemap must not feature /learn`);
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/capsule/, `${host} sitemap must not invent /capsule`);
   assert.doesNotMatch(sitemapBody, /lobby\.getdasha\.com\/bounties/, `${host} sitemap must not list lobby /bounties`);
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/lobby/, `${host} sitemap must list Forum instead of Lobby`);
