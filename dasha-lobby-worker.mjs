@@ -3602,7 +3602,7 @@ async function productEdge(request, url, env) {
   }
   if (
     (request.method === 'GET' || request.method === 'HEAD') &&
-    (url.pathname === '/client/dasha-loop.mp3' || url.pathname === '/client/dasha-sheet.webp')
+    (url.pathname === '/client/dasha-loop.mp3' || url.pathname === '/client/dasha-face.webp')
   ) {
     return staticAssetResponse(request, env);
   }
@@ -3977,7 +3977,7 @@ export default {
     }
     if (
       (request.method === 'GET' || request.method === 'HEAD') &&
-      (url.pathname === '/client/dasha-loop.mp3' || url.pathname === '/client/dasha-sheet.webp')
+      (url.pathname === '/client/dasha-loop.mp3' || url.pathname === '/client/dasha-face.webp')
     ) {
       return staticAssetResponse(request, env);
     }

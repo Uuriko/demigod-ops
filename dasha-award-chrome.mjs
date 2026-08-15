@@ -14,7 +14,7 @@ export const AWARD_CROP_CSS = '.dasha-crop{position:fixed;inset:10px;z-index:80;
 
 export const AWARD_INK_CSS = '@media(prefers-reduced-motion:no-preference){@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:180ms}}';
 
-export const AWARD_DOCK_CSS = '@media(prefers-reduced-motion:reduce){#dasha-dance{display:none!important}}';
+export const AWARD_DOCK_CSS = '';
 
 export const AWARD_TYPE_CSS = 'html,body{font-family:Arial,Helvetica,sans-serif}h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}';
 

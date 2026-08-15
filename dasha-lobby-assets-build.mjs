@@ -178,7 +178,7 @@ function build() {
   const socialCard = readFileSync(join(root, 'dasha-worker-assets/og/dasha-social-card.png'));
   const faucetStill = readFileSync(join(root, 'dasha-worker-assets/simp/photo/faucet.png'));
   const faucetStillSri = sri(faucetStill);
-  const danceSheet = readFileSync(join(root, 'dasha-worker-assets/client/dasha-sheet.webp'));
+  const danceFace = readFileSync(join(root, 'dasha-worker-assets/client/dasha-face.webp'));
   const danceLoop = readFileSync(join(root, 'dasha-worker-assets/client/dasha-loop.mp3'));
   const worker = readFileSync(join(root, 'dasha-lobby-worker.mjs'), 'utf8');
   const workerDependencies = [
@@ -233,7 +233,7 @@ function build() {
         '\n' +
         faucetStill.toString('base64') +
         '\n' +
-        danceSheet.toString('base64') +
+        danceFace.toString('base64') +
         '\n' +
         danceLoop.toString('base64'),
     )
