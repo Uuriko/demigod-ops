@@ -177,7 +177,8 @@ assert(client.includes("encodeURIComponent(new URL(url).origin)"), 'Phantom brow
 assert(client.includes('signed.signature || signed'), 'wallet signature response variants unsupported');
 assert(actions.includes('No transaction or public balance.'), 'wallet privacy message missing');
 assert(actions.includes("import { MINT } from './dasha-lobby-mod.mjs'") && actions.includes('and mint ${MINT}'), 'holder signature must use the canonical Dasha mint');
-for (const field of ['wants you to sign in with your Solana account', 'URI: ${uri}', 'Chain ID: mainnet', 'Issued At:', 'Expiration Time:', 'Request ID: simp-holder']) assert(actions.includes(field), `holder proof missing SIWS field: ${field}`);
+for (const field of ['wants you to sign in with your Solana account', 'URI: ${uri}', 'Chain ID: mainnet', 'Issued At:', 'Expiration Time:', 'Request ID: ${requestId}']) assert(actions.includes(field), `holder proof missing SIWS field: ${field}`);
+assert(actions.includes("requestId = 'simp-holder'"), 'holder proof default request id must stay simp-holder');
 assert(client.indexOf('wallet.connect()') < client.indexOf("'/simp/wallet/challenge'"), 'holder challenge must follow wallet connection');
 assert(worker.includes('challenge.publicKey !== body.publicKey'), 'holder challenge must bind the signed wallet address');
 assert(worker.includes('challenge.origin !== allowedOrigin'), 'holder challenge must remain bound to its requesting origin');
