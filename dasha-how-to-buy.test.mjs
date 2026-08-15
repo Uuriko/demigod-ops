@@ -39,7 +39,7 @@ assert.ok(!/payTo|referralAccount/i.test(html), 'howto must not invent payTo or 
 const WSOL = 'So11111111111111111111111111111111111111112';
 assert.doesNotMatch(html.replaceAll(MINT, '').replaceAll(WSOL, ''), /[1-9A-HJ-NP-Za-km-z]{32,44}/, 'howto contains a mint other than $dasha or WSOL');
 assert.ok(html.includes('DashaHowToBuy'), 'export for tests');
-assert.ok(html.includes('/studio') && html.includes('/lobby') && html.includes('/graph') && html.includes('/verse'), 'footer loops to product surfaces');
+assert.ok(html.includes('/studio') && html.includes('/lobby') && html.includes('/graph') && html.includes('/chess') && html.includes('/verse'), 'footer loops to product surfaces');
 assert.ok(!html.includes('t.me/dashacommunity'), 'no disallowed telegram');
 assert.ok(!/can go to zero|not financial advice|\bNFA\b|rugcheck|warning|disclaimer|not an endorsement|never trust|wrong one|lookalike|fake token|token safe/i.test(html), 'negative coin copy returned');
 for (const step of ['01', '02', '03']) assert.ok(html.includes(`data-n="${step}"`), `howto missing step ${step}`);

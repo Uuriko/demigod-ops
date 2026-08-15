@@ -35,6 +35,9 @@ assert.match(page, /<a class="back" href="\/verse">Verse<\/a>/, 'lobby header mu
 assert.doesNotMatch(page, /class="(?:brand|back)" href="\/"/, 'lobby navigation must not mislabel the lobby service root as Home');
 assert(/s\.integrity='sha384-[A-Za-z0-9+/=]+'/.test(page) && page.includes("s.crossOrigin='anonymous'"), 'dedicated lobby client must be SRI-pinned after Webflow sanitization');
 assert(landing.includes('href="/lobby"'), 'landing discovery link to lobby missing');
+assert(landing.includes('href="/chess"'), 'landing Chess must be same-origin');
+assert(!landing.includes('href="https://lobby.getdasha.com/chess"'), 'landing must drop leftover lobby Chess href');
+assert(!landing.includes('href="https://lobby.getdasha.com/forum"'), 'landing must drop leftover lobby Forum href');
 assert(!/lobby-copy-(?:mint|line)|Copy mint|Copy line/.test(client), 'Lobby copy controls returned');
 assert(!/discord\.gg|discord\.com\/invite|t\.me\//i.test(landing), 'landing must not promote Discord/Telegram invite links');
 assert(!/official chat|verified community|safe mint/i.test(landing), 'lobby must not claim official/safe status');
@@ -111,6 +114,7 @@ assert(worker.includes('ensurePrivacyLink(html)'), 'proxied product HTML must ga
 assert(worker.includes('rewriteStudioScriptIntegrity(html)'), 'proxied product HTML must rewrite leftover studio.js SRI');
 assert(worker.includes('rewriteLobbyScriptIntegrity(html)'), 'proxied product HTML must rewrite leftover lobby.js SRI');
 assert(worker.includes('stripDeadLobbyForum(html)'), 'www /lobby must drop the dead Forum hop');
+assert(worker.includes('rewriteLeftoverLobbyHrefs(html)'), 'proxied HTML must remap leftover lobby chess/forum hrefs');
 assert(worker.includes('rewriteStudioBuyVerifyHref(html)'), 'proxied /studio must retarget Buy/verify off #token');
 assert(worker.includes('href="/how-to-buy">How to buy<'), 'home lock nav must include How to buy');
 assert(worker.includes('rewriteStaleCdnFavicon(html)'), 'proxied product HTML must rewrite leftover CDN favicon.ico');
@@ -187,7 +191,7 @@ assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no
 // Aggregate Studio funnel: bounded events in, authenticated counters out.
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { DashaLobby, bountiesPageHtml, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, normalizeBountiesFeed, parseVerseSubmit, personalizeChessPage, publicFunnelSummary, rewriteHomeFirstViewport, rewriteLobbyScriptIntegrity, rewriteStaleCdnFavicon, rewriteStudioBuyVerifyHref, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripDeadLobbyForum, stripHomeSimpBoard, stripLobbySimpQuiz, unpaidBountiesHtmlHasPayoutAmounts, versePageHtml } = workerModule;
+const { DashaLobby, bountiesPageHtml, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, normalizeBountiesFeed, parseVerseSubmit, personalizeChessPage, publicFunnelSummary, rewriteHomeFirstViewport, rewriteLeftoverLobbyHrefs, rewriteLobbyScriptIntegrity, rewriteStaleCdnFavicon, rewriteStudioBuyVerifyHref, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripDeadLobbyForum, stripHomeSimpBoard, stripLobbySimpQuiz, unpaidBountiesHtmlHasPayoutAmounts, versePageHtml } = workerModule;
 const { LOBBY_CLIENT_JS, SIMP_BOARD_JS, SIMP_BOARD_SRI, STUDIO_CLIENT_JS, LOBBY_CLIENT_SRI } = await import('./dasha-lobby-static-gen.mjs');
 const STUDIO_SRI = `sha384-${createHash('sha384').update(STUDIO_CLIENT_JS).digest('base64')}`;
 const LOBBY_SRI = `sha384-${createHash('sha384').update(LOBBY_CLIENT_JS).digest('base64')}`;
@@ -821,12 +825,14 @@ for (const path of ['/studio', '/studio/']) {
     assert.doesNotMatch(section, /system-ui/, `${label} must not use system-ui`);
     assert.match(section, /href="\/studio">Studio</, `${label} nav must include Studio`);
     assert.match(section, /href="\/simp">Simp</, `${label} nav must include Simp`);
+    assert.match(section, /href="\/graph">Graph</, `${label} nav must include Graph`);
+    assert.match(section, /href="\/chess">Chess</, `${label} nav must include Chess`);
     assert.match(section, /href="\/verse">Verse</, `${label} nav must include Verse`);
     assert.match(section, /href="\/bounties">Bounties</, `${label} nav must include Bounties`);
     assert.match(section, /href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats</, `${label} nav must include @dash_eats`);
     assert.doesNotMatch(section.match(/<nav\b[\s\S]*?<\/nav>/i)?.[0] || '', /53ux|Buy|jup\.ag|#token|\/forum/i, `${label} must keep CA and Buy out of the top nav`);
     assert.match(section, /<footer\b[^>]*id="token"/, `${label} must keep CA + Buy in a token footer`);
-    assert.match(section, /<a href="\/studio">Studio<\/a> · <a href="\/lobby">Lobby<\/a> · <a href="\/simp">Simp<\/a> · <a href="\/learn">Learn<\/a> · <a href="\/faucet">Faucet<\/a> · <a href="\/airdrop">Airdrop<\/a> · <a href="\/earn">Earn<\/a> · <a href="\/graph">Graph<\/a> · <a href="\/verse">Verse<\/a> · <a href="\/bounties">Bounties<\/a> · <a href="\/how-to-buy">How to buy<\/a> · <a href="\/privacy">Privacy<\/a>/, `${label} must keep the site footer`);
+    assert.match(section, /<a href="\/studio">Studio<\/a> · <a href="\/lobby">Lobby<\/a> · <a href="\/simp">Simp<\/a> · <a href="\/learn">Learn<\/a> · <a href="\/faucet">Faucet<\/a> · <a href="\/airdrop">Airdrop<\/a> · <a href="\/earn">Earn<\/a> · <a href="\/graph">Graph<\/a> · <a href="\/chess">Chess<\/a> · <a href="\/verse">Verse<\/a> · <a href="\/bounties">Bounties<\/a> · <a href="\/how-to-buy">How to buy<\/a> · <a href="\/privacy">Privacy<\/a>/, `${label} must keep the site footer`);
     assert.match(section, /53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump/, `${label} footer must show the mint`);
     assert.match(section, /jup\.ag\/swap\?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump/, `${label} footer must keep Buy`);
     assert.match(section, /<label>Contact <input name="contact"><\/label> <a href="\/privacy">Privacy<\/a>/, `${label} must put Privacy next to contact`);
@@ -1086,6 +1092,8 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
   assert.match(verseHtml, /https:\/\/dashamadness\.com\//);
   assert.match(verseHtml, /target="_blank" rel="noopener noreferrer">Go there ↗<\/a>/);
   assert.match(verseHtml, /We don't run dashamadness\.com/);
+  assert.match(verseHtml, /href="\/graph">Graph</);
+  assert.match(verseHtml, /href="\/chess">Chess</);
   assert.doesNotMatch(verseHtml, /featured|getdasha\.com<\/p>|payTo|\/hold|53ux/i);
   assert.doesNotMatch(verseHtml, /type="email"|name="email"|name="name"/i);
   for (const hex of verseHtml.match(/#[0-9a-fA-F]{3,8}\b/g) || []) {
@@ -1477,7 +1485,8 @@ try {
     assert.doesNotMatch(lowerNav, /Buy|#token|\/lobby|\/forum/i, `${label} lower nav must stay culture-only`);
     assert.match(html, /href="\/lobby"/, `${label} Lobby stays in the footer`);
     assert.match(html, /href="\/dasha"/, `${label} Desk stays in the footer`);
-    assert.match(html, /lobby\.getdasha\.com\/chess/, `${label} Chess stays in the footer`);
+    assert.match(html, /href="\/chess">Chess</, `${label} Chess stays in the footer`);
+    assert.doesNotMatch(html, /href=["']https:\/\/lobby\.getdasha\.com\/chess/, `${label} Chess must be same-origin`);
     for (const hex of styleHexes(section)) {
       assert.ok(HOME_HEXES.includes(hex), `${label} first viewport must stay tokens-only (saw ${hex})`);
     }
@@ -1623,7 +1632,7 @@ ${liveHomeFooter}
     assert.match(howtoHtml, />Privacy</);
     assert.match(howtoHtml, /<a href="https:\/\/www\.getdasha\.com\/">\$dasha<\/a>/);
     assert.doesNotMatch(howtoHtml, /href="\/">(?:\$dasha|Home)</);
-    assert.match(howtoHtml, /<a href="\/studio">Studio<\/a> · <a href="\/lobby">Lobby<\/a> · <a href="\/simp">Simp<\/a> · <a href="\/graph">Graph<\/a> · <a href="\/verse">Verse<\/a> · <a href="\/bounties">Bounties<\/a> · <a href="\/how-to-buy">How to buy<\/a> · <a href="\/privacy">Privacy<\/a>/);
+    assert.match(howtoHtml, /<a href="\/studio">Studio<\/a> · <a href="\/lobby">Lobby<\/a> · <a href="\/simp">Simp<\/a> · <a href="\/graph">Graph<\/a> · <a href="\/chess">Chess<\/a> · <a href="\/verse">Verse<\/a> · <a href="\/bounties">Bounties<\/a> · <a href="\/how-to-buy">How to buy<\/a> · <a href="\/privacy">Privacy<\/a>/);
     assert.doesNotMatch(howtoHtml, /\/forum|USDC/);
     assert.equal((howtoHtml.match(/<footer\b/gi) || []).length, 1, `${host} /how-to-buy must keep one footer`);
     assert.equal((howtoHtml.match(/<nav\b/gi) || []).length, 1, `${host} /how-to-buy must keep its existing nav`);
@@ -1719,6 +1728,11 @@ ${liveHomeFooter}
     '<script src="https://lobby.getdasha.com/client/lobby.js"></script>',
     'lobby tag with no integrity must stay',
   );
+  const remappedRooms = rewriteLeftoverLobbyHrefs('<footer><a href="https://lobby.getdasha.com/chess">Chess</a> · <a href="https://lobby.getdasha.com/forum">Forum</a></footer><script src="https://lobby.getdasha.com/client/lobby.js"></script>');
+  assert.match(remappedRooms, /href="\/chess">Chess</);
+  assert.match(remappedRooms, /href="\/lobby">Forum</);
+  assert.doesNotMatch(remappedRooms, /href=["']https:\/\/lobby\.getdasha\.com\/(?:chess|forum)/);
+  assert.match(remappedRooms, /src="https:\/\/lobby\.getdasha\.com\/client\/lobby\.js"/);
   const deadForum = stripDeadLobbyForum('<header><a href="https://lobby.getdasha.com/forum">Forum</a></header><div id="dasha-forum"></div><script src="https://lobby.getdasha.com/client/forum.js"></script>');
   assert.doesNotMatch(deadForum, /forum/i);
   assert.doesNotMatch(lobbyQuiz, /forum/i);
@@ -1976,6 +1990,8 @@ ${laterIcons}
           assert.doesNotMatch(html, /system-ui/, `${host} ${path} must not use system-ui`);
           assert.match(html, /href="\/studio">Studio</, `${host} ${path} nav must include Studio`);
           assert.match(html, /href="\/simp">Simp</, `${host} ${path} nav must include Simp`);
+          assert.match(html, /href="\/graph">Graph</, `${host} ${path} nav must include Graph`);
+          assert.match(html, /href="\/chess">Chess</, `${host} ${path} nav must include Chess`);
           assert.match(html, /href="\/verse">Verse</, `${host} ${path} nav must include Verse`);
           assert.match(html, /href="\/bounties">Bounties</, `${host} ${path} nav must include Bounties`);
           assert.match(html, /href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats</, `${host} ${path} nav must include @dash_eats`);

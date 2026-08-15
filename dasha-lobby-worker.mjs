@@ -301,7 +301,7 @@ export function rewriteHomeFirstViewport(html, sri = SIMP_BOARD_SRI) {
     const at = homeFirstInsertAt(page);
     page = page.slice(0, at) + homeFirstViewportHtml(sri) + page.slice(at);
   }
-  return alignHomeLowerNav(page);
+  return rewriteLeftoverLobbyHrefs(alignHomeLowerNav(page));
 }
 
 /** /lobby is chat only. Quiz lives on / #simp and /simp. Drops leftover mount/style/script. Idempotent. */
@@ -331,6 +331,13 @@ export function rewriteLobbyScriptIntegrity(html, sri = LOBBY_CLIENT_SRI) {
     /(s\.src\s*=\s*(['"])(?:https:\/\/lobby\.getdasha\.com)?\/client\/lobby(?:-client)?\.js\2\s*;\s*s\.integrity\s*=\s*)(['"])[^'"]*\3/gi,
     `$1$3${sri}$3`,
   );
+}
+
+/** Leftover lobby.getdasha.com chess/forum doors become same-origin. Does not invent a forum. */
+export function rewriteLeftoverLobbyHrefs(html) {
+  return String(html || '')
+    .replace(/href=(["'])https:\/\/lobby\.getdasha\.com\/chess/gi, 'href=$1/chess')
+    .replace(/href=(["'])https:\/\/lobby\.getdasha\.com\/forum\/?/gi, 'href=$1/lobby');
 }
 
 /** Drop the dead lobby.getdasha.com/forum hop, empty #dasha-forum, and 404 forum.js. Does not invent a forum. */
@@ -407,7 +414,7 @@ function bountiesBoardHtml(feed) {
     : '<p>No open bounties</p>';
   const payoutNote = unpaid ? '<p>Payouts are not configured yet.</p>' : '';
   const buy = `https://jup.ag/swap?sell=${WSOL}&buy=${MINT}`;
-  return `<section id="dasha-bounties" aria-label="Bounties"><style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}#dasha-bounties{box-sizing:border-box;min-height:100vh;margin:0;padding:0 0 2rem;background:var(--ink);color:var(--paper);font:16px/1.45 Arial,Helvetica,sans-serif}#dasha-bounties header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;padding:.6rem 1rem}#dasha-bounties .dasha-brand{display:inline-flex;align-items:center;gap:.5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:1.25rem;text-decoration:none;text-transform:uppercase}#dasha-bounties .dasha-brand img{width:28px;height:28px}#dasha-bounties nav{display:flex;flex-wrap:wrap;gap:.5rem 1rem}#dasha-bounties nav a{display:inline-flex;align-items:center;min-height:48px;color:var(--paper);font-weight:900;text-transform:uppercase;text-decoration:none}#dasha-bounties h1,#dasha-bounties h2{margin:1.25rem 1rem .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-transform:uppercase}#dasha-bounties h1{margin-top:.5rem;color:var(--paper);font-size:clamp(2rem,5vw,3.25rem);line-height:.9}#dasha-bounties p{margin:.5rem 1rem}#dasha-bounties a{color:var(--acid)}#dasha-bounties a.go,#dasha-bounties button{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font:inherit;font-weight:900;text-decoration:none;border:0;box-shadow:4px 4px 0 var(--hot)}#dasha-bounties .amt{color:var(--hot)}#dasha-bounties ul{list-style:none;margin:0 1rem;padding:0}#dasha-bounties li{border-top:1px solid var(--acid);padding:.75rem 0}#dasha-bounties li:first-child{border-top:0}#dasha-bounties li p{margin:.25rem 0}#dasha-bounties form{margin:0 1rem}#dasha-bounties label{display:block}#dasha-bounties input,#dasha-bounties textarea{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}#dasha-bounties textarea{min-height:6rem}#dasha-bounties footer{margin:2rem 1rem 0;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-bounties footer code{color:var(--paper);word-break:break-all}</style><header><a class="dasha-brand" href="/">$DASHA <img src="/favicon.svg" alt="" width="36" height="36"></a><nav aria-label="Main"><a href="/studio">Studio</a><a href="/simp">Simp</a><a href="/bounties">Bounties</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></nav></header><h1>Bounties</h1><p>Post a project. Other people run spare compute on it.</p><p><a class="go" href="#dasha-bounty-post">Post a project</a></p><p><a class="go" href="mailto:potter@trydemigod.com?subject=I%20have%20excess%20compute">I have excess compute</a></p><h2 id="dasha-bounty-post">Post</h2><form action="mailto:potter@trydemigod.com" method="get"><input type="hidden" name="subject" value="Dasha bounty"><p><label>Project name <input name="name" required></label></p><p><label>What to run <textarea name="body" required></textarea></label></p><p><label>Contact <input name="contact"></label> <a href="/privacy">Privacy</a></p><p><button type="submit">Post a project</button></p></form><p>This sends a request. It is not a live listing.</p><h2>Work</h2>${payoutNote}${work}<footer id="token"><p><code>${MINT}</code> · <a href="${buy}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a></p></footer>${WORKER_SITE_FOOTER}</section>`;
+  return `<section id="dasha-bounties" aria-label="Bounties"><style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}#dasha-bounties{box-sizing:border-box;min-height:100vh;margin:0;padding:0 0 2rem;background:var(--ink);color:var(--paper);font:16px/1.45 Arial,Helvetica,sans-serif}#dasha-bounties header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;padding:.6rem 1rem}#dasha-bounties .dasha-brand{display:inline-flex;align-items:center;gap:.5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:1.25rem;text-decoration:none;text-transform:uppercase}#dasha-bounties .dasha-brand img{width:28px;height:28px}#dasha-bounties nav{display:flex;flex-wrap:wrap;gap:.5rem 1rem}#dasha-bounties nav a{display:inline-flex;align-items:center;min-height:48px;color:var(--paper);font-weight:900;text-transform:uppercase;text-decoration:none}#dasha-bounties h1,#dasha-bounties h2{margin:1.25rem 1rem .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-transform:uppercase}#dasha-bounties h1{margin-top:.5rem;color:var(--paper);font-size:clamp(2rem,5vw,3.25rem);line-height:.9}#dasha-bounties p{margin:.5rem 1rem}#dasha-bounties a{color:var(--acid)}#dasha-bounties a.go,#dasha-bounties button{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font:inherit;font-weight:900;text-decoration:none;border:0;box-shadow:4px 4px 0 var(--hot)}#dasha-bounties .amt{color:var(--hot)}#dasha-bounties ul{list-style:none;margin:0 1rem;padding:0}#dasha-bounties li{border-top:1px solid var(--acid);padding:.75rem 0}#dasha-bounties li:first-child{border-top:0}#dasha-bounties li p{margin:.25rem 0}#dasha-bounties form{margin:0 1rem}#dasha-bounties label{display:block}#dasha-bounties input,#dasha-bounties textarea{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}#dasha-bounties textarea{min-height:6rem}#dasha-bounties footer{margin:2rem 1rem 0;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-bounties footer code{color:var(--paper);word-break:break-all}</style><header><a class="dasha-brand" href="/">$DASHA <img src="/favicon.svg" alt="" width="36" height="36"></a><nav aria-label="Main"><a href="/studio">Studio</a><a href="/simp">Simp</a><a href="/graph">Graph</a><a href="/chess">Chess</a><a href="/bounties">Bounties</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></nav></header><h1>Bounties</h1><p>Post a project. Other people run spare compute on it.</p><p><a class="go" href="#dasha-bounty-post">Post a project</a></p><p><a class="go" href="mailto:potter@trydemigod.com?subject=I%20have%20excess%20compute">I have excess compute</a></p><h2 id="dasha-bounty-post">Post</h2><form action="mailto:potter@trydemigod.com" method="get"><input type="hidden" name="subject" value="Dasha bounty"><p><label>Project name <input name="name" required></label></p><p><label>What to run <textarea name="body" required></textarea></label></p><p><label>Contact <input name="contact"></label> <a href="/privacy">Privacy</a></p><p><button type="submit">Post a project</button></p></form><p>This sends a request. It is not a live listing.</p><h2>Work</h2>${payoutNote}${work}<footer id="token"><p><code>${MINT}</code> · <a href="${buy}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a></p></footer>${WORKER_SITE_FOOTER}</section>`;
 }
 
 /** Worker-owned first HTML for /bounties. Tokens + Arial only. No Webflow first paint. */
@@ -443,7 +450,7 @@ export function injectBountiesBoard(html, feed) {
 }
 
 const PRIVACY_A = '<a href="/privacy">Privacy</a>';
-const FOOTER_LINKS = '<a href="/studio">Studio</a> · <a href="/lobby">Lobby</a> · <a href="/simp">Simp</a> · <a href="/learn">Learn</a> · <a href="/faucet">Faucet</a> · <a href="/airdrop">Airdrop</a> · <a href="/earn">Earn</a> · <a href="/graph">Graph</a> · <a href="/verse">Verse</a> · <a href="/bounties">Bounties</a> · <a href="/how-to-buy">How to buy</a> · <a href="/privacy">Privacy</a>';
+const FOOTER_LINKS = '<a href="/studio">Studio</a> · <a href="/lobby">Lobby</a> · <a href="/simp">Simp</a> · <a href="/learn">Learn</a> · <a href="/faucet">Faucet</a> · <a href="/airdrop">Airdrop</a> · <a href="/earn">Earn</a> · <a href="/graph">Graph</a> · <a href="/chess">Chess</a> · <a href="/verse">Verse</a> · <a href="/bounties">Bounties</a> · <a href="/how-to-buy">How to buy</a> · <a href="/privacy">Privacy</a>';
 function siteFooter(current = '') {
   let links = FOOTER_LINKS;
   if (current) links = links.replace(`<a href="${current}">`, `<a href="${current}" aria-current="page">`);
@@ -1110,7 +1117,7 @@ export function versePageHtml({ status = '', kind = '' } = {}) {
 <link rel="canonical" href="${VERSE_WWW}">
 <style>:root{color-scheme:dark;--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--line:rgba(244,237,219,.18);--muted:rgba(244,237,219,.62)}*{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--paper);font:16px/1.55 Arial,Helvetica,sans-serif}.wrap{width:min(720px,calc(100% - 32px));margin:0 auto;padding:28px 0 64px}nav{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px}nav a{color:var(--paper);text-decoration:none;font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:13px;min-height:44px;display:inline-flex;align-items:center}h1{margin:0 0 12px;font-size:clamp(2.4rem,8vw,3.6rem);line-height:.9;letter-spacing:-.05em;text-transform:uppercase;font-weight:950}.lede{color:var(--muted);margin:0 0 22px;max-width:48ch}h2{margin:0 0 8px;font-size:1.15rem;text-transform:uppercase}.site{border-top:1px solid var(--line);padding:18px 0}.host{margin:.4rem 0;color:var(--muted);font-size:.9rem}.btn,button{appearance:none;border:0;min-height:48px;padding:12px 18px;font:inherit;font-weight:900;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;background:var(--acid);color:var(--ink);text-transform:uppercase;letter-spacing:.05em;box-shadow:3px 3px 0 var(--hot)}.honest{color:var(--muted);font-size:.9rem}form{margin:28px 0 0;padding-top:22px;border-top:1px solid var(--line)}label{display:block;font-weight:800}input{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}.status{font-weight:800}.status[data-kind=bad]{color:var(--hot)}footer{margin-top:36px;color:var(--muted);font-size:.9rem;border-top:1px solid var(--line);padding-top:18px}footer a,a{color:var(--acid)}:focus-visible{outline:3px solid var(--acid);outline-offset:3px}</style>
 <body><main class="wrap">
-<nav aria-label="Dasha"><a href="/">$dasha</a><a href="/simp">Simp</a><a href="/bounties">Bounties</a></nav>
+<nav aria-label="Dasha"><a href="/">$dasha</a><a href="/simp">Simp</a><a href="/graph">Graph</a><a href="/chess">Chess</a><a href="/bounties">Bounties</a></nav>
 <h1>Dashaverse</h1>
 <p class="lede">Other Dasha sites. Ours is the token. Send the next one.</p>
 ${cards}
@@ -1125,7 +1132,7 @@ ${notice}
 <p><button type="submit">Send it</button></p>
 </form>
 </section>
-<footer><p><a href="/">Home</a> · <a href="/simp">Simp</a> · <a href="/bounties">Bounties</a> · <a href="/privacy">Privacy</a></p></footer>
+<footer><p><a href="/">Home</a> · <a href="/simp">Simp</a> · <a href="/graph">Graph</a> · <a href="/chess">Chess</a> · <a href="/bounties">Bounties</a> · <a href="/privacy">Privacy</a></p></footer>
 </main></body></html>`;
 }
 
@@ -3695,6 +3702,7 @@ async function productEdge(request, url, env) {
   html = ensureHtmlLang(html);
   html = ensurePrivacyLink(html);
   if (isExactPath(url.pathname, '/lobby')) html = stripDeadLobbyForum(html);
+  html = rewriteLeftoverLobbyHrefs(html);
   html = rewriteStudioScriptIntegrity(html);
   html = rewriteLobbyScriptIntegrity(html);
   html = rewriteStaleCdnFavicon(html);

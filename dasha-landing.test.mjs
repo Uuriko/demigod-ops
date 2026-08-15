@@ -147,7 +147,11 @@ assert(!html.includes('ENTER THE CULT'),'coercive cult framing returned');
 for (const format of ['square','story','banner']) assert(html.includes(`format=${format}`), `missing ${format} starter`);
 for (const format of ['square','story','banner']) assert(studio.includes(`id: '${format}'`), `homepage promises ${format}, but Studio cannot render it`);
 assert.match(html, /class="micro"[\s\S]*href="\/graph"[^>]*>Graph →</, 'hero micro hops must include Graph');
+assert.match(html, /class="micro"[\s\S]*href="\/chess"[^>]*>Chess →</, 'hero micro hops must include Chess');
 assert.match(html, /<footer[\s\S]*href="\/graph"[^>]*>Graph</, 'homepage footer must include Graph');
+assert.match(html, /<footer[\s\S]*href="\/chess"[^>]*>Chess</, 'homepage footer must include Chess');
+assert.doesNotMatch(html, /href=["']https:\/\/lobby\.getdasha\.com\/chess/, 'landing Chess hrefs must be same-origin');
+assert.doesNotMatch(html, /href=["']https:\/\/lobby\.getdasha\.com\/forum/, 'landing must not keep leftover Forum hrefs');
 assert.doesNotMatch(html.match(/<div class="navlinks">[\s\S]*?<\/div>/)?.[0] || '', /\/graph/, 'Graph stays out of the four-item top nav');
 if (desk) {
   for (const fact of [mint, 'jup.ag/swap', 'geckoterminal.com/solana/pools/', 'solscan.io/token/']) assert(desk.toLowerCase().includes(fact.toLowerCase()), `neutral Desk lost required buyer fact: ${fact}`);
