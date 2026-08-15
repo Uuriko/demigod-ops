@@ -1,40 +1,49 @@
 /**
- * Bottom dancer. First-party digitized stills + Umplix CC0 loop.
+ * Bottom dancer. One skinned GLB + Umplix CC0 loop.
  * Track: Umplix, "Polygons N' Light", OpenGameArt, CC0 1.0.
  */
 (function (global) {
   'use strict';
 
   var LOBBY = 'https://lobby.getdasha.com';
-  var SHEET = LOBBY + '/client/dasha-sheet.webp';
+  var GLB = LOBBY + '/client/dasha.glb';
+  var FACE = LOBBY + '/client/dasha-face.webp';
   var LOOP = LOBBY + '/client/dasha-loop.mp3';
+  var THREE_SRC = 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+  var ADDONS = 'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/';
   var MUTE_KEY = 'dashaMute';
-  var FRAMES = 8;
-  var FW = 88;
-  var FH = 150;
-  var STEPS = [
-    { f: 0, x: 0, y: 0, s: 1, t: 180 },
-    { f: 1, x: 8, y: -2, s: 1.01, t: 160 },
-    { f: 2, x: 4, y: 1, s: 0.99, t: 200 },
-    { f: 3, x: -3, y: 0, s: 1.02, t: 170 },
-    { f: 4, x: -8, y: -1, s: 1, t: 180 },
-    { f: 5, x: -5, y: 2, s: 0.98, t: 150 },
-    { f: 6, x: 3, y: 1, s: 1.01, t: 190 },
-    { f: 7, x: 6, y: -2, s: 1, t: 160 }
-  ];
+  var DOCK_H = 156;
+  var HALF_H = 0.84;
+  var LOOK_EVERY = 3;
+  var LOOK_HOLD = 1.15;
 
   var dock = null;
   var canvas = null;
-  var ctx = null;
-  var sheet = null;
+  var hit = null;
+  var speaker = null;
   var audio = null;
   var raf = 0;
-  var step = 0;
-  var until = 0;
   var reduced = false;
   var muted = false;
   var gesturing = false;
   var dead = false;
+  var onScreen = true;
+  var tabVisible = true;
+  var THREE = null;
+  var renderer = null;
+  var scene = null;
+  var camera = null;
+  var wrap = null;
+  var head = null;
+  var mixer = null;
+  var clock = null;
+  var dir = 1;
+  var yaw = -0.85;
+  var crossings = 0;
+  var lookHold = 0;
+  var ro = null;
+  var io = null;
+  var tmp = null;
 
   function prefersReduced() {
     return global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -49,46 +58,37 @@
   }
 
   function css() {
-    return '#dasha-dance{position:fixed;left:0;right:0;bottom:0;z-index:12;height:150px;pointer-events:none}' +
-      '#dasha-dance button{position:absolute;right:max(8px,env(safe-area-inset-right,0px));bottom:0;width:100px;height:150px;margin:0;padding:0;border:0;background:transparent;pointer-events:auto;cursor:pointer}' +
+    return '#dasha-dance{position:fixed;left:0;right:0;bottom:0;z-index:12;height:' + DOCK_H + 'px;pointer-events:none}' +
+      '#dasha-dance canvas{display:block;width:100%;height:' + DOCK_H + 'px;background:transparent}' +
+      '#dasha-dance button{pointer-events:auto;margin:0;padding:0;border:0;cursor:pointer;background:transparent}' +
       '#dasha-dance button:focus-visible{outline:3px solid #dfff00;outline-offset:3px}' +
-      '#dasha-dance canvas,#dasha-dance img{display:block;width:100%;height:100%;background:transparent;image-rendering:pixelated}';
+      '#dasha-dance .dasha-dance-hit{position:absolute;left:50%;width:88px;height:150px;bottom:0;margin-left:-44px}' +
+      '#dasha-dance .dasha-dance-speaker{position:absolute;right:max(8px,env(safe-area-inset-right,0px));top:8px;width:48px;height:48px;background:#070608;border:2px solid #dfff00}' +
+      '#dasha-dance .dasha-dance-speaker svg{display:block;width:32px;height:32px;margin:6px auto}';
   }
 
-  function paint(now) {
-    if (dead || !ctx || !sheet) return;
-    var pose = STEPS[step];
-    if (!reduced) {
-      if (now >= until) {
-        step = (step + 1) % STEPS.length;
-        pose = STEPS[step];
-        until = now + pose.t;
-      }
-    }
-    ctx.clearRect(0, 0, 100, 150);
-    ctx.imageSmoothingEnabled = false;
-    var dw = FW * pose.s;
-    var dh = FH * pose.s;
-    ctx.drawImage(sheet, pose.f * FW, 0, FW, FH, 6 + pose.x, pose.y + (150 - dh), dw, dh);
-    if (!reduced) raf = global.requestAnimationFrame(paint);
+  function speakerSvg(on) {
+    return '<svg viewBox="0 0 48 48" aria-hidden="true">' +
+      '<path fill="#dfff00" d="M10 18h7l11-8v28L17 30h-7z"/>' +
+      (on
+        ? '<path fill="none" stroke="#dfff00" stroke-width="3" stroke-linecap="square" d="M12 12l24 24"/>'
+        : '<path fill="none" stroke="#dfff00" stroke-width="2.6" stroke-linecap="square" d="M32 18a8 8 0 010 12M36 13a14 14 0 010 22"/>') +
+      '</svg>';
   }
 
-  function stillFallback() {
-    if (!dock) return;
-    var img = document.createElement('img');
-    img.src = SHEET;
-    img.alt = '';
-    img.width = 100;
-    img.height = 150;
-    var btn = dock.querySelector('button');
-    if (btn) {
-      btn.innerHTML = '';
-      btn.appendChild(img);
+  function paintSpeaker() {
+    if (!speaker) return;
+    speaker.innerHTML = speakerSvg(muted);
+    speaker.setAttribute('aria-pressed', muted ? 'true' : 'false');
+    speaker.setAttribute('aria-label', muted ? 'Unmute' : 'Mute');
+    if (hit) {
+      hit.setAttribute('aria-pressed', muted ? 'true' : 'false');
+      hit.setAttribute('aria-label', muted ? 'Unmute' : 'Mute');
     }
   }
 
   function playLoop() {
-    if (dead || reduced || !audio) return;
+    if (dead || reduced || muted || !audio || !live()) return;
     var go = audio.play();
     if (go && go.catch) go.catch(function () { waitGesture(); });
   }
@@ -112,11 +112,7 @@
     muted = !!on;
     writeMute(muted);
     if (audio) audio.muted = muted;
-    var btn = dock && dock.querySelector('button');
-    if (btn) {
-      btn.setAttribute('aria-pressed', muted ? 'true' : 'false');
-      btn.setAttribute('aria-label', muted ? 'Unmute' : 'Mute');
-    }
+    paintSpeaker();
   }
 
   function onTap(ev) {
@@ -126,60 +122,274 @@
     if (!muted) playLoop();
   }
 
-  function dispose() {
-    dead = true;
+  function pinThree() {
+    if (document.querySelector('script[type="importmap"]')) return;
+    var s = document.createElement('script');
+    s.type = 'importmap';
+    s.textContent = '{"imports":{"three":"' + THREE_SRC + '","three/addons/":"' + ADDONS + '"}}';
+    document.head.appendChild(s);
+  }
+
+  function live() {
+    return onScreen && tabVisible && !dead;
+  }
+
+  function goQuiet() {
     if (raf) global.cancelAnimationFrame(raf);
     raf = 0;
     if (audio) {
       try { audio.pause(); } catch (e) { /* closed */ }
+    }
+  }
+
+  function goLive() {
+    if (dead || reduced) return;
+    if (!raf) tick();
+    if (!muted) playLoop();
+  }
+
+  function onVis() {
+    tabVisible = !document.hidden;
+    if (live()) goLive();
+    else goQuiet();
+  }
+
+  function travelWidth() {
+    if (!camera) return 4;
+    return camera.right - camera.left;
+  }
+
+  function placeHit() {
+    if (!hit || !camera || !tmp) return;
+    var w = canvas.clientWidth || 1;
+    var h = canvas.clientHeight || DOCK_H;
+    var obj = head || wrap;
+    if (!obj) return;
+    obj.getWorldPosition(tmp);
+    tmp.y += head ? 0 : 1.46;
+    tmp.project(camera);
+    hit.style.left = Math.round((tmp.x * 0.5 + 0.5) * w - 44) + 'px';
+    hit.style.top = Math.round((-tmp.y * 0.5 + 0.5) * h - 36) + 'px';
+    hit.style.marginLeft = '0';
+  }
+
+  function fit() {
+    if (!renderer || !camera || !dock) return;
+    var w = dock.clientWidth || global.innerWidth || 320;
+    renderer.setSize(w, DOCK_H, true);
+    var halfW = HALF_H * (w / DOCK_H);
+    camera.left = -halfW;
+    camera.right = halfW;
+    camera.top = HALF_H;
+    camera.bottom = -HALF_H;
+    camera.updateProjectionMatrix();
+    if (reduced && scene) renderer.render(scene, camera);
+    placeHit();
+  }
+
+  function tick() {
+    if (dead || !renderer || !scene || !camera || !wrap) {
+      raf = 0;
+      return;
+    }
+    if (!live()) {
+      raf = 0;
+      return;
+    }
+    var dt = clock ? Math.min(0.05, clock.getDelta()) : 0.016;
+    if (!reduced) {
+      var span = travelWidth() / 2 - 0.45;
+      var want = dir > 0 ? -0.85 : 0.85;
+      if (lookHold > 0) {
+        lookHold -= dt;
+        want = 0;
+      }
+      yaw += (want - yaw) * Math.min(1, dt * 2.2);
+      wrap.rotation.y = yaw;
+      var turning = Math.abs(want - yaw) > 0.16;
+      if (lookHold <= 0 && !turning) {
+        wrap.position.x += dir * 0.95 * dt;
+        if (wrap.position.x > span) {
+          wrap.position.x = span;
+          dir = -1;
+          crossings += 1;
+          if (crossings % LOOK_EVERY === 0) lookHold = LOOK_HOLD;
+        } else if (wrap.position.x < -span) {
+          wrap.position.x = -span;
+          dir = 1;
+          crossings += 1;
+          if (crossings % LOOK_EVERY === 0) lookHold = LOOK_HOLD;
+        }
+      }
+      if (mixer) mixer.update(dt);
+    }
+    placeHit();
+    renderer.render(scene, camera);
+    if (!reduced) raf = global.requestAnimationFrame(tick);
+  }
+
+  function stillFallback() {
+    if (!hit || hit.querySelector('img')) return;
+    var img = document.createElement('img');
+    img.src = FACE;
+    img.alt = '';
+    img.width = 88;
+    img.height = 88;
+    img.style.display = 'block';
+    img.style.margin = '30px auto 0';
+    hit.appendChild(img);
+  }
+
+  function dressMat(mat) {
+    mat.metalness = 0;
+    mat.roughness = 0.9;
+    mat.envMap = null;
+    mat.envMapIntensity = 0;
+    mat.onBeforeCompile = function (shader) {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        'vec3 outgoingLight = totalDiffuse + totalSpecular + totalEmissiveRadiance;',
+        'float rim = 1.0 - max(dot(normalize(normal), normalize(vViewPosition)), 0.0);' +
+        'vec3 outgoingLight = totalDiffuse + totalSpecular * 0.15 + totalEmissiveRadiance;' +
+        'outgoingLight += vec3(0.874, 1.0, 0.0) * pow(rim, 2.7) * 0.58;' +
+        'outgoingLight += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * 0.028;'
+      );
+    };
+    mat.needsUpdate = true;
+  }
+
+  function startScene(gltf) {
+    if (dead || !canvas || !THREE) return;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        antialias: true,
+        alpha: true,
+        premultipliedAlpha: false,
+      });
+    } catch (e) {
+      stillFallback();
+      return;
+    }
+    renderer.setClearColor(0x000000, 0);
+    renderer.setPixelRatio(Math.min(global.devicePixelRatio || 1, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.NoToneMapping;
+    scene = new THREE.Scene();
+    camera = new THREE.OrthographicCamera(-1.6, 1.6, HALF_H, -HALF_H, 0.1, 40);
+    camera.position.set(0, 0.80, 4);
+    camera.lookAt(0, 0.80, 0);
+    scene.add(new THREE.AmbientLight(0xfff6ee, 0.78));
+    var key = new THREE.DirectionalLight(0xfff4e8, 0.52);
+    key.position.set(1.1, 2.2, 3.4);
+    scene.add(key);
+    var fill = new THREE.DirectionalLight(0xc8d4ff, 0.16);
+    fill.position.set(-2.2, 1.1, 1.4);
+    scene.add(fill);
+    wrap = new THREE.Group();
+    wrap.add(gltf.scene);
+    gltf.scene.traverse(function (obj) {
+      if (obj.name === 'head') head = obj;
+      if (obj.material) {
+        if (obj.material.isMaterial) dressMat(obj.material);
+      }
+    });
+    scene.add(wrap);
+    tmp = new THREE.Vector3();
+    clock = new THREE.Clock();
+    if (!reduced && gltf.animations && gltf.animations.length) {
+      mixer = new THREE.AnimationMixer(gltf.scene);
+      var clip = mixer.clipAction(gltf.animations[0]);
+      clip.play();
+    }
+    fit();
+    if (global.ResizeObserver) {
+      ro = new ResizeObserver(fit);
+      ro.observe(dock);
+    } else {
+      global.addEventListener('resize', fit);
+    }
+    if (global.IntersectionObserver) {
+      io = new IntersectionObserver(function (entries) {
+        onScreen = !!(entries[0] && entries[0].isIntersecting);
+        if (live()) goLive();
+        else goQuiet();
+      }, { threshold: 0 });
+      io.observe(dock);
+    }
+    document.addEventListener('visibilitychange', onVis);
+    if (reduced) {
+      renderer.render(scene, camera);
+      placeHit();
+    } else {
+      tick();
+    }
+  }
+
+  function dispose() {
+    dead = true;
+    if (raf) global.cancelAnimationFrame(raf);
+    raf = 0;
+    document.removeEventListener('visibilitychange', onVis);
+    if (ro) {
+      try { ro.disconnect(); } catch (e) { /* closed */ }
+      ro = null;
+    }
+    if (io) {
+      try { io.disconnect(); } catch (e0) { /* closed */ }
+      io = null;
+    }
+    global.removeEventListener('resize', fit);
+    if (mixer) {
+      mixer.stopAllAction();
+      mixer = null;
+    }
+    if (renderer) {
+      try { renderer.dispose(); } catch (e2) { /* closed */ }
+      renderer = null;
+    }
+    scene = null;
+    camera = null;
+    wrap = null;
+    head = null;
+    clock = null;
+    tmp = null;
+    if (audio) {
+      try { audio.pause(); } catch (e3) { /* closed */ }
       audio.removeAttribute('src');
-      try { audio.load(); } catch (e2) { /* closed */ }
+      try { audio.load(); } catch (e4) { /* closed */ }
       audio = null;
     }
     if (dock && dock.parentNode) dock.parentNode.removeChild(dock);
     dock = null;
     canvas = null;
-    ctx = null;
-    sheet = null;
+    hit = null;
+    speaker = null;
     global.removeEventListener('pagehide', dispose);
   }
 
   function mount() {
     if (dead || document.getElementById('dasha-dance')) return;
-    if (prefersReduced()) return;
-    reduced = false;
-    muted = readMute();
+    reduced = prefersReduced();
+    muted = reduced ? true : readMute();
+    tabVisible = !document.hidden;
     var style = document.createElement('style');
     style.textContent = css();
     dock = document.createElement('div');
     dock.id = 'dasha-dance';
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.setAttribute('aria-label', muted ? 'Unmute' : 'Mute');
-    btn.setAttribute('aria-pressed', muted ? 'true' : 'false');
     canvas = document.createElement('canvas');
-    canvas.width = 100;
-    canvas.height = 150;
     canvas.setAttribute('aria-hidden', 'true');
-    btn.appendChild(canvas);
+    hit = document.createElement('button');
+    hit.type = 'button';
+    hit.className = 'dasha-dance-hit';
+    speaker = document.createElement('button');
+    speaker.type = 'button';
+    speaker.className = 'dasha-dance-speaker';
+    paintSpeaker();
     dock.appendChild(style);
-    dock.appendChild(btn);
+    dock.appendChild(canvas);
+    dock.appendChild(hit);
+    dock.appendChild(speaker);
     document.body.appendChild(dock);
-    ctx = canvas.getContext ? canvas.getContext('2d') : null;
-    sheet = new Image();
-    sheet.decoding = 'async';
-    sheet.onload = function () {
-      if (dead) return;
-      if (!ctx) {
-        stillFallback();
-        return;
-      }
-      until = (global.performance && performance.now ? performance.now() : 0) + STEPS[0].t;
-      paint(until);
-    };
-    sheet.onerror = stillFallback;
-    sheet.src = SHEET;
-    if (!ctx) stillFallback();
     if (!reduced) {
       audio = document.createElement('audio');
       audio.src = LOOP;
@@ -190,11 +400,32 @@
       audio.setAttribute('autoplay', '');
       audio.muted = muted;
       playLoop();
-      btn.addEventListener('click', onTap);
+      hit.addEventListener('click', onTap);
+      speaker.addEventListener('click', onTap);
     } else {
-      btn.disabled = true;
+      hit.disabled = true;
+      speaker.disabled = true;
     }
     global.addEventListener('pagehide', dispose);
+    pinThree();
+    Promise.all([
+      import(THREE_SRC),
+      import('three/addons/loaders/GLTFLoader.js'),
+    ]).then(function (pack) {
+      if (dead) return;
+      THREE = pack[0];
+      var Loader = pack[1] && pack[1].GLTFLoader;
+      if (!THREE || !Loader) {
+        stillFallback();
+        return;
+      }
+      var loader = new Loader();
+      loader.setCrossOrigin('anonymous');
+      loader.load(GLB, function (gltf) {
+        if (dead) return;
+        startScene(gltf);
+      }, undefined, stillFallback);
+    }).catch(stillFallback);
   }
 
   function boot() {

@@ -11,6 +11,7 @@ const graphPage = await readFile(new URL('./dasha-graph-page.html', root), 'utf8
 const landing = await readFile(new URL('./dasha-landing.html', root), 'utf8');
 const modSrc = await readFile(new URL('./dasha-lobby-mod.mjs', root), 'utf8');
 const wrangler = await readFile(new URL('./dasha-lobby-wrangler.jsonc', root), 'utf8');
+const awardChrome = await readFile(new URL('./dasha-award-chrome.mjs', root), 'utf8');
 const { default: worker, danceDockPath, injectDanceDock, rewriteHomeFirstViewport, simpPageHtml, versePageHtml, faucetPageHtml, learnPageHtml, bountiesPageHtml } = await import('./dasha-lobby-worker.mjs');
 const { DANCE_CLIENT_JS, DANCE_CLIENT_SRI, ASSET_HASH } = await import('./dasha-lobby-static-gen.mjs');
 
@@ -20,20 +21,46 @@ assert.match(wrangler, /53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump/);
 assert.doesNotMatch(danceSrc, /53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump|payTo|holders/i);
 assert.doesNotMatch(danceSrc + DANCE_CLIENT_JS, /Mixamo|Sketchfab|Spline|pbs\.twimg\.com|tap to (?:play|hear)|play button/i);
 assert.doesNotMatch(DANCE_CLIENT_JS, /Umplix|Polygons|OpenGameArt|lyric|credit line|Now playing/i);
-assert.equal([...danceSrc.matchAll(/createElement\('button'\)/g)].length, 1, 'tap the body is the only control');
+assert.equal([...danceSrc.matchAll(/createElement\('button'\)/g)].length, 2, 'dancer hit + visible speaker');
+assert.match(danceSrc, /dasha-dance-speaker/);
+assert.match(danceSrc, /speakerSvg/);
 assert.match(danceSrc, /z-index:12/, 'dock sits under Buy (sticky is z-index 40)');
 assert.doesNotMatch(danceSrc + DANCE_CLIENT_JS, /sitemap|\/airdrop|\/earn/i);
-assert.doesNotMatch(danceSrc, /three@|import\(['"]three|from ['"]three|importmap/i);
+assert.match(danceSrc, /three@0\.170\.0/, 'same Three pin as /graph');
+assert.match(danceSrc, /GLTFLoader/);
+assert.match(danceSrc, /AnimationMixer/);
+assert.match(danceSrc, /IntersectionObserver/, 'pause the loop when the dock is off-screen');
+assert.match(danceSrc, /visibilitychange/, 'pause the loop when the tab is hidden');
+assert.match(danceSrc, /document\.hidden/);
+assert.match(danceSrc, /OrthographicCamera/, 'feet on an implied floor, not a perspective hover');
+assert.match(danceSrc, /lookHold/, 'short look-at-camera beat after crossings');
+assert.match(danceSrc, /onBeforeCompile/, 'thin acid rim + killed spec, not a plastic doll');
+assert.match(danceSrc, /0\.874, 1\.0, 0\.0/, 'rim is #dfff00');
+assert.match(danceSrc, /dasha-dance-speaker\{position:absolute;right:/, 'speaker stays on the right');
+assert.doesNotMatch(danceSrc, /dasha-dance-speaker\{[^}]*left:/);
+assert.doesNotMatch(danceSrc, /CapsuleGeometry|SphereGeometry|buildRig|CircleGeometry|PlaneGeometry/);
 assert.match(danceSrc, /\/client\/dasha-loop\.mp3/);
+assert.match(danceSrc, /\/client\/dasha\.glb/);
+assert.match(danceSrc, /\/client\/dasha-face\.webp/);
+assert.doesNotMatch(danceSrc + DANCE_CLIENT_JS, /dasha-sheet|dasha-dance-sheet/);
 assert.match(danceSrc, /dashaMute/);
 assert.match(danceSrc, /playsInline/);
 assert.match(danceSrc, /autoplay/);
 assert.match(danceSrc, /prefers-reduced-motion/);
-assert.match(danceSrc, /if \(prefersReduced\(\)\) return;/, 'reduced-motion hides the dock and skips audio');
+assert.doesNotMatch(danceSrc, /if \(prefersReduced\(\)\) return;/, 'reduced-motion must not hide the dock');
+assert.doesNotMatch(awardChrome, /#dasha-dance\{display:none/, 'chrome must not hide the still pose');
 assert.match(danceSrc, /pagehide/);
 assert.match(danceSrc, /requestAnimationFrame/);
-assert.doesNotMatch(danceSrc, /Math\.sin/);
+assert.match(danceSrc, /position\.x/, 'client drives world X, clip stays in-place');
+assert.match(danceSrc, /rotation\.y/, 'turns to face travel');
 assert.match(DANCE_CLIENT_JS, /\/client\/dasha-loop\.mp3/);
+assert.match(DANCE_CLIENT_JS, /\/client\/dasha\.glb/);
+assert.match(DANCE_CLIENT_JS, /GLTFLoader/);
+assert.match(DANCE_CLIENT_JS, /three@0\.170\.0/);
+assert.match(DANCE_CLIENT_JS, /visibilitychange/);
+assert.match(DANCE_CLIENT_JS, /lookHold/);
+assert.match(DANCE_CLIENT_JS, /OrthographicCamera/);
+assert.match(DANCE_CLIENT_JS, /dasha-dance-speaker\{position:absolute;right:/);
 assert.equal(`sha384-${createHash('sha384').update(DANCE_CLIENT_JS).digest('base64')}`, DANCE_CLIENT_SRI);
 assert.match(ASSET_HASH, /^[0-9a-f]{16}$/);
 
@@ -74,28 +101,36 @@ assert.doesNotMatch(chessPage, /dasha-dance|three@|import\(['"]three/);
 assert.doesNotMatch(simpClient, /three@|import\(['"]three|from ['"]three/);
 assert.doesNotMatch(landing, /dasha-dance/, 'home HtmlEmbed must not grow the dancer');
 
-const sheetBuild = await readFile(new URL('./dasha-dance-sheet-build.py', root), 'utf8');
+const glbBuild = await readFile(new URL('./dasha-dance-glb-build.py', root), 'utf8');
 const sheetLicense = await readFile(new URL('./dasha-worker-assets/client/LICENSE', root), 'utf8');
 const refsLicense = await readFile(new URL('./dasha-dance-refs/LICENSE', root), 'utf8');
-assert.match(sheetBuild, /profile\.jpg/);
-assert.match(sheetBuild, /weekend\.jpg/);
-assert.match(sheetBuild, /hero\.jpg/);
-assert.match(sheetBuild, /cotton-2014/);
-assert.match(sheetBuild, /wiki-2022/);
-assert.match(sheetBuild, /berlinale-2021/);
-assert.doesNotMatch(sheetBuild, /public\.jpg|press\.jpg|chart\.jpg|bull\.jpg/);
-assert.doesNotMatch(sheetBuild + danceSrc, /dailymail|pbs\.twimg|Mixamo|fuku|sailor/i);
+assert.match(glbBuild, /wiki-2022/);
+assert.match(glbBuild, /cotton-2014/);
+assert.match(glbBuild, /berlinale-2021/);
+assert.doesNotMatch(glbBuild, /public\.jpg|press\.jpg|chart\.jpg|bull\.jpg/);
+assert.doesNotMatch(glbBuild + danceSrc, /dailymail|pbs\.twimg|Mixamo|fuku|sailor/i);
 assert.match(sheetLicense, /Umplix|Polygons N' Light/);
 assert.match(sheetLicense + refsLicense, /CC BY 3\.0/);
 assert.match(sheetLicense + refsLicense, /CC BY-SA 4\.0/);
 assert.match(sheetLicense + refsLicense, /After Hours Productions/);
 assert.match(sheetLicense + refsLicense, /IgorCalzone1/);
-assert.doesNotMatch(danceSrc, /y: -1[0-9]/, 'slouch steps, not fight hops');
+assert.match(sheetLicense, /dasha\.glb/);
 
-const sheet = await stat(new URL('./dasha-worker-assets/client/dasha-sheet.webp', root));
+const face = await stat(new URL('./dasha-worker-assets/client/dasha-face.webp', root));
+const glb = await stat(new URL('./dasha-worker-assets/client/dasha.glb', root));
 const loop = await stat(new URL('./dasha-worker-assets/client/dasha-loop.mp3', root));
-assert.ok(sheet.size > 0 && sheet.size < 400 * 1024, 'sprite sheet must stay under ~400KB');
+assert.ok(face.size > 0 && face.size < 400 * 1024, 'face still must stay under ~400KB');
+assert.ok(glb.size > 8 * 1024 && glb.size < 400 * 1024, 'one compressed GLB');
 assert.ok(loop.size > 200 * 1024 && loop.size < 2.2 * 1024 * 1024, 'loop should be ~128kbps');
+
+const glbBytes = await readFile(new URL('./dasha-worker-assets/client/dasha.glb', root));
+assert.equal(glbBytes.subarray(0, 4).toString(), 'glTF');
+const jsonLen = glbBytes.readUInt32LE(12);
+const gltf = JSON.parse(glbBytes.subarray(20, 20 + jsonLen).toString());
+assert.ok(gltf.skins?.length && gltf.animations?.length, 'GLB must ship skin + clip');
+assert.equal(gltf.meshes?.length, 1, 'identity is one mesh');
+assert.ok(gltf.animations[0].channels.every((c) => c.target.path === 'rotation'), 'clip is in-place');
+assert.doesNotMatch(JSON.stringify(gltf), /Mixamo|Stacy|ReadyPlayer/i);
 
 const assets = {
   ASSETS: {
@@ -103,6 +138,7 @@ const assets = {
       const path = new URL(req.url).pathname;
       if (path.endsWith('.mp3')) return new Response('mp3', { status: 200, headers: { 'Content-Type': 'audio/mpeg' } });
       if (path.endsWith('.webp')) return new Response('webp', { status: 200, headers: { 'Content-Type': 'image/webp' } });
+      if (path.endsWith('.glb')) return new Response('glb', { status: 200, headers: { 'Content-Type': 'model/gltf-binary' } });
       return new Response('no', { status: 404 });
     },
   },
@@ -161,12 +197,22 @@ assert.equal(danceJs.status, 200);
 const danceBody = await danceJs.text();
 assert.equal(danceBody, DANCE_CLIENT_JS);
 assert.match(danceBody, /\/client\/dasha-loop\.mp3/);
-assert.doesNotMatch(danceBody, /tap to (?:play|hear)|Mixamo|Sketchfab|Spline|three@/);
+assert.match(danceBody, /\/client\/dasha\.glb/);
+assert.match(danceBody, /three@0\.170\.0/);
+assert.doesNotMatch(danceBody, /tap to (?:play|hear)|Mixamo|Sketchfab|Spline/);
 assert.doesNotMatch(chessPage, /import\(['"]three/);
 assert.doesNotMatch(simpClient, /import\(['"]three/);
 
 const loopRes = await worker.fetch(new Request('https://lobby.getdasha.com/client/dasha-loop.mp3'), assets);
 assert.equal(loopRes.status, 200);
 assert.match(loopRes.headers.get('content-type') || '', /audio\/mpeg|octet-stream|text\/plain/);
+
+const faceRes = await worker.fetch(new Request('https://lobby.getdasha.com/client/dasha-face.webp'), assets);
+assert.equal(faceRes.status, 200);
+assert.match(faceRes.headers.get('content-type') || '', /image\/webp|octet-stream|text\/plain/);
+
+const glbRes = await worker.fetch(new Request('https://lobby.getdasha.com/client/dasha.glb'), assets);
+assert.equal(glbRes.status, 200);
+assert.match(glbRes.headers.get('content-type') || '', /model\/gltf-binary|octet-stream|text\/plain/);
 
 console.log('dasha-dance: PASS');
