@@ -7,8 +7,25 @@ import path from 'node:path';
 
 const root = path.dirname(new URL(import.meta.url).pathname);
 const shipSource = fs.readFileSync(path.join(root, 'dasha-ship.mjs'), 'utf8');
+const browserGateSource = fs.readFileSync(path.join(root, 'dasha-browser-gate.mjs'), 'utf8');
+const deskShell = fs.readFileSync(path.join(root, 'dasha-desk-shell.html'), 'utf8');
+assert.match(deskShell, /dasha-skip-1:focus(?:-visible)?\{[^}]*left:12px[^}]*outline:3px/, 'Desk skip link must become visibly positioned on focus');
+assert.doesNotMatch(deskShell, /<h1\b/, 'Desk shell must not add a second document h1');
 assert.match(shipSource, /dasha-audit-live\.mjs/, 'site-wide ship must run the canonical broad live audit');
+assert.match(shipSource, /dasha-browser-gate\.mjs/, 'browser gates must use the CDP fallback');
+assert.match(shipSource, /deskBrowser[^\n]+changed\.includes\('deskShell'\)/, 'Desk shell changes must run the Desk browser gate');
+assert.match(shipSource, /scopeKeys/, 'scoped --only= ships must not restage every surface on publish');
+assert.match(shipSource, /args\.has\('--no-prep'\)/, 'ship must honor --no-prep');
+assert.match(browserGateSource, /chromium\.launch[\s\S]*remote-debugging-port=9223/, 'CDP fallback must launch installed headless Chromium');
 assert.match(shipSource, /verify:broad/, 'broad live-audit result must be visible in release logs');
+/* The homepage's second embed element belongs to another tree, which publishes the chess board into
+   it. This tree once mapped it to a /lobby bridge; that bridge was retired and its file emptied, but
+   the mapping stayed — and `detected` falls back to every surface whenever the manifest is not
+   `verified` (fresh clone, or a run that failed before stamping), so a ship from here would have
+   written an 820-byte comment over live chess. Owning an element you cannot source is the bug, so
+   the element id must not reappear as a surface. */
+assert.doesNotMatch(shipSource, /element:\s*'111587a0-9244-9044-dd65-d53ad8cd314e'/,
+  'ship must not map any surface onto the homepage embed element owned by another tree');
 /* This used to pin the literal `attempt < 16`, which described one implementation of the wait rather
    than the requirement, and the number it froze was too small: /dasha exceeded that twelve-second
    budget on three consecutive ships. Assert the property instead — a wall-clock deadline generous
@@ -29,12 +46,18 @@ const env = {
   DASHA_NOW_DOC: path.join(tmp, 'DASHA-NOW.md'),
 };
 
+/* 30s was not enough and had stopped being a test of anything: the fast gate alone measured 63s on
+   2026-08-15, so every run died on the stopwatch at `gate:fast:start` and reported `null !== 0` —
+   a timeout wearing the costume of a ship failure. The gate is not slow by accident; it spawns six
+   node subprocesses (three build --check passes plus the coherence, growth and radar gates), and
+   that is work we want it doing. Budget for the gate the pipeline actually runs, generously enough
+   that a loaded machine does not turn a green suite red. */
 function ship() {
   const result = spawnSync(process.execPath, ['dasha-ship.mjs', '--ship'], {
     cwd: root,
     env,
     encoding: 'utf8',
-    timeout: 30_000,
+    timeout: 300_000,
   });
   assert.equal(result.status, 0, result.stderr || result.stdout);
   return result.stdout;
@@ -119,9 +142,12 @@ try {
   assert.equal(manifest.release.studioCanonical.file, 'dasha-meme-studio.html');
   assert.equal(manifest.release.publicStudio.file, 'dasha-desk/studio/index.html');
   assert.equal(manifest.release.deskCanonical.file, 'dasha-desk/src/app.html');
+  /* homeLobbyLink is deliberately absent: the retired /lobby bridge was removed as a surface on
+     2026-08-15 because it aimed an intentionally-empty file at the homepage element another tree
+     publishes the chess board into. See the guard above. */
   assert.deepEqual(
     Object.keys(manifest.hashes).sort(),
-    ['desk', 'deskRetiredRepair', 'deskShell', 'home', 'homeLobbyLink', 'lobby', 'studio'],
+    ['desk', 'deskRetiredRepair', 'deskShell', 'home', 'lobby', 'studio'],
   );
 
   const now = spawnSync(process.execPath, ['dasha-ship.mjs', '--status', '--write-now'], {

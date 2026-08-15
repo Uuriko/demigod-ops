@@ -66,16 +66,15 @@ const SURFACES = {
     file: 'dasha-studio-embed.html',
     label: 'studio',
   },
-  /* The homepage's second, previously-unused embed element. It carries the /lobby entry points as
-     an injected bridge, because the homepage source itself is published from another tree and every
-     copy reachable from here is behind live. Separate element, separate surface: writing it cannot
-     revert their work, and their ship cannot revert this. Retire it when the source patch lands. */
-  homeLobbyLink: {
-    pageId: '5f1458136c15aa41639b8538',
-    element: '111587a0-9244-9044-dd65-d53ad8cd314e',
-    file: 'dasha-home-lobby-link.html',
-    label: 'homeLobbyLink',
-  },
+  /* The homepage's second embed element (111587a0) is deliberately NOT a surface here.
+     It briefly carried injected /lobby entry points as a bridge; that bridge was retired in 19c4b7c
+     once the links landed in the homepage source, and `dasha-home-lobby-link.html` was emptied. The
+     mapping outlived it, which made the empty file a loaded gun: `detected` falls back to every
+     surface whenever the manifest is not `verified` (a fresh clone, or a run that failed before
+     stamping), so a ship from this tree would have written an 820-byte comment over that element.
+     Another tree now publishes the homepage chess board there — live on 2026-08-15 — so that push
+     would have silently deleted chess from the homepage. Do not re-add it: this tree does not own
+     that element, and the only safe way to write it is from the tree that sources its content. */
   /* The lobby chat, moved off the homepage onto its own page on 2026-08-08. It is a managed surface
      from the first minute rather than after someone finds it in a census — which is the lesson
      /how-to-buy taught at some cost. */
@@ -725,9 +724,7 @@ async function verifyLive() {
   const onlyForVerify = new Set(
     only.flatMap((key) => (key === 'deskShell' || key === 'desk' || key === 'deskRetiredRepair'
       ? ['desk']
-      : key === 'homeLobbyLink'
-        ? ['home']
-        : [key])),
+      : [key])),
   );
   const surfaces = only.length
     ? Object.entries(contract.surfaces).filter(([surface]) => onlyForVerify.has(surface))
