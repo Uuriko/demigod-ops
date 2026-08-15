@@ -54,6 +54,7 @@ assert.match(source, /--hot:#ff3b81/);
 assert.doesNotMatch(source, /#08070a|#f5eedf|#72d6ff|#c8b6ff/);
 assert.match(source, /<a class="back" href="\/graph">Graph<\/a>/);
 assert.match(source, /<a class="back" href="\/privacy">Privacy<\/a>/);
+assert.match(source, /@media\(max-width:560px\)\{[\s\S]*?\.top\{flex-wrap:wrap/, 'narrow chess header must wrap so Graph does not overflow 320px');
 assert.doesNotMatch(source.match(/<nav class="top-links"[\s\S]*?<\/nav>/)?.[0] || '', /\/bounties|\/learn|\/faucet|\/forum|\/rally/, 'chess slim nav must stay bounded');
 assert.doesNotMatch(source, /forum/i, 'chess must not grow a Forum link');
 assert.match(source, /Holder chess · 10\+5/);

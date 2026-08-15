@@ -410,7 +410,7 @@ main{padding:clamp(34px,6vw,72px) 0 72px}.hero{display:flex;align-items:end;just
 .tournament-form{display:flex;flex-wrap:wrap;gap:8px}.tournament-form input{min-width:0;flex:1;border:1px solid var(--line);background:var(--ink);color:var(--paper);padding:0 12px;font:inherit}.tournament-form .btn{padding:0 14px}.tournament-meta{color:var(--muted);margin:0 0 12px}.tournament-actions{display:flex;flex-wrap:wrap;gap:8px}.tournament-actions .btn{min-height:40px;padding:0 14px}.entrants,.bracket{list-style:none;padding:0;margin:12px 0 0;font:13px/1.5 monospace}.entrants li,.bracket li{border-top:1px solid var(--line);padding:7px 0}.champion{color:var(--acid);font-weight:950}
 .promotion{border:1px solid var(--line);border-radius:14px;background:var(--ink);color:var(--paper);padding:18px}.promotion::backdrop{background:rgba(7,6,8,.78)}.promotion form{display:grid;grid-template-columns:repeat(4,56px);gap:8px}.promotion p{grid-column:1/-1;margin:0 0 4px;font-weight:900;text-align:center}.promotion button{min-height:56px;border:1px solid var(--line);background:transparent;color:var(--paper);font-size:30px;cursor:pointer}.promotion button:focus-visible{outline:3px solid var(--acid);outline-offset:2px}
 @media(max-width:1150px){.hero{display:block}.rule{margin-top:18px}.app{grid-template-columns:1fr}.side{grid-template-columns:repeat(2,minmax(0,1fr))}.side .panel:last-child{grid-column:1/-1}}
-@media(max-width:560px){.wrap{width:min(100% - 18px,1120px)}main{padding-top:32px}.hero h1{font-size:52px}.panel{padding:14px}.game.panel{padding:10px}.board{box-shadow:6px 6px 0 rgba(255,59,129,.6)}.sq{font-size:11vw}.side{grid-template-columns:minmax(0,1fr)}.side .panel:last-child{grid-column:auto}.gamebar{align-items:flex-start;flex-direction:column}.game-actions,.gamebar .btn{width:100%}.game-actions .btn{flex:1}.replay{gap:6px}}
+@media(max-width:560px){.wrap{width:min(100% - 18px,1120px)}.top{flex-wrap:wrap;align-items:flex-start;gap:4px 12px;padding:6px 0}.top-links{flex-wrap:wrap;gap:0 12px;min-width:0;max-width:100%;justify-content:flex-end}.back{letter-spacing:.04em}main{padding-top:32px}.hero h1{font-size:52px}.panel{padding:14px}.game.panel{padding:10px}.board{box-shadow:6px 6px 0 rgba(255,59,129,.6)}.sq{font-size:11vw}.side{grid-template-columns:minmax(0,1fr)}.side .panel:last-child{grid-column:auto}.gamebar{align-items:flex-start;flex-direction:column}.game-actions,.gamebar .btn{width:100%}.game-actions .btn{flex:1}.replay{gap:6px}}
 @media(prefers-reduced-motion:no-preference){.sq{transition:filter .12s,transform .12s}.board[data-readonly=false] .sq:hover{filter:brightness(1.1)}.board[data-readonly=false] .sq:active{transform:scale(.96)}}
 </style>
 </head>
@@ -705,4 +705,4 @@ export const LOBBY_PAGE_HTML = `<!doctype html>
 </body>
 </html>
 `;
-export const ASSET_HASH = "d82bc5400e22ea42";
+export const ASSET_HASH = "c4e09abce11cc2c4";
