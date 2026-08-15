@@ -140,7 +140,7 @@ assert(worker.includes("path === '/simp/learn'"), 'worker exposes /simp/learn aw
 assert(worker.includes("'X-Dasha-Edge': 'faucet'") && worker.includes('faucetPageHtml'), 'www /faucet is worker-owned first HTML');
 assert(worker.includes('client/faucet.js') && worker.includes('FAUCET_CLIENT_SRI'), 'www /faucet mounts the faucet client');
 assert(worker.includes('handleFaucetApi') && worker.includes('isFaucetApiPath'), 'worker routes faucet API');
-assert(!worker.includes("isExactPath(url.pathname, '/earn')") && !worker.includes("isExactPath(url.pathname, '/airdrop')"), 'no earn/airdrop routes');
+assert(worker.includes('magnetRoute') && worker.includes("href=\"/airdrop\">Airdrop") && worker.includes("href=\"/earn\">Earn"), 'honest airdrop/earn magnet rooms');
 assert(!worker.includes("isExactPath(url.pathname, '/hold')") && !worker.includes("isExactPath(url.pathname, '/academy')"), 'no new colliding commerce/academy routes');
 assert(worker.includes("url.pathname === '/api/graph'") && worker.includes("url.pathname === '/api/graph/expand'"), 'worker exposes public graph APIs');
 assert(worker.includes('/api/graph/highlight') && worker.includes('/api/graph/wallet/challenge'), 'worker exposes graph highlight proof');
@@ -826,7 +826,7 @@ for (const path of ['/studio', '/studio/']) {
     assert.match(section, /href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats</, `${label} nav must include @dash_eats`);
     assert.doesNotMatch(section.match(/<nav\b[\s\S]*?<\/nav>/i)?.[0] || '', /53ux|Buy|jup\.ag|#token|\/forum/i, `${label} must keep CA and Buy out of the top nav`);
     assert.match(section, /<footer\b[^>]*id="token"/, `${label} must keep CA + Buy in a token footer`);
-    assert.match(section, /<a href="\/studio">Studio<\/a> · <a href="\/lobby">Lobby<\/a> · <a href="\/simp">Simp<\/a> · <a href="\/learn">Learn<\/a> · <a href="\/faucet">Faucet<\/a> · <a href="\/graph">Graph<\/a> · <a href="\/verse">Verse<\/a> · <a href="\/bounties">Bounties<\/a> · <a href="\/how-to-buy">How to buy<\/a> · <a href="\/privacy">Privacy<\/a>/, `${label} must keep the site footer`);
+    assert.match(section, /<a href="\/studio">Studio<\/a> · <a href="\/lobby">Lobby<\/a> · <a href="\/simp">Simp<\/a> · <a href="\/learn">Learn<\/a> · <a href="\/faucet">Faucet<\/a> · <a href="\/airdrop">Airdrop<\/a> · <a href="\/earn">Earn<\/a> · <a href="\/graph">Graph<\/a> · <a href="\/verse">Verse<\/a> · <a href="\/bounties">Bounties<\/a> · <a href="\/how-to-buy">How to buy<\/a> · <a href="\/privacy">Privacy<\/a>/, `${label} must keep the site footer`);
     assert.match(section, /53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump/, `${label} footer must show the mint`);
     assert.match(section, /jup\.ag\/swap\?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump/, `${label} footer must keep Buy`);
     assert.match(section, /<label>Contact <input name="contact"><\/label> <a href="\/privacy">Privacy<\/a>/, `${label} must put Privacy next to contact`);

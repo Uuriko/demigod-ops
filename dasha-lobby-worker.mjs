@@ -93,6 +93,7 @@ import {
   LEARN_CLIENT_SRI,
   FAUCET_CLIENT_JS,
   FAUCET_CLIENT_SRI,
+  FAUCET_STILL_SRI,
   LOBBY_PAGE_HTML,
   ASSET_HASH,
 } from './dasha-lobby-static-gen.mjs';
@@ -102,6 +103,7 @@ import {
   isFaucetApiPath,
   isFaucetPagePath,
 } from './dasha-faucet.mjs';
+import { magnetPageHtml, magnetRoute } from './dasha-magnet-pages.mjs';
 import {
   applyGraphHighlight,
   dropGraphHighlight,
@@ -441,7 +443,13 @@ export function injectBountiesBoard(html, feed) {
 }
 
 const PRIVACY_A = '<a href="/privacy">Privacy</a>';
-const WORKER_SITE_FOOTER = '<footer><p><a href="/studio">Studio</a> · <a href="/lobby">Lobby</a> · <a href="/simp">Simp</a> · <a href="/learn">Learn</a> · <a href="/faucet">Faucet</a> · <a href="/graph">Graph</a> · <a href="/verse">Verse</a> · <a href="/bounties">Bounties</a> · <a href="/how-to-buy">How to buy</a> · <a href="/privacy">Privacy</a></p></footer>';
+const FOOTER_LINKS = '<a href="/studio">Studio</a> · <a href="/lobby">Lobby</a> · <a href="/simp">Simp</a> · <a href="/learn">Learn</a> · <a href="/faucet">Faucet</a> · <a href="/airdrop">Airdrop</a> · <a href="/earn">Earn</a> · <a href="/graph">Graph</a> · <a href="/verse">Verse</a> · <a href="/bounties">Bounties</a> · <a href="/how-to-buy">How to buy</a> · <a href="/privacy">Privacy</a>';
+function siteFooter(current = '') {
+  let links = FOOTER_LINKS;
+  if (current) links = links.replace(`<a href="${current}">`, `<a href="${current}" aria-current="page">`);
+  return `<footer><style>footer a{display:inline-flex;align-items:center;min-height:48px;min-width:48px;padding:0 .4rem}</style><p>${links}</p></footer>`;
+}
+const WORKER_SITE_FOOTER = siteFooter();
 
 /** Add one visible Privacy link to an existing footer, nav, lobby header, or bounties board. */
 export function ensurePrivacyLink(html) {
@@ -945,24 +953,24 @@ export function learnPageHtml({ track = '', mod = '' } = {}) {
   const hop = row?.hop?.href
     ? `<p><a class="learn-go" href="${escapeHtml(row.hop.href)}">${escapeHtml(row.hop.label || 'Hop')}</a></p>`
     : '';
-  const lede = track
-    ? escapeHtml(row?.goal || 'this is how the buttons work.')
-    : 'Optional class. Points go on Simp. No second score. No advice.';
+  const lede = track ? escapeHtml(row?.goal || 'Learn') : 'Learn';
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} — getdasha.com</title>
 <link rel="canonical" href="${canonical}">
-<meta name="description" content="Optional class. Points go on Simp.">
+<meta name="description" content="Learn">
 <meta name="theme-color" content="#070608">
-<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}h1{margin:0 0 .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(2.6rem,10vw,5rem);line-height:.9;text-transform:uppercase}a{color:var(--acid)}.learn-go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-decoration:none;text-transform:uppercase}#dasha-learn{margin-top:1rem}.learn-ca{display:block;margin:12px 0;padding:12px;border:1px solid rgba(244,237,219,.18);font-family:ui-monospace,Menlo,Consolas,monospace;word-break:break-all;user-select:all}footer{margin-top:36px;color:rgba(244,237,219,.62)}footer a{color:var(--acid)}@media(prefers-reduced-motion:reduce)*{transition:none!important;animation:none!important}</style>
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}h1{margin:0 0 .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(2.6rem,10vw,5rem);line-height:.9;text-transform:uppercase}a{color:var(--acid)}.learn-go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-decoration:none;text-transform:uppercase}#dasha-learn{margin-top:1rem}.learn-ca{display:block;margin:12px 0;padding:12px;border:1px solid rgba(244,237,219,.18);font-family:ui-monospace,Menlo,Consolas,monospace;word-break:break-all;user-select:all}footer{margin-top:36px;color:rgba(244,237,219,.62)}footer a{color:var(--acid);display:inline-flex;align-items:center;min-height:48px;min-width:48px;padding:0 .4rem}@media(prefers-reduced-motion:reduce)*{transition:none!important;animation:none!important}</style>
 <body>
-<h1>Learn</h1>
-<p>${lede}</p>
-<code class="learn-ca">${escapeHtml('53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump')}</code>
 ${hop}
 <div id="dasha-learn" data-track="${escapeHtml(track)}" data-mod="${escapeHtml(mod)}"></div>
 <script type="application/json" id="dasha-learn-bank">${bank}</script>
-<noscript><p>Needs JavaScript.</p></noscript>
+<noscript>
+<h1>Learn</h1>
+<p>${lede}</p>
+<code class="learn-ca">${escapeHtml('53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump')}</code>
+<p>Needs JavaScript.</p>
+</noscript>
 ${learnClientScript()}
-${WORKER_SITE_FOOTER}
+${siteFooter('/learn')}
 </body></html>`;
 }
 
@@ -970,22 +978,36 @@ function faucetClientScript() {
   return `<script src="https://lobby.getdasha.com/client/faucet.js" integrity="${FAUCET_CLIENT_SRI}" crossorigin="anonymous" defer></script>`;
 }
 
-/** Worker-owned /faucet. Sample, not an airdrop, not earn. */
+/** Worker-owned /faucet. Picture, dest, send. */
 export function faucetPageHtml() {
+  const still = 'https://lobby.getdasha.com/client/faucet.png';
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Faucet — getdasha.com</title>
 <link rel="canonical" href="https://www.getdasha.com/faucet">
-<meta name="description" content="a tiny sample for newbies. not an airdrop. not earn.">
+<meta name="description" content="Faucet">
 <meta name="theme-color" content="#070608">
-<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}h1{margin:0 0 .5rem;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900;font-size:clamp(2.6rem,10vw,5rem);line-height:.9;text-transform:uppercase}a{color:var(--acid)}.faucet-ca{display:block;margin:12px 0;padding:12px;border:1px solid #7c4dff;font-family:Fragment Mono,ui-monospace,Menlo,Consolas,monospace;word-break:break-all;user-select:all}footer{margin-top:36px;color:rgba(244,237,219,.62)}footer a{color:var(--acid)}@media(prefers-reduced-motion:reduce)*{transition:none!important;animation:none!important}</style>
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}a{color:var(--acid)}.faucet-hero{display:block;width:min(100%,720px);height:auto;background:#070608}footer{margin-top:36px;color:rgba(244,237,219,.62)}footer a{color:var(--acid);display:inline-flex;align-items:center;min-height:48px;min-width:48px;padding:0 .4rem;font-family:"Arial Black",Helvetica,Arial,sans-serif}@media(prefers-reduced-motion:reduce)*{transition:none!important;animation:none!important}</style>
 <body>
-<h1>Faucet</h1>
-<p>a tiny sample for newbies. not an airdrop. not earn. Agents do not claim this faucet.</p>
-<code class="faucet-ca">${escapeHtml('53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump')}</code>
-<div id="dasha-faucet"></div>
-<noscript><p>Needs JavaScript.</p></noscript>
+<div id="dasha-faucet" data-faucet-still="${still}" data-faucet-still-sri="${FAUCET_STILL_SRI}"></div>
+<noscript>
+<img class="faucet-hero" src="${still}" integrity="${FAUCET_STILL_SRI}" crossorigin="anonymous" alt="">
+</noscript>
 ${faucetClientScript()}
-${WORKER_SITE_FOOTER}
+${siteFooter('/faucet')}
 </body></html>`;
+}
+
+function magnetPageResponse(request, route) {
+  if (route.redirect) {
+    return Response.redirect(`https://www.getdasha.com${route.canonical}`, 308);
+  }
+  return new Response(request.method === 'HEAD' ? null : magnetPageHtml(route.kind, siteFooter(route.canonical)), {
+    status: 200,
+    headers: htmlHeaders({
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=120',
+      'X-Dasha-Edge': route.kind,
+    }),
+  });
 }
 
 function faucetPageResponse(request) {
@@ -1000,6 +1022,15 @@ function faucetPageResponse(request) {
 }
 
 async function faucetApiResponse(request, env, allowedOrigin) {
+  if (request.method === 'OPTIONS') {
+    if (!allowedOrigin && !env.ALLOW_ANY_ORIGIN) {
+      return new Response(null, { status: 403, headers: SECURITY });
+    }
+    return new Response(null, {
+      status: 204,
+      headers: { ...SECURITY, ...corsHeaders(allowedOrigin || '*', { credentials: true }) },
+    });
+  }
   return handleFaucetApi(request, env, {
     json,
     allowedOrigin,
@@ -3530,6 +3561,10 @@ async function productEdge(request, url, env) {
   if ((request.method === 'GET' || request.method === 'HEAD') && isFaucetPagePath(url.pathname)) {
     return faucetPageResponse(request);
   }
+  const productMagnet = magnetRoute(url.pathname);
+  if ((request.method === 'GET' || request.method === 'HEAD') && productMagnet) {
+    return magnetPageResponse(request, productMagnet);
+  }
   if (isFaucetApiPath(url.pathname)) {
     const origin = request.headers.get('Origin');
     const allowedOrigin = origin && originAllowed(origin, env.ALLOWED_ORIGINS || '') ? origin : env.ALLOW_ANY_ORIGIN ? origin || '*' : null;
@@ -3735,6 +3770,10 @@ export default {
     if ((request.method === 'GET' || request.method === 'HEAD') && isFaucetPagePath(url.pathname)) {
       return faucetPageResponse(request);
     }
+    const lobbyMagnet = magnetRoute(url.pathname);
+    if ((request.method === 'GET' || request.method === 'HEAD') && lobbyMagnet) {
+      return magnetPageResponse(request, lobbyMagnet);
+    }
     if (isFaucetApiPath(url.pathname)) {
       const faucetRes = await faucetApiResponse(request, env, allowedOrigin);
       if (faucetRes) return faucetRes;
@@ -3810,6 +3849,12 @@ export default {
       url.pathname === '/client/faucet.js'
     ) {
       return jsAsset(FAUCET_CLIENT_JS, allowedOrigin || '*', { headOnly: request.method === 'HEAD' });
+    }
+    if (
+      (request.method === 'GET' || request.method === 'HEAD') &&
+      url.pathname === '/client/faucet.png'
+    ) {
+      return staticAssetResponse(new Request(new URL('/simp/photo/faucet.png', request.url), request), env);
     }
 
     // SEO + howto: also routed on www/apex getdasha.com (see dasha-lobby-wrangler.jsonc).

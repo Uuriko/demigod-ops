@@ -191,6 +191,8 @@
   function mount(root, opts) {
     opts = opts || {};
     if (!root) return null;
+    var leftover = document.getElementById('dasha-learn-static');
+    if (leftover) leftover.hidden = true;
     var base = apiBase(root);
     var pack = bankFrom(root) || opts.bank || {};
     var modules = pack.modules || [];
@@ -244,8 +246,6 @@
 
   function renderHub(root, live, modules, base, pack) {
     root.appendChild(el('h1', '', 'Learn'));
-    var lede = el('p', 'learn-lede', 'Optional class. Points go on Simp. No second score. No advice. Association is not endorsement.');
-    root.appendChild(lede);
     var mint = el('code', 'learn-ca', MINT);
     mint.setAttribute('id', 'learn-mint');
     root.appendChild(mint);
@@ -253,7 +253,6 @@
     copy.type = 'button';
     copy.addEventListener('click', function () { copyText(MINT, copy); });
     root.appendChild(copy);
-    root.appendChild(el('p', 'learn-lede', 'this is how the buttons work. you do not have to buy to pass. MATCH, not verified.'));
     var studyBox = el('div', 'learn-study');
     studyBox.appendChild(el('span', '', 'Study'));
     ['chill', 'normal', 'mean'].forEach(function (name, i) {

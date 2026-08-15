@@ -26,7 +26,7 @@ assert.doesNotMatch(
 );
 
 assert.match(sitemap, /<loc>https:\/\/www\.getdasha\.com\/learn<\/loc>/);
-assert.doesNotMatch(sitemap, /\/hold|\/academy|\/university|\/earn<\/loc>/);
+assert.doesNotMatch(sitemap, /\/hold|\/academy|\/university<\/loc>/);
 
 assert.match(clientSrc, /global\.DashaLearn/);
 assert.match(clientSrc, /MATCH/);
@@ -63,7 +63,8 @@ assert.match(workerSrc, /\/simp\/learn/);
 assert.doesNotMatch(workerSrc, /isExactPath\(url\.pathname, '\/hold'\)/);
 assert.doesNotMatch(workerSrc, /isExactPath\(url\.pathname, '\/academy'\)/);
 assert.doesNotMatch(workerSrc, /isExactPath\(url\.pathname, '\/university'\)/);
-assert.doesNotMatch(workerSrc, /isExactPath\(url\.pathname, '\/earn'\)/);
+assert.match(workerSrc, /<noscript>/);
+assert.match(clientSrc, /dasha-learn-static/);
 
 const { LEARN_CLIENT_JS, LEARN_CLIENT_SRI } = await import('./dasha-lobby-static-gen.mjs');
 const learnSri = `sha384-${createHash('sha384').update(LEARN_CLIENT_JS).digest('base64')}`;
@@ -81,13 +82,18 @@ assert.equal(parseLearnPath('/simp'), null);
 const hubHtml = learnPageHtml({});
 assert.match(hubHtml, /<link rel="canonical" href="https:\/\/www\.getdasha\.com\/learn">/);
 assert.match(hubHtml, /id="dasha-learn"/);
+assert.match(hubHtml, /<noscript>[\s\S]*<h1>Learn<\/h1>[\s\S]*<\/noscript>/);
+assert.doesNotMatch(hubHtml.replace(/<noscript>[\s\S]*?<\/noscript>/, ''), /<h1>Learn<\/h1>/);
+assert.match(hubHtml, /href="\/learn" aria-current="page"/);
+assert.match(hubHtml, /min-height:48px/);
 assert.doesNotMatch(hubHtml, /id="dasha-quiz"/);
 assert.ok(hubHtml.includes(mint));
 assert.doesNotMatch(hubHtml.replace(/<script type="application\/json"[\s\S]*?<\/script>/, ''), /\bInter\b|Geist|fonts\.googleapis|system-ui/);
 assert.match(hubHtml, /Arial Black/);
 assert.match(hubHtml, /LEARN_CLIENT_SRI|integrity="/);
 assert.match(hubHtml, /client\/learn\.js/);
-assert.match(hubHtml, /Optional class/);
+assert.match(hubHtml, /<title>Learn — getdasha.com<\/title>|<h1>Learn<\/h1>/);
+assert.doesNotMatch(hubHtml.replace(/<script type="application\/json"[\s\S]*?<\/script>/, ''), /not an airdrop|not earn|not official|not advice|she is not the dev|association is not endorsement|MATCH, not verified|tiny sample for newbies|agents do not claim/i);
 assert.match(hubHtml, /href="\/learn"/);
 
 const c08 = learnPageHtml({ track: 'crypto', mod: 'C08' });

@@ -5,6 +5,8 @@
   // Optional var: FAUCET_AMOUNT_RAW (default 100000000)
   // Optional var: FAUCET_RENT_CAP_LAMPORTS (default 20 * live ATA rent)
   // Optional var: FAUCET_SOL_FLOOR_LAMPORTS (default live ATA rent + fee)
+  // Optional var: FAUCET_TOKEN_CAP_RAW (default 20 * amountRaw, daily)
+  // Optional var: FAUCET_PAUSED=1 (503 before send)
   "name": "dasha-lobby",
   "account_id": "5a919d6c1785d47e15e10c24450a8ff7",
   "workers_dev": true,

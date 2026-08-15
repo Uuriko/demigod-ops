@@ -18,6 +18,9 @@ Allow: /verse
 Allow: /graph
 Allow: /learn
 Allow: /faucet
+Allow: /airdrop
+Allow: /earn
+Allow: /claim
 Disallow: /desk-rc
 Disallow: /retired-dasha-draft
 Disallow: /checkout
