@@ -125,6 +125,39 @@ assert.match(source, /--ink:#070608/);
 assert.match(source, /--paper:#f4eddb/);
 assert.match(source, /--acid:#dfff00/);
 assert.match(source, /--hot:#ff3b81/);
+{
+  const css = [...source.matchAll(/<style>([\s\S]*?)<\/style>/g)].map((match) => match[1]).join('\n');
+  const body = (sel) => {
+    const needle = `${sel}{`;
+    let from = 0;
+    while (from < css.length) {
+      const at = css.indexOf(needle, from);
+      if (at < 0) return '';
+      const prev = at === 0 ? '{' : css[at - 1];
+      if ('{}, \n'.includes(prev)) {
+        const start = at + needle.length;
+        const end = css.indexOf('}', start);
+        return end < 0 ? '' : css.slice(start, end);
+      }
+      from = at + 1;
+    }
+    return '';
+  };
+  const decl = (sel, prop) => (body(sel).match(new RegExp(`(?:^|;)${prop}:([^;]+)`)) || [])[1]?.trim() || '';
+  const vars = Object.fromEntries([...body(':root').matchAll(/--([a-z0-9-]+):([^;]+)/g)].map((match) => [`--${match[1]}`, match[2].trim()]));
+  const hex = (value) => {
+    const resolved = String(value || '').replace(/var\((--[a-z0-9-]+)\)/gi, (_, name) => vars[name] || '');
+    return ((resolved.match(/#[0-9a-f]{3,8}/i) || [])[0] || resolved).toLowerCase();
+  };
+  const light = hex(decl('.sq', 'background'));
+  const dark = hex(decl('.sq.dark', 'background'));
+  const white = hex(decl('.sq[data-side=w]', 'color'));
+  const black = hex(decl('.sq[data-side=b]', 'color'));
+  assert.ok(light && white && light !== white, 'live CSS cannot paint white pieces the same color as light squares');
+  assert.ok(dark && black && dark !== black, 'live CSS cannot paint black pieces the same color as dark squares');
+  assert.match(decl('.sq[data-side=w] span', 'text-shadow') || decl('.sq[data-side=w]', 'text-shadow'), /var\(--ink\)|#070608/, 'white pieces keep a 1px ink stroke');
+  assert.match(decl('.sq[data-side=b] span', 'text-shadow') || decl('.sq[data-side=b]', 'text-shadow'), /var\(--paper\)|#f4eddb/, 'black pieces keep a 1px paper stroke');
+}
 assert.match(source, /\.btn\{[^}]*background:var\(--acid\);color:var\(--ink\)/, 'chess primary is acid fill + ink type');
 assert.match(source, /\.btn\.ghost\{[^}]*color:var\(--paper\);border:1px solid var\(--paper\)/, 'chess ghost is paper on ink');
 assert.match(source, /\.btn:disabled\{opacity:\.7/, 'chess disabled type stays readable');
