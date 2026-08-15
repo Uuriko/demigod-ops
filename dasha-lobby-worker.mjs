@@ -52,7 +52,6 @@ import {
   leaveBoard,
   meStatus,
   PUBLIC_BOARD_LIMIT,
-  publicPerryRow,
   quizPublic,
   startQuizAttempt,
   questionForAttempt,
@@ -95,7 +94,6 @@ import {
   FAUCET_CLIENT_SRI,
   FAUCET_STILL_SRI,
   DANCE_CLIENT_JS,
-  DANCE_CLIENT_SRI,
   LOBBY_PAGE_HTML,
   ASSET_HASH,
 } from './dasha-lobby-static-gen.mjs';
@@ -107,14 +105,18 @@ import {
 } from './dasha-faucet.mjs';
 import { magnetPageHtml, magnetRoute } from './dasha-magnet-pages.mjs';
 import {
+  AWARD_BOARD_CSS,
   AWARD_CHROME_CSS,
   AWARD_CROP_CSS,
   AWARD_RAIL_CSS,
+  AWARD_ROOM_CSS,
   AWARD_SLIM_CSS,
   BUY_HREF,
   cropTicksHtml,
+  AWARD_FOOT_CSS,
   hamburgerHtml,
   nextUpChipHtml,
+  roomLinksHtml,
   roomRailHtml,
   slimFooterHtml,
 } from './dasha-award-chrome.mjs';
@@ -187,7 +189,7 @@ export function ensureHtmlLang(html) {
     /\blang\s*=/i.test(attrs) ? tag : `<html lang="en"${attrs}>`);
 }
 
-/** Dead .simp-* rules still shipped in proxied Webflow HTML. Home also drops the board mount. */
+/** Dead .simp-* rules still shipped in proxied Webflow HTML. Home remounts a clean board after this strip. */
 const SIMP_LEFTOVER_STYLE_RE = /\.simp-(?:board|row|rank|handle|badges|badge|evidence|open|status|privacy|basis|pts|season|tool-actions|actions|action|tools|tool|me)\b/i;
 
 /** Drop leftover CSS rules whose selectors mention dead board/frame classes. */
@@ -196,7 +198,7 @@ function stripLeftoverStyleRules(html, leftoverRe) {
     block.replace(/[^{}]+\{[^{}]*\}/g, (rule) => leftoverRe.test(rule.slice(0, rule.indexOf('{'))) ? '' : rule));
 }
 
-/** Drop leftover Webflow board chrome. Home remounts one `.dasha-quiz` in the first viewport. */
+/** Drop leftover Webflow board chrome. Home remounts a clean #simp board after this strip. */
 export function stripHomeSimpBoard(html) {
   let out = String(html || '');
   out = out.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, (block) =>
@@ -244,6 +246,9 @@ function stripHomeWebFonts(html) {
     .replace(/<script\b[^>]*\bsrc=["'][^"']*webfont[^"']*["'][^>]*>\s*<\/script>/gi, '')
     .replace(/<script\b[^>]*>[\s\S]*?WebFont\.load[\s\S]*?<\/script>/gi, '')
     .replace(/<link\b[^>]*href=["'][^"']*fonts\.(?:googleapis|gstatic)\.com[^"']*["'][^>]*>/gi, '')
+    .replace(/<link\b[^>]*href=["'][^"']*ajax\.googleapis\.com\/ajax\/libs\/webfont[^"']*["'][^>]*>/gi, '')
+    .replace(/<link\b[^>]*rel=["'](?:preconnect|dns-prefetch|preload|modulepreload)["'][^>]*(?:fonts\.(?:googleapis|gstatic)|fonts\.google)\.com[^>]*>/gi, '')
+    .replace(/<link\b[^>]*(?:fonts\.(?:googleapis|gstatic)|fonts\.google)\.com[^>]*rel=["'](?:preconnect|dns-prefetch|preload|modulepreload)["'][^>]*>/gi, '')
     .replace(/\b(?:Exo|Bangers|Raleway)\b/g, 'Arial')
     .replace(/system-ui/gi, 'Arial');
 }
@@ -272,7 +277,17 @@ function stripHomeAtmosphere(html) {
         : rule.replace(/background(?:-image)?\s*:[^;}]+;?/, 'background:#070608;'));
 }
 
-const HOME_CULTURE_NAV = '<a href="/studio">Studio</a><a href="/simp">Simp</a><a href="/graph">Graph</a><a href="/verse">Verse</a><a href="/bounties">Bounties</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a>';
+/** Kill measured home jank: smooth-scroll, view-timeline on #token, overflow-x trap. No Lenis. */
+function stripHomeScrollToys(html) {
+  return String(html || '')
+    .replace(/scroll-behavior\s*:\s*smooth/gi, 'scroll-behavior:auto')
+    .replace(/\.dasha\{[^}]*\}/g, (rule) => rule.replace(/overflow-x\s*:\s*hidden/gi, 'overflow-x:visible'))
+    .replace(/view-timeline(?:-name|-axis)?\s*:\s*(?!none\b)[^;}\"']+;?/gi, '')
+    .replace(/animation-timeline\s*:\s*(?!none\b)[^;}\"']+;?/gi, '')
+    .replace(/scroll-timeline(?:-name|-axis)?\s*:\s*(?!none\b)[^;}\"']+;?/gi, '');
+}
+
+const HOME_CULTURE_NAV = roomLinksHtml();
 
 /** Hidden Webflow `main.dasha > nav` — same labels as lock nav after #49. No Buy. */
 function alignHomeLowerNav(html) {
@@ -285,7 +300,10 @@ function alignHomeLowerNav(html) {
 
 const HOME_BUY_HREF = BUY_HREF;
 const HOME_BUY_PILL = `<a class="pill primary buy-dasha" href="${HOME_BUY_HREF}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a>`;
-const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer{display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + AWARD_SLIM_CSS + AWARD_CROP_CSS;
+const HOME_CARNIVAL_HIDE = '#lobby,#remix,#stills,#oss,#voice,.poster-grid,#token h2,#token .section-title,#token .assoc,#token .disclaimer,#token .poster,#token .tape{display:none!important}';
+const HOME_FOLD_CSS = '#simp,#faucet,#token,main.dasha>section{content-visibility:auto;contain-intrinsic-size:auto 720px}';
+const HOME_SCROLL_CSS = 'html{scroll-behavior:auto!important}.dasha{overflow-x:visible!important}#token,#token *{view-timeline:none!important;animation-timeline:none!important;scroll-timeline:none!important}';
+const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer{display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + HOME_SCROLL_CSS + HOME_CARNIVAL_HIDE + HOME_FOLD_CSS + AWARD_SLIM_CSS + AWARD_CROP_CSS + AWARD_ROOM_CSS + AWARD_FOOT_CSS;
 
 function injectHomeCalmCss(html) {
   const page = String(html || '');
@@ -324,27 +342,66 @@ function ensureHomeBuyPill(html) {
   });
 }
 
-function ensureHomeSimpMount(html, sri = SIMP_BOARD_SRI) {
-  if (/id=["']dasha-simp-board["']/i.test(html)) return html;
-  const mount = `<div id="simp"><div id="dasha-simp-board" class="dasha-quiz" data-simp-api="https://lobby.getdasha.com"><noscript>Answer in the browser — questions are not in this HTML.</noscript></div></div><script src="https://lobby.getdasha.com/client/simp-board.js" integrity="${sri}" crossorigin="anonymous" defer></script>`;
-  const hero = String(html).match(/<header\b[^>]*\bdasha-hero\b[^>]*>[\s\S]*?<\/header>/i);
-  if (hero) {
-    const at = html.indexOf(hero[0]) + hero[0].length;
-    return html.slice(0, at) + mount + html.slice(at);
+function ensureHomeSimpMount(html) {
+  const page = String(html || '');
+  if (/id=["']dasha-simp-board["']/i.test(page)) return page;
+  const mount = `<div id="simp"><style>${AWARD_BOARD_CSS}</style><div id="dasha-simp-board" data-simp-api="https://lobby.getdasha.com"><noscript>Needs JavaScript.</noscript></div></div>${simpBoardClientScript()}`;
+  const hero = page.match(/<header\b[^>]*\bdasha-hero\b[^>]*>[\s\S]*?<\/header>/i);
+  if (!hero) return page;
+  const at = page.indexOf(hero[0]) + hero[0].length;
+  return page.slice(0, at) + mount + page.slice(at);
+}
+
+function faucetStillUrl() {
+  return 'https://lobby.getdasha.com/client/faucet.png';
+}
+
+/** Same picture + dest + send mount as /faucet. */
+function faucetMountHtml() {
+  const still = faucetStillUrl();
+  return `<div id="dasha-faucet" data-faucet-still="${still}" data-faucet-still-sri="${FAUCET_STILL_SRI}"></div>
+<noscript>
+<img class="faucet-hero" src="${still}" integrity="${FAUCET_STILL_SRI}" crossorigin="anonymous" alt="">
+</noscript>
+${faucetClientScript()}`;
+}
+
+function ensureHomeFaucetMount(html) {
+  const page = String(html || '');
+  if (/id=["']dasha-faucet["']/i.test(page)) return page;
+  const mount = `<div id="faucet">${faucetMountHtml()}</div>`;
+  const script = page.match(/simp-board\.js[\s\S]*?<\/script>/i);
+  if (script) {
+    const at = page.indexOf(script[0]) + script[0].length;
+    return page.slice(0, at) + mount + page.slice(at);
   }
-  const token = String(html).search(/<section\b[^>]*\bid=["']token["']/i);
-  if (token >= 0) return html.slice(0, token) + mount + html.slice(token);
-  return html + mount;
+  const hero = page.match(/<header\b[^>]*\bdasha-hero\b[^>]*>[\s\S]*?<\/header>/i);
+  if (!hero) return page;
+  const at = page.indexOf(hero[0]) + hero[0].length;
+  return page.slice(0, at) + mount + page.slice(at);
+}
+
+function injectHomeReveal(html) {
+  const page = String(html || '');
+  if (/id=["']dasha-home-reveal["']/i.test(page)) return page;
+  const tag = `<noscript><style>#simp,#faucet,#token{opacity:1;transform:none}</style></noscript><script id="dasha-home-reveal">(function(){var nodes=document.querySelectorAll('#simp,#faucet,#token');if(!nodes.length)return;if(!window.IntersectionObserver||(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)){for(var i=0;i<nodes.length;i++)nodes[i].classList.add('is-in');return}var io=new IntersectionObserver(function(ents){ents.forEach(function(e){if(e.isIntersecting){e.target.classList.add('is-in');io.unobserve(e.target)}})},{threshold:.12,rootMargin:'0px 0px -8% 0px'});for(var j=0;j<nodes.length;j++)io.observe(nodes[j])})();</script>`;
+  return /<\/body>/i.test(page) ? page.replace(/<\/body>/i, `${tag}</body>`) : page + tag;
 }
 
 /** www/apex / only: first paint is headline + Buy $dasha. Never emit #dasha-lock. */
-export function rewriteHomeFirstViewport(html, sri = SIMP_BOARD_SRI) {
+export function rewriteHomeFirstViewport(html) {
   let page = demoteHomeNavMint(stripHomeForumHrefs(stripHomeAtmosphere(stripHomeWebFonts(stripHomeCtaDecoy(String(html || ''))))));
+  page = stripHomeScrollToys(page);
+  page = stripGraphHops(page);
   page = page.replace(/<section\b[^>]*\bid=["']dasha-lock["'][^>]*>[\s\S]*?<\/section>/gi, '');
   page = injectHomeCalmCss(page);
   page = ensureHomeBuyPill(page);
-  if (/<header\b[^>]*\bdasha-hero\b/i.test(page)) page = ensureHomeSimpMount(page, sri);
+  if (/<header\b[^>]*\bdasha-hero\b/i.test(page)) {
+    page = ensureHomeSimpMount(page);
+    page = ensureHomeFaucetMount(page);
+  }
   page = ensureHomeAwardChrome(page);
+  page = injectHomeReveal(page);
   return rewriteLeftoverLobbyHrefs(alignHomeLowerNav(page));
 }
 
@@ -359,7 +416,7 @@ function ensureHomeAwardChrome(html) {
     page = page.slice(0, at) + cropTicksHtml() + page.slice(at);
   }
   if (!/class=["']dasha-foot["']/.test(page)) {
-    const foot = slimFooterHtml().replace('<footer>', '<footer class="dasha-foot">');
+    const foot = slimFooterHtml();
     page = /<\/body>/i.test(page) ? page.replace(/<\/body>/i, `${foot}</body>`) : page + foot;
   }
   return page;
@@ -480,8 +537,8 @@ function bountiesBoardHtml(feed) {
 
 /** Worker-owned first HTML for /bounties. Tokens + Arial only. No Webflow first paint. */
 export function bountiesPageHtml(feed) {
-  return injectDanceDock(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bounties</title>
-<body>${bountiesBoardHtml(feed)}</body></html>`);
+  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bounties</title>
+<body>${bountiesBoardHtml(feed)}</body></html>`;
 }
 
 async function bountiesPageResponse(request) {
@@ -556,25 +613,17 @@ export function ensurePrivacyLink(html) {
   return page;
 }
 
-/** Bottom dancer after first paint. Hidden on /graph. */
+/** Dock is off. Dance files stay on disk; nothing mounts them. */
 export function danceDockPath(pathname) {
-  const path = String(pathname || '').replace(/\/$/, '') || '/';
-  if (path === '/graph') return false;
-  if (path.startsWith('/learn/')) return true;
-  return path === '/' || path === '/lobby' || path === '/studio' || path === '/dasha'
-    || path === '/simp' || path === '/chess' || path === '/verse' || path === '/how-to-buy'
-    || path === '/bounties' || path === '/learn' || path === '/faucet';
+  return false;
 }
 
 export function injectDanceDock(html) {
-  const page = String(html || '');
-  if (/dasha-dance\.js/i.test(page)) return page;
-  const boot = `<script>(function(){function go(){if(document.getElementById('dasha-dance-js'))return;var s=document.createElement('script');s.id='dasha-dance-js';s.src='https://lobby.getdasha.com/client/dasha-dance.js';s.integrity='${DANCE_CLIENT_SRI}';s.crossOrigin='anonymous';document.head.appendChild(s)}if(window.requestIdleCallback)requestIdleCallback(go,{timeout:400});else setTimeout(go,400)})();</script>`;
-  return /<\/body>/i.test(page) ? page.replace(/<\/body>/i, `${boot}</body>`) : page + boot;
+  return html;
 }
 
-const HOWTO_PAGE_HTML = injectDanceDock(ensurePrivacyLink(HOWTO_HTML));
-const CHESS_PAGE = injectDanceDock(ensurePrivacyLink(CHESS_PAGE_HTML));
+const HOWTO_PAGE_HTML = ensurePrivacyLink(HOWTO_HTML);
+const CHESS_PAGE = ensurePrivacyLink(CHESS_PAGE_HTML);
 const GRAPH_PAGE = GRAPH_PAGE_HTML;
 const LOBBY_PAGE = injectDanceDock(ensurePrivacyLink(stripLobbySimpQuiz(LOBBY_PAGE_HTML)));
 
@@ -630,6 +679,12 @@ function securityTxtResponse(request, host) {
 
 function applyHtmlSecurity(headers) {
   for (const [name, value] of Object.entries(HTML_SECURITY)) headers.set(name, value);
+  const link = headers.get('Link');
+  if (link) {
+    const kept = link.split(',').map((part) => part.trim()).filter((part) => !/fonts\.(?:googleapis|gstatic)\.com/i.test(part));
+    if (kept.length) headers.set('Link', kept.join(', '));
+    else headers.delete('Link');
+  }
   return headers;
 }
 
@@ -671,15 +726,16 @@ function json(body, status, origin, { credentials = false } = {}) {
   });
 }
 
-function graphPageResponse(request) {
-  return new Response(request.method === 'HEAD' ? null : GRAPH_PAGE, {
-    status: 200,
-    headers: htmlHeaders({
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'public, max-age=120',
-      'X-Dasha-Edge': 'graph',
-    }),
-  });
+function graphPageResponse() {
+  return Response.redirect('https://www.getdasha.com/', 308);
+}
+
+/** Drop leftover Graph doors. /graph is shelved; source stays on disk. */
+export function stripGraphHops(html) {
+  return String(html || '')
+    .replace(/\s*·\s*<a\b[^>]*href=["'][^"']*\/graph\/?["'][^>]*>[^<]*<\/a>/gi, '')
+    .replace(/<a\b[^>]*href=["'][^"']*\/graph\/?["'][^>]*>[^<]*<\/a>\s*·\s*/gi, '')
+    .replace(/<a\b[^>]*href=["'][^"']*\/graph\/?["'][^>]*>[^<]*<\/a>/gi, '');
 }
 
 function graphApiResponse(body, origin, cacheControl = GRAPH_CACHE_CONTROL) {
@@ -903,7 +959,6 @@ function htmlPage(title, body, { chrome = false, path = '/privacy' } = {}) {
 }
 
 const SIMP_WWW = 'https://www.getdasha.com/simp';
-const SIMP_RULES_LINE = 'PerryALPHA founding #1 is editorial and non-measured.';
 
 function isExactPath(pathname, base) {
   return pathname === base || pathname === `${base}/`;
@@ -915,24 +970,19 @@ export function simpQuizFirstPaintHtml() {
 <noscript><p>Needs JavaScript.</p></noscript>`;
 }
 
-/** Worker-owned first HTML for /simp. Quiz is the page. Tokens only. No handle list. */
+/** Worker-owned first HTML for /simp. Quiz + clean board. Tokens only. No handle list. */
 export function simpPageHtml() {
-  const perryDisplay = escapeHtml(String(publicPerryRow().display || '@PerryALPHA').slice(0, 20));
-  return injectDanceDock(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Simp</title>
-<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}${AWARD_CHROME_CSS}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}h1{margin:0 0 .5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(3rem,12vw,6rem);line-height:.9}a{color:var(--acid)}.dasha-go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font-weight:900;text-decoration:none}#dasha-quiz,.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-quiz .dasha-go{margin:0 .5rem .75rem 0}#dasha-quiz ul{margin:.25rem 0 1rem;padding-left:1.2rem}</style>
+  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Simp</title>
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}${AWARD_CHROME_CSS}${AWARD_BOARD_CSS}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}h1{margin:0 0 .5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(3rem,12vw,6rem);line-height:.9}a{color:var(--acid)}#dasha-quiz,.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--acid)}</style>
 <body>
 ${cropTicksHtml()}
 ${hamburgerHtml({ path: '/simp' })}
 <h1>Simp</h1>
 <p>How big of a Dasha simp are you?</p>
-<p>Take the quiz. Ranked by lore and contributions.</p>
-<p><a class="dasha-go" href="#dasha-quiz">Take Simp</a></p>
-<p>${SIMP_RULES_LINE}</p>
-<p>${perryDisplay} · editorial #1 · not measured</p>
 <div id="dasha-quiz" class="dasha-quiz"><div id="dasha-simp-board">${simpQuizFirstPaintHtml()}</div></div>
 ${simpBoardClientScript()}
 ${siteFooter('/simp')}
-</body></html>`);
+</body></html>`;
 }
 
 async function simpPageResponse(request) {
@@ -1060,7 +1110,7 @@ export function learnPageHtml({ track = '', mod = '' } = {}) {
     : `<noscript>
 <p>Needs JavaScript.</p>
 </noscript>`;
-  return injectDanceDock(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} — getdasha.com</title>
+  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} — getdasha.com</title>
 <link rel="canonical" href="${canonical}">
 <meta name="description" content="Learn">
 <meta name="theme-color" content="#070608">
@@ -1075,7 +1125,7 @@ ${hop}
 ${noscript}
 ${learnClientScript()}
 ${siteFooter('/learn')}
-</body></html>`);
+</body></html>`;
 }
 
 function faucetClientScript() {
@@ -1084,8 +1134,7 @@ function faucetClientScript() {
 
 /** Worker-owned /faucet. Picture, dest, send. */
 export function faucetPageHtml() {
-  const still = 'https://lobby.getdasha.com/client/faucet.png';
-  return injectDanceDock(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Faucet — getdasha.com</title>
+  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Faucet — getdasha.com</title>
 <link rel="canonical" href="https://www.getdasha.com/faucet">
 <meta name="description" content="Faucet">
 <meta name="theme-color" content="#070608">
@@ -1093,13 +1142,9 @@ export function faucetPageHtml() {
 <body>
 ${cropTicksHtml()}
 ${hamburgerHtml({ path: '/faucet' })}
-<div id="dasha-faucet" data-faucet-still="${still}" data-faucet-still-sri="${FAUCET_STILL_SRI}"></div>
-<noscript>
-<img class="faucet-hero" src="${still}" integrity="${FAUCET_STILL_SRI}" crossorigin="anonymous" alt="">
-</noscript>
-${faucetClientScript()}
+${faucetMountHtml()}
 ${siteFooter('/faucet')}
-</body></html>`);
+</body></html>`;
 }
 
 function magnetPageResponse(request, route) {
@@ -1197,7 +1242,7 @@ export function versePageHtml({ status = '', kind = '' } = {}) {
   const notice = status
     ? `<p class="status" role="status"${kind ? ` data-kind="${escapeHtml(kind)}"` : ''}>${escapeHtml(status)}</p>`
     : '';
-  return injectDanceDock(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashaverse — getdasha.com</title>
+  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashaverse — getdasha.com</title>
 <meta name="description" content="Other Dasha sites. Ours is the token.">
 <link rel="canonical" href="${VERSE_WWW}">
 <style>:root{color-scheme:dark;--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--line:rgba(244,237,219,.18);--muted:rgba(244,237,219,.62)}*{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--paper);font:16px/1.55 Arial,Helvetica,sans-serif}${AWARD_CHROME_CSS}${AWARD_RAIL_CSS}.wrap{width:min(720px,calc(100% - 32px));margin:0 auto;padding:28px 0 64px}h1{margin:0 0 12px;font-size:clamp(2.4rem,8vw,3.6rem);line-height:.9;letter-spacing:-.05em;text-transform:uppercase;font-weight:950;font-family:"Arial Black",Arial,Helvetica,sans-serif}.lede{color:var(--muted);margin:0 0 22px;max-width:48ch}h2{margin:0 0 8px;font-size:1.15rem;text-transform:uppercase}.site{border-top:1px solid var(--line);padding:18px 0}.host{margin:.4rem 0;color:var(--muted);font-size:.9rem}.btn,button{appearance:none;border:0;min-height:48px;padding:12px 18px;font:inherit;font-weight:900;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;background:var(--acid);color:var(--ink);text-transform:uppercase;letter-spacing:.05em;box-shadow:3px 3px 0 var(--hot)}.honest{color:var(--muted);font-size:.9rem}form{margin:28px 0 0;padding-top:22px;border-top:1px solid var(--line)}label{display:block;font-weight:800}input{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}.status{font-weight:800}.status[data-kind=bad]{color:var(--hot)}footer{margin-top:36px;color:var(--muted);font-size:.9rem;border-top:1px solid var(--line);padding-top:18px}footer a,a{color:var(--acid)}:focus-visible{outline:3px solid var(--acid);outline-offset:3px}</style>
@@ -1218,7 +1263,7 @@ ${notice}
 </form>
 </section>
 ${siteFooter('/verse')}
-</main></body></html>`);
+</main></body></html>`;
 }
 
 function verseWantsJson(request) {
@@ -1427,8 +1472,6 @@ async function chessPageForRequest(request, env) {
 const oauthStateCookie = (token = '') => `${OAUTH_COOKIE}=${token}; Path=/; Max-Age=${token ? 900 : 0}; HttpOnly; Secure; SameSite=Lax`;
 
 const OAUTH_RETURN_OK = new Set([
-  'https://www.getdasha.com/graph',
-  'https://lobby.getdasha.com/graph',
   'https://www.getdasha.com/simp',
   'https://www.getdasha.com/chess',
   'https://lobby.getdasha.com/chess',
@@ -1442,7 +1485,7 @@ function parseOAuthReturn(raw) {
   const value = String(raw || '').trim();
   if (OAUTH_RETURN_OK.has(value)) return value;
   const path = (value.startsWith('/') ? value : `/${value}`).split('?')[0].split('#')[0];
-  if (path === '/graph') return 'https://www.getdasha.com/graph';
+  if (path === '/graph') return 'https://www.getdasha.com/';
   if (path === '/simp') return 'https://www.getdasha.com/simp';
   if (path === '/chess') return 'https://www.getdasha.com/chess';
   if (path === '/lobby') return 'https://www.getdasha.com/lobby';
@@ -3793,6 +3836,7 @@ async function productEdge(request, url, env) {
   html = ensurePrivacyLink(html);
   if (isExactPath(url.pathname, '/lobby')) html = stripDeadLobbyForum(html);
   html = rewriteLeftoverLobbyHrefs(html);
+  html = stripGraphHops(html);
   html = rewriteStudioScriptIntegrity(html);
   html = rewriteLobbyScriptIntegrity(html);
   html = rewriteStaleCdnFavicon(html);

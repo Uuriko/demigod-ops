@@ -369,21 +369,10 @@ const workerModule = await import('./dasha-lobby-worker.mjs');
 for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
   for (const method of ['GET', 'HEAD']) {
     const res = await workerModule.default.fetch(new Request(`https://${host}/graph`, { method }), {});
-    assert.equal(res.status, 200, `${host} /graph ${method}`);
-    assert.equal(res.headers.get('x-dasha-edge'), 'graph');
+    assert.equal(res.status, 308, `${host} /graph ${method} is shelved`);
+    assert.equal(res.headers.get('location'), 'https://www.getdasha.com/');
     const html = await res.text();
-    if (method === 'HEAD') assert.equal(html, '');
-    else {
-      assert.match(html, /\$DASHA <em>GRAPH<\/em>/);
-      assert.match(html, /Public chain\. Addresses, not people\./);
-      assert.doesNotMatch(html, /endorsement|not advice|\bNFA\b|\bDYOR\b/i);
-      assert.match(html, />Follow latest</);
-      assert.match(html, new RegExp(mint));
-      assert.doesNotMatch(html, /clamp\([^)]*10rem/);
-      assert.doesNotMatch(html, /\bInter\b|Geist|fonts\.googleapis|system-ui/);
-      assert.doesNotMatch(html, /button\.highlight|class="highlight"/);
-      assert.match(html, /id="highlight-me"/);
-    }
+    assert.doesNotMatch(html, /three@0\.170|graph\.js|WebGLRenderer/);
   }
   const hold = await workerModule.default.fetch(new Request(`https://${host}/simp/hold`), {});
   assert.equal(hold.status, 501);

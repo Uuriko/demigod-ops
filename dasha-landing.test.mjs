@@ -138,17 +138,15 @@ assert(simpClient.includes('Leave board'), 'board leave-state CTA missing in cli
 assert(simpClient.includes('/oauth/x/start') || lobbyClient.includes('/oauth/x/start'), 'board must reuse lobby X OAuth start');
 assert(simpClient.includes('/simp/join') && simpClient.includes('/simp/leave') && simpClient.includes('/simp/board'), 'board client must call simp API');
 assert(simpClient.includes('@PerryALPHA') || simpClient.includes('PerryALPHA'), 'Perry founding row missing from board client/fallback');
-assert(simpClient.includes('Founding simp') || simpClient.includes('editorial'), 'Perry must be labeled editorial founding');
-assert(/not a measured|Founding simp · editorial|kind:\s*['"]editorial['"]/i.test(simpClient), 'Perry must not be marked measured');
+assert(!/Founding simp · editorial/i.test(simpClient), 'board row must not lecture founding/editorial');
 assert(!/<nav[^>]*>[\s\S]*?(?:Simp|Leaderboard)[\s\S]*?<\/nav>/i.test(html), 'Simp Board must not expand main navigation');
 assert.ok(html.indexOf('id="simp"') > html.indexOf('id="lobby"'), 'board should sit after lobby, not replace it');
 assert(html.includes('All I want is free healthcare, honey'), 'replacement Dasha line missing');
 assert(!html.includes('ENTER THE CULT'),'coercive cult framing returned');
 for (const format of ['square','story','banner']) assert(html.includes(`format=${format}`), `missing ${format} starter`);
 for (const format of ['square','story','banner']) assert(studio.includes(`id: '${format}'`), `homepage promises ${format}, but Studio cannot render it`);
-assert.match(html, /class="micro"[\s\S]*href="\/graph"[^>]*>Graph →</, 'hero micro hops must include Graph');
+assert.doesNotMatch(html, /href="\/graph"/, 'landing must not door to shelved /graph');
 assert.match(html, /class="micro"[\s\S]*href="\/chess"[^>]*>Chess →</, 'hero micro hops must include Chess');
-assert.match(html, /<footer[\s\S]*href="\/graph"[^>]*>Graph</, 'homepage footer must include Graph');
 assert.match(html, /<footer[\s\S]*href="\/chess"[^>]*>Chess</, 'homepage footer must include Chess');
 assert.doesNotMatch(html, /href=["']https:\/\/lobby\.getdasha\.com\/chess/, 'landing Chess hrefs must be same-origin');
 assert.doesNotMatch(html, /href=["']https:\/\/lobby\.getdasha\.com\/forum/, 'landing must not keep leftover Forum hrefs');
@@ -170,13 +168,12 @@ assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => matc
   'https://www.getdasha.com/simp',
   'https://www.getdasha.com/verse',
   'https://www.getdasha.com/chess',
-  'https://www.getdasha.com/graph',
   'https://www.getdasha.com/learn',
   'https://www.getdasha.com/faucet',
   'https://www.getdasha.com/airdrop',
   'https://www.getdasha.com/earn',
   'https://www.getdasha.com/claim',
-].sort(), 'bounded sitemap must list home, studio, lobby, desk, how-to-buy, privacy, bounties, simp, verse, www chess, graph, learn, faucet, and honesty rooms exactly once');
+].sort(), 'bounded sitemap must list home, studio, lobby, desk, how-to-buy, privacy, bounties, simp, verse, www chess, learn, faucet, and honesty rooms exactly once');
 assert.doesNotMatch(sitemap, /forum/i, 'sitemap must not add Forum');
 assert.match(sitemap, /\n  <url>\n    <loc>https:\/\/www\.getdasha\.com\/chess<\/loc>\n  <\/url>\n/, 'www chess loc must keep the same indent as other sitemap urls');
 assert(!/lastmod|thesis|receipt|forecast/i.test(sitemap), 'sitemap contains stale dates or retired routes');
@@ -252,4 +249,4 @@ for (const width of [390, 1440]) {
 }
 await browser.disconnect();
 }
-console.log('dasha landing: static, sitemap, Graph door, and SRI checks passed');
+console.log('dasha landing: static, sitemap, and SRI checks passed');

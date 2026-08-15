@@ -30,20 +30,28 @@ assert(client.includes('Link X to join'), 'client missing link state');
 assert(client.includes('Join board'), 'client missing join state');
 assert(client.includes('Leave board'), 'client missing leave state');
 assert(client.includes('/oauth/x/start'), 'client must reuse OAuth start');
-// First-visit Connect X on homepage. Looking is free. Quiz needs X.
-assert(client.includes('openHomeGate();'), 'first-visit X gate missing');
-assert(client.includes('dasha_x_gate_v1') && client.includes('Not now'), 'gate dismiss + storage missing');
-assert(client.includes('First visit') && client.includes('Connect X?'), 'home gate kicker stays first-visit');
-assert(client.includes('Link X to play the quiz. Looking is free.'), 'home gate must say quiz needs X');
+assert(!client.includes('openHomeGate'), 'home first-visit X gate must be gone');
+assert(!client.includes('#7c4dff'), 'gate/share cards must not use violet');
+assert(!client.includes('--cream'), 'board CSS must not keep a cream leftover');
+assert(client.includes('dasha_x_gate_v1') && client.includes('Not now'), 'quiz-invite gate dismiss + storage stay');
+assert(client.includes('function openScrollConnectCard') && client.includes('function watchHomeConnectAsk'), 'home Connect X ask waits for scroll');
+assert(client.includes('IntersectionObserver') && client.includes("getElementById('simp')"), 'scroll ask watches #simp');
+assert(client.includes('dasha_x_ask_v1') && client.includes('dasha-x-ask'), 'scroll ask is once per session and a small card');
+assert(!/FIRST VISIT|CONNECT X\?/.test(client), 'scroll ask must not use the old first-visit kicker');
+{
+  const askCssStart = client.indexOf("'.simp-x-ask{");
+  const askCss = askCssStart >= 0 ? client.slice(askCssStart, askCssStart + 900) : '';
+  assert(askCss.includes('position:fixed') && askCss.includes('width:min(320px'), 'scroll ask is a small fixed card');
+  assert(!askCss.includes('backdrop-filter') && !askCss.includes('inset:0'), 'scroll ask must not be a full-viewport blur gate');
+}
+assert(client.includes('Connect X + take the quiz') || client.includes('Simp quiz invite'), 'quiz invite connect prompt stays on /simp');
 assert(
   !/Optional — everything still works if you skip|Not required\. Simp quiz|neither is required|Optional · first visit/i.test(client),
-  'home gate must not call X optional for the quiz',
+  'invite gate must not call X optional for the quiz',
 );
-assert(client.includes('simp-gate-open') && client.includes('buy-sticky'), 'gate must hide mobile buy sticky while open');
-assert(client.includes('Take quiz ↓') || client.includes('Take quiz'), 'gate must offer path to quiz');
-assert(client.includes('How big of a Dasha simp are you?') && client.includes('Take quiz'), 'simp quiz UI must remain in client');
-// Home gate must not trap scroll (quiz lives below the fold on Home).
-assert(!/simp-gate-open body\{overflow:hidden\}/.test(client.replace(/\s+/g, '')), 'home gate must not lock body scroll');
+assert(client.includes('simp-gate-open') && client.includes('buy-sticky'), 'invite gate must hide mobile buy sticky while open');
+assert(client.includes('How big of a Dasha simp are you?') && client.includes('Take the quiz'), 'simp quiz UI must remain in client');
+assert(!/simp-gate-open body\{overflow:hidden\}/.test(client.replace(/\s+/g, '')), 'invite gate must not lock body scroll');
 assert(client.indexOf("root.appendChild(quiz)") < client.indexOf("root.appendChild(list)"), 'quiz must render before leaderboard');
 assert(!/oauth\/x\/callback[\s\S]{0,1500}joinBoard/.test(worker), 'OAuth callback must not auto-enroll (client joins)');
 assert(client.includes('/simp/board') && client.includes('/simp/join') && client.includes('/simp/leave'), 'client missing API paths');
@@ -73,7 +81,7 @@ assert(quizSmoke.includes("args.has('--live-write')") && !quizSmoke.includes("co
 assert(!worker.includes('simpQuizMetrics[xId]'), 'quiz metrics must not be keyed by X identity');
 assert(worker.includes("input?.event !== 'share'") && worker.includes('countQuizResult'), 'decision-grade quiz metrics must come from server transitions, not client event claims');
 assert(!/trackQuiz\('(start|retake|reach|answer|complete|result)'/.test(client), 'client must not submit authoritative quiz funnel events');
-assert(client.includes('Connect X to play') && worker.includes("error: 'link X to take the quiz'"), 'quiz start must require linked X');
+assert(client.includes("el('button', 'simp-connect', 'Connect X')") && worker.includes("error: 'link X to take the quiz'"), 'quiz start must require linked X');
 assert(client.includes('650') && client.includes('1100') && !client.includes("'Pause'"), 'feedback should advance briskly without an extra pause control');
 assert(client.includes('quizAnswerBusy'), 'double-tap answer guard missing');
 assert(client.includes('retakeQuiz') && client.includes("role','progressbar"), 'retake helper + quiet progress bar missing');
@@ -119,11 +127,17 @@ assert(client.includes('max-height:min(56svh,480px)') && client.includes('width:
 assert(client.includes('align-content:start'), 'active quiz must top-align on short mobile screens');
 assert(client.includes("scrollIntoView({ behavior: 'smooth', block: 'start' })"), 'quiz start must scroll into view');
 assert(client.includes('is-correct') && client.includes('is-wrong'), 'correct and incorrect feedback states missing');
-assert(
-  landing.includes('Take the quiz') && landing.includes('ranked by lore') && !landing.includes('10Q') && !landing.includes('20Q'),
-  'landing board intro must name one quiz without Quick/Deep lengths',
+assert(!landing.includes('10Q') && !landing.includes('20Q'),
+  'landing board intro must not advertise Quick/Deep lengths',
 );
-assert(landing.includes('simp-breakdown') && client.includes("el('details', 'simp-breakdown')"), 'compact native score breakdown missing');
+assert(!client.includes("el('details', 'simp-breakdown')") && !client.includes('simp-badge'), 'board rows must drop breakdown and badge chrome');
+assert(client.includes('rowClean') && client.includes("el('span', 'simp-rank'") && client.includes("el('span', 'simp-pts'"), 'board row is rank · handle · number');
+assert(client.includes('homeBoard') && client.includes("homeQuiz.href = '/simp'"), 'home paints the pretty board and a Take the quiz button to /simp');
+assert(client.includes('rows.slice(0, 10)') && client.includes('Show more'), 'home board is top 10 plus Show more');
+assert(client.includes("el('button', 'simp-connect', 'Connect X')"), 'Connect X is a quiet board button, not a first-paint modal');
+assert(client.includes('simp-quiz-go') && client.includes('box-shadow:4px 4px 0 #ff3b81'), 'Take the quiz is an acid button with a hard hot offset');
+assert(client.includes("el('button', 'x-skip', 'Not now')") && client.includes('markGateDone()'), 'scroll ask dismiss persists in localStorage');
+assert(client.includes("el('p', 'simp-empty', 'Empty.')"), 'empty board is one quiet line');
 assert(client.includes("el('details', 'simp-tools')") && client.includes("el('summary', '', 'More')"), 'secondary board tools must stay under More');
 assert.equal((client.match(/Post result on X/g) || []).length, 1, 'result screen regained a second X share action');
 assert(!client.includes('Copy invite link'), 'result screen regained a duplicate invite action');
@@ -145,7 +159,7 @@ assert(client.includes('startQuiz()') && !client.includes("startQuiz('quick')") 
 assert(client.includes("action: 'start'") && !client.includes("action: 'start', mode"), 'start payload must not send a mode');
 assert(!client.includes('Quick quiz ·') && !client.includes('Deep quiz ·'), 'start status must not name Quick/Deep');
 assert(client.includes('Take the quiz') && !client.includes('quickBtn'), 'board must expose one start button');
-assert(client.includes('Connect X to play') && client.includes('You cannot play until you connect X'), 'unlinked visitors must be gated before start');
+assert(client.includes('Connect X') && client.includes('You cannot play until you connect X'), 'unlinked visitors must be asked to connect X before start');
 assert(client.includes('function showSharePush') && client.includes('dasha-share-push'), 'finish must open a share popup');
 assert(client.includes('Copy link') && client.includes("Share on X"), 'share popup must show copy and tweet');
 assert(worker.includes("error: 'link X to take the quiz'"), 'worker must refuse anonymous quiz start');
@@ -164,7 +178,8 @@ assert(worker.includes('/simp/review') && worker.includes('/simp/seasons/snapsho
 assert.equal((worker.match(/url\.pathname\.startsWith\('\/simp\/'\)/g) || []).length, 2, 'both Worker and Durable Object routers must forward every simp endpoint');
 assert(client.includes('Share on X') && client.includes('openXIntent'), 'X share path missing');
 assert(client.includes('quizCardBlob') && client.includes('canvas.toBlob'), 'quiz result card (preview/share) missing');
-assert(client.includes('entry.badges') && score.includes('badgesForProfile'), 'public badges missing');
+assert(score.includes('badgesForProfile'), 'public badges missing from score math');
+assert(!client.includes('entry.badges'), 'board row must not dump badges');
 assert(client.includes('signMessage') && actions.includes('verifyEd25519'), 'signed wallet proof missing');
 assert(client.includes('global.phantom') && client.includes('global.solflare'), 'wallet provider detection is too narrow');
 assert(client.includes('https://phantom.app/ul/browse/') && client.includes('Opening in Phantom'), 'mobile holder proof must reopen inside a signing-capable wallet browser');
@@ -173,14 +188,16 @@ assert(client.includes("encodeURIComponent(new URL(url).origin)"), 'Phantom brow
 assert(client.includes('signed.signature || signed'), 'wallet signature response variants unsupported');
 assert(actions.includes('No transaction or public balance.'), 'wallet privacy message missing');
 assert(actions.includes("import { MINT } from './dasha-lobby-mod.mjs'") && actions.includes('and mint ${MINT}'), 'holder signature must use the canonical Dasha mint');
-for (const field of ['wants you to sign in with your Solana account', 'URI: ${uri}', 'Chain ID: mainnet', 'Issued At:', 'Expiration Time:', 'Request ID: simp-holder']) assert(actions.includes(field), `holder proof missing SIWS field: ${field}`);
+for (const field of ['wants you to sign in with your Solana account', 'URI: ${uri}', 'Chain ID: mainnet', 'Issued At:', 'Expiration Time:', 'Request ID: ${requestId}']) assert(actions.includes(field), `holder proof missing SIWS field: ${field}`);
+assert(actions.includes("requestId = 'simp-holder'"), 'holder proof default request id must stay simp-holder');
 assert(client.indexOf('wallet.connect()') < client.indexOf("'/simp/wallet/challenge'"), 'holder challenge must follow wallet connection');
 assert(worker.includes('challenge.publicKey !== body.publicKey'), 'holder challenge must bind the signed wallet address');
 assert(worker.includes('challenge.origin !== allowedOrigin'), 'holder challenge must remain bound to its requesting origin');
 assert(actions.includes('{32,44}') && actions.includes('{64,88}'), 'wallet proof must bound base58 work before decoding');
 assert(/AbortSignal\.timeout\((?:[1-7]\d{3}|8000)\)/.test(worker), 'Solana RPC check must be time-bounded');
 assert(worker.includes("Solana holder check unavailable — try again") && worker.includes('503'), 'RPC failure must fail closed without becoming an internal error');
-assert(client.includes('Holder checked ') && score.includes('holderCheckedAt'), 'holder badge must disclose proof time');
+assert(score.includes('holderCheckedAt'), 'holder proof time stays on the profile');
+assert(!client.includes('Holder checked '), 'board row must not dump holder-checked dates');
 assert(client.includes('Holder verified. Access open for 24h.'), 'holder success must disclose the 24h session');
 assert(!/access is immediate/i.test(client), 'holder success must not claim immediate/no-expiry access');
 assert(!/<nav[^>]*>[\s\S]*?(?:Simp|Leaderboard)[\s\S]*?<\/nav>/i.test(landing), 'board expanded main nav');
@@ -188,8 +205,8 @@ assert(!/href="\/simp/.test(landing), 'landing must not invent a public /simp pa
 
 // Perry editorial, never measured/OAuth-linked points
 assert(client.includes('PerryALPHA') || client.includes('@PerryALPHA'), 'Perry founding missing');
-assert(client.includes('Founding simp') || client.includes('editorial'), 'Perry not labeled founding/editorial');
-assert(client.includes('Founding simp · editorial') || client.includes('Not a measured'), 'client missing Perry editorial label');
+assert(client.includes('@PerryALPHA') || client.includes('PerryALPHA'), 'Perry founding row missing');
+assert(!client.includes('Founding simp') && !client.includes('Founding simp · editorial'), 'row must not lecture founding/editorial');
 assert(score.includes("measured: false") && score.includes("linked: false"), 'score module Perry not non-measured');
 assert(score.includes("kind: 'editorial'"), 'Perry kind must be editorial');
 assert(!/PERRY_EDITORIAL[\s\S]{0,400}measured:\s*true/.test(score), 'Perry falsely measured');
@@ -328,6 +345,79 @@ try {
   assert.equal(await page.evaluate(() => window.DashaSimpBoard.wantsQuizInvite()), true);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   assert.deepEqual(errors, []);
+
+  const home = await context.newPage();
+  const homeErrors = [];
+  home.on('pageerror', (error) => homeErrors.push(String(error)));
+  await home.route('https://www.getdasha.com/', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: '<style>body{margin:0}</style><div id="hero" style="height:100vh"></div><div id="simp"><div id="dasha-simp-board"></div></div>',
+    }),
+  );
+  await home.route('https://lobby.getdasha.com/simp/**', (route) => {
+    const path = new URL(route.request().url()).pathname;
+    const data =
+      path === '/simp/board'
+        ? { editorial: [{ rank: 1, display: '@PerryALPHA', href: 'https://x.com/PerryALPHA' }], measured: [] }
+        : path === '/simp/seasons'
+          ? { seasons: [] }
+          : { linked: false, enrolled: false };
+    return route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(data),
+      headers: {
+        'Access-Control-Allow-Origin': 'https://www.getdasha.com',
+        'Access-Control-Allow-Credentials': 'true',
+      },
+    });
+  });
+  await home.goto('https://www.getdasha.com/');
+  await home.addScriptTag({ content: client });
+  await home.waitForFunction(() => document.querySelector('.simp-handle'));
+  assert.equal(await home.locator('#dasha-x-ask').count(), 0, 'first paint must not show the Connect X card');
+  await home.evaluate(() => document.getElementById('simp').scrollIntoView());
+  await home.locator('#dasha-x-ask').waitFor();
+  assert.equal(await home.locator('#dasha-x-ask .x-go').textContent(), 'Connect X');
+  assert.equal(await home.locator('.simp-x-ask').evaluate((n) => getComputedStyle(n).position), 'fixed');
+  await home.getByRole('button', { name: 'Not now' }).click();
+  assert.equal(await home.locator('#dasha-x-ask').count(), 0);
+  assert.equal(await home.evaluate(() => localStorage.getItem('dasha_x_gate_v1')), '1');
+  await home.evaluate(() => document.getElementById('hero').scrollIntoView());
+  await home.evaluate(() => document.getElementById('simp').scrollIntoView());
+  assert.equal(await home.locator('#dasha-x-ask').count(), 0, 'dismissed ask must not return in-session');
+  assert.deepEqual(homeErrors, []);
+
+  const linked = await context.newPage();
+  await linked.route('https://www.getdasha.com/', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: '<style>body{margin:0}</style><div id="hero" style="height:100vh"></div><div id="simp"><div id="dasha-simp-board"></div></div>',
+    }),
+  );
+  await linked.route('https://lobby.getdasha.com/simp/**', (route) => {
+    const path = new URL(route.request().url()).pathname;
+    const data =
+      path === '/simp/board'
+        ? { editorial: [{ rank: 1, display: '@PerryALPHA', href: 'https://x.com/PerryALPHA' }], measured: [] }
+        : path === '/simp/seasons'
+          ? { seasons: [] }
+          : { linked: true, enrolled: true, x: { display: '@test', handle: 'test' } };
+    return route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(data),
+      headers: {
+        'Access-Control-Allow-Origin': 'https://www.getdasha.com',
+        'Access-Control-Allow-Credentials': 'true',
+      },
+    });
+  });
+  await linked.goto('https://www.getdasha.com/');
+  await linked.addScriptTag({ content: client });
+  await linked.waitForFunction(() => document.querySelector('.simp-handle'));
+  await linked.evaluate(() => document.getElementById('simp').scrollIntoView());
+  await linked.waitForTimeout(200);
+  assert.equal(await linked.locator('#dasha-x-ask').count(), 0, 'linked visitors never see the Connect X card');
 } finally {
   await browser.close();
 }

@@ -29,6 +29,9 @@
   var dead = false;
   var onScreen = true;
   var tabVisible = true;
+  var scrolling = false;
+  var scrollTimer = 0;
+  var lowEnd = false;
   var THREE = null;
   var renderer = null;
   var scene = null;
@@ -131,12 +134,44 @@
   }
 
   function live() {
-    return onScreen && tabVisible && !dead;
+    return onScreen && tabVisible && !dead && !scrolling;
+  }
+
+  function stopTick() {
+    if (raf) global.cancelAnimationFrame(raf);
+    raf = 0;
+  }
+
+  function ratioCap() {
+    return (scrolling || lowEnd) ? 1 : 2;
+  }
+
+  function applyPixelRatio() {
+    if (!renderer) return;
+    renderer.setPixelRatio(Math.min(global.devicePixelRatio || 1, ratioCap()));
+  }
+
+  function onScrollPulse() {
+    if (dead || reduced) return;
+    if (!scrolling) {
+      scrolling = true;
+      stopTick();
+      applyPixelRatio();
+    }
+    if (scrollTimer) global.clearTimeout(scrollTimer);
+    scrollTimer = global.setTimeout(afterScroll, 150);
+  }
+
+  function afterScroll() {
+    scrollTimer = 0;
+    scrolling = false;
+    if (clock) clock.getDelta();
+    applyPixelRatio();
+    if (live()) goLive();
   }
 
   function goQuiet() {
-    if (raf) global.cancelAnimationFrame(raf);
-    raf = 0;
+    stopTick();
     if (audio) {
       try { audio.pause(); } catch (e) { /* closed */ }
     }
@@ -271,7 +306,7 @@
       return;
     }
     renderer.setClearColor(0x000000, 0);
-    renderer.setPixelRatio(Math.min(global.devicePixelRatio || 1, 2));
+    applyPixelRatio();
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.NoToneMapping;
     scene = new THREE.Scene();
@@ -317,6 +352,9 @@
       io.observe(dock);
     }
     document.addEventListener('visibilitychange', onVis);
+    global.addEventListener('scroll', onScrollPulse, { passive: true });
+    global.addEventListener('wheel', onScrollPulse, { passive: true });
+    global.addEventListener('touchmove', onScrollPulse, { passive: true });
     if (reduced) {
       renderer.render(scene, camera);
       placeHit();
@@ -330,6 +368,12 @@
     if (raf) global.cancelAnimationFrame(raf);
     raf = 0;
     document.removeEventListener('visibilitychange', onVis);
+    global.removeEventListener('scroll', onScrollPulse);
+    global.removeEventListener('wheel', onScrollPulse);
+    global.removeEventListener('touchmove', onScrollPulse);
+    if (scrollTimer) global.clearTimeout(scrollTimer);
+    scrollTimer = 0;
+    scrolling = false;
     if (ro) {
       try { ro.disconnect(); } catch (e) { /* closed */ }
       ro = null;
@@ -372,6 +416,8 @@
     reduced = prefersReduced();
     muted = reduced ? true : readMute();
     tabVisible = !document.hidden;
+    var nav = global.navigator || {};
+    lowEnd = (nav.deviceMemory && nav.deviceMemory <= 4) || (nav.hardwareConcurrency && nav.hardwareConcurrency <= 4);
     var style = document.createElement('style');
     style.textContent = css();
     dock = document.createElement('div');

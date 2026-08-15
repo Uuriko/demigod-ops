@@ -504,8 +504,8 @@ export function solscanUrl(signature) {
 }
 
 export function faucetPublicStatus(env = {}) {
-  const configured = faucetConfigured(env);
-  if (!configured) return { status: 501, body: { configured: false, error: 'not_configured' } };
+  const keypair = parseFaucetKeypair(env.FAUCET_KEYPAIR);
+  if (!keypair) return { status: 501, body: { configured: false, error: 'not_configured' } };
   const raw = faucetAmountRaw(env);
   return {
     status: 200,
@@ -516,6 +516,7 @@ export function faucetPublicStatus(env = {}) {
       mint: MINT,
       decimals: DECIMALS,
       cooldownDays: 30,
+      treasury: keypair.address,
     },
   };
 }

@@ -8,8 +8,9 @@
   var DEFAULT_API = 'https://lobby.getdasha.com';
   /** Canonical shareable deep link — www /simp mounts this client. */
   var QUIZ_INVITE_URL = 'https://www.getdasha.com/simp';
-  /** First-visit Connect X on homepage. Looking is free. Quiz needs X. */
+  /** Home scroll-ask + quiz-invite dismiss. Linked visitors never see either. */
   var GATE_LS = 'dasha_x_gate_v1';
+  var ASK_SS = 'dasha_x_ask_v1';
   var GATE_AUTOJOIN = 'dasha_x_gate_autojoin';
   var QUIZ_INVITE_SS = 'dasha_quiz_invite_v1';
   var QUIZ_CARDS = {
@@ -20,6 +21,7 @@
     'Dasha curious': { image: '/simp/photo/weekend.jpg', quote: 'All I want is free healthcare, honey', source: '1011745071983296512' }
   };
   var QUIZ_PHOTOS = Object.keys(QUIZ_CARDS).map(function (key) { return QUIZ_CARDS[key].image; });
+  var BOARD_CSS = '.simp-board-root{max-width:36rem;margin:0 auto;color:#f4eddb;font-family:Arial,Helvetica,sans-serif}.simp-lede{margin:0 0 1.25rem;font:900 clamp(1.35rem,3.4vw,2rem)/1.15 "Arial Black",Helvetica,Arial,sans-serif}.simp-home-actions,.simp-quiz-invite-actions{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 1.75rem;align-items:center}.simp-quiz-go,.simp-quiz-start{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 1.25rem;border:0;background:#dfff00;color:#070608;font:900 1rem/1 Arial,Helvetica,sans-serif;text-decoration:none;box-shadow:4px 4px 0 #ff3b81;cursor:pointer}.simp-connect{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 1.25rem;border:1px solid #f4eddb;background:none;color:#f4eddb;font:900 1rem/1 Arial,Helvetica,sans-serif;cursor:pointer}.simp-board{display:grid}.simp-row{display:grid;grid-template-columns:3.2rem minmax(0,1fr) 3.2rem;gap:.8rem;align-items:baseline;padding:.8rem 0;border-bottom:1px solid rgba(244,237,219,.18);background:none}.simp-rank{color:#dfff00;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}.simp-handle{color:#f4eddb;font-weight:900;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.simp-pts{color:rgba(244,237,219,.5);text-align:right;font-variant-numeric:tabular-nums}.simp-empty,.simp-status{margin:0;color:rgba(244,237,219,.42)}.simp-status:empty{display:none}.simp-more{margin:1.25rem 0 0;padding:0;border:0;background:none;color:#dfff00;font:900 1rem/1.2 "Arial Black",Helvetica,Arial,sans-serif;cursor:pointer}';
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -76,6 +78,20 @@
     } catch (e) {}
     try {
       sessionStorage.removeItem(GATE_AUTOJOIN);
+    } catch (e) {}
+  }
+
+  function askShown() {
+    try {
+      return sessionStorage.getItem(ASK_SS) === '1';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function markAskShown() {
+    try {
+      sessionStorage.setItem(ASK_SS, '1');
     } catch (e) {}
   }
 
@@ -136,12 +152,14 @@
     opts = opts || {};
     if (!root) return null;
     var base = apiBase(opts, root);
+    var homeBoard = isHomePath();
+    var homeOpen = false;
     root.innerHTML = '';
     root.classList.add('simp-board-root');
     root.setAttribute('role', 'region');
     root.setAttribute('aria-label', 'Dasha simp board');
     var style = document.createElement('style');
-    style.textContent = '.simp-quiz{margin:0 0 26px;padding:clamp(20px,4vw,34px);border:1px solid var(--line,#665b70);background:rgba(255,255,255,.055);color:var(--paper,#f4eddb)}.simp-quiz-title{margin:0 0 6px;color:var(--paper,#f4eddb)!important;font-size:clamp(28px,4vw,42px)}.simp-quiz-note{margin:0 0 18px;color:var(--cream,#f4eddb)}.simp-quiz-stage{display:grid;gap:18px}.simp-quiz-count{margin:0;color:var(--paper,#f4eddb);font-size:13px;font-weight:800;letter-spacing:.08em}.simp-quiz-stage.is-correct .simp-quiz-count{color:var(--acid,#dfff00)}.simp-quiz-stage.is-wrong .simp-quiz-count{color:var(--hot,#ff3b81)}.simp-quiz-bar{height:4px;background:#44384d}.simp-quiz-fill{display:block;height:100%;background:var(--acid,#dfff00);transition:width .2s}.simp-quiz-media{display:block;width:100%;height:auto;min-height:180px;max-height:min(56svh,480px);object-fit:cover;margin:0 0 14px;background:#160f1d}.simp-quiz-question{margin:4px 0;color:var(--paper,#f4eddb)!important;font-size:clamp(25px,5vw,46px);line-height:1.08}.simp-quiz-choices{display:grid;gap:10px}.simp-quiz-choice{display:flex;gap:12px;align-items:center;width:100%;min-height:54px;padding:12px 14px;border:1px solid #81738d;background:#160f1d;color:#fff;text-align:left;cursor:pointer;transition:border-color .12s,background .12s,transform .12s}.simp-quiz-key{display:grid;place-items:center;min-width:28px;height:28px;border:1px solid #aa9ab8;color:var(--acid,#dfff00)}.simp-quiz-choice:hover,.simp-quiz-choice:focus-visible{border-color:var(--acid,#dfff00)}.simp-quiz-choice.is-selected{border-color:var(--acid,#dfff00);background:rgba(223,255,0,.15);transform:translateX(3px)}.simp-quiz-feedback{margin:0;color:#fff}.simp-quiz-source{color:var(--acid,#dfff00)}.simp-surprise{margin:4px 0 0;padding:12px 14px;border:1px dashed var(--acid,#dfff00);background:rgba(223,255,0,.1);display:grid;gap:4px}.simp-surprise strong{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--acid,#dfff00)}.simp-surprise p{margin:0;font-size:14px;line-height:1.35;color:var(--paper,#f4eddb)}.simp-quiz-close{display:none;justify-self:end;border:0;background:none;color:var(--paper,#f4eddb);font:inherit;font-weight:900;cursor:pointer}.simp-quiz-active .simp-quiz{min-height:calc(100svh - 48px);display:grid;align-content:center}.simp-quiz-active>.simp-status,.simp-quiz-active>.simp-privacy,.simp-quiz-active>.simp-board,.simp-quiz-active>.simp-actions,.simp-quiz-active>.simp-me,.simp-quiz-active>.simp-tools{display:none!important}.simp-quiz-active .simp-quiz-close{display:block}html.simp-quiz-open .buy-sticky,html.simp-result-open .buy-sticky{display:none!important}.simp-quiz-result-bar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:96;gap:10px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));background:rgba(7,6,8,.94);border-top:1px solid #665b70;backdrop-filter:blur(10px)}.simp-quiz-result-bar button,.simp-quiz-result-bar a{flex:1 1 auto;min-height:48px;display:inline-flex;align-items:center;justify-content:center;padding:0 14px;border-radius:999px;font:inherit;font-weight:950;font-size:12px;letter-spacing:.04em;text-transform:uppercase;text-decoration:none!important;cursor:pointer;border:1px solid #dfff00;background:#dfff00;color:#070608}.simp-quiz-result-bar a.ghost{border-color:rgba(244,237,219,.45);background:transparent;color:#f4eddb;flex:0.9 1 auto}@media(max-width:720px){html.simp-result-open .simp-quiz-result-bar{display:flex}.simp-quiz-box{padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}}@media(max-width:520px){.simp-quiz{padding:18px}.simp-quiz-title{font-size:28px}.simp-quiz-question{font-size:30px}.simp-quiz-active .simp-quiz{min-height:calc(100svh - 22px);align-content:start;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}html.simp-result-open .simp-quiz{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}}@media(prefers-reduced-motion:reduce){.simp-quiz-fill,.simp-quiz-choice{transition:none}.simp-quiz-choice.is-selected{transform:none}}.simp-share-push{position:fixed;inset:0;z-index:98;display:grid;place-items:center;padding:16px;background:rgba(7,6,8,.82)}.simp-share-push-card{width:min(440px,100%);padding:22px 20px 18px;border:2px solid #dfff00;background:#120c18;color:#f4eddb;display:grid;gap:12px;box-shadow:12px 12px 0 #ff3b81}.simp-share-push-card h2{margin:0;font-size:clamp(26px,6vw,36px);line-height:1.05;text-transform:uppercase}.simp-share-push-card p{margin:0;font-size:15px;line-height:1.45}.simp-share-push-url{word-break:break-all;font:700 13px/1.4 ui-monospace,Menlo,Consolas,monospace;color:#dfff00;user-select:all}.simp-share-push-actions{display:flex;flex-wrap:wrap;gap:10px}.simp-share-push-actions button{min-height:48px;padding:0 16px;border:1px solid #dfff00;background:#dfff00;color:#070608;font:inherit;font-weight:950;font-size:12px;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}.simp-share-push-actions .ghost{border-color:rgba(244,237,219,.4);background:transparent;color:#f4eddb}';
+    style.textContent = BOARD_CSS + '.simp-quiz{margin:0 0 26px;padding:clamp(20px,4vw,34px);border:1px solid var(--line,#665b70);background:rgba(255,255,255,.055);color:var(--paper,#f4eddb)}.simp-quiz-title{margin:0 0 6px;color:var(--paper,#f4eddb)!important;font-size:clamp(28px,4vw,42px)}.simp-quiz-note{margin:0 0 18px;color:var(--paper,#f4eddb)}.simp-quiz-stage{display:grid;gap:18px}.simp-quiz-count{margin:0;color:var(--paper,#f4eddb);font-size:13px;font-weight:800;letter-spacing:.08em}.simp-quiz-stage.is-correct .simp-quiz-count{color:var(--acid,#dfff00)}.simp-quiz-stage.is-wrong .simp-quiz-count{color:var(--hot,#ff3b81)}.simp-quiz-bar{height:4px;background:#44384d}.simp-quiz-fill{display:block;height:100%;background:var(--acid,#dfff00);transition:width .2s}.simp-quiz-media{display:block;width:100%;height:auto;min-height:180px;max-height:min(56svh,480px);object-fit:cover;margin:0 0 14px;background:#160f1d}.simp-quiz-question{margin:4px 0;color:var(--paper,#f4eddb)!important;font-size:clamp(25px,5vw,46px);line-height:1.08}.simp-quiz-choices{display:grid;gap:10px}.simp-quiz-choice{display:flex;gap:12px;align-items:center;width:100%;min-height:54px;padding:12px 14px;border:1px solid #81738d;background:#160f1d;color:#fff;text-align:left;cursor:pointer;transition:border-color .12s,background .12s,transform .12s}.simp-quiz-key{display:grid;place-items:center;min-width:28px;height:28px;border:1px solid #aa9ab8;color:var(--acid,#dfff00)}.simp-quiz-choice:hover,.simp-quiz-choice:focus-visible{border-color:var(--acid,#dfff00)}.simp-quiz-choice.is-selected{border-color:var(--acid,#dfff00);background:rgba(223,255,0,.15);transform:translateX(3px)}.simp-quiz-feedback{margin:0;color:#fff}.simp-quiz-source{color:var(--acid,#dfff00)}.simp-surprise{margin:4px 0 0;padding:12px 14px;border:1px dashed var(--acid,#dfff00);background:rgba(223,255,0,.1);display:grid;gap:4px}.simp-surprise strong{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--acid,#dfff00)}.simp-surprise p{margin:0;font-size:14px;line-height:1.35;color:var(--paper,#f4eddb)}.simp-quiz-close{display:none;justify-self:end;border:0;background:none;color:var(--paper,#f4eddb);font:inherit;font-weight:900;cursor:pointer}.simp-quiz-active .simp-quiz{min-height:calc(100svh - 48px);display:grid;align-content:center}.simp-quiz-active>.simp-status,.simp-quiz-active>.simp-privacy,.simp-quiz-active>.simp-board,.simp-quiz-active>.simp-actions,.simp-quiz-active>.simp-me,.simp-quiz-active>.simp-tools{display:none!important}.simp-quiz-active .simp-quiz-close{display:block}html.simp-quiz-open .buy-sticky,html.simp-result-open .buy-sticky{display:none!important}.simp-quiz-result-bar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:96;gap:10px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));background:rgba(7,6,8,.94);border-top:1px solid #665b70;backdrop-filter:blur(10px)}.simp-quiz-result-bar button,.simp-quiz-result-bar a{flex:1 1 auto;min-height:48px;display:inline-flex;align-items:center;justify-content:center;padding:0 14px;border-radius:999px;font:inherit;font-weight:950;font-size:12px;letter-spacing:.04em;text-transform:uppercase;text-decoration:none!important;cursor:pointer;border:1px solid #dfff00;background:#dfff00;color:#070608}.simp-quiz-result-bar a.ghost{border-color:rgba(244,237,219,.45);background:transparent;color:#f4eddb;flex:0.9 1 auto}@media(max-width:720px){html.simp-result-open .simp-quiz-result-bar{display:flex}.simp-quiz-box{padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}}@media(max-width:520px){.simp-quiz{padding:18px}.simp-quiz-title{font-size:28px}.simp-quiz-question{font-size:30px}.simp-quiz-active .simp-quiz{min-height:calc(100svh - 22px);align-content:start;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}html.simp-result-open .simp-quiz{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}}@media(prefers-reduced-motion:reduce){.simp-quiz-fill,.simp-quiz-choice{transition:none}.simp-quiz-choice.is-selected{transform:none}}.simp-share-push{position:fixed;inset:0;z-index:98;display:grid;place-items:center;padding:16px;background:rgba(7,6,8,.82)}.simp-share-push-card{width:min(440px,100%);padding:22px 20px 18px;border:2px solid #dfff00;background:#120c18;color:#f4eddb;display:grid;gap:12px;box-shadow:12px 12px 0 #ff3b81}.simp-share-push-card h2{margin:0;font-size:clamp(26px,6vw,36px);line-height:1.05;text-transform:uppercase}.simp-share-push-card p{margin:0;font-size:15px;line-height:1.45}.simp-share-push-url{word-break:break-all;font:700 13px/1.4 ui-monospace,Menlo,Consolas,monospace;color:#dfff00;user-select:all}.simp-share-push-actions{display:flex;flex-wrap:wrap;gap:10px}.simp-share-push-actions button{min-height:48px;padding:0 16px;border:1px solid #dfff00;background:#dfff00;color:#070608;font:inherit;font-weight:950;font-size:12px;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}.simp-share-push-actions .ghost{border-color:rgba(244,237,219,.4);background:transparent;color:#f4eddb}';
     root.appendChild(style);
 
     var quiz = el('section', 'simp-quiz');
@@ -153,11 +171,29 @@
     quizBtn.setAttribute('aria-label', 'Start the Dasha simp quiz');
     var retakeBtn = el('button', 'simp-action', 'Retake quiz'); retakeBtn.type = 'button'; retakeBtn.hidden = true;
     retakeBtn.setAttribute('aria-label', 'Retake the simp quiz and update your board score');
+    var connectBtn = el('button', 'simp-connect', 'Connect X');
+    connectBtn.type = 'button';
+    connectBtn.setAttribute('aria-label', 'Connect X');
     var quizActions = el('div', 'simp-actions simp-quiz-invite-actions');
-    quizActions.appendChild(quizBtn);
-    quizActions.appendChild(retakeBtn);
     var quizBox = el('div', 'simp-quiz-box'); quizBox.hidden = true;
-    quiz.appendChild(quizNote); quiz.appendChild(quizActions); quiz.appendChild(quizBox); root.appendChild(quiz);
+    quiz.appendChild(quizNote); quiz.appendChild(quizActions); quiz.appendChild(quizBox);
+    if (homeBoard) {
+      var hop = el('p', 'simp-lede', 'How big of a Dasha simp are you?');
+      var homeActions = el('div', 'simp-home-actions');
+      var homeQuiz = document.createElement('a');
+      homeQuiz.className = 'simp-quiz-go';
+      homeQuiz.href = '/simp';
+      homeQuiz.textContent = 'Take the quiz';
+      homeActions.appendChild(homeQuiz);
+      homeActions.appendChild(connectBtn);
+      root.appendChild(hop);
+      root.appendChild(homeActions);
+    } else {
+      quizActions.appendChild(quizBtn);
+      quizActions.appendChild(connectBtn);
+      quizActions.appendChild(retakeBtn);
+      root.appendChild(quiz);
+    }
 
     var status = el('p', 'simp-status', 'Loading board…');
     status.setAttribute('role', 'status');
@@ -172,11 +208,9 @@
     actionBtn.type = 'button';
     actionBtn.hidden = true;
     actions.appendChild(actionBtn);
-    root.appendChild(actions);
 
     var meLine = el('p', 'simp-me', '');
     meLine.hidden = true;
-    root.appendChild(meLine);
 
     var tools = el('details', 'simp-tools');
     tools.hidden = true;
@@ -191,8 +225,12 @@
     toolActions.appendChild(inviteToolBtn);
     toolActions.appendChild(holderBtn);
     tools.appendChild(toolActions);
-    var seasonLine = el('p', 'simp-season', ''); tools.appendChild(seasonLine);
-    root.appendChild(tools);
+    var seasonLine = el('p', 'simp-season', '');     tools.appendChild(seasonLine);
+    if (!homeBoard) {
+      root.appendChild(actions);
+      root.appendChild(meLine);
+      root.appendChild(tools);
+    }
 
     var boardData = null;
     var meData = null;
@@ -210,6 +248,8 @@
     var prevBodyOverflow = '';
     var gateKeyHandler = null;
     var gateFocusReturn = null;
+    var askIo = null;
+    var askScroll = null;
 
     function setStatus(t, kind) {
       status.textContent = t;
@@ -269,127 +309,6 @@
         closeGate();
         return;
       }
-    }
-
-    /** First-visit Connect X on homepage. Looking is free. Quiz needs X. */
-    function openHomeGate() {
-      if (!isHomePath() || gateDismissed() || gateEl) return;
-      if (opts && opts.gate === false) return;
-      try {
-        gateFocusReturn = document.activeElement;
-      } catch (e) {
-        gateFocusReturn = null;
-      }
-      gateEl = el('div', 'simp-gate');
-      gateEl.id = 'dasha-x-gate';
-      gateEl.setAttribute('role', 'dialog');
-      gateEl.setAttribute('aria-modal', 'true');
-      gateEl.setAttribute('aria-labelledby', 'dasha-x-gate-title');
-      var style = document.createElement('style');
-      style.textContent =
-        '.simp-gate{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:16px;background:rgba(7,6,8,.72);backdrop-filter:blur(6px)}' +
-        '.simp-gate-card{width:min(420px,100%);padding:22px 20px 18px;border:2px solid #dfff00;border-radius:16px;background:#120c18;color:#f4eddb;box-shadow:12px 12px 0 #7c4dff;display:grid;gap:12px}' +
-        '.simp-gate-kicker{margin:0;font-size:11px;font-weight:950;letter-spacing:.14em;text-transform:uppercase;color:#dfff00}' +
-        '.simp-gate-card h2{margin:0;font-size:clamp(24px,5vw,32px);line-height:1.05;letter-spacing:-.03em;text-transform:uppercase}' +
-        '.simp-gate-card p{margin:0;font-size:15px;line-height:1.45;color:#e6dcc4}' +
-        '.simp-gate-note{font-size:13px!important;color:#a99faf!important}' +
-        '.simp-gate-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}' +
-        '.simp-gate-actions button{min-height:48px;padding:0 18px;border-radius:999px;font:inherit;font-weight:950;font-size:12px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}' +
-        '.simp-gate-primary{border:1px solid #dfff00;background:#dfff00;color:#070608}' +
-        '.simp-gate-primary:hover{filter:brightness(1.05)}.simp-gate-primary:disabled{opacity:.55;cursor:not-allowed;filter:none}' +
-        '.simp-gate-skip{border:1px solid rgba(244,237,219,.35);background:transparent;color:#f4eddb}' +
-        '.simp-gate-skip:hover{border-color:#dfff00;color:#dfff00}' +
-        '.simp-gate-primary:focus-visible,.simp-gate-skip:focus-visible{outline:3px solid #dfff00;outline-offset:3px}' +
-        '.simp-gate-status{margin:0;min-height:1.2em;font-size:13px;font-weight:700;color:#a99faf}' +
-        '.simp-gate-status[data-kind=ok]{color:#dfff00}.simp-gate-status[data-kind=bad]{color:#ff3b81}.simp-gate-status[data-kind=warn]{color:#ffc857}' +
-        /* Home gate: do not trap scroll — looking stays free under/after dismiss. */
-        'html.simp-gate-open .buy-sticky{display:none!important}' +
-        '@media(prefers-reduced-motion:reduce){.simp-gate{backdrop-filter:none}}';
-      gateEl.appendChild(style);
-      var card = el('div', 'simp-gate-card');
-      card.appendChild(el('p', 'simp-gate-kicker', 'First visit'));
-      var h = el('h2', '', 'Connect X?');
-      h.id = 'dasha-x-gate-title';
-      card.appendChild(h);
-      card.appendChild(
-        el(
-          'p',
-          '',
-          'Link X to play the quiz. Looking is free.',
-        ),
-      );
-      card.appendChild(
-        el('p', 'simp-gate-note', 'Skip to look around. Quiz waits for X.'),
-      );
-      var actions = el('div', 'simp-gate-actions');
-      var primary = el('button', 'simp-gate-primary', 'Connect X');
-      primary.type = 'button';
-      var skip = el('button', 'simp-gate-skip', 'Not now');
-      skip.type = 'button';
-      var toQuiz = el('button', 'simp-gate-skip', 'Take quiz ↓');
-      toQuiz.type = 'button';
-      actions.appendChild(primary);
-      actions.appendChild(toQuiz);
-      actions.appendChild(skip);
-      card.appendChild(actions);
-      var gateStatus = el('p', 'simp-gate-status', '');
-      gateStatus.setAttribute('role', 'status');
-      gateStatus.setAttribute('aria-live', 'polite');
-      card.appendChild(gateStatus);
-      gateEl.appendChild(card);
-      document.body.appendChild(gateEl);
-      try {
-        prevBodyOverflow = document.body.style.overflow || '';
-        document.documentElement.classList.add('simp-gate-open');
-        // Keep page scrollable so #simp quiz is not “gone” behind a trap.
-      } catch (e) {}
-      function setGateStatus(t, kind) {
-        gateStatus.textContent = t || '';
-        gateStatus.dataset.kind = kind || '';
-      }
-      function dismiss() {
-        markGateDone();
-        closeGate();
-      }
-      function goQuiz() {
-        dismiss();
-        try {
-          var target = document.getElementById('simp') || root;
-          if (target && target.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          else location.hash = '#simp';
-        } catch (e) {
-          try {
-            location.hash = '#simp';
-          } catch (e2) {}
-        }
-      }
-      gateKeyHandler = function (ev) {
-        if (ev.key === 'Escape') {
-          ev.preventDefault();
-          dismiss();
-        }
-      };
-      document.addEventListener('keydown', gateKeyHandler);
-      skip.addEventListener('click', dismiss);
-      toQuiz.addEventListener('click', goQuiz);
-      gateEl.addEventListener('click', function (ev) {
-        if (ev.target === gateEl) dismiss();
-      });
-      primary.addEventListener('click', function () {
-        if (gateBusy) return;
-        setGateAutoJoin(true);
-        setGateStatus('Complete X link in the popup…', 'warn');
-        var w = window.open(base + '/oauth/x/start', 'dasha_x', 'width=520,height=700');
-        if (!w) {
-          setGateStatus('Allow popups to connect X', 'warn');
-          setStatus('Allow popups to link X', 'warn');
-        } else {
-          setStatus('Complete X link in the popup…', 'warn');
-        }
-      });
-      try {
-        primary.focus();
-      } catch (e) {}
     }
 
     function setQuizOpen(on) {
@@ -463,80 +382,42 @@
       });
     }
 
-    function rowEditorial(entry) {
-      var art = el('article', 'simp-row simp-editorial');
-      art.appendChild(el('span', 'simp-rank', '#' + (entry.rank || 1)));
-      var mid = el('div', '');
+    function rowClean(entry) {
+      var art = el('article', 'simp-row');
+      art.appendChild(el('span', 'simp-rank', '#' + (entry.rank || '')));
       var a = document.createElement('a');
       a.className = 'simp-handle';
-      a.href = entry.href || 'https://x.com/PerryALPHA';
+      a.href = entry.href || ('https://x.com/' + (entry.handle || ''));
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
-      a.textContent = entry.display || '@PerryALPHA';
-      mid.appendChild(a);
-      mid.appendChild(el('span', 'simp-badge', 'Founding simp · editorial'));
-      art.appendChild(mid);
-      if (entry.evidence_urls && entry.evidence_urls[0]) {
-        var ev = document.createElement('a');
-        ev.className = 'simp-evidence';
-        ev.href = entry.evidence_urls[0];
-        ev.target = '_blank';
-        ev.rel = 'noopener noreferrer';
-        ev.textContent = 'Proof ↗';
-        art.appendChild(ev);
-      }
-      return art;
-    }
-
-    function rowMeasured(entry) {
-      var art = el('article', 'simp-row simp-measured');
-      art.appendChild(el('span', 'simp-rank', '#' + entry.rank));
-      var mid = el('div', '');
-      var a = document.createElement('a');
-      a.className = 'simp-handle';
-      a.href = entry.href || 'https://x.com/' + entry.handle;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      a.textContent = entry.display || '@' + entry.handle;
-      mid.appendChild(a);
-      mid.appendChild(el('span', 'simp-pts', entry.total + ' pts'));
-      var bits = '';
-      if (entry.components) {
-        bits =
-          'X ' +
-          (entry.components.linked_x || 0) +
-          ' · quiz ' +
-          (entry.components.quiz || 0) +
-          ' · learn ' +
-          (entry.components.learn || 0) +
-          ' · create ' +
-          (entry.components.creative || 0) +
-          ' · community ' +
-          (entry.components.community || 0) +
-          ' · oss ' +
-          (entry.components.oss || 0);
-      }
-      if (bits) {
-        var details = el('details', 'simp-breakdown');
-        details.appendChild(el('summary', '', 'Breakdown'));
-        details.appendChild(el('span', 'simp-basis', bits));
-        mid.appendChild(details);
-      }
-      if (entry.badges && entry.badges.length) mid.appendChild(el('span', 'simp-badges', entry.badges.join(' · ')));
-      if (entry.holder && entry.holderCheckedAt) mid.appendChild(el('span', 'simp-basis', 'Holder checked ' + new Date(entry.holderCheckedAt).toLocaleDateString()));
-      art.appendChild(mid);
+      a.textContent = entry.display || ('@' + (entry.handle || ''));
+      art.appendChild(a);
+      art.appendChild(el('span', 'simp-pts', entry.total == null ? '' : String(entry.total)));
       return art;
     }
 
     function paintBoard() {
       list.textContent = '';
       if (!boardData) return;
+      var rows = [];
       var editorial = (boardData.editorial || [])[0];
-      if (editorial) list.appendChild(rowEditorial(editorial));
-      var measured = boardData.measured || [];
-      measured.forEach(function (m) {
-        list.appendChild(rowMeasured(m));
-      });
+      if (editorial) rows.push(editorial);
+      (boardData.measured || []).forEach(function (m) { rows.push(m); });
+      if (!rows.length) {
+        list.appendChild(el('p', 'simp-empty', 'Empty.'));
+        return;
+      }
+      var shown = homeBoard && !homeOpen ? rows.slice(0, 10) : rows;
+      shown.forEach(function (entry) { list.appendChild(rowClean(entry)); });
+      if (homeBoard && rows.length > 10 && !homeOpen) {
+        var more = el('button', 'simp-more', 'Show more');
+        more.type = 'button';
+        more.addEventListener('click', function () {
+          homeOpen = true;
+          paintBoard();
+        });
+        list.appendChild(more);
+      }
     }
 
     function paintMe() {
@@ -549,13 +430,14 @@
       retakeBtn.hidden = true;
       quizBtn.disabled = false;
       retakeBtn.disabled = false;
+      connectBtn.hidden = !!(meData && meData.linked);
       if (!meData || !meData.linked) {
         actionBtn.textContent = 'Link X to join';
       actionBtn.setAttribute('aria-label', 'Link X to join the simp board');
         actionBtn.dataset.mode = 'link';
-        quizBtn.textContent = 'Connect X to play';
-        quizBtn.dataset.mode = 'link';
-        quizBtn.setAttribute('aria-label', 'Connect X to take the quiz');
+        quizBtn.textContent = 'Take the quiz';
+        quizBtn.dataset.mode = 'quiz';
+        quizBtn.setAttribute('aria-label', 'Start the Dasha simp quiz');
         quizNote.textContent = 'Connect X to take the quiz. You cannot play until you connect X.';
         return;
       }
@@ -688,7 +570,7 @@
       bar.setAttribute('aria-label', 'Connect X to take the quiz');
       var st = document.createElement('style');
       st.textContent =
-        '.simp-quiz-connect-bar{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:95;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:12px 14px;border:2px solid #dfff00;border-radius:14px;background:#120c18;color:#f4eddb;box-shadow:8px 8px 0 #7c4dff}' +
+        '.simp-quiz-connect-bar{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:95;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:12px 14px;border:2px solid #dfff00;border-radius:14px;background:#120c18;color:#f4eddb;box-shadow:8px 8px 0 #ff3b81}' +
         '.simp-quiz-connect-bar p{margin:0;flex:1 1 12rem;font-size:14px;line-height:1.35;font-weight:700}' +
         '.simp-quiz-connect-bar b{color:#dfff00}' +
         '.simp-quiz-connect-bar .actions{display:flex;flex-wrap:wrap;gap:8px}' +
@@ -762,7 +644,7 @@
       var style = document.createElement('style');
       style.textContent =
         '.simp-gate{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:16px;background:rgba(7,6,8,.72);backdrop-filter:blur(6px)}' +
-        '.simp-gate-card{width:min(420px,100%);padding:22px 20px 18px;border:2px solid #dfff00;border-radius:16px;background:#120c18;color:#f4eddb;box-shadow:12px 12px 0 #7c4dff;display:grid;gap:12px}' +
+        '.simp-gate-card{width:min(420px,100%);padding:22px 20px 18px;border:2px solid #dfff00;border-radius:16px;background:#120c18;color:#f4eddb;box-shadow:12px 12px 0 #ff3b81;display:grid;gap:12px}' +
         '.simp-gate-kicker{margin:0;font-size:11px;font-weight:950;letter-spacing:.14em;text-transform:uppercase;color:#dfff00}' +
         '.simp-gate-card h2{margin:0;font-size:clamp(24px,5vw,32px);line-height:1.05;letter-spacing:-.03em;text-transform:uppercase}' +
         '.simp-gate-card p{margin:0;font-size:15px;line-height:1.45;color:#e6dcc4}' +
@@ -828,6 +710,82 @@
       try {
         primary.focus();
       } catch (e) {}
+    }
+
+    function stopHomeConnectAsk() {
+      if (askIo) {
+        try {
+          askIo.disconnect();
+        } catch (e) {}
+        askIo = null;
+      }
+      if (askScroll) {
+        window.removeEventListener('scroll', askScroll);
+        askScroll = null;
+      }
+    }
+
+    /** Small card after the hero — never a first-paint blur gate. */
+    function openScrollConnectCard() {
+      if (!homeBoard || gateEl) return;
+      if (meData && meData.linked) return;
+      if (gateDismissed() || askShown()) return;
+      markAskShown();
+      gateEl = el('aside', 'simp-x-ask');
+      gateEl.id = 'dasha-x-ask';
+      gateEl.setAttribute('role', 'dialog');
+      gateEl.setAttribute('aria-label', 'Connect X');
+      var st = document.createElement('style');
+      st.textContent =
+        '.simp-x-ask{position:fixed;right:16px;bottom:calc(172px + env(safe-area-inset-bottom,0px));z-index:40;width:min(320px,calc(100vw - 32px));background:#f4eddb;color:#070608;border:3px solid #070608;box-shadow:6px 6px 0 #ff3b81;padding:16px 18px}' +
+        '.simp-x-ask p{margin:0 0 12px;font:700 15px/1.3 Arial,Helvetica,sans-serif}' +
+        '.simp-x-ask .x-go{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 18px;background:#dfff00;color:#070608;font:900 15px/1 Arial Black,Helvetica,sans-serif;text-transform:uppercase;border:3px solid #070608;box-shadow:4px 4px 0 #ff3b81;cursor:pointer}' +
+        '.simp-x-ask .x-skip{display:block;margin-top:8px;background:none;border:0;color:#070608;opacity:.55;font:700 13px/1.2 Arial,Helvetica,sans-serif;text-decoration:underline;cursor:pointer;min-height:44px}';
+      gateEl.appendChild(st);
+      gateEl.appendChild(el('p', '', 'Connect X to keep your score.'));
+      var go = el('button', 'x-go', 'Connect X');
+      go.type = 'button';
+      var skip = el('button', 'x-skip', 'Not now');
+      skip.type = 'button';
+      gateEl.appendChild(go);
+      gateEl.appendChild(skip);
+      document.body.appendChild(gateEl);
+      go.addEventListener('click', function () {
+        linkX();
+      });
+      skip.addEventListener('click', function () {
+        markGateDone();
+        closeGate();
+      });
+    }
+
+    function watchHomeConnectAsk() {
+      if (!homeBoard) return;
+      if (meData && meData.linked) return;
+      if (gateDismissed() || askShown()) return;
+      var armed = false;
+      var fire = function () {
+        if (armed) return;
+        armed = true;
+        stopHomeConnectAsk();
+        openScrollConnectCard();
+      };
+      var simp = document.getElementById('simp');
+      if (simp && 'IntersectionObserver' in window) {
+        askIo = new IntersectionObserver(
+          function (ents) {
+            if (ents.some(function (e) { return e.isIntersecting; })) fire();
+          },
+          { threshold: 0.12 },
+        );
+        askIo.observe(simp);
+      }
+      askScroll = function () {
+        if (window.scrollY < Math.round(window.innerHeight * 0.85)) return;
+        fire();
+      };
+      window.addEventListener('scroll', askScroll, { passive: true });
+      askScroll();
     }
 
     function afterLinkedJoin() {
@@ -1464,6 +1422,9 @@
       if (index >= 0 && index < buttons.length) { event.preventDefault(); buttons[index].click(); }
     });
 
+    connectBtn.addEventListener('click', function () {
+      linkX();
+    });
     quizBtn.addEventListener('click', function () {
       if (quizBtn.dataset.mode === 'link') {
         return linkX();
@@ -1509,10 +1470,13 @@
           var seasons = (pair[2].data && pair[2].data.seasons) || [];
           seasonLine.textContent = seasons.length ? 'Latest snapshot: ' + seasons[0].title : 'Lifetime board · no season snapshot yet.';
           paintBoard();
-          paintMe();
-          paintChallengeNote();
-          paintLinkedChip();
+          connectBtn.hidden = !!(meData && meData.linked);
           paintGate();
+          if (!homeBoard) {
+            paintMe();
+            paintChallengeNote();
+            paintLinkedChip();
+          }
           setStatus('', 'ok');
         })
         .catch(function () {
@@ -1523,8 +1487,6 @@
                 rank: 1,
                 display: '@PerryALPHA',
                 href: 'https://x.com/PerryALPHA',
-                basis: 'Editorial founding spot — not a measured interaction rank.',
-                evidence_urls: ['https://x.com/PerryALPHA/status/2085370284400328784'],
               },
             ],
             measured: [],
@@ -1652,19 +1614,22 @@
     }
     window.addEventListener('message', onXLinkedMessage);
 
-    // Homepage first-visit Connect X. Looking is free. Quiz needs X.
-    // Wait for /simp/me so already-linked visitors never flash the dialog.
-    // ?quiz=1#simp → auto-start quiz + ask to connect X.
+    // /simp?quiz=1 → quiz-invite gate. Home waits for scroll past the hero.
     refresh().then(function () {
       if (wantsQuizInvite()) {
+        if (homeBoard) {
+          try { location.replace('/simp' + location.search + location.hash); } catch (e) {}
+          return;
+        }
         runQuizInvite();
         return;
       }
-      if (!meData || !meData.linked) openHomeGate();
+      if (homeBoard) watchHomeConnectAsk();
     });
     return {
       destroy: function () {
         window.removeEventListener('message', onXLinkedMessage);
+        stopHomeConnectAsk();
         closeGate();
         hideQuizConnectBar();
         hideResultSticky();
