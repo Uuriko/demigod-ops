@@ -1491,8 +1491,8 @@ try {
     assert.match(css, /#grwm::before\{content:"\[02\]"/, `${label} must number GRWM`);
     assert.match(css, /#dasha-tape::before\{content:"\[03\]"/, `${label} must number the live chart`);
     assert.match(css, /#stills::before\{content:"\[04\]"/, `${label} must number the stills strip`);
-    assert.match(css, /#simp::before\{content:"\[05\]"/, `${label} must number the board room`);
-    assert.match(css, /#simp,#simp\.is-in\{opacity:1;transform:none\}/, `${label} #simp Take Quiz must not fade to invisible`);
+    assert.match(css, /#stills\{display:block!important\}/, `${label} must unhide #stills`);
+    assert.match(css, /#stills,#stills\.is-in,#simp,#simp\.is-in\{opacity:1;transform:none\}/, `${label} #stills flick and #simp Take Quiz must not fade to invisible`);
     assert.match(css, /#chess::before\{content:"\[06\]"/, `${label} must number the chess room`);
     assert.match(css, /#faucet::before\{content:"\[07\]"/, `${label} must number the faucet room`);
     assert.match(css, /#token::before\{content:"\[08\]"/, `${label} must number the mint band`);
@@ -1639,6 +1639,7 @@ try {
   }
   assert.match(injected, /class="dasha-slim[\s"]/, 'home rewrite must add the slim bar');
   assert.match(injected, /class="dasha-crop"/, 'home rewrite must add crop marks');
+  assert.match(injected, /dasha-ink-cut/, 'home rewrite ships the / ↔ /simp ink overlay');
   assert.doesNotMatch(injected, /dasha-menu|aria-label="Menu">Menu</, 'home rewrite must not render a Menu');
   assert.doesNotMatch(injected.match(/<header class="dasha-slim">[\s\S]*?<\/header>/)?.[0] || '', /<nav\b|href="\/chess"|href="\/studio"|href="\/how-to-buy"|href="\/simp"|href="\/dasha"|href="\/bounties"|href="\/faucet"|href="\/forum"/, 'home slim bar is wordmark + Buy only');
   assert.doesNotMatch(injected.match(/<footer class="dasha-foot">[\s\S]*?<\/footer>/)?.[0] || '', /<nav\b|href="\/chess"|href="\/studio"|href="\/how-to-buy"|href="\/simp"|href="\/dasha"|href="\/bounties"|href="\/faucet"|href="\/forum"/, 'home footer is $dasha · Buy · @dash_eats');
