@@ -1326,6 +1326,7 @@ const sitePreflight = await preflight('https://www.getdasha.com');
 assert.equal(sitePreflight.status, 204);
 assert.equal(sitePreflight.headers.get('access-control-allow-origin'), 'https://www.getdasha.com');
 assert.equal(sitePreflight.headers.get('access-control-allow-credentials'), 'true');
+assert.equal(sitePreflight.headers.get('access-control-max-age'), '86400', 'chess/lobby POST preflight must cache so a think-time move is not OPTIONS+POST');
 
 const nativeFetch = globalThis.fetch;
 try {

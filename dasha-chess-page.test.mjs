@@ -53,8 +53,32 @@ assert.doesNotMatch(source, /180px/,
   'chess footer must not reserve the retired dancer dock');
 assert.match(source, /function samePaint\(prev,next\)/,
   'poll paint must be able to recognize an unchanged game');
-assert.match(source, /if\(same\)return true/,
+assert.match(source, /if\(samePaint\(game,next\)\)return true/,
   'GET /chess/game/:id with the same version must skip draw()');
+assert.match(source, /fetchGen=0/,
+  'chess GETs carry a monotonic fetch generation');
+assert.match(source, /function ignoreGet\(\)\{return busy&&game&&game.status==='active'\}/,
+  'in-flight POST must ignore overlapping GETs');
+assert.match(source, /function loadGame\(preserveOnNetworkError\)\{if\(ignoreGet\(\)\)return Promise.resolve\(true\)/,
+  'loadGame must not GET while a move POST is busy');
+assert.match(source, /function loadMe\(\)\{if\(ignoreGet\(\)\)return Promise.resolve\(me\);var gen=nextFetch\(\)/,
+  'loadMe must ignore stale and busy-overlapping GETs');
+assert.match(source, /if\(stale\(gen\)\)return true/,
+  'a late GET must not snap the board back over an applied move');
+assert.match(source, /function startPoll\(\)\{if\(poll\)return/,
+  'Flip and select must not restart an in-flight wait poll');
+assert.doesNotMatch(source, /function startPoll\(\)\{clearTimeout\(poll\)/,
+  'startPoll must not clearTimeout an armed wait');
+assert.doesNotMatch(source, /restoreFocus/,
+  'pointer clicks must not focus\(\) the square');
+assert.doesNotMatch(source, /cell\.focus\(\)/,
+  'draw must not setTimeout focus after a click');
+assert.match(source, /function armTournamentPoll\(\)\{[\s\S]*if\(game&&game.status==='active'\)return/,
+  'tournament poll must stop while a game is active');
+assert.match(source, /function loadTournaments\(\)\{if\(game&&game.status==='active'\)/,
+  'loadTournaments must not loadMe during an active game');
+assert.doesNotMatch(source, /next\.clock\.clientNow=game\.clock\.clientNow/,
+  'client must not re-anchor a same-version clock after the server already subtracted activeSince');
 assert.doesNotMatch(source, /11vw/,
   'pieces size to the square, not 11vw');
 assert.doesNotMatch(source, /DejaVu/,
@@ -155,7 +179,7 @@ assert.match(source, /navigator\.onLine/, 'polling must respect explicit offline
 assert.match(source, /url\.search='\?game='\+encodeURIComponent\(replay\.id\)/, 'replay state must discard unrelated query parameters');
 assert.match(source, /location\.pathname\+'\?challenge='\+encodeURIComponent\(challenge\.id\)/, 'challenge state must discard conflicting route parameters');
 assert.match(source, /function routeId\(query,name\).*\^\[A-Za-z0-9_\-\]\{6,24\}\$/, 'client route IDs must match the Worker trust boundary');
-assert.match(source, /expired&&!replay&&!clockExpiryPending&&navigator\.onLine/, 'offline clock expiry must wait for reconnect adjudication');
+assert.match(source, /expired&&!replay&&!clockExpiryPending&&!busy&&navigator\.onLine/, 'clock expiry must not GET while a move is in flight');
 assert.match(source, /id="gate-invite"[^>]*hidden[^>]*>Invite \/ 1v1</, 'invite stays in the DOM and off the default path');
 assert.match(source, /\.board\[data-readonly=false\] \.sq:hover/, 'only interactive boards may advertise hover feedback');
 assert.match(source, /\.board\[data-readonly=false\] \.sq:active/, 'read-only replay and opponent-turn squares must not animate on press');
