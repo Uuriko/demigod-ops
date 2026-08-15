@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Digitize first-party stills into an MK hard-keyed sprite strip. ffmpeg in, webp out."""
+"""Digitize first-party + CC stills into an MK hard-keyed sprite strip. ffmpeg in, webp out."""
 from __future__ import annotations
 
 import random
@@ -9,24 +9,30 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 PHOTO = ROOT / "dasha-worker-assets" / "simp" / "photo"
+REFS = ROOT / "dasha-dance-refs"
 OUT = ROOT / "dasha-worker-assets" / "client" / "dasha-sheet.webp"
 INK = (7, 6, 8)
 FW, FH = 88, 150
-# Loose figure windows as (x, y, w, h) fractions. Feet sit on the cell floor.
+# Downtown default. The 2018 one-day shirt is omitted: no CC still of that collar.
+# face = fill the cell; body = contain, feet on the floor.
 FRAMES = [
-    ("weekend.jpg", (0.30, 0.05, 0.36, 0.90)),
-    ("weekend.jpg", (0.24, 0.04, 0.40, 0.92)),
-    ("profile.jpg", (0.10, 0.00, 0.80, 1.00)),
-    ("bull.jpg", (0.18, 0.02, 0.52, 0.96)),
-    ("public.jpg", (0.16, 0.00, 0.66, 0.98)),
-    ("press.jpg", (0.14, 0.00, 0.70, 0.98)),
-    ("chart.jpg", (0.16, 0.00, 0.66, 0.98)),
-    ("weekend.jpg", (0.34, 0.08, 0.34, 0.86)),
+    ("weekend.jpg", (0.28, 0.04, 0.38, 0.92), "body"),
+    ("weekend.jpg", (0.22, 0.03, 0.42, 0.94), "body"),
+    ("profile.jpg", (0.04, 0.00, 0.92, 1.00), "face"),
+    ("hero.jpg", (0.16, 0.06, 0.68, 0.62), "face"),
+    ("wiki-2022.jpg", (0.10, 0.00, 0.80, 0.92), "face"),
+    ("cotton-2014.jpg", (0.08, 0.00, 0.84, 0.94), "face"),
+    ("berlinale-2021.jpg", (0.375, 0.130, 0.219, 0.759), "face"),
+    ("weekend.jpg", (0.32, 0.06, 0.34, 0.88), "body"),
 ]
 
 
-def run(cmd: list[str]) -> None:
-    subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+def src(name: str) -> Path:
+    for base in (PHOTO, REFS):
+        p = base / name
+        if p.exists():
+            return p
+    raise FileNotFoundError(name)
 
 
 def probe(path: Path) -> tuple[int, int]:
@@ -66,7 +72,53 @@ def luma(p: tuple[int, int, int]) -> int:
 
 def skin(p: tuple[int, int, int]) -> bool:
     r, g, b = p
-    return r > 70 and r > g - 8 and r > b and (r - b) > 12 and g > 40
+    if r < 105 or g < 55 or b < 48:
+        return False
+    if r <= g or r <= b or (r - b) < 20 or (r - g) < 16:
+        return False
+    if (g - b) > 50:
+        return False
+    if b > 85 and (r - g) < 22 and (g - b) < 32:
+        return False
+    return True
+
+
+def hairish(p: tuple[int, int, int]) -> bool:
+    r, g, b = p
+    L = luma(p)
+    return (
+        L >= 145 and r >= 150 and g >= 120
+        and r >= g - 8 and (r - g) < 48
+        and (g - b) > 28 and b < 135
+    )
+
+
+def sat_blue(p: tuple[int, int, int]) -> bool:
+    r, g, b = p
+    return b > 90 and b > r + 28 and b > g + 18
+
+
+def near_white(p: tuple[int, int, int]) -> bool:
+    r, g, b = p
+    return min(r, g, b) > 188 and max(r, g, b) - min(r, g, b) < 36
+
+
+def flat_gray(p: tuple[int, int, int]) -> bool:
+    r, g, b = p
+    return abs(r - g) < 16 and abs(g - b) < 16 and 55 < luma(p) < 210
+
+
+def warm_wood(p: tuple[int, int, int]) -> bool:
+    r, g, b = p
+    L = luma(p)
+    return r > g + 10 and g > b + 10 and 55 < L < 165 and (r - b) > 50 and b < 80
+
+
+def beige_wall(p: tuple[int, int, int]) -> bool:
+    r, g, b = p
+    L = luma(p)
+    spread = max(r, g, b) - min(r, g, b)
+    return 110 < L < 215 and 8 < spread < 55 and r + g > b * 2.05
 
 
 def crop(buf: bytearray, w: int, h: int, box: tuple[float, float, float, float]) -> tuple[int, int, bytearray]:
@@ -78,9 +130,9 @@ def crop(buf: bytearray, w: int, h: int, box: tuple[float, float, float, float])
     nw, nh = x1 - x0, y1 - y0
     out = bytearray(nw * nh * 3)
     for yy in range(nh):
-        src = ((y0 + yy) * w + x0) * 3
+        src_i = ((y0 + yy) * w + x0) * 3
         dst = yy * nw * 3
-        out[dst : dst + nw * 3] = buf[src : src + nw * 3]
+        out[dst : dst + nw * 3] = buf[src_i : src_i + nw * 3]
     return nw, nh, out
 
 
@@ -99,7 +151,7 @@ def near_bg(p: tuple[int, int, int], samples: list[tuple[int, int, int]], limit:
     return any(dist(p, s) <= limit for s in samples)
 
 
-def key(buf: bytearray, w: int, h: int) -> None:
+def key(buf: bytearray, w: int, h: int, mode: str = "body") -> None:
     samples = edge_samples(buf, w, h)
     keep = bytearray(b"\x01" * (w * h))
     stack = []
@@ -117,12 +169,18 @@ def key(buf: bytearray, w: int, h: int) -> None:
             continue
         seen[i] = 1
         p = px(buf, w, x, y)
+        if skin(p) or hairish(p):
+            continue
         cx = x / max(1, w - 1)
         cy = y / max(1, h - 1)
-        core = 0.18 < cx < 0.82 and cy < 0.88
-        if core or skin(p):
-            continue
-        if not near_bg(p, samples, 48):
+        core = 0.18 < cx < 0.82 and 0.06 < cy < 0.88
+        inner = 0.28 < cx < 0.72 and 0.12 < cy < 0.78
+        drop = sat_blue(p) or warm_wood(p) or beige_wall(p) or near_bg(p, samples, 54)
+        if flat_gray(p) and near_bg(p, samples, 78):
+            drop = True
+        if near_white(p) and not (inner if mode == "face" else core):
+            drop = True
+        if not drop:
             continue
         keep[i] = 0
         for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
@@ -130,7 +188,12 @@ def key(buf: bytearray, w: int, h: int) -> None:
                 stack.append((nx, ny))
     for y in range(h):
         for x in range(w):
-            if not keep[y * w + x]:
+            p = px(buf, w, x, y)
+            if not keep[y * w + x] or skin(p) or hairish(p):
+                if not keep[y * w + x]:
+                    setpx(buf, w, x, y, INK)
+                continue
+            if sat_blue(p) or warm_wood(p) or beige_wall(p):
                 setpx(buf, w, x, y, INK)
 
 
@@ -154,13 +217,24 @@ def contrast_grain(buf: bytearray, w: int, h: int, seed: int) -> None:
         buf[o + 2] = min(255, max(0, b + noise))
 
 
-def scale_pad(buf: bytearray, w: int, h: int) -> bytearray:
-    scale = min(FW / w, FH / h)
-    nw, nh = max(1, int(w * scale)), max(1, int(h * scale))
-    ox, oy = (FW - nw) // 2, FH - nh
+def scale_pad(buf: bytearray, w: int, h: int, mode: str) -> bytearray:
     out = bytearray(FW * FH * 3)
     for i in range(0, len(out), 3):
         out[i : i + 3] = bytes(INK)
+    if mode == "face":
+        scale = max(FW / w, FH / h)
+        sw, sh = FW / scale, FH / scale
+        sx0 = (w - sw) / 2
+        sy0 = max(0.0, (h - sh) / 2 - h * 0.04)
+        for y in range(FH):
+            sy = min(h - 1, max(0, int(sy0 + y / scale)))
+            for x in range(FW):
+                sx = min(w - 1, max(0, int(sx0 + x / scale)))
+                setpx(out, FW, x, y, px(buf, w, sx, sy))
+        return out
+    scale = min(FW / w, FH / h)
+    nw, nh = max(1, int(w * scale)), max(1, int(h * scale))
+    ox, oy = (FW - nw) // 2, FH - nh
     for y in range(nh):
         sy = min(h - 1, int(y / scale))
         for x in range(nw):
@@ -185,18 +259,29 @@ def encode_webp(rgb: bytes, w: int, h: int, dest: Path) -> None:
     )
 
 
+def live_pixels(buf: bytearray, w: int, h: int) -> int:
+    n = 0
+    for i in range(0, len(buf), 3):
+        if (buf[i], buf[i + 1], buf[i + 2]) != INK:
+            n += 1
+    return n
+
+
 def main() -> int:
     strip = bytearray(FW * len(FRAMES) * FH * 3)
-    for i, (name, box) in enumerate(FRAMES):
-        w, h, raw = decode_rgb(PHOTO / name)
+    for i, (name, box, mode) in enumerate(FRAMES):
+        w, h, raw = decode_rgb(src(name))
         cw, ch, cut = crop(raw, w, h, box)
-        key(cut, cw, ch)
+        key(cut, cw, ch, mode)
         contrast_grain(cut, cw, ch, seed=11 + i * 17)
-        cell = scale_pad(cut, cw, ch)
+        cell = scale_pad(cut, cw, ch, mode)
+        live = live_pixels(cell, FW, FH)
+        if live < FW * FH * 0.08:
+            raise SystemExit(f"{name} cell {i} too empty ({live} live px)")
         for y in range(FH):
-            src = y * FW * 3
+            src_i = y * FW * 3
             dst = (y * (FW * len(FRAMES)) + i * FW) * 3
-            strip[dst : dst + FW * 3] = cell[src : src + FW * 3]
+            strip[dst : dst + FW * 3] = cell[src_i : src_i + FW * 3]
     encode_webp(bytes(strip), FW * len(FRAMES), FH, OUT)
     print(f"wrote {OUT} {OUT.stat().st_size} bytes {FW * len(FRAMES)}x{FH}")
     return 0

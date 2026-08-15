@@ -65,6 +65,24 @@ assert.doesNotMatch(chessPage, /dasha-dance|three@|import\(['"]three/);
 assert.doesNotMatch(simpClient, /three@|import\(['"]three|from ['"]three/);
 assert.doesNotMatch(landing, /dasha-dance/, 'home HtmlEmbed must not grow the dancer');
 
+const sheetBuild = await readFile(new URL('./dasha-dance-sheet-build.py', root), 'utf8');
+const sheetLicense = await readFile(new URL('./dasha-worker-assets/client/LICENSE', root), 'utf8');
+const refsLicense = await readFile(new URL('./dasha-dance-refs/LICENSE', root), 'utf8');
+assert.match(sheetBuild, /profile\.jpg/);
+assert.match(sheetBuild, /weekend\.jpg/);
+assert.match(sheetBuild, /hero\.jpg/);
+assert.match(sheetBuild, /cotton-2014/);
+assert.match(sheetBuild, /wiki-2022/);
+assert.match(sheetBuild, /berlinale-2021/);
+assert.doesNotMatch(sheetBuild, /public\.jpg|press\.jpg|chart\.jpg|bull\.jpg/);
+assert.doesNotMatch(sheetBuild + danceSrc, /dailymail|pbs\.twimg|Mixamo|fuku|sailor/i);
+assert.match(sheetLicense, /Umplix|Polygons N' Light/);
+assert.match(sheetLicense + refsLicense, /CC BY 3\.0/);
+assert.match(sheetLicense + refsLicense, /CC BY-SA 4\.0/);
+assert.match(sheetLicense + refsLicense, /After Hours Productions/);
+assert.match(sheetLicense + refsLicense, /IgorCalzone1/);
+assert.doesNotMatch(danceSrc, /y: -1[0-9]/, 'slouch steps, not fight hops');
+
 const sheet = await stat(new URL('./dasha-worker-assets/client/dasha-sheet.webp', root));
 const loop = await stat(new URL('./dasha-worker-assets/client/dasha-loop.mp3', root));
 assert.ok(sheet.size > 0 && sheet.size < 400 * 1024, 'sprite sheet must stay under ~400KB');
