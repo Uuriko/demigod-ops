@@ -1092,7 +1092,6 @@ export function simpPageHtml() {
 ${cropTicksHtml()}
 ${hamburgerHtml({ path: '/simp' })}
 <h1>Simp</h1>
-<p>How big of a Dasha simp are you?</p>
 <div id="dasha-quiz" class="dasha-quiz"><div id="dasha-simp-board">${simpQuizFirstPaintHtml()}</div></div>
 ${simpBoardClientScript()}
 ${siteFooter('/simp')}

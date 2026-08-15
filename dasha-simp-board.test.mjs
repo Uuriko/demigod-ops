@@ -62,7 +62,9 @@ assert(client.includes('sendQuizCard') && client.includes('shareQuiz'), 'share h
 assert(client.includes('QUIZ_CARDS') && client.includes('quizCardBlob') && client.includes('1200') && client.includes('675'), 'quiz result-card suite missing');
 assert(client.includes('Another photo') && client.includes('Dasha simp quiz result card preview'), 'result card preview controls missing');
 assert(client.includes('Share on X') && client.includes('shareBoardOnX') && client.includes('boardShareText'), 'board row must share on X');
-assert(client.includes('showJoinSuccess') && client.includes('Make a meme') && client.includes('Open forum'), 'post-join success CTAs missing');
+assert(client.includes('showJoinSuccess') && client.includes('Share on X'), 'post-join success share stays');
+assert(!client.includes('Make a meme') && !client.includes('Open forum') && !client.includes('Open Studio'), 'killed rooms must not return as quiz CTAs');
+assert(!client.includes('/studio') && !client.includes('/forum'), 'quiz client must not door to /studio or /forum');
 assert(client.includes('dasha-x-chip') && client.includes('paintLinkedChip'), 'nav linked-identity chip missing');
 assert.match(client, /chip\.href = document\.getElementById\('simp'\) \? '#simp' : '\/simp'/, 'chip must keep #simp only when that section exists');
 assert(!client.includes('Save score card') && !client.includes("a.download = 'dasha-simp-"), 'score download path must be gone');
@@ -102,9 +104,9 @@ assert(worker.includes("url.pathname.startsWith('/simp/card/')") && worker.inclu
 assert(worker.includes("headers.set('Access-Control-Allow-Origin', '*')") && worker.includes("headers.set('Cross-Origin-Resource-Policy', 'cross-origin')"), 'quiz media must remain canvas-safe across product subdomains');
 for (const metric of ['reached', 'answers', 'lanes', 'tiers', 'elapsed']) assert(worker.includes(metric), `missing aggregate metric ${metric}`);
 assert(client.includes('navigator.canShare') && client.includes("new File([blob]"), 'native image sharing missing');
-assert(client.includes('Open Studio') && !client.includes('Make one') && client.includes('studioSeedForResult') && client.includes("src: 'quiz'"), 'quiz result must clearly bridge into a tailored, attributed Studio seed');
-for (const tier of ['Dasha scholar', 'Confirmed simp', 'Deep in the lore', 'Watching respectfully', 'Dasha curious']) assert(client.includes(tier), `missing Studio seed for ${tier}`);
-// Mobile result completion: sticky Share/Make + hide buy sticky so CTAs stay tappable
+assert(!client.includes('studioSeedForResult') && !client.includes("src: 'quiz'"), 'quiz result must not seed a killed Studio room');
+for (const tier of ['Dasha scholar', 'Confirmed simp', 'Deep in the lore', 'Watching respectfully', 'Dasha curious']) assert(client.includes(tier), `missing quiz result title ${tier}`);
+// Mobile result completion: sticky Share + hide buy sticky so CTAs stay tappable
 assert(client.includes('simp-result-open') && client.includes('dasha-quiz-result-bar'), 'quiz result sticky bar missing');
 assert(client.includes('showResultSticky') && client.includes('hideResultSticky'), 'result sticky helpers missing');
 assert(
@@ -165,7 +167,8 @@ assert(client.includes('startQuiz()') && !client.includes("startQuiz('quick')") 
 assert(client.includes("action: 'start'") && !client.includes("action: 'start', mode"), 'start payload must not send a mode');
 assert(!client.includes('Quick quiz ·') && !client.includes('Deep quiz ·'), 'start status must not name Quick/Deep');
 assert(client.includes('Take the quiz') && !client.includes('quickBtn'), 'board must expose one start button');
-assert(client.includes('Connect X') && client.includes('You cannot play until you connect X'), 'unlinked visitors must be asked to connect X before start');
+assert(client.includes('Connect X') && client.includes('function startQuiz') && client.includes('linkX()'), 'unlinked Take Quiz still opens Connect X');
+assert(!client.includes('You cannot play until you connect X') && !client.includes('X is required. No anonymous play.'), 'quiz must not lecture the X gate');
 assert(client.includes('function showSharePush') && client.includes('dasha-share-push'), 'finish must open a share popup');
 assert(client.includes('Copy link') && client.includes("Share on X"), 'share popup must show copy and tweet');
 assert(worker.includes("error: 'link X to take the quiz'"), 'worker must refuse anonymous quiz start');
