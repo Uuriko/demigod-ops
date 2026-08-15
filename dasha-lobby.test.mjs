@@ -120,9 +120,11 @@ assert(worker.includes('href="/how-to-buy">How to buy<'), 'home lock nav must in
 assert(worker.includes('rewriteStaleCdnFavicon(html)'), 'proxied product HTML must rewrite leftover CDN favicon.ico');
 assert(worker.includes('rewriteHomeFirstViewport(stripHomeSimpBoard(html))'), 'www/apex / must rewrite the first viewport after stripping leftover board chrome');
 assert(worker.includes('alignHomeLowerNav') && worker.includes('HOME_CULTURE_NAV'), 'home rewrite aligns the hidden Webflow nav');
+assert(worker.includes('id="dasha-home-calm"') && worker.includes('.dasha>nav.nav') && worker.includes('.dasha-hero .actions a:not(.buy-dasha)'), 'home html-security injects first-paint hide CSS');
+assert(worker.includes('ensureHomeBuyPill') && worker.includes('HOME_BUY_PILL'), 'home rewrite ensures a Jupiter Buy pill');
 assert(worker.includes('max-width:640px') && worker.includes('dasha-posters{grid-template-columns:1fr}'), 'lock posters stack under 640px');
 assert(worker.includes('WORKER_SITE_FOOTER'), 'worker pages share one site footer');
-assert(worker.includes('id="dasha-lock"') && worker.includes('dasha-band'), 'home first viewport must be #dasha-lock with an acid band');
+assert(worker.includes('id="dasha-lock"') && worker.includes('dasha-band'), 'no-hero home fallback still has #dasha-lock');
 assert(!worker.includes('>Take Simp.<') && !worker.includes("escapeHtml('Take Simp.')"), 'system-ui Take Simp decoy copy must be gone');
 assert(!worker.includes('<section id="dasha-home-cta"') && !worker.includes('function injectHomeSimpCta') && !worker.includes('function homeSimpCtaHtml'), 'worker must delete the 100vh decoy, not keep a quiz-in-fallback');
 assert(worker.includes('stripHomeCtaDecoy') && worker.includes("if (html.includes('id=\"dasha-home\"')) return html;") === false, 'live #dasha-home wrapper must not early-return the lock');
@@ -1406,10 +1408,8 @@ try {
   }
 }
 {
-  const HOME_HEXES = ['#070608', '#f4eddb', '#dfff00', '#ff3b81'];
   const mint = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
   const buy = 'https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
-  const styleHexes = html => [...String(html).matchAll(/(?:background|color|box-shadow|fill|stroke)\s*:[^;{}]*?(#[0-9a-fA-F]{3,8})\b/gi)].map(m => m[1].toLowerCase());
   const webflowHome = `<!doctype html><html class="w-mod-js"><title>$dasha — make the timeline stranger</title>
 <link href="https://cdn.prod.website-files.com/img/favicon.ico" rel="shortcut icon" type="image/x-icon"/>
 <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
@@ -1427,63 +1427,60 @@ try {
 <section id="dasha-home-cta" aria-label="Simp"><style>#dasha-home-cta{min-height:100vh;font:16px/1.45 system-ui,sans-serif}</style><h1>$dasha</h1><p>Take Simp.</p><p><a href="/simp">Simp</a></p></section>
 <main class="dasha" id="top">
 <nav class="nav wrap"><a href="/studio">Studio</a><a href="#token">CA 53ux…pump</a><a class="pill primary buy-dasha" href="${buy}">Buy $dasha ↗</a><a href="https://lobby.getdasha.com/forum">Forum</a></nav>
-<header class="dasha-hero wrap" id="content"><h1>It's time $dasha</h1><div class="poster"><a class="poster-tile">How u crying at the casino</a></div></header>
+<nav class="dasha-nav"><a href="/studio">Studio</a></nav>
+<header class="dasha-hero wrap" id="content"><h1>It's time $dasha.</h1><p class="price">$0.00</p><div class="poster"><a class="poster-tile">How u crying at the casino</a></div><p class="actions"><a href="/studio">Open Studio →</a><a href="/lobby">Open lobby →</a></p></header>
 <section id="token"><code id="mint">${mint}</code><a class="pill primary buy-dasha" href="${buy}">Buy $dasha ↗</a></section>
 <footer><p><a href="/how-to-buy">How to buy</a> · <a href="https://lobby.getdasha.com/forum">Forum</a> · <a href="/lobby">Lobby</a> · <a href="/dasha">Desk</a> · <a href="https://lobby.getdasha.com/chess">Chess</a></p></footer>
 </main>
 </div></div></body></html>`;
-  const homeFirst = html => {
-    const match = String(html).match(/<section\b[^>]*\bid=["']dasha-lock["'][^>]*>[\s\S]*?<\/section>/i);
-    assert.ok(match, 'home must inject #dasha-lock');
+  const homeHero = html => {
+    const match = String(html).match(/<header\b[^>]*\bdasha-hero\b[^>]*>[\s\S]*?<\/header>/i);
+    assert.ok(match, 'home must keep the Webflow hero');
     return match[0];
   };
-  const firstSectionAt = html => String(html).search(/<section\b/i);
+  const assertHomeCalmCss = (html, label) => {
+    const css = String(html).match(/<style id="dasha-home-calm">([\s\S]*?)<\/style>/i)?.[1] || '';
+    assert.ok(css, `${label} must inject #dasha-home-calm`);
+    assert.match(css, /\.dasha>nav\.nav/, `${label} must hide embed nav`);
+    assert.match(css, /\.dasha-nav/, `${label} must hide Designer DashaNav`);
+    assert.match(css, /\.dasha-hero \.poster/, `${label} must hide hero poster`);
+    assert.match(css, /\.dasha-hero \.price/, `${label} must hide hero price`);
+    assert.match(css, /\.dasha-hero \.actions a:not\(\.buy-dasha\)/, `${label} must hide non-Buy hero actions`);
+    assert.equal([...String(html).matchAll(/id=["']dasha-home-calm["']/g)].length, 1, `${label} must inject calm CSS once`);
+  };
+  const assertHomeBuyPill = (scope, label) => {
+    const pills = [...scope.matchAll(/<a\b[^>]*\bbuy-dasha\b[^>]*>[\s\S]*?<\/a>/gi)].map(m => m[0]);
+    assert.equal(pills.length, 1, `${label} must have one Buy $dasha pill`);
+    assert.match(pills[0], /href="https:\/\/jup\.ag\/swap\?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump"/, `${label} Buy pill must use the exact Jupiter URL`);
+    assert.match(pills[0], />Buy \$dasha ↗</, `${label} Buy pill must say Buy $dasha`);
+    assert.doesNotMatch(scope, /payTo/, `${label} must not invent payTo`);
+  };
   const assertHomeFirst = (html, label) => {
-    const section = homeFirst(html);
-    assert.equal(firstSectionAt(html), html.search(/<section\b[^>]*\bid=["']dasha-lock["']/i), `${label} first section must be #dasha-lock`);
+    const hero = homeHero(html);
+    assertHomeCalmCss(html, label);
+    assertHomeBuyPill(hero, `${label} hero`);
+    assert.doesNotMatch(html, /id=["']dasha-lock["']/, `${label} must not overlay a Webflow hero with #dasha-lock`);
     assert.doesNotMatch(html, /id=["']dasha-home-cta["']/, `${label} must drop the 100vh decoy`);
     assert.doesNotMatch(html, /Take Simp\./, `${label} must drop decoy copy`);
-    assert.doesNotMatch(section, /min-height:\s*100vh/, `${label} first viewport must not be a 100vh stub`);
-    assert.match(section, /html,body,body\.body,\.dasha-root,\.dasha\{background:#070608!important/, `${label} must force ink on the Webflow maroon body`);
     assert.doesNotMatch(html, /#1[fF]041[cC]/, `${label} must replace maroon #1F041C`);
-    assert.match(section, /class="dasha-band"/, `${label} must have the acid band`);
-    assert.match(section, /IT(?:'|&\#39;)S TIME \$DASHA/, `${label} band must carry culture lines`);
-    assert.match(section, /animation:dasha-band 28s linear infinite/, `${label} band must animate`);
-    assert.doesNotMatch((section.match(/<style>([\s\S]*?)<\/style>/)?.[1] || '').split('@media')[0], /animation:\s*none/, `${label} band default must not be animation:none`);
-    assert.match(section, /prefers-reduced-motion:reduce[^}]*animation:\s*none/, `${label} reduced motion must freeze the ticker`);
-    assert.match(section, /\$DASHA/, `${label} must show $DASHA`);
-    assert.match(section, /src="\/favicon\.svg"/, `${label} must show cherries`);
-    assert.match(section, /href="\/studio">Studio</, `${label} nav must include Studio`);
-    assert.match(section, /href="#simp">Simp</, `${label} nav must include in-hero Simp`);
-    assert.match(section, /href="\/graph">Graph</, `${label} nav must include Graph`);
-    assert.match(section, /href="\/verse">Verse</, `${label} nav must include Verse`);
-    assert.match(section, /href="\/bounties">Bounties</, `${label} nav must include Bounties`);
-    assert.match(section, /href="\/how-to-buy">How to buy</, `${label} nav must include How to buy`);
-    assert.match(section, /href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats</, `${label} nav must include @dash_eats`);
-    assert.match(section, /class="dasha-x"[^>]*href="https:\/\/x\.com\/dash_eats"/, `${label} lock must pin @dash_eats under the headline`);
-    assert.doesNotMatch(section, /href=["']\/simp["']/, `${label} must not send the hero CTA to \/simp`);
-    assert.doesNotMatch(section, /53ux|buy-dasha|#token|jup\.ag|Buy \$dasha|Buy \/ verify/, `${label} must keep CA and Jupiter Buy out of the first-viewport nav`);
+    assert.match(hero, /<h1>It's time \$dasha\.<\/h1>/, `${label} must keep the headline`);
+    assert.equal([...hero.matchAll(/<h1\b/g)].length, 1, `${label} hero must have one h1`);
+    assert.match(hero, /class="poster"/, `${label} must keep the poster in the DOM`);
+    assert.match(hero, /class="price"/, `${label} must keep the price in the DOM`);
+    assert.match(hero, /Open Studio →/, `${label} must keep other action links in the DOM`);
+    assert.match(html, /class="dasha-nav"/, `${label} must keep Designer nav in the DOM`);
     assert.match(html, new RegExp(`id="token"[\\s\\S]*${mint}[\\s\\S]*buy-dasha`), `${label} must keep CA + Buy in #token`);
-    assert.equal([...section.matchAll(/<h1\b/g)].length, 1, `${label} lock must have one h1`);
-    assert.doesNotMatch(html, /<header\b[^>]*dasha-hero[\s\S]*<h1/, `${label} must drop the second hero h1`);
-    assert.match(section, /<h1>IT(?:'|&\#39;)S TIME \$DASHA<\/h1>/, `${label} must have one culture display line`);
-    assert.match(section, /class="dasha-posters"/, `${label} must keep the poster stack in the first viewport`);
-    assert.match(section, /dasha-posters[\s\S]*href="\/graph">Graph</, `${label} must keep a Graph poster`);
-    assert.match(section, /max-height:8\.5rem/, `${label} posters must fit inside 800px`);
-    assert.match(section, /@media\(max-width:640px\)\{#dasha-lock \.dasha-posters\{grid-template-columns:1fr\}\}/, `${label} posters must stack under 640px`);
-    assert.match(section, /id="dasha-simp-board"/, `${label} must mount the quiz`);
-    assert.equal([...section.matchAll(/class="dasha-quiz"/g)].length, 1, `${label} must keep one .dasha-quiz`);
-    assert.match(section, /lobby\.getdasha\.com\/client\/simp-board\.js/, `${label} must load the existing quiz client`);
-    assert.ok(section.includes(`integrity="${SIMP_BOARD_SRI}"`), `${label} quiz client must be SRI-pinned`);
-    assert.match(section, /crossorigin="anonymous"/, `${label} quiz client must be CORS-anonymous`);
-    assert.match(section, /References describe internet culture\. Not endorsement\./, `${label} must keep the association line`);
+    assert.match(html, /id="dasha-simp-board"/, `${label} must keep the quiz below`);
+    assert.equal([...html.matchAll(/class="dasha-quiz"/g)].length, 1, `${label} must keep one .dasha-quiz`);
+    assert.match(html, /lobby\.getdasha\.com\/client\/simp-board\.js/, `${label} must load the existing quiz client`);
+    assert.ok(html.includes(`integrity="${SIMP_BOARD_SRI}"`), `${label} quiz client must be SRI-pinned`);
+    assert.match(html, /crossorigin="anonymous"/, `${label} quiz client must be CORS-anonymous`);
     assert.doesNotMatch(html, /WebFont\.load|webfont\.js/, `${label} must drop WebFont.load`);
     assert.doesNotMatch(html, /Exo|Bangers|Raleway/, `${label} must drop Exo\/Bangers\/Raleway`);
     assert.doesNotMatch(html, /\/forum/, `${label} must drop Forum hrefs`);
     assert.doesNotMatch(html, /--hot-deep|rgba\(124,\s*77,\s*255/, `${label} must drop the violet wash and --hot-deep`);
-    assert.doesNotMatch(section, /radial-gradient|#7c4dff/, `${label} first viewport must not use violet`);
-    assert.doesNotMatch(section, /system-ui/, `${label} first viewport must not use system-ui`);
-    assert.doesNotMatch(section, /<form\b|wallet-connect|payTo|\/oauth|class="simp-|score=/i);
+    assert.doesNotMatch(hero, /system-ui/, `${label} hero must not use system-ui`);
+    assert.doesNotMatch(html, /<form\b|wallet-connect|payTo|\/oauth|class="simp-|score=/i);
     const lowerNav = html.match(/<nav class="nav wrap">[\s\S]*?<\/nav>/i)?.[0] || '';
     assert.match(lowerNav, /href="\/studio">Studio</, `${label} lower nav must include Studio`);
     assert.match(lowerNav, /href="\/simp">Simp</, `${label} lower nav must include Simp`);
@@ -1496,19 +1493,29 @@ try {
     assert.match(html, /href="\/dasha"/, `${label} Desk stays in the footer`);
     assert.match(html, /href="\/chess">Chess</, `${label} Chess stays in the footer`);
     assert.doesNotMatch(html, /href=["']https:\/\/lobby\.getdasha\.com\/chess/, `${label} Chess must be same-origin`);
-    for (const hex of styleHexes(section)) {
-      assert.ok(HOME_HEXES.includes(hex), `${label} first viewport must stay tokens-only (saw ${hex})`);
-    }
     assert.doesNotMatch(html, /\.simp-/);
-    return section;
+    return hero;
   };
   const injected = rewriteHomeFirstViewport(stripHomeSimpBoard(webflowHome));
   assertHomeFirst(injected, 'rewrite');
-  assert.match(injected, /<a class="skip-link" href="#simp">Skip to content<\/a><section id="dasha-lock"/);
-  assert.match(injected, /id="dasha-home"/, 'live Webflow wrapper id=dasha-home must not block the lock');
+  assert.match(injected, /<a class="skip-link" href="#simp">Skip to content<\/a>/);
+  assert.match(injected, /id="dasha-home"/, 'live Webflow wrapper id=dasha-home must not block the hero');
   assert.match(injected, new RegExp(mint));
-  assert.equal(rewriteHomeFirstViewport(injected), injected, 'second pass must not duplicate #dasha-lock');
-  assert.equal([...injected.matchAll(/id=["']dasha-lock["']/g)].length, 1);
+  assert.equal(rewriteHomeFirstViewport(injected), injected, 'second pass must not duplicate calm CSS, Buy pill, or quiz');
+  assert.equal([...injected.matchAll(/id=["']dasha-lock["']/g)].length, 0);
+  const alreadyBuy = rewriteHomeFirstViewport(stripHomeSimpBoard(webflowHome.replace(
+    '<p class="actions"><a href="/studio">Open Studio →</a><a href="/lobby">Open lobby →</a></p>',
+    `<p class="actions"><a class="pill primary buy-dasha" href="${buy}">Buy $dasha ↗</a></p>`,
+  )));
+  assertHomeBuyPill(homeHero(alreadyBuy), 'existing Buy pill');
+  const noHero = rewriteHomeFirstViewport(stripHomeSimpBoard(`<!doctype html><html><body><section id="token"><code id="mint">${mint}</code><a class="pill primary buy-dasha" href="${buy}">Buy $dasha ↗</a></section></body></html>`));
+  const lock = noHero.match(/<section\b[^>]*\bid=["']dasha-lock["'][^>]*>[\s\S]*?<\/section>/i)?.[0] || '';
+  assert.ok(lock, 'no-hero home must still inject #dasha-lock');
+  assertHomeCalmCss(noHero, 'no-hero');
+  assertHomeBuyPill(lock, 'no-hero lock');
+  assert.match(noHero, /id="dasha-simp-board"/, 'no-hero home must keep the quiz');
+  assert.match(noHero, new RegExp(`id="token"[\\s\\S]*${mint}[\\s\\S]*buy-dasha`), 'no-hero home must keep #token');
+  assert.equal(rewriteHomeFirstViewport(noHero), noHero, 'no-hero second pass must be idempotent');
   const nativeFetch = globalThis.fetch;
   try {
     globalThis.fetch = async () => new Response(webflowHome, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
@@ -1519,10 +1526,12 @@ try {
       assert.equal([...html.matchAll(/href=["']\/privacy["']/g)].length, 1, `${host} / must keep one Privacy link`);
       assert.match(html, /<link href="\/favicon\.ico" rel="shortcut icon"/);
       assert.match(html, new RegExp(mint), `${host} / must keep the mint string`);
-      assert.equal([...html.matchAll(/id=["']dasha-lock["']/g)].length, 1);
+      assert.equal([...html.matchAll(/id=["']dasha-lock["']/g)].length, 0);
     }
     const studio = await workerModule.default.fetch(new Request('https://www.getdasha.com/studio'), {});
-    assert.doesNotMatch(await studio.text(), /id=["']dasha-lock["']/, '/studio must not get the home first viewport');
+    const studioHtml = await studio.text();
+    assert.doesNotMatch(studioHtml, /id=["']dasha-lock["']/, '/studio must not get the home first viewport');
+    assert.doesNotMatch(studioHtml, /id=["']dasha-home-calm["']/, '/studio must not get home calm CSS');
   } finally {
     globalThis.fetch = nativeFetch;
   }

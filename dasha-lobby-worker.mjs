@@ -248,12 +248,6 @@ function stripHomeForumHrefs(html) {
     .replace(/<a\b[^>]*href=["'][^"']*\/forum\/?["'][^>]*>[^<]*<\/a>/gi, '');
 }
 
-function stripHomeLegacyHero(html) {
-  return String(html || '')
-    .replace(/<header\b[^>]*\bid=["']content["'][^>]*>[\s\S]*?<\/header>/i, '')
-    .replace(/<header\b[^>]*\bdasha-hero\b[^>]*>[\s\S]*?<\/header>/i, '');
-}
-
 function demoteHomeNavMint(html) {
   return String(html || '').replace(/<nav\b[^>]*>[\s\S]*?<\/nav>/gi, (nav) => nav
     .replace(/<a\b[^>]*href=["']#token["'][^>]*>[^<]*<\/a>/gi, '')
@@ -293,14 +287,71 @@ function alignHomeLowerNav(html) {
   });
 }
 
-/** www/apex / only: first paint is the product lock. Live `#dasha-home` is a wrapper, not this rewrite. */
+const HOME_BUY_HREF = `https://jup.ag/swap?sell=${WSOL}&buy=${MINT}`;
+const HOME_BUY_PILL = `<a class="pill primary buy-dasha" href="${HOME_BUY_HREF}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a>`;
+const HOME_CALM_CSS = '.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),#dasha-lock .dasha-band,#dasha-lock header,#dasha-lock .dasha-posters,#dasha-lock .dasha-x-wrap,#dasha-lock .dasha-assoc{display:none!important}';
+
+function injectHomeCalmCss(html) {
+  const page = String(html || '');
+  if (/id=["']dasha-home-calm["']/i.test(page)) return page;
+  const tag = `<style id="dasha-home-calm">${HOME_CALM_CSS}</style>`;
+  const closeHead = page.search(/<\/head>/i);
+  if (closeHead >= 0) return page.slice(0, closeHead) + tag + page.slice(closeHead);
+  const styleAt = page.search(/<style\b/i);
+  if (styleAt >= 0) return page.slice(0, styleAt) + tag + page.slice(styleAt);
+  const body = page.match(/<body\b[^>]*>/i);
+  if (body) {
+    const at = page.indexOf(body[0]) + body[0].length;
+    return page.slice(0, at) + tag + page.slice(at);
+  }
+  return tag + page;
+}
+
+function ensureHomeBuyPill(html) {
+  const pill = HOME_BUY_PILL;
+  let page = String(html || '').replace(/<header\b[^>]*\bdasha-hero\b[^>]*>[\s\S]*?<\/header>/i, (hero) => {
+    if (/<(?:p|div)\b[^>]*\bactions\b[^>]*>[\s\S]*\bbuy-dasha\b/i.test(hero)) return hero;
+    if (/(<(?:p|div)\b[^>]*\bclass=["'][^"']*\bactions\b[^"']*["'][^>]*>)/i.test(hero)) {
+      return hero.replace(/(<(?:p|div)\b[^>]*\bclass=["'][^"']*\bactions\b[^"']*["'][^>]*>)/i, `$1${pill}`);
+    }
+    if (/<h1\b[^>]*>[\s\S]*?<\/h1>/i.test(hero)) {
+      return hero.replace(/(<h1\b[^>]*>[\s\S]*?<\/h1>)/i, `$1<p class="actions">${pill}</p>`);
+    }
+    return hero.replace(/<\/header>/i, `<p class="actions">${pill}</p></header>`);
+  });
+  return page.replace(/<section\b[^>]*\bid=["']dasha-lock["'][^>]*>[\s\S]*?<\/section>/i, (lock) => {
+    if (/\bbuy-dasha\b/.test(lock)) return lock;
+    if (/<h1\b[^>]*>[\s\S]*?<\/h1>/i.test(lock)) {
+      return lock.replace(/(<h1\b[^>]*>[\s\S]*?<\/h1>)/i, `$1<p class="actions">${pill}</p>`);
+    }
+    return lock;
+  });
+}
+
+function ensureHomeSimpMount(html, sri = SIMP_BOARD_SRI) {
+  if (/id=["']dasha-simp-board["']/i.test(html)) return html;
+  const mount = `<div id="simp"><div id="dasha-simp-board" class="dasha-quiz" data-simp-api="https://lobby.getdasha.com"><noscript>Answer in the browser — questions are not in this HTML.</noscript></div></div><script src="https://lobby.getdasha.com/client/simp-board.js" integrity="${sri}" crossorigin="anonymous" defer></script>`;
+  const hero = String(html).match(/<header\b[^>]*\bdasha-hero\b[^>]*>[\s\S]*?<\/header>/i);
+  if (hero) {
+    const at = html.indexOf(hero[0]) + hero[0].length;
+    return html.slice(0, at) + mount + html.slice(at);
+  }
+  const token = String(html).search(/<section\b[^>]*\bid=["']token["']/i);
+  if (token >= 0) return html.slice(0, token) + mount + html.slice(token);
+  return html + mount;
+}
+
+/** www/apex / only: first paint is headline + Buy $dasha. Live `#dasha-home` is a wrapper, not this rewrite. */
 export function rewriteHomeFirstViewport(html, sri = SIMP_BOARD_SRI) {
-  let page = demoteHomeNavMint(stripHomeLegacyHero(stripHomeForumHrefs(stripHomeAtmosphere(stripHomeWebFonts(stripHomeCtaDecoy(String(html || '')))))));
+  let page = demoteHomeNavMint(stripHomeForumHrefs(stripHomeAtmosphere(stripHomeWebFonts(stripHomeCtaDecoy(String(html || ''))))));
   page = page.replace(/href=["']#content["']/gi, 'href="#simp"');
-  if (!/id=["']dasha-lock["']/i.test(page)) {
+  page = injectHomeCalmCss(page);
+  if (!/id=["']dasha-lock["']/i.test(page) && !/<header\b[^>]*\bdasha-hero\b/i.test(page)) {
     const at = homeFirstInsertAt(page);
     page = page.slice(0, at) + homeFirstViewportHtml(sri) + page.slice(at);
   }
+  page = ensureHomeBuyPill(page);
+  page = ensureHomeSimpMount(page, sri);
   return rewriteLeftoverLobbyHrefs(alignHomeLowerNav(page));
 }
 
