@@ -24,7 +24,10 @@ assert.match(page, /lobby\.getdasha\.com\/client\/graph\.js/);
 assert.match(page, />Reset</);
 assert.match(page, />Follow latest</);
 assert.match(page, />List</);
+assert.match(page, />Highlight me</);
+assert.match(page, /id="highlight-me"/);
 assert.match(page, />Buy on Jupiter</);
+assert.doesNotMatch(page, /id="dasha-lock"/);
 assert.match(page, new RegExp(`jup\\.ag/swap\\?sell=${wsol}&amp;buy=${mint}`));
 assert.match(page, new RegExp(`dexscreener\\.com/solana/${pair}`));
 assert.match(page, /id="hud-price"/);
@@ -42,6 +45,14 @@ assert.match(client, /Holders: not loaded/);
 assert.match(client, /holders unavailable — retry/);
 assert.match(client, /import\('three'\)/);
 assert.match(client, /OrbitControls/);
+assert.match(client, /lobby\.getdasha\.com/);
+assert.match(client, /\/oauth\/x\/status/);
+assert.match(client, /\/oauth\/x\/start/);
+assert.match(client, /\/api\/graph\/wallet\/challenge/);
+assert.match(client, /\/api\/graph\/highlight/);
+assert.match(client, /Connect X to be highlighted/);
+assert.match(client, /wallet does not currently hold \$dasha|res\.data\.error/);
+assert.match(client, /role === 'highlight'/);
 assert.match(client, /IcosahedronGeometry/);
 assert.match(client, /TorusGeometry/);
 assert.match(client, /OctahedronGeometry/);
@@ -58,6 +69,7 @@ assert.match(modSrc, /getSignaturesForAddress', \[PAIR/);
 assert.ok(modSrc.includes('public, s-maxage=90, stale-while-revalidate=60'));
 
 const {
+  applyGraphHighlight,
   buildExpand,
   buildSnapshot,
   collapseOwners,
@@ -70,6 +82,7 @@ const {
   parseRetryAfter,
   pickDexPair,
   pickJupiterToken,
+  publicHighlights,
   resetGraphCache,
   supplyFields,
   tagPubkey,
@@ -131,10 +144,27 @@ const empty = buildSnapshot({ rpcError: 'rpc_unavailable' });
 assert.ok(empty.nodes.some((node) => node.id === mint && node.role === 'mint'));
 assert.ok(empty.nodes.some((node) => node.id === pair && node.role === 'pair'));
 assert.ok(!empty.nodes.some((node) => node.kind === 'wallet'));
+assert.deepEqual(empty.highlights, []);
 assert.equal(empty.rings[1].empty, true);
 assert.equal(empty.rings[1].reason, 'rpc_unavailable');
 assert.equal(empty.holdersLoaded, false);
 assert.ok(empty.links.some((link) => link.kind === 'pair' && link.target === pair));
+
+const highlightNow = Date.parse('2026-08-15T00:00:00Z');
+assert.deepEqual(publicHighlights({}), []);
+assert.deepEqual(publicHighlights({ x1: { handle: 'ava', until: highlightNow - 1 } }, highlightNow), []);
+// test double: ava is a fixture handle, not a live person
+const marked = applyGraphHighlight({}, { xId: 'x1', handle: 'ava' }, { now: highlightNow, ttlMs: 60_000 });
+assert.equal(marked.ok, true);
+assert.deepEqual(marked.highlight, { handle: 'ava', href: 'https://x.com/ava', until: highlightNow + 60_000 });
+assert.equal(JSON.stringify(marked.highlight).includes('x1'), false);
+assert.equal(JSON.stringify(marked.highlight).includes('wallet'), false);
+assert.equal(applyGraphHighlight({}, { handle: 'ava' }, { now: highlightNow }).ok, false);
+const withMark = buildSnapshot({ highlights: marked.rows, now: highlightNow });
+assert.deepEqual(withMark.highlights, [{ handle: 'ava', href: 'https://x.com/ava', until: highlightNow + 60_000 }]);
+assert.ok(!withMark.nodes.some((node) => node.handle === 'ava'));
+assert.equal(JSON.stringify(withMark.highlights).includes('x1'), false);
+assert.equal(JSON.stringify(withMark).includes('11111111111111111111111111111111'), false);
 
 const none = buildSnapshot({ holders: [] });
 assert.equal(none.rings[1].empty, true);
@@ -313,6 +343,139 @@ assert.equal(body.mint, mint);
 assert.equal(body.pair, pair);
 assert.equal(body.rings[1].empty, true);
 assert.equal(body.rings[1].reason, 'rpc_unavailable');
+assert.deepEqual(body.highlights, []);
 assert.ok(!JSON.stringify(body).includes('demo'));
+assert.ok(!JSON.stringify(body.highlights).includes('xId'));
+assert.ok(!JSON.stringify(body.highlights).includes('wallet'));
+
+const { createSessionToken } = await import('./dasha-lobby-x.mjs');
+const { DashaLobby } = workerModule;
+const rows = new Map();
+const state = {
+  storage: {
+    get: async (key) => rows.get(key),
+    put: async (key, value) => {
+      if (key && typeof key === 'object') {
+        for (const [name, item] of Object.entries(key)) rows.set(name, item);
+        return;
+      }
+      rows.set(key, value);
+    },
+    delete: async (key) => rows.delete(key),
+    getAlarm: async () => 1,
+    setAlarm: async () => {},
+  },
+  setWebSocketAutoResponse() {},
+  blockConcurrencyWhile(fn) { this.ready = fn(); },
+};
+const env = {
+  LOBBY_SESSION_SECRET: 'graph-highlight-test-secret',
+  ALLOWED_ORIGINS: 'https://www.getdasha.com,https://getdasha.com,https://lobby.getdasha.com',
+};
+const room = new DashaLobby(state, env);
+await state.ready;
+const sessionToken = await createSessionToken(env, { xId: 'x1', handle: 'ava' });
+const graphPost = (path, body, { cookie = sessionToken, origin = 'https://www.getdasha.com' } = {}) => room.fetch(new Request(`https://lobby.getdasha.com${path}`, {
+  method: 'POST',
+  headers: {
+    ...(origin ? { Origin: origin } : {}),
+    ...(cookie ? { Cookie: `__Host-dasha_x=${cookie}` } : {}),
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify(body),
+}));
+
+const noX = await graphPost('/api/graph/highlight', {}, { cookie: '' });
+assert.equal(noX.status, 401);
+assert.equal((await noX.json()).error, 'link X first');
+
+const noXChallenge = await graphPost('/api/graph/wallet/challenge', { publicKey: '11111111111111111111111111111111' }, { cookie: '' });
+assert.equal(noXChallenge.status, 401);
+assert.equal((await noXChallenge.json()).error, 'link X first');
+
+const boardGate = await graphPost('/simp/wallet/challenge', { publicKey: '11111111111111111111111111111111' });
+assert.equal(boardGate.status, 401);
+assert.equal((await boardGate.json()).error, 'join board first');
+
+const proofAddress = '11111111111111111111111111111111';
+const challengeRes = await graphPost('/api/graph/wallet/challenge', { publicKey: proofAddress });
+assert.equal(challengeRes.status, 200);
+const challenge = await challengeRes.json();
+assert.match(challenge.message, /graph-highlight/);
+assert.match(challenge.message, /Wallet is not retained/);
+assert.equal(rows.has('graphHolder:x1'), true);
+
+const keys = await crypto.subtle.generateKey('Ed25519', true, ['sign', 'verify']);
+const rawPub = new Uint8Array(await crypto.subtle.exportKey('raw', keys.publicKey));
+const toBase58 = (bytes) => {
+  const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  let value = BigInt(`0x${Buffer.from(bytes).toString('hex')}`);
+  let out = '';
+  while (value) {
+    out = alphabet[Number(value % 58n)] + out;
+    value /= 58n;
+  }
+  for (const byte of bytes) {
+    if (byte) break;
+    out = `1${out}`;
+  }
+  return out || '1';
+};
+const signedAddress = toBase58(rawPub);
+const signedChallenge = await (await graphPost('/api/graph/wallet/challenge', { publicKey: signedAddress })).json();
+const signedBytes = new Uint8Array(await crypto.subtle.sign('Ed25519', keys.privateKey, new TextEncoder().encode(signedChallenge.message)));
+const verifyBody = { challenge: signedChallenge.challenge, publicKey: signedAddress, signature: toBase58(signedBytes) };
+
+const nativeFetch = globalThis.fetch;
+globalThis.fetch = async () => Response.json({ result: { value: [] } });
+try {
+  const noHold = await graphPost('/api/graph/highlight', verifyBody);
+  assert.equal(noHold.status, 400);
+  assert.equal((await noHold.json()).error, 'wallet does not currently hold $dasha');
+  assert.deepEqual(publicHighlights(room.graphHighlights), []);
+} finally {
+  globalThis.fetch = nativeFetch;
+}
+
+const retryChallenge = await (await graphPost('/api/graph/wallet/challenge', { publicKey: signedAddress })).json();
+const retryBytes = new Uint8Array(await crypto.subtle.sign('Ed25519', keys.privateKey, new TextEncoder().encode(retryChallenge.message)));
+const retryBody = { challenge: retryChallenge.challenge, publicKey: signedAddress, signature: toBase58(retryBytes) };
+globalThis.fetch = async () => Response.json({
+  result: { value: [{ account: { data: { parsed: { info: { owner: signedAddress, mint, tokenAmount: { amount: '1' } } } } } }] },
+});
+try {
+  const ok = await graphPost('/api/graph/highlight', retryBody);
+  assert.equal(ok.status, 200);
+  const okBody = await ok.json();
+  assert.equal(okBody.ok, true);
+  assert.equal(okBody.highlight.handle, 'ava');
+  assert.equal(okBody.highlight.href, 'https://x.com/ava');
+  assert.ok(Number(okBody.highlight.until) > Date.now());
+  assert.equal(JSON.stringify(okBody).includes(signedAddress), false);
+  assert.equal(JSON.stringify(okBody).includes('x1'), false);
+  assert.equal(JSON.stringify(okBody).includes('wallet'), false);
+  assert.deepEqual(okBody.highlights.map((row) => row.handle), ['ava']);
+} finally {
+  globalThis.fetch = nativeFetch;
+}
+
+resetGraphCache();
+await fetchGraphSnapshot({}, { fetchImpl: rpc429, now: 2, endpoints: ['https://api.mainnet-beta.solana.com'] });
+const merged = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/api/graph'), {
+  LOBBY: { idFromName: () => 'public', get: () => room },
+});
+assert.equal(merged.status, 200);
+const mergedBody = await merged.json();
+assert.equal(mergedBody.mint, mint);
+assert.equal(mergedBody.pair, pair);
+assert.ok(mergedBody.nodes.some((node) => node.id === mint));
+assert.ok(mergedBody.nodes.some((node) => node.id === pair));
+assert.deepEqual(mergedBody.highlights.map((row) => row.handle), ['ava']);
+assert.equal(JSON.stringify(mergedBody.highlights).includes('x1'), false);
+assert.equal(JSON.stringify(mergedBody).includes(signedAddress), false);
+
+const stillHold = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/simp/hold'), {});
+assert.equal(stillHold.status, 501);
+assert.equal((await stillHold.json()).error, 'not_configured');
 
 console.log('dasha-graph: PASS');

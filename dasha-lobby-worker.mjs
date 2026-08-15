@@ -91,9 +91,11 @@ import {
   ASSET_HASH,
 } from './dasha-lobby-static-gen.mjs';
 import {
+  applyGraphHighlight,
   fetchGraphExpand,
   fetchGraphSnapshot,
   GRAPH_CACHE_CONTROL,
+  publicHighlights,
 } from './dasha-graph.mjs';
 import {
   CHESS_CLOCK_MS,
@@ -585,6 +587,19 @@ function graphApiResponse(body, origin, cacheControl = GRAPH_CACHE_CONTROL) {
   });
 }
 
+async function loadPublicHighlights(env) {
+  try {
+    if (!env?.LOBBY) return [];
+    const stub = env.LOBBY.get(env.LOBBY.idFromName('public'));
+    const res = await stub.fetch(new Request('https://lobby.getdasha.com/api/graph/highlights', { method: 'GET' }));
+    if (!res.ok) return [];
+    const data = await res.json().catch(() => null);
+    return Array.isArray(data?.highlights) ? publicHighlights(data.highlights) : [];
+  } catch {
+    return [];
+  }
+}
+
 async function graphSnapshotResponse(request, env) {
   const origin = request.headers.get('Origin');
   const allowedOrigin = origin && originAllowed(origin, env.ALLOWED_ORIGINS || '') ? origin : origin || '*';
@@ -600,8 +615,16 @@ async function graphSnapshotResponse(request, env) {
       },
     });
   }
-  const body = await fetchGraphSnapshot(env, { endpoints: solanaRpcEndpoints(env) });
-  return graphApiResponse(body, allowedOrigin);
+  const [body, highlights] = await Promise.all([
+    fetchGraphSnapshot(env, { endpoints: solanaRpcEndpoints(env) }),
+    loadPublicHighlights(env),
+  ]);
+  return graphApiResponse({ ...body, highlights }, allowedOrigin);
+}
+
+function isGraphWritePath(pathname) {
+  const path = String(pathname || '').replace(/\/$/, '');
+  return path === '/api/graph/wallet/challenge' || path === '/api/graph/highlight' || path === '/api/graph/highlights';
 }
 
 async function graphExpandResponse(request, env) {
@@ -1001,10 +1024,10 @@ function versePageResponse(request) {
 }
 
 const PRIVACY_HTML = htmlPage('Dasha privacy', `<h1>Privacy</h1>
-<p>Updated August 10, 2026.</p>
+<p>Updated August 15, 2026.</p>
 <h2>What Dasha uses</h2>
 <p>Linking X reads your X account ID, handle, display name, avatar, and verification type. The browser session lasts up to 30 days. Dasha does not store the X access token.</p>
-<p>If you join the Simp Board or finish its scored quiz, Dasha stores your linked identity, score, badges, contribution links, and dated holder-badge status. The wallet address and balance used for that optional badge are checked once and are not retained. Lobby history is limited to roughly 30 minutes and 40 messages. Completed chess games are public replays showing both X handles, ratings, moves, result, and completion time. Studio, quiz, and chess funnel counts are aggregate only.</p>
+<p>If you join the Simp Board or finish its scored quiz, Dasha stores your linked identity, score, badges, contribution links, and dated holder-badge status. The wallet address and balance used for that optional badge are checked once and are not retained. If you opt in to graph highlight, Dasha shows your public X handle on /graph until that proof expires. Lobby history is limited to roughly 30 minutes and 40 messages. Completed chess games are public replays showing both X handles, ratings, moves, result, and completion time. Studio, quiz, and chess funnel counts are aggregate only.</p>
 <h2>How it is used</h2>
 <p>The data provides linked chat identity, Board ranking, quiz results, contribution review, moderation, and optional holder recognition. Public Board rows and season snapshots can show your handle, avatar, score, badges, and accepted evidence links. Dasha does not post to X or sell identity data.</p>
 <p>Webflow serves the site and Cloudflare hosts the service. X processes OAuth and serves some public images; other public images may load from Wikimedia. Those image hosts receive ordinary request metadata without a page referrer. A Solana RPC receives a wallet address only during an optional holder check.</p>
@@ -1142,6 +1165,27 @@ async function chessPageForRequest(request, env) {
 
 const oauthStateCookie = (token = '') => `${OAUTH_COOKIE}=${token}; Path=/; Max-Age=${token ? 900 : 0}; HttpOnly; Secure; SameSite=Lax`;
 
+const OAUTH_RETURN_OK = new Set([
+  'https://www.getdasha.com/graph',
+  'https://lobby.getdasha.com/graph',
+  'https://www.getdasha.com/simp',
+  'https://www.getdasha.com/chess',
+  'https://lobby.getdasha.com/chess',
+  'https://www.getdasha.com/lobby',
+  'https://lobby.getdasha.com/lobby',
+]);
+
+function parseOAuthReturn(raw) {
+  const value = String(raw || '').trim();
+  if (OAUTH_RETURN_OK.has(value)) return value;
+  const path = (value.startsWith('/') ? value : `/${value}`).split('?')[0].split('#')[0];
+  if (path === '/graph') return 'https://www.getdasha.com/graph';
+  if (path === '/simp') return 'https://www.getdasha.com/simp';
+  if (path === '/chess') return 'https://www.getdasha.com/chess';
+  if (path === '/lobby') return 'https://www.getdasha.com/lobby';
+  return '';
+}
+
 function oauthHtmlResponse(body, status) {
   return new Response(body, {
     status,
@@ -1184,6 +1228,8 @@ export class DashaLobby {
     this.chessHidden = {};
     this.chessLooking = {};
     this.chessMetrics = emptyChessMetrics(Date.now());
+    /** @type {Record<string, { handle: string, href: string, until: number, checkedAt: number }>} xId -> opt-in graph highlight */
+    this.graphHighlights = {};
     this.stats = {
       joins: 0,
       chats: 0,
@@ -1254,6 +1300,8 @@ export class DashaLobby {
       if (chessMetrics && typeof chessMetrics === 'object' && !Array.isArray(chessMetrics)) {
         this.chessMetrics = { ...this.chessMetrics, ...chessMetrics, since: Number(chessMetrics.since) || null };
       }
+      const graphHighlights = await this.state.storage.get('graphHighlights');
+      if (graphHighlights && typeof graphHighlights === 'object' && !Array.isArray(graphHighlights)) this.graphHighlights = graphHighlights;
       const next = await this.state.storage.getAlarm();
       if (next == null) await this.state.storage.setAlarm(Date.now() + 5 * 60_000);
     });
@@ -1265,6 +1313,99 @@ export class DashaLobby {
 
   async persistSimpState() {
     await this.state.storage.put({ simpProfiles: this.simpProfiles, simpQuizAttempts: this.simpQuizAttempts, simpQuizMetrics: this.simpQuizMetrics, simpQuizResults: this.simpQuizResults, simpClaims: this.simpClaims, simpSeasons: this.simpSeasons });
+  }
+
+  async persistGraphHighlights() {
+    await this.state.storage.put('graphHighlights', this.graphHighlights);
+  }
+
+  async handleGraph(request, allowedOrigin) {
+    const url = new URL(request.url);
+    const path = url.pathname.replace(/\/$/, '');
+    const cred = { credentials: true };
+
+    if (path === '/api/graph/highlights' && request.method === 'GET') {
+      return json({ highlights: publicHighlights(this.graphHighlights) }, 200, allowedOrigin || '*');
+    }
+
+    if (path === '/api/graph/wallet/challenge') {
+      if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405, allowedOrigin, cred);
+      if (!allowedOrigin) return json({ error: 'origin required' }, 403, null);
+      const session = await sessionFromRequest(this.env, request);
+      if (!session?.xId || !session.handle) return json({ error: 'link X first' }, 401, allowedOrigin, cred);
+      const publicKey = String((await requestJson(request)).publicKey || '');
+      if (!isValidSolanaAddress(publicKey)) return json({ error: 'valid Solana address required' }, 400, allowedOrigin, cred);
+      const allowed = simpRate(this.simpRates, `graph-challenge:${session.xId}`, 6);
+      if (!allowed.ok) return json({ error: 'holder check rate limited', waitMs: allowed.waitMs }, 429, allowedOrigin, cred);
+      const issuedAt = Date.now();
+      const expiresAt = issuedAt + 5 * 60_000;
+      const nonce = [...crypto.getRandomValues(new Uint8Array(16))].map(byte => byte.toString(16).padStart(2, '0')).join('');
+      const proofOrigin = new URL(allowedOrigin);
+      const message = walletMessage({
+        handle: session.handle,
+        publicKey,
+        nonce,
+        issuedAt,
+        expiresAt,
+        domain: proofOrigin.host,
+        uri: `${proofOrigin.origin}/`,
+        requestId: 'graph-highlight',
+      });
+      const challenge = await signPayload(this.env.LOBBY_SESSION_SECRET, {
+        kind: 'graph_highlight',
+        xId: String(session.xId),
+        publicKey,
+        nonce,
+        message,
+        origin: proofOrigin.origin,
+        exp: expiresAt,
+      });
+      await this.state.storage.put(`graphHolder:${session.xId}`, { nonce, exp: expiresAt });
+      return json({ ok: true, message, challenge, expiresAt }, 200, allowedOrigin, cred);
+    }
+
+    if (path === '/api/graph/highlight') {
+      if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405, allowedOrigin, cred);
+      if (!allowedOrigin) return json({ error: 'origin required' }, 403, null);
+      const session = await sessionFromRequest(this.env, request);
+      if (!session?.xId || !session.handle) return json({ error: 'link X first' }, 401, allowedOrigin, cred);
+      const allowed = simpRate(this.simpRates, `graph-verify:${session.xId}`, 4);
+      if (!allowed.ok) return json({ error: 'holder check rate limited', waitMs: allowed.waitMs }, 429, allowedOrigin, cred);
+      const body = await requestJson(request);
+      const challenge = await verifyPayload(this.env.LOBBY_SESSION_SECRET, body.challenge);
+      if (
+        !challenge
+        || challenge.kind !== 'graph_highlight'
+        || challenge.xId !== String(session.xId)
+        || challenge.publicKey !== body.publicKey
+        || challenge.origin !== allowedOrigin
+      ) {
+        return json({ error: 'invalid holder challenge' }, 401, allowedOrigin, cred);
+      }
+      const signatureOk = await verifyEd25519(challenge.message, body.publicKey, body.signature).catch(() => false);
+      if (!signatureOk) return json({ error: 'invalid wallet signature' }, 400, allowedOrigin, cred);
+      const key = `graphHolder:${session.xId}`;
+      const pending = await this.state.storage.get(key);
+      if (!pending || pending.nonce !== challenge.nonce || pending.exp < Date.now()) {
+        return json({ error: 'holder challenge already used' }, 409, allowedOrigin, cred);
+      }
+      let holds;
+      try { holds = await walletHoldsDasha(this.env, body.publicKey); }
+      catch { return json({ error: 'Solana holder check unavailable — try again' }, 503, allowedOrigin, cred); }
+      await this.state.storage.delete(key);
+      if (!holds) return json({ error: 'wallet does not currently hold $dasha' }, 400, allowedOrigin, cred);
+      const result = applyGraphHighlight(this.graphHighlights, session);
+      if (!result.ok) return json({ error: result.error }, result.status || 400, allowedOrigin, cred);
+      this.graphHighlights = result.rows;
+      await this.persistGraphHighlights();
+      return json({
+        ok: true,
+        highlight: result.highlight,
+        highlights: publicHighlights(this.graphHighlights),
+      }, 200, allowedOrigin, cred);
+    }
+
+    return json({ error: 'not found' }, 404, allowedOrigin, cred);
   }
 
   async handleVerse(request) {
@@ -2617,6 +2758,17 @@ export class DashaLobby {
       return this.handleVerse(request);
     }
 
+    if (url.pathname.startsWith('/api/graph/')) {
+      const origin = request.headers.get('Origin');
+      const allowedOrigin =
+        origin && originAllowed(origin, this.env.ALLOWED_ORIGINS || '')
+          ? origin
+          : this.env.ALLOW_ANY_ORIGIN
+            ? origin || '*'
+            : null;
+      return this.handleGraph(request, allowedOrigin);
+    }
+
     if (url.pathname.startsWith('/simp/') || url.pathname.startsWith('/studio/') || url.pathname.startsWith('/chess/')) {
       // Origin already checked by worker entry; pass through for CORS on stub responses.
       const origin = request.headers.get('Origin');
@@ -2926,9 +3078,13 @@ async function handleOAuth(request, env, allowedOrigin) {
         503,
       );
     }
+    const back = parseOAuthReturn(url.searchParams.get('return'));
     if (url.searchParams.get('continue') !== '1') {
+      const continueHref = back
+        ? `/oauth/x/start?continue=1&return=${encodeURIComponent(back)}`
+        : '/oauth/x/start?continue=1';
       return oauthHtmlResponse(
-        htmlPage('Connect X', '<h1>Connect X</h1><p>Dasha reads your public X identity across the site. It does not post for you.</p><p><a href="/privacy">Privacy</a></p><p><a href="/oauth/x/start?continue=1">Continue with X</a></p>'),
+        htmlPage('Connect X', `<h1>Connect X</h1><p>Dasha reads your public X identity across the site. It does not post for you.</p><p><a href="/privacy">Privacy</a></p><p><a href="${continueHref}">Continue with X</a></p>`),
         200,
       );
     }
@@ -2940,6 +3096,7 @@ async function handleOAuth(request, env, allowedOrigin) {
       kind: 'oauth_state',
       state,
       verifier,
+      ...(back ? { cont: back } : {}),
       exp: Date.now() + 15 * 60_000,
     });
     const dest = authorizeUrl({
@@ -2986,13 +3143,16 @@ async function handleOAuth(request, env, allowedOrigin) {
       const session = await createSessionToken(env, user);
       const safeHandle = escapeHtml(user.handle);
       const scriptHandle = JSON.stringify(user.handle).replace(/</g, '\\u003c');
+      const dest = parseOAuthReturn(st.cont) || 'https://www.getdasha.com/';
+      const destJson = JSON.stringify(dest).replace(/</g, '\\u003c');
+      const destLabel = dest.endsWith('/graph') ? 'Open Graph' : dest.endsWith('/simp') ? 'Open Simp' : dest.endsWith('/chess') ? 'Open Chess' : dest.endsWith('/lobby') ? 'Open Lobby' : 'Open Dasha';
       const scriptNonce = randomUrlToken(18);
       const body = htmlPage(
         'Linked',
         `<h1>Linked @${safeHandle}</h1>
         <p>You can close this tab and return to Dasha.</p>
-        <p><a href="https://www.getdasha.com/">Open Dasha</a></p>
-        <script nonce="${scriptNonce}">try{if(window.opener){var h=${scriptHandle};['https://www.getdasha.com','https://getdasha.com','https://lobby.getdasha.com'].forEach(function(o){try{window.opener.postMessage({type:'dasha-x-linked',handle:h},o);}catch(e){}});}}catch(e){} setTimeout(function(){window.close()},800);</script>`,
+        <p><a href="${escapeHtml(dest)}">${destLabel}</a></p>
+        <script nonce="${scriptNonce}">try{if(window.opener){var h=${scriptHandle};['https://www.getdasha.com','https://getdasha.com','https://lobby.getdasha.com'].forEach(function(o){try{window.opener.postMessage({type:'dasha-x-linked',handle:h},o);}catch(e){}});}}catch(e){} setTimeout(function(){if(!window.opener)location.replace(${destJson});else window.close()},800);</script>`,
       );
       const headers = new Headers(privateHtmlHeaders({
         'Content-Type': 'text/html; charset=utf-8',
@@ -3375,6 +3535,10 @@ export default {
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/api/graph/expand') {
       return graphExpandResponse(request, env);
+    }
+    if (isGraphWritePath(url.pathname)) {
+      if (!env.LOBBY) return json({ error: 'not found' }, 404, allowedOrigin, { credentials: true });
+      return env.LOBBY.get(env.LOBBY.idFromName('public')).fetch(request);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/dashaverse')) {
       return Response.redirect(VERSE_WWW, 308);

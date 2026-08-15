@@ -3,7 +3,9 @@
  * Never invent holders, balances, names, or related coins.
  */
 import { MINT, PAIR, WSOL } from './dasha-lobby-mod.mjs';
-import { isValidSolanaAddress } from './dasha-simp-actions.mjs';
+import { HOLDER_TTL_MS, isValidSolanaAddress } from './dasha-simp-actions.mjs';
+
+export { HOLDER_TTL_MS as HIGHLIGHT_TTL_MS };
 
 export { MINT, PAIR, WSOL };
 export const RAYDIUM_AMM_V4 = '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8';
@@ -232,6 +234,7 @@ export function buildSnapshot({
   supply = null,
   holdersLoaded = true,
   rpcError = '',
+  highlights = {},
   now = Date.now(),
 } = {}) {
   const mint = mintNode(jup);
@@ -299,6 +302,34 @@ export function buildSnapshot({
     links,
     pulses,
     rings,
+    highlights: publicHighlights(highlights, now),
+  };
+}
+
+/** Public opt-in rows only: handle + href + until. Never wallet or xId. */
+export function publicHighlights(rows, now = Date.now()) {
+  const byHandle = new Map();
+  for (const row of Object.values(rows || {})) {
+    const handle = String(row?.handle || '').replace(/^@/, '').toLowerCase();
+    const until = Number(row?.until);
+    if (!/^[a-z0-9_]{1,15}$/.test(handle) || !Number.isFinite(until) || until <= now) continue;
+    const href = `https://x.com/${handle}`;
+    const prev = byHandle.get(handle);
+    if (!prev || until > prev.until) byHandle.set(handle, { handle, href, until });
+  }
+  return [...byHandle.values()].sort((a, b) => a.handle.localeCompare(b.handle));
+}
+
+export function applyGraphHighlight(rows, session, { now = Date.now(), ttlMs = HOLDER_TTL_MS } = {}) {
+  const xId = String(session?.xId || '');
+  const handle = String(session?.handle || '').replace(/^@/, '').toLowerCase();
+  if (!xId || !/^[a-z0-9_]{1,15}$/.test(handle)) return { ok: false, status: 401, error: 'link X first' };
+  const until = now + ttlMs;
+  const row = { handle, href: `https://x.com/${handle}`, until, checkedAt: now };
+  return {
+    ok: true,
+    highlight: { handle, href: row.href, until },
+    rows: { ...rows, [xId]: row },
   };
 }
 

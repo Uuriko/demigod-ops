@@ -45,12 +45,14 @@ nav a[aria-current=page]{color:#dfff00}
 .verbs{display:flex;flex-wrap:wrap;gap:.4rem;padding:.45rem 1rem 0}
 .verbs button,.verbs a,.panel button{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border:1px solid var(--line);background:transparent;color:#f4eddb;font:900 11px/1 Arial,Helvetica,sans-serif;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;cursor:pointer}
 .verbs button[aria-pressed=true]{border-color:#dfff00;color:#dfff00}
+.verbs button.highlight{border-color:#dfff00;background:#dfff00;color:#070608}
 .verbs a.buy{border-color:#dfff00;color:#dfff00}
 .verbs button:focus-visible,.verbs a:focus-visible,nav a:focus-visible,.panel button:focus-visible,.panel a:focus-visible{outline:3px solid #dfff00;outline-offset:3px}
 #graph{position:fixed;inset:0;z-index:1;background:#070608}
 #graph canvas{display:block;width:100%;height:100%}
 #labels{position:fixed;inset:0;z-index:2;pointer-events:none}
-#labels span{position:absolute;transform:translate(-50%,-120%);color:#f4eddb;font:800 11px/1 Arial,Helvetica,sans-serif;letter-spacing:.04em;text-transform:uppercase;text-shadow:0 1px 0 #070608}
+#labels span,#labels a{position:absolute;transform:translate(-50%,-120%);color:#f4eddb;font:800 11px/1 Arial,Helvetica,sans-serif;letter-spacing:.04em;text-transform:uppercase;text-shadow:0 1px 0 #070608;text-decoration:none}
+#labels a{pointer-events:auto;color:#ff3b81}
 .status{position:fixed;left:1rem;bottom:3.1rem;z-index:3;margin:0;color:var(--muted);font:800 12px/1.4 Arial,Helvetica,sans-serif;letter-spacing:.04em;text-transform:uppercase}
 .status[data-kind=bad]{color:#ff3b81}
 .keys{position:fixed;right:1rem;bottom:3.1rem;z-index:3;margin:0;color:var(--muted);font:800 11px/1.4 Arial,Helvetica,sans-serif;letter-spacing:.06em;text-transform:uppercase}
@@ -98,6 +100,7 @@ nav a[aria-current=page]{color:#dfff00}
     <button type="button" id="reset">Reset</button>
     <button type="button" id="follow" aria-pressed="false">Follow latest</button>
     <button type="button" id="list-toggle" aria-pressed="false">List</button>
+    <button type="button" class="highlight" id="highlight-me">Highlight me</button>
     <a class="buy" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy on Jupiter</a>
   </div>
 </header>
@@ -112,6 +115,6 @@ nav a[aria-current=page]{color:#dfff00}
   <a href="https://solscan.io/token/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Explorer</a>
   <a href="https://dexscreener.com/solana/9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7" target="_blank" rel="noopener noreferrer">Dexscreener</a>
 </footer>
-<script src="https://lobby.getdasha.com/client/graph.js" integrity="sha384-a+7GY/OnmHyoPDb1zYHIrmNSQMSc71pF9ZvzroKKYTvb1EETYblffFyVYI4oJMGo" crossorigin="anonymous" defer></script>
+<script src="https://lobby.getdasha.com/client/graph.js" integrity="sha384-l1ZtjLO6V2TvjhMQ+XBDIxbKaDhhWAiojU2gMquODWU+LiedG4Qs1MNxm/v6iMgS" crossorigin="anonymous" defer></script>
 </body>
 </html>
