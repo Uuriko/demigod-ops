@@ -14,8 +14,10 @@ import { sessionFromRequest, signPayload, verifyPayload } from './dasha-lobby-x.
 export { MINT, WSOL };
 export const JUPITER = `https://jup.ag/swap?sell=${WSOL}&buy=${MINT}`;
 export const TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+export const TOKEN_2022_PROGRAM = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
 export const ASSOCIATED_TOKEN_PROGRAM = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
 export const SYSTEM_PROGRAM = '11111111111111111111111111111111';
+export const SIWS_DOMAINS = new Set(['getdasha.com', 'www.getdasha.com', 'lobby.getdasha.com']);
 export const DECIMALS = 6;
 export const DEFAULT_AMOUNT_RAW = 100_000_000;
 export const ATA_RENT_LAMPORTS = 2_039_280;
@@ -104,7 +106,73 @@ export function isOnCurveAddress(value) {
 }
 
 export function faucetDestOk(value) {
-  return isValidSolanaAddress(value) && value !== SYSTEM_PROGRAM && isOnCurveAddress(value);
+  return isValidSolanaAddress(value) && value !== SYSTEM_PROGRAM && value !== MINT && isOnCurveAddress(value);
+}
+
+export function siwsDomainOk(domain) {
+  const host = String(domain || '').trim().toLowerCase();
+  if (!host) return false;
+  return SIWS_DOMAINS.has(host);
+}
+
+export function siwsMessageDomain(message) {
+  const line = String(message || '').split('\n')[0] || '';
+  const match = line.match(/^(\S+) wants you to sign in with your Solana account:$/);
+  return match ? match[1] : '';
+}
+
+export function faucetWalletMessage({ handle, publicKey, nonce, issuedAt, expiresAt, domain, uri }) {
+  if (!siwsDomainOk(domain)) return null;
+  return walletMessage({
+    handle,
+    publicKey,
+    nonce,
+    issuedAt,
+    expiresAt,
+    domain,
+    uri: uri || `https://${domain}/`,
+    requestId: 'faucet_dest',
+  });
+}
+
+export function faucetSiwsFields({ handle, publicKey, nonce, issuedAt, expiresAt, domain, uri }) {
+  if (!siwsDomainOk(domain)) return null;
+  return {
+    domain,
+    address: publicKey,
+    statement: `Dest-proof for the /faucet sample for @${handle}. Not a claim-airdrop signature. No transaction. We will not ask for a phrase.`,
+    uri: uri || `https://${domain}/`,
+    version: '1',
+    chainId: 'mainnet',
+    nonce,
+    issuedAt: new Date(issuedAt).toISOString(),
+    expirationTime: new Date(expiresAt).toISOString(),
+    requestId: 'faucet_dest',
+  };
+}
+
+function accountDataLen(value) {
+  const data = value?.data;
+  if (Array.isArray(data) && typeof data[0] === 'string') {
+    try { return atob(data[0]).length; } catch { return 0; }
+  }
+  return Number(value?.space) || 0;
+}
+
+/** Solana verify-address: only IS_WALLET may receive. No ATA for off-curve. */
+export function classifyDest({ address, account, onCurve }) {
+  if (!isValidSolanaAddress(address) || address === SYSTEM_PROGRAM) return { ok: false, kind: 'invalid', error: 'dest_not_wallet' };
+  if (address === MINT) return { ok: false, kind: 'mint', error: 'dest_mint' };
+  if (!account) {
+    if (!onCurve) return { ok: false, kind: 'pda', error: 'dest_pda' };
+    return { ok: true, kind: 'IS_WALLET', unfunded: true };
+  }
+  const owner = String(account.owner || '');
+  if (owner === SYSTEM_PROGRAM) return { ok: true, kind: 'IS_WALLET', unfunded: false };
+  if (owner === TOKEN_PROGRAM || owner === TOKEN_2022_PROGRAM) {
+    return { ok: false, kind: accountDataLen(account) === 82 ? 'mint' : 'token', error: accountDataLen(account) === 82 ? 'dest_mint' : 'dest_token' };
+  }
+  return { ok: false, kind: 'other', error: 'dest_not_wallet' };
 }
 
 export function last4(addr) {
@@ -378,6 +446,18 @@ async function rpcOne(endpoints, method, params) {
 }
 
 export async function preflightFaucet({ endpoints, treasury, dest, amountRaw }) {
+  let destInfo;
+  try {
+    destInfo = await rpcOne(endpoints, 'getAccountInfo', [dest, { encoding: 'base64' }]);
+  } catch {
+    return { ok: false, status: 503, error: 'rpc_unavailable' };
+  }
+  const destClass = classifyDest({
+    address: dest,
+    account: destInfo?.value ?? null,
+    onCurve: isOnCurveAddress(dest),
+  });
+  if (!destClass.ok) return { ok: false, status: 400, error: destClass.error };
   const treasuryAta = (await associatedTokenAddress(treasury.address)).address;
   const destAta = (await associatedTokenAddress(dest)).address;
   let rows;
@@ -557,15 +637,26 @@ export async function handleFaucetApi(request, env, { json, allowedOrigin, endpo
     const expiresAt = issuedAt + 5 * 60_000;
     const nonce = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('');
     const proofOrigin = new URL(allowedOrigin);
-    const message = walletMessage({
+    const domain = proofOrigin.host;
+    const uri = `${proofOrigin.origin}/`;
+    const message = faucetWalletMessage({
       handle: session.handle,
       publicKey,
       nonce,
       issuedAt,
       expiresAt,
-      domain: proofOrigin.host,
-      uri: `${proofOrigin.origin}/`,
-      requestId: 'faucet_dest',
+      domain,
+      uri,
+    });
+    if (!message) return json({ error: 'siws_domain' }, 400, allowedOrigin, cred);
+    const siws = faucetSiwsFields({
+      handle: session.handle,
+      publicKey,
+      nonce,
+      issuedAt,
+      expiresAt,
+      domain,
+      uri,
     });
     const challenge = await signPayload(env.LOBBY_SESSION_SECRET, {
       kind: 'faucet_dest',
@@ -577,7 +668,7 @@ export async function handleFaucetApi(request, env, { json, allowedOrigin, endpo
       exp: expiresAt,
     });
     await faucetWrite(env, 'x', String(session.xId), `faucetSiws:${session.xId}`, { nonce, exp: expiresAt });
-    return json({ ok: true, message, challenge, expiresAt }, 200, allowedOrigin, cred);
+    return json({ ok: true, message, challenge, expiresAt, siws }, 200, allowedOrigin, cred);
   }
 
   if (path === '/faucet/wallet/verify') {
@@ -605,6 +696,9 @@ export async function handleFaucetApi(request, env, { json, allowedOrigin, endpo
       || challenge.origin !== allowedOrigin
     ) {
       return json({ error: 'invalid faucet challenge' }, 401, allowedOrigin, cred);
+    }
+    if (!siwsDomainOk(siwsMessageDomain(challenge.message))) {
+      return json({ error: 'siws_domain' }, 400, allowedOrigin, cred);
     }
     if (!faucetDestOk(body.publicKey)) return json({ error: 'valid Solana address required' }, 400, allowedOrigin, cred);
     const signatureOk = await verifyEd25519(challenge.message, body.publicKey, body.signature).catch(() => false);

@@ -131,6 +131,7 @@
       if (state.status && state.status.configured === false) {
         stage.appendChild(el('h2', 'faucet-q', 'Not funded yet'));
         stage.appendChild(el('p', '', 'a tiny sample for newbies. not an airdrop. not earn.'));
+        stage.appendChild(el('p', 'faucet-lede', 'Agents do not claim this faucet.'));
         stage.appendChild(el('p', 'faucet-lede', 'The treasury key is not set. JSON writes return 501. This page is honest about that.'));
         mintBlock(stage);
         hops(stage);
@@ -156,6 +157,7 @@
         stage.appendChild(bar(0));
         stage.appendChild(el('h2', 'faucet-q', 'What this is'));
         stage.appendChild(el('p', '', 'a tiny sample for newbies. not an airdrop. not earn.'));
+        stage.appendChild(el('p', 'faucet-lede', 'Agents do not claim this faucet.'));
         stage.appendChild(el('p', 'faucet-lede', 'Not official. Not advice. She is not the dev. Association is not endorsement.'));
         mintBlock(stage);
         var nd = el('a', '', 'she is not the dev');
@@ -197,6 +199,7 @@
         stage.appendChild(bar(2));
         stage.appendChild(el('h2', 'faucet-q', 'Destination'));
         stage.appendChild(el('p', 'faucet-warn', 'This is your receive address. We will not ask for a phrase.'));
+        stage.appendChild(el('p', 'faucet-lede', 'SIWS is dest-proof, not a claim-airdrop signature.'));
         var siws = el('button', 'faucet-go', 'Sign with wallet');
         siws.type = 'button';
         siws.addEventListener('click', function () { bindSiws(siws); });
@@ -257,9 +260,17 @@
       }
     }
 
+    function walletSignIn(wallet) {
+      if (wallet && typeof wallet.signIn === 'function') return function (input) { return wallet.signIn(input); };
+      var feat = wallet && wallet.features && wallet.features['solana:signIn'];
+      if (feat && typeof feat.signIn === 'function') return function (input) { return feat.signIn(input); };
+      if (typeof feat === 'function') return feat;
+      return null;
+    }
+
     function bindSiws(btn) {
       var wallet = (global.phantom && global.phantom.solana) || global.solflare || global.solana;
-      if (!wallet || !wallet.connect || !wallet.signMessage) {
+      if (!wallet || !wallet.connect || (!wallet.signMessage && !walletSignIn(wallet))) {
         live.textContent = 'No wallet signer. Paste the receive address.';
         return;
       }
@@ -286,8 +297,14 @@
           }
           var challenge = pair.res.data;
           if (!challenge || !challenge.ok) throw new Error((challenge && challenge.error) || 'challenge failed');
-          return wallet.signMessage(new TextEncoder().encode(challenge.message), 'utf8').then(function (signed) {
-            var signature = signed.signature || signed;
+          var signIn = challenge.siws && walletSignIn(wallet);
+          var signed = signIn
+            ? signIn(challenge.siws)
+            : wallet.signMessage(new TextEncoder().encode(challenge.message), 'utf8');
+          return Promise.resolve(signed).then(function (out) {
+            if (Array.isArray(out)) out = out[0];
+            var signature = out && (out.signature || out);
+            if (signature && signature.signature) signature = signature.signature;
             if (!signature) throw new Error('wallet returned an incomplete signature');
             return fetchJson(base + '/faucet/wallet/verify', {
               method: 'POST',
