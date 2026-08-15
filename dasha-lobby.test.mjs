@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { AWARD_BTN_CSS, AWARD_CHROME_CSS, DASHA_ROOMS, hamburgerHtml, roomRailHtml, slimFooterHtml } from './dasha-award-chrome.mjs';
 
@@ -19,12 +19,17 @@ const mint = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
 assert(!landing.includes('id="dasha-lobby"'), 'landing must not mount lobby');
 assert(page.includes('id="dasha-lobby"'), 'dedicated lobby mount missing');
 assert(!chessPage.includes('id="dasha-lobby"'), 'chess must not embed lobby chat');
+assert.match(chessPage, /class="chess-still"/, 'chess keeps one still on the side');
+assert.doesNotMatch(chessPage, /class="chess-stills"/, 'chess must not park stills on the board');
 assert.match(chessPage, /\.btn\{[^}]*background:var\(--acid\);color:var\(--ink\)/, 'chess primary is acid fill + ink type');
 assert.match(chessPage, /\.btn\.ghost\{[^}]*color:var\(--paper\);border:1px solid var\(--paper\)/, 'chess ghost is paper on ink');
 assert.match(chessPage, /\.btn:disabled\{opacity:\.7/, 'chess disabled type stays readable');
 assert.doesNotMatch(chessPage, /\.btn:disabled\{opacity:\.5/);
-assert.match(simpClient, /\.simp-quiz-go,.simp-quiz-start,.simp-action,.simp-tool\{[^}]*background:#dfff00;color:#070608/, 'quiz go and board actions are acid fill + ink type');
-assert.match(simpClient, /\.simp-connect\{[^}]*border:1px solid #f4eddb;background:none;color:#f4eddb/, 'Connect X is paper on ink');
+assert.match(simpClient, /\.simp-quiz-go,.simp-quiz-start\{[^}]*min-height:56px;min-width:12rem[^}]*background:#dfff00;color:#070608/, 'Take Quiz is acid fill + ink type at 56px');
+assert.match(simpClient, /\.simp-quiz-go:hover,.simp-quiz-go:focus-visible,.simp-quiz-start:hover,.simp-quiz-start:focus-visible\{[^}]*color:#070608/, 'Take Quiz hover/focus stays ink on acid');
+assert.match(simpClient, /\.simp-quiz-go:disabled,.simp-quiz-start:disabled\{[^}]*color:#070608/, 'Take Quiz disabled stays readable');
+assert.match(simpClient, /@media\(max-width:520px\)\{[\s\S]*?\.simp-quiz-go,.simp-quiz-start\{width:100%/, 'Take Quiz is full-width on mobile');
+assert.match(simpClient, /\.simp-connect,.simp-quiz-share\{[^}]*border:1px solid #f4eddb;background:none;color:#f4eddb/, 'Connect X is paper on ink');
 assert.match(simpClient, /\.simp-more\{[^}]*color:#dfff00;font:900 1rem/, 'Show more is acid on ink');
 assert.doesNotMatch(simpClient, /\.simp-quiz-choice\{[^}]*color:#fff/, 'quiz choices are not white type');
 assert.match(simpClient, /\.simp-quiz-choice\{[^}]*color:#f4eddb/, 'quiz choices are paper on ink');
@@ -69,6 +74,9 @@ assert.doesNotMatch(chessPage, /\/airdrop|\/earn|\/claim|\/graph/, 'chess chrome
   assert.doesNotMatch(AWARD_BTN_CSS, /color:#fff|color:white/i, 'no white type on buttons');
   assert.doesNotMatch(AWARD_BTN_CSS, /\.simp-/, 'shared lock stays off leftover Simp CSS');
   assert.match(AWARD_CHROME_CSS, /background:#dfff00!important;color:#070608!important/, 'chrome ships the button lock');
+  assert.match(AWARD_CHROME_CSS, /@view-transition\{navigation:auto\}/, 'chrome ships the / ↔ /simp ink cut');
+  assert.match(AWARD_CHROME_CSS, /animation-duration:200ms/, 'ink cut stays in the 160–240ms window');
+  assert.match(ham, /dasha-ink-cut/, 'slim bar ships the ink overlay fallback');
   assert.match(studioEmbed, /\.btn\.primary\{background:var\(--acid\);border-color:var\(--acid\);color:var\(--ink\)/, 'studio primary is acid fill + ink type');
   assert.match(studioEmbed, /\.btn\{[\s\S]*?background:transparent;color:var\(--paper\)/, 'studio ghost is paper on ink');
   assert.match(studioEmbed, /\.chip\{min-height:48px[\s\S]*?color:var\(--paper\)/, 'studio chips are 48px paper on ink');
@@ -220,6 +228,7 @@ assert(worker.includes('GRAPH_PAGE = GRAPH_PAGE_HTML'), '/graph must not grow th
 assert(!worker.includes("path === '/' || path === '/lobby' || path === '/studio' || path === '/dasha'"), 'dock is off every path');
 assert(worker.includes('ensureHomeSimpMount') && worker.includes('injectHomeReveal'), 'home rewrite remounts the pretty board below the hero');
 assert(worker.includes('ensureHomeTapeMount') && worker.includes('DASHA_TAPE_EMBED_SRC'), 'home remounts the live pair chart above the board');
+assert(worker.includes('ensureHomeStillsMount') && worker.includes('stills-grid'), 'home remounts a first-party stills strip below the tape');
 assert(worker.includes('ensureHomeFaucetMount') && worker.includes('faucetMountHtml'), 'home remounts the live faucet toy after the board');
 assert(!worker.includes('ensureHomeSimpHop') && !worker.includes('dasha-simp-hop'), 'home #simp is the board, not a hop-only paragraph');
 assert(!worker.includes('class="dasha-quiz" data-simp-api'), 'home mount is not quiz chrome');
@@ -227,7 +236,24 @@ assert(worker.includes('stripLobbySimpQuiz') && worker.includes('stripLobbySimpQ
 assert(!worker.includes('SIMP_QUIZ_JS'), 'must not invent a second quiz client');
 assert(worker.includes('simpSharePageHtml') && worker.includes('og:image:alt'), 'www /simp/r is type-first share HTML');
 assert(worker.includes('simpQuizFirstPaintHtml') && worker.includes('simpResultMissingHtml'), 'www /simp first-paints the quiz and has an honest result 404');
-assert(worker.includes("error: 'link X to take the quiz'"), 'quiz start must require a linked X session');
+assert(worker.includes("anon:${randomUrlToken(9)}") || worker.includes('anon:${'), 'quiz start must work without a linked X session');
+assert(worker.includes('id="grwm"') && worker.includes('/client/grwm.mp4') && worker.includes('/client/grwm-loop.mp4') && worker.includes('/client/grwm.jpg'), 'home mounts first-party GRWM after the hero');
+assert.ok((await stat(new URL('./dasha-worker-assets/client/grwm.mp4', root))).size < 20 * 1024 * 1024, 'grwm.mp4 must stay under 20 MiB');
+assert.ok((await stat(new URL('./dasha-worker-assets/client/grwm-loop.mp4', root))).size < 1024 * 1024, 'grwm-loop.mp4 must stay under 1 MiB');
+assert.ok((await stat(new URL('./dasha-worker-assets/client/grwm.jpg', root))).size > 1000, 'grwm.jpg must exist');
+for (const name of ['scary', 'berlinale', 'cotton', 'hero', 'pony', 'press', 'bull', 'weekend', 'profile']) {
+  assert.ok((await stat(new URL(`./dasha-worker-assets/simp/photo/${name}.jpg`, root))).size > 1000, `${name}.jpg must be hosted first-party`);
+}
+assert(worker.includes('<video muted loop playsinline autoplay poster="/client/grwm.jpg" src="/client/grwm-loop.mp4">'), 'GRWM living poster is muted loop autoplay');
+assert(worker.includes("v.src='/client/grwm.mp4'") && worker.includes('v.controls=true') && worker.includes('v.muted=false'), 'tap swaps the same player to the full file with sound');
+assert(!worker.includes('video.twimg.com') && !worker.includes('pbs.twimg.com'), 'GRWM must not hotlink X');
+assert(worker.includes('overflow-x:auto') && worker.includes('scroll-snap-type:x mandatory'), 'stills strip is a horizontal flick');
+assert(worker.includes('data-quiz="${quiz}"') && worker.includes('dasha-still-quiz') && worker.includes("'scary-cap'") && worker.includes("['pony', '']"), 'a still can jump into a matching quiz question');
+assert.match(worker, /#stills \.still:hover,#stills \.still:focus-visible\{transform:rotate/, 'stills tilt on hover/focus');
+{
+  const stillsFn = worker.slice(worker.indexOf('function stillsMountHtml'), worker.indexOf('function stripLeftoverStills'));
+  assert.doesNotMatch(stillsFn, /archive|sweet|media\.jpg|public\.jpg|chart\.jpg/, 'stills skip leftover / non-Dasha / duplicate frames');
+}
 assert(worker.includes('Needs JavaScript.'), 'www /simp noscript must not dump the bank');
 assert(worker.includes('isBountiesJsonPath') && worker.includes('BOUNTIES_FEED_PAGE'), '/bounties.json stays the listings feed');
 assert(worker.includes("pathname.replace(/\\/$/, '') === '/simp/hold'") && worker.includes("error: 'not_configured'"), 'hold stays a not_configured stub');
@@ -503,7 +529,8 @@ for (const path of ['/studio', '/studio/']) {
     assert.doesNotMatch(html.replace(/href="https:\/\/x\.com\/dash_eats"/g, ''), /x\.com\//, `${label} must not dump X profiles outside the @dash_eats nav hop`);
     assert.doesNotMatch(html, /#2 @|#3 @/);
     assert.match(html, /\.simp-row\{display:grid;grid-template-columns:3\.2rem minmax\(0,1fr\) 3\.2rem/, `${label} must ship three-column board CSS`);
-    assert.doesNotMatch(html, /class="simp-/);
+    assert.match(html, /<button type="button" class="simp-quiz-go" data-dasha-take-quiz>Take Quiz<\/button>/);
+    assert.doesNotMatch(html, /Take the quiz|href="\/simp">Take Quiz/);
     assert.doesNotMatch(html, />RANK<|>CONTRIBUTOR<|>SCORE<|Breakdown|linked badge/i);
     assert.doesNotMatch(html, /score=/);
     assert.doesNotMatch(html, /"answer"\s*:/);
@@ -1450,6 +1477,7 @@ try {
     assert.match(css, /\.dasha>nav\.nav/, `${label} must hide embed nav`);
     assert.match(css, /\.dasha-nav/, `${label} must hide Designer DashaNav`);
     assert.match(css, /\.dasha-hero \.poster/, `${label} must hide hero poster`);
+    assert.match(css, /\.dasha-hero \.hero-still/, `${label} must keep stills out of the hero`);
     assert.match(css, /\.dasha-hero \.price/, `${label} must hide hero price`);
     assert.match(css, /\.dasha-hero \.actions a:not\(\.buy-dasha\)/, `${label} must hide non-Buy hero actions`);
     assert.match(css, /\.dasha-hero \.actions \.pill:not\(\.buy-dasha\)/, `${label} must hide non-Buy hero pills`);
@@ -1457,13 +1485,18 @@ try {
     assert.match(css, /a\[href\^="\/studio#"\]/, `${label} must hide studio-hash CTAs`);
     assert.match(css, /footer:not\(\.dasha-foot\)/, `${label} must hide leftover Studio/How to buy/Desk footer`);
     assert.match(css, /content-visibility:\s*auto/, `${label} must skip paint on below-fold rooms`);
+    assert.match(css, /@view-transition\{navigation:auto\}/, `${label} home gets the ink cut`);
+    assert.match(css, /animation-duration:200ms/, `${label} ink cut stays in the 160–240ms window`);
     assert.match(css, /content:"\[01\]"/, `${label} must number the hero room`);
-    assert.match(css, /#dasha-tape::before\{content:"\[02\]"/, `${label} must number the live chart`);
-    assert.match(css, /#simp::before\{content:"\[03\]"/, `${label} must number the board room`);
-    assert.match(css, /#chess::before\{content:"\[04\]"/, `${label} must number the chess room`);
-    assert.match(css, /#faucet::before\{content:"\[05\]"/, `${label} must number the faucet room`);
-    assert.match(css, /#token::before\{content:"\[06\]"/, `${label} must number the mint band`);
-    assert.match(css, /#lobby,#remix,#stills,#oss,#voice/, `${label} must hide leftover carnival`);
+    assert.match(css, /#grwm::before\{content:"\[02\]"/, `${label} must number GRWM`);
+    assert.match(css, /#dasha-tape::before\{content:"\[03\]"/, `${label} must number the live chart`);
+    assert.match(css, /#stills::before\{content:"\[04\]"/, `${label} must number the stills strip`);
+    assert.match(css, /#stills\{display:block!important\}/, `${label} must unhide #stills`);
+    assert.match(css, /#stills,#stills\.is-in,#simp,#simp\.is-in\{opacity:1;transform:none\}/, `${label} #stills flick and #simp Take Quiz must not fade to invisible`);
+    assert.match(css, /#chess::before\{content:"\[06\]"/, `${label} must number the chess room`);
+    assert.match(css, /#faucet::before\{content:"\[07\]"/, `${label} must number the faucet room`);
+    assert.match(css, /#token::before\{content:"\[08\]"/, `${label} must number the mint band`);
+    assert.match(css, /#lobby,#remix,#oss,#voice/, `${label} must hide leftover carnival`);
     assert.match(css, /scroll-behavior:auto/, `${label} must kill smooth-scroll`);
     assert.match(css, /\.dasha\{overflow-x:visible/, `${label} must drop the overflow-x trap`);
     assert.match(css, /view-timeline:none/, `${label} must kill the #token view-timeline toy`);
@@ -1508,6 +1541,10 @@ try {
     assert.match(html, /dexscreener\.com\/solana\/9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7\?embed=1/, `${label} chart embeds this pair only`);
     assert.match(html, /id="simp"/, `${label} must keep a #simp room`);
     assert.match(html, /id="dasha-simp-board"/, `${label} #simp remounts the pretty board`);
+    assert.match(html, /id="dasha-simp-board"[\s\S]*data-dasha-take-quiz[^>]*>Take Quiz</, `${label} #simp first-paints Take Quiz`);
+    assert.match(html, /<button type="button" class="simp-quiz-go" data-dasha-take-quiz>Take Quiz<\/button>/, `${label} Take Quiz is a static button, not a /simp hop`);
+    assert.doesNotMatch(html, /href="\/simp">Take the quiz|href="\/simp">Take Quiz/, `${label} must not inject a Take the quiz link`);
+    assert.doesNotMatch(hero, /Take Quiz|data-dasha-take-quiz/, `${label} hero first paint stays headline + Buy`);
     assert.match(html, /simp-board\.js/, `${label} must load the board client below the hero`);
     assert.match(html, /id="chess"/, `${label} must embed chess on home`);
     assert.match(html, /id="board"/, `${label} home chess must ship the 64-square board`);
@@ -1519,11 +1556,35 @@ try {
     assert.match(html, /client\/faucet\.js/, `${label} must load faucet.js`);
     assert.match(html, /client\/faucet\.png/, `${label} must reuse faucet.png`);
     assert.ok(html.indexOf('dasha-hero') < html.indexOf('dasha-tape'), `${label} chart lives below the hero`);
+    assert.ok(html.indexOf('dasha-tape') < html.indexOf('id="stills"'), `${label} stills live below the chart`);
+    assert.ok(html.indexOf('id="stills"') < html.indexOf('dasha-simp-board'), `${label} stills live above the board`);
+    assert.match(html, /class="stills-grid"/, `${label} stills are a quiet first-party flick`);
+    assert.match(html, /data-quiz="scary-cap"/, `${label} SCARY still seeds the cap question`);
+    {
+      const stills = html.match(/<section id="stills"[\s\S]*?<\/section>/)?.[0] || '';
+      assert.doesNotMatch(stills, /photo\/(?:archive|sweet|public|chart|media)\.jpg/, `${label} stills skip leftover frames`);
+      assert.doesNotMatch(stills, /pbs\.twimg|upload\.wikimedia/, `${label} stills are first-party`);
+      for (const name of ['scary', 'berlinale', 'cotton', 'hero', 'pony', 'press', 'bull', 'weekend', 'profile']) {
+        assert.match(stills, new RegExp(`/simp/photo/${name}\\.jpg`), `${label} stills include ${name}`);
+      }
+    }
+    assert.match(html, /id="grwm"/, `${label} GRWM sits after the hero`);
+    assert.ok(html.indexOf('id="grwm"') < html.indexOf('id="dasha-tape"'), `${label} GRWM sits before the chart`);
+    assert.match(html, /poster="\/client\/grwm\.jpg"/, `${label} GRWM uses the first-party poster`);
+    assert.match(html, /src="\/client\/grwm-loop\.mp4"/, `${label} GRWM living poster is the muted loop`);
+    assert.match(html, /<video muted loop playsinline autoplay poster="\/client\/grwm\.jpg"/, `${label} living poster autoplays muted only`);
+    {
+      const grwm = html.match(/<section id="grwm"[\s\S]*?<\/section>/)?.[0] || '';
+      assert.match(grwm, /v\.src='\/client\/grwm\.mp4'/, `${label} tap loads the full first-party file`);
+      assert.doesNotMatch(grwm, /twimg|@dash_eats|from X/i, `${label} GRWM has no tweet chrome`);
+      assert.doesNotMatch(grwm, /<video[^>]+src="\/client\/grwm\.mp4"[^>]*autoplay/, `${label} must not autoplay the 7:14 with sound`);
+    }
+    assert.match(html, /\/simp\/photo\/scary\.jpg/, `${label} stills include the SCARY cap`);
     assert.ok(html.indexOf('dasha-tape') < html.indexOf('dasha-simp-board'), `${label} chart lives just above the board`);
     assert.ok(html.indexOf('dasha-simp-board') < html.indexOf('id="chess"'), `${label} chess lives after the quiz board`);
     assert.ok(html.indexOf('id="chess"') < html.indexOf('dasha-faucet'), `${label} chess lives above faucet`);
     assert.ok(html.indexOf('dasha-faucet') < html.indexOf('id="token"'), `${label} faucet lives before the mint band`);
-    assert.doesNotMatch(hero, /id="dasha-simp-board"|simp-board\.js|class="dasha-quiz"|dasha-faucet|faucet\.js|dasha-tape|dexscreener|id="chess"|id="board"|gate-action/, `${label} hero first paint is not the board, faucet, chart, or chess`);
+    assert.doesNotMatch(hero, /id="dasha-simp-board"|simp-board\.js|class="dasha-quiz"|dasha-faucet|faucet\.js|dasha-tape|dexscreener|id="chess"|id="board"|gate-action|id="stills"|stills-grid|id="grwm"/, `${label} hero first paint is not the board, faucet, chart, chess, stills, or GRWM`);
     assert.doesNotMatch(html, /client\/lobby\.js|id="dasha-lobby"/, `${label} must not mount chat`);
     assert.doesNotMatch(html, /not an airdrop|free money|official faucet/i, `${label} must not invent faucet disclaimer copy`);
     assert.doesNotMatch(html, /dasha-x-gate|CONNECT X\?|First visit|openHomeGate/i, `${label} must not paint a first-visit X gate`);
@@ -1538,7 +1599,7 @@ try {
     assert.doesNotMatch(html, /--hot-deep|rgba\(124,\s*77,\s*255/, `${label} must drop the violet wash and --hot-deep`);
     assert.doesNotMatch(hero, /system-ui/, `${label} hero must not use system-ui`);
     assert.doesNotMatch(hero, /<form\b|wallet-connect|payTo|\/oauth|score=/i, `${label} first paint must not mount forms or OAuth`);
-    assert.doesNotMatch(html, /class="simp-/);
+    assert.doesNotMatch(html.replace(/class="simp-(?:lede|quiz-go)"/g, ''), /class="simp-/, `${label} home first paint only ships the Take Quiz entry`);
     const lowerNav = html.match(/<nav class="nav wrap">[\s\S]*?<\/nav>/i)?.[0] || '';
     assert.doesNotMatch(lowerNav, /href="\/studio">Studio</, `${label} lower nav must not include Studio`);
     assert.doesNotMatch(lowerNav, /href="\/how-to-buy"/, `${label} lower nav must not include How to buy`);
@@ -1578,6 +1639,7 @@ try {
   }
   assert.match(injected, /class="dasha-slim[\s"]/, 'home rewrite must add the slim bar');
   assert.match(injected, /class="dasha-crop"/, 'home rewrite must add crop marks');
+  assert.match(injected, /dasha-ink-cut/, 'home rewrite ships the / ↔ /simp ink overlay');
   assert.doesNotMatch(injected, /dasha-menu|aria-label="Menu">Menu</, 'home rewrite must not render a Menu');
   assert.doesNotMatch(injected.match(/<header class="dasha-slim">[\s\S]*?<\/header>/)?.[0] || '', /<nav\b|href="\/chess"|href="\/studio"|href="\/how-to-buy"|href="\/simp"|href="\/dasha"|href="\/bounties"|href="\/faucet"|href="\/forum"/, 'home slim bar is wordmark + Buy only');
   assert.doesNotMatch(injected.match(/<footer class="dasha-foot">[\s\S]*?<\/footer>/)?.[0] || '', /<nav\b|href="\/chess"|href="\/studio"|href="\/how-to-buy"|href="\/simp"|href="\/dasha"|href="\/bounties"|href="\/faucet"|href="\/forum"/, 'home footer is $dasha · Buy · @dash_eats');
@@ -1588,6 +1650,11 @@ try {
   assert.match(injected, /id="dasha-home"/, 'live Webflow wrapper id=dasha-home must not block the hero');
   assert.match(injected, new RegExp(mint));
   assert.equal(rewriteHomeFirstViewport(injected), injected, 'second pass must not duplicate calm CSS, Buy pill, board mount, or reveal');
+  {
+    const leftoverBoard = rewriteHomeFirstViewport(`<!doctype html><html><body><header class="dasha-hero"><h1>It's time $dasha.</h1><p class="actions"><a class="buy-dasha" href="${buy}">Buy $dasha</a></p></header><div id="simp"><div id="dasha-simp-board" data-simp-api="https://lobby.getdasha.com"><noscript>Needs JavaScript.</noscript></div></div></body></html>`);
+    assert.match(leftoverBoard, /<button type="button" class="simp-quiz-go" data-dasha-take-quiz>Take Quiz<\/button>/, 'empty leftover #simp board still first-paints Take Quiz');
+    assert.doesNotMatch(leftoverBoard, /href="\/simp">Take the quiz/);
+  }
   assert.equal([...injected.matchAll(/id=["']dasha-lock["']/g)].length, 0);
   const alreadyBuy = rewriteHomeFirstViewport(stripHomeSimpBoard(webflowHome.replace(
     '<p class="actions"><a href="/studio">Open Studio →</a><a href="/lobby">Open lobby →</a></p>',
@@ -2126,8 +2193,8 @@ const quizPost = (body, path = '/simp/quiz') => studioDo.fetch(new Request(`http
 }));
 assert.equal((await quizPost({ event: 'start' }, '/simp/quiz/event')).status, 400);
 const gatedStart = await quizPost({ action: 'start' });
-assert.equal(gatedStart.status, 401, 'unlinked start must be refused');
-assert.equal((await gatedStart.json()).error, 'link X to take the quiz');
+assert.equal(gatedStart.status, 200, 'unlinked start must begin the quiz');
+assert.ok((await gatedStart.json()).question, 'unlinked start must return a question');
 studioDo.env.LOBBY_SESSION_SECRET = 'holder-test-secret';
 studioDo.simpProfiles.x1 = { xId: 'x1', handle: 'ava', enrolledAt: Date.now(), awards: [] };
 const sessionToken = await createSessionToken(studioDo.env, { xId: 'x1', handle: 'ava' });
@@ -2140,11 +2207,12 @@ let quizResponse = await linkedQuizPost({ action: 'start' });
 let quizData = await quizResponse.json();
 assert.equal(quizResponse.status, 200);
 assert.equal(quizData.attemptId, undefined);
-assert.equal('total' in (quizData.progress || {}), false);
+assert.equal(quizData.progress.current, 1);
+assert.equal(quizData.progress.total, 22);
 assert.match(quizData.question.media.src, /^\/simp\/photo\/[a-z0-9]+\.jpg$/);
 assert.equal(quizData.question.media.kind, 'image');
 let prevMedia = quizData.question.media.src;
-for (let i = 0; i < 17; i++) {
+for (let i = 0; i < 22; i++) {
   quizResponse = await linkedQuizPost({ action: 'answer', answer: 0 });
   quizData = await quizResponse.json();
   if (!quizData.done) {
@@ -2157,10 +2225,10 @@ assert.equal(quizData.done, true);
 assert.equal(quizData.linkRequired, undefined);
 assert.match(quizData.resultUrl, /^https:\/\/www\.getdasha\.com\/simp\/r\/[A-Za-z0-9_-]+$/);
 assert.equal(quizData.quiz.resultUrl, quizData.resultUrl);
-assert.equal(studioDo.simpQuizMetrics.starts, 1);
+assert.equal(studioDo.simpQuizMetrics.starts, 2);
 assert.equal(studioDo.simpQuizMetrics.completions, 1);
-assert.equal(Object.values(studioDo.simpQuizMetrics.reached).reduce((a, b) => a + b, 0), 17);
-assert.equal(Object.values(studioDo.simpQuizMetrics.answers).reduce((a, b) => a + b, 0), 17);
+assert.equal(Object.values(studioDo.simpQuizMetrics.reached).reduce((a, b) => a + b, 0), 23);
+assert.equal(Object.values(studioDo.simpQuizMetrics.answers).reduce((a, b) => a + b, 0), 22);
 assert.equal(Object.values(studioDo.simpQuizMetrics.lanes).reduce((a, b) => a + b, 0), 1);
 assert.equal(Object.values(studioDo.simpQuizMetrics.tiers).reduce((a, b) => a + b, 0), 1);
 assert.equal(Object.values(studioDo.simpQuizMetrics.elapsed).reduce((a, b) => a + b, 0), 1);

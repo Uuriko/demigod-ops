@@ -117,6 +117,7 @@ import {
   AWARD_CROP_CSS,
   AWARD_RAIL_CSS,
   AWARD_ROOM_CSS,
+  AWARD_INK_CSS,
   AWARD_SLIM_CSS,
   BUY_HREF,
   cropTicksHtml,
@@ -322,6 +323,7 @@ function stripHomeLeftoverChrome(html) {
   page = page.replace(/<(div|section)\b[^>]*\bclass=["'](?:[^"']*\s)?poster-grid(?:\s|["'])[^>]*>[\s\S]*?<\/\1>/gi, '');
   page = page.replace(/<a\b[^>]*\bclass=["'](?:[^"']*\s)?poster-tile(?:\s|["'])[^>]*>[\s\S]*?<\/a>/gi, '');
   page = page.replace(/<(div|section)\b[^>]*\bclass=["'](?:[^"']*\s)?poster(?:\s|["'])[^>]*>[\s\S]*?<\/\1>/gi, '');
+  page = page.replace(/<figure\b[^>]*\bclass=["'](?:[^"']*\s)?hero-still(?:\s|["'])[^>]*>[\s\S]*?<\/figure>/gi, '');
   page = page.replace(/<nav\b[^>]*>[\s\S]*?<\/nav>/gi, (nav) => (
     /\bclass=["'][^"']*\b(?:nav|dasha-nav)\b/.test(nav) ? '' : nav
   ));
@@ -333,10 +335,10 @@ function stripHomeLeftoverChrome(html) {
 
 const HOME_BUY_HREF = BUY_HREF;
 const HOME_BUY_PILL = `<a class="pill primary buy-dasha" href="${HOME_BUY_HREF}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a>`;
-const HOME_CARNIVAL_HIDE = '#lobby,#remix,#stills,#oss,#voice,.poster-grid,#token h2,#token .section-title,#token .assoc,#token .disclaimer,#token .poster,#token .tape,.dasha-hero .micro{display:none!important}';
-const HOME_FOLD_CSS = '#dasha-tape,#simp,#chess,#faucet,#token,main.dasha>section{content-visibility:auto;contain-intrinsic-size:auto 720px}';
+const HOME_CARNIVAL_HIDE = '#lobby,#remix,#oss,#voice,.poster-grid,#token h2,#token .section-title,#token .assoc,#token .disclaimer,#token .poster,#token .tape,.dasha-hero .micro{display:none!important}';
+const HOME_FOLD_CSS = '#grwm,#dasha-tape,#stills,#simp,#chess,#faucet,#token,main.dasha>section{content-visibility:auto;contain-intrinsic-size:auto 720px}';
 const HOME_SCROLL_CSS = 'html{scroll-behavior:auto!important}.dasha{overflow-x:visible!important}#token,#token *{view-timeline:none!important;animation-timeline:none!important;scroll-timeline:none!important}';
-const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer,footer:not(.dasha-foot){display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + HOME_SCROLL_CSS + HOME_CARNIVAL_HIDE + HOME_FOLD_CSS + AWARD_SLIM_CSS + AWARD_CROP_CSS + AWARD_ROOM_CSS + AWARD_FOOT_CSS + AWARD_BTN_CSS;
+const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .hero-still,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer,footer:not(.dasha-foot){display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + HOME_SCROLL_CSS + HOME_CARNIVAL_HIDE + HOME_FOLD_CSS + AWARD_SLIM_CSS + AWARD_CROP_CSS + AWARD_INK_CSS + AWARD_ROOM_CSS + AWARD_FOOT_CSS + AWARD_BTN_CSS;
 
 function injectHomeCalmCss(html) {
   const page = String(html || '');
@@ -376,9 +378,36 @@ function ensureHomeBuyPill(html) {
 }
 
 function ensureHomeSimpMount(html) {
+  let page = String(html || '');
+  if (!/id=["']dasha-simp-board["']/i.test(page)) {
+    const mount = `<div id="simp"><style>${AWARD_BOARD_CSS}</style><div id="dasha-simp-board" data-simp-api="https://lobby.getdasha.com">${simpQuizFirstPaintHtml()}</div></div>${simpBoardClientScript()}`;
+    const hero = page.match(/<header\b[^>]*\bdasha-hero\b[^>]*>[\s\S]*?<\/header>/i);
+    if (!hero) return page;
+    const at = page.indexOf(hero[0]) + hero[0].length;
+    page = page.slice(0, at) + mount + page.slice(at);
+  }
+  if (!/data-dasha-take-quiz/i.test(page)) {
+    page = page.replace(
+      /(<div\b[^>]*\bid=["']dasha-simp-board["'][^>]*>)/i,
+      `$1${simpQuizFirstPaintHtml()}`,
+    );
+  }
+  return page;
+}
+
+function grwmMountHtml() {
+  return `<section id="grwm" aria-label="GRWM"><style>#grwm{margin:0;display:grid;place-items:center;background:#070608}#grwm .grwm-phone{position:relative;width:min(100%,calc(70svh * 720 / 1280));max-height:70svh;aspect-ratio:720/1280;box-sizing:border-box;padding:10px;background:#f4eddb}#grwm video{display:block;width:100%;height:100%;object-fit:cover;background:#070608}#grwm .grwm-go{position:absolute;inset:10px;display:grid;place-items:center;border:0;background:rgba(7,6,8,.28);cursor:pointer}#grwm .grwm-go i{width:72px;height:72px;background:#dfff00;clip-path:polygon(32% 22%,82% 50%,32% 78%);box-shadow:6px 6px 0 #ff3b81}#grwm.is-on .grwm-go{display:none}</style><div class="grwm-phone"><video muted loop playsinline autoplay poster="/client/grwm.jpg" src="/client/grwm-loop.mp4"></video><button type="button" class="grwm-go" aria-label="Play GRWM"><i></i></button></div><script>(function(){var root=document.getElementById('grwm');if(!root)return;var v=root.querySelector('video');var go=root.querySelector('.grwm-go');function on(){if(root.classList.contains('is-on'))return;root.classList.add('is-on');if(!v)return;v.loop=false;v.muted=false;v.controls=true;v.removeAttribute('autoplay');if(v.getAttribute('src')!=='/client/grwm.mp4')v.src='/client/grwm.mp4';var p=v.play();if(p&&p.catch)p.catch(function(){})}if(go)go.addEventListener('click',on);if(!v)return;v.addEventListener('click',function(e){if(!root.classList.contains('is-on')){e.preventDefault();on()}});if(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches){v.removeAttribute('autoplay');v.pause()}})();</script></section>`;
+}
+
+function ensureHomeGrwmMount(html) {
   const page = String(html || '');
-  if (/id=["']dasha-simp-board["']/i.test(page)) return page;
-  const mount = `<div id="simp"><style>${AWARD_BOARD_CSS}</style><div id="dasha-simp-board" data-simp-api="https://lobby.getdasha.com"><noscript>Needs JavaScript.</noscript></div></div>${simpBoardClientScript()}`;
+  if (/id=["']grwm["']/i.test(page)) return page;
+  const mount = grwmMountHtml();
+  const tape = page.match(/<(?:div|section)\b[^>]*\bid=["']dasha-tape["'][^>]*>/i);
+  if (tape) {
+    const at = page.indexOf(tape[0]);
+    return page.slice(0, at) + mount + page.slice(at);
+  }
   const hero = page.match(/<header\b[^>]*\bdasha-hero\b[^>]*>[\s\S]*?<\/header>/i);
   if (!hero) return page;
   const at = page.indexOf(hero[0]) + hero[0].length;
@@ -403,6 +432,49 @@ function ensureHomeTapeMount(html) {
   if (!hero) return page;
   const at = page.indexOf(hero[0]) + hero[0].length;
   return page.slice(0, at) + mount + page.slice(at);
+}
+
+const HOME_STILLS = [
+  ['scary', 'scary-cap'],
+  ['berlinale', 'berlinale'],
+  ['cotton', 'sailor-fuku'],
+  ['hero', 'comfry-job'],
+  ['pony', ''],
+  ['press', 'wobble-sxsw'],
+  ['bull', ''],
+  ['weekend', 'minsk-vegas'],
+  ['profile', ''],
+];
+
+/** First-party stills below the tape. Almost no words. Not in the hero. */
+function stillsMountHtml() {
+  const figs = HOME_STILLS.map(([name, quiz]) =>
+    `<figure class="still"${quiz ? ` data-quiz="${quiz}"` : ''} tabindex="0"><img src="/simp/photo/${name}.jpg" alt="Dasha" width="400" height="500" loading="lazy" decoding="async"></figure>`
+  ).join('');
+  return `<section id="stills" aria-label="Stills"><style>#stills .stills-grid{display:flex;gap:8px;margin:0;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}#stills .still{flex:0 0 min(68vw,220px);margin:0;scroll-snap-align:start;content-visibility:auto;contain-intrinsic-size:220px 280px;cursor:pointer;transition:transform .35s cubic-bezier(.2,0,.2,1)}#stills .still:hover,#stills .still:focus-visible{transform:rotate(-1.4deg) scale(1.03)}#stills .still:nth-child(even):hover,#stills .still:nth-child(even):focus-visible{transform:rotate(1.4deg) scale(1.03)}#stills img{display:block;width:100%;height:280px;object-fit:cover;background:#160f1d}#stills .still-zoom{padding:0;border:2px solid #dfff00;background:#070608;max-width:min(92vw,720px)}#stills .still-zoom img{width:100%;height:auto;max-height:88svh;object-fit:contain}#stills .still-zoom::backdrop{background:#070608}#stills .still-zoom button{min-height:48px;width:100%;border:0;background:#dfff00;color:#070608;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif}@media(prefers-reduced-motion:reduce){#stills .still:hover,#stills .still:focus-visible{transform:none}}</style><div class="stills-grid">${figs}</div><dialog class="still-zoom" aria-label="Still"><img alt="Dasha"><form method="dialog"><button type="submit">Close</button></form></dialog><script>(function(){var root=document.getElementById('stills');if(!root)return;var grid=root.querySelector('.stills-grid');var zoom=root.querySelector('dialog');var zimg=zoom&&zoom.querySelector('img');function enlarge(src){if(!zoom||!zimg)return;zimg.src=src;if(zoom.showModal)zoom.showModal();else zoom.setAttribute('open','')}if(zoom)zoom.addEventListener('click',function(e){if(e.target===zoom&&zoom.close)zoom.close()});function go(fig){var seed=fig.getAttribute('data-quiz');var img=fig.querySelector('img');if(seed){document.dispatchEvent(new CustomEvent('dasha-still-quiz',{detail:{seed:seed}}));return}if(img)enlarge(img.src)}if(!grid)return;grid.addEventListener('click',function(e){var fig=e.target.closest('.still');if(fig)go(fig)});grid.addEventListener('keydown',function(e){if(e.key!=='Enter'&&e.key!==' ')return;var fig=e.target.closest('.still');if(!fig)return;e.preventDefault();go(fig)});if(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)return;grid.addEventListener('wheel',function(e){if(Math.abs(e.deltaY)<=Math.abs(e.deltaX))return;if(grid.scrollWidth<=grid.clientWidth)return;e.preventDefault();grid.scrollLeft+=e.deltaY},{passive:false})})();</script></section>`;
+}
+
+function stripLeftoverStills(html) {
+  return String(html || '').replace(/<(section|div)\b[^>]*\bid=["']stills["'][^>]*>[\s\S]*?<\/\1>/gi, '');
+}
+
+function ensureHomeStillsMount(html) {
+  let page = stripLeftoverStills(html);
+  if (/id=["']stills["']/i.test(page) && /stills-grid/i.test(page)) return page;
+  const mount = stillsMountHtml();
+  const simp = page.match(/<(?:div|section)\b[^>]*\bid=["']simp["'][^>]*>/i);
+  if (simp) {
+    const at = page.indexOf(simp[0]);
+    return page.slice(0, at) + mount + page.slice(at);
+  }
+  const tape = page.match(/<(?:div|section)\b[^>]*\bid=["']dasha-tape["'][^>]*>/i);
+  if (tape) {
+    const open = page.indexOf(tape[0]);
+    const after = page.indexOf('</section>', open);
+    const at = after >= 0 ? after + 10 : open + tape[0].length;
+    return page.slice(0, at) + mount + page.slice(at);
+  }
+  return page;
 }
 
 function faucetStillUrl() {
@@ -483,7 +555,7 @@ function ensureHomeChessMount(html) {
 function injectHomeReveal(html) {
   const page = String(html || '');
   if (/id=["']dasha-home-reveal["']/i.test(page)) return page;
-  const tag = `<noscript><style>#simp,#chess,#faucet,#token{opacity:1;transform:none}</style></noscript><script id="dasha-home-reveal">(function(){var nodes=document.querySelectorAll('#simp,#chess,#faucet,#token');if(!nodes.length)return;if(!window.IntersectionObserver||(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)){for(var i=0;i<nodes.length;i++)nodes[i].classList.add('is-in');return}var io=new IntersectionObserver(function(ents){ents.forEach(function(e){if(e.isIntersecting){e.target.classList.add('is-in');io.unobserve(e.target)}})},{threshold:.12,rootMargin:'0px 0px -8% 0px'});for(var j=0;j<nodes.length;j++)io.observe(nodes[j])})();</script>`;
+  const tag = `<noscript><style>#grwm,#stills,#simp,#chess,#faucet,#token{opacity:1;transform:none}</style></noscript><script id="dasha-home-reveal">(function(){var nodes=document.querySelectorAll('#grwm,#stills,#simp,#chess,#faucet,#token');if(!nodes.length)return;if(!window.IntersectionObserver||(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)){for(var i=0;i<nodes.length;i++)nodes[i].classList.add('is-in');return}var io=new IntersectionObserver(function(ents){ents.forEach(function(e){if(e.isIntersecting){e.target.classList.add('is-in');io.unobserve(e.target)}})},{threshold:.12,rootMargin:'0px 0px -8% 0px'});for(var j=0;j<nodes.length;j++)io.observe(nodes[j])})();</script>`;
   return /<\/body>/i.test(page) ? page.replace(/<\/body>/i, `${tag}</body>`) : page + tag;
 }
 
@@ -498,6 +570,8 @@ export function rewriteHomeFirstViewport(html) {
   if (/<header\b[^>]*\bdasha-hero\b/i.test(page)) {
     page = ensureHomeSimpMount(page);
     page = ensureHomeTapeMount(page);
+    page = ensureHomeGrwmMount(page);
+    page = ensureHomeStillsMount(page);
     page = ensureHomeFaucetMount(page);
     page = ensureHomeChessMount(page);
   }
@@ -1080,7 +1154,8 @@ function isExactPath(pathname, base) {
 
 /** First-paint quiz chrome: one lede. Questions stay in JS. */
 export function simpQuizFirstPaintHtml() {
-  return `<p>How big of a Dasha simp are you?</p>
+  return `<p class="simp-lede">How big of a Dasha simp are you?</p>
+<button type="button" class="simp-quiz-go" data-dasha-take-quiz>Take Quiz</button>
 <noscript><p>Needs JavaScript.</p></noscript>`;
 }
 
@@ -2103,12 +2178,11 @@ export class DashaLobby {
       const input = await requestJson(request);
       if (!xId && !allowedOrigin) return json({ error: 'origin required' }, 403, null);
       if (input?.action === 'start') {
-        if (!xId) return json({ error: 'link X to take the quiz' }, 401, allowedOrigin, cred);
         const cutoff = Date.now() - 60 * 60_000;
         for (const [key, attempt] of Object.entries(this.simpQuizAttempts)) if (key.startsWith('anon:') && Number(attempt?.updatedAt) < cutoff) delete this.simpQuizAttempts[key];
-        // Scored retakes always allowed — wipe in-progress attempt and start a fresh scored run.
-        const attempt = startQuizAttempt({ practice: false });
-        this.simpQuizAttempts[xId] = attempt;
+        const attempt = startQuizAttempt({ practice: false, seed: typeof input?.seed === 'string' ? input.seed : undefined });
+        const key = xId || `anon:${randomUrlToken(9)}`;
+        this.simpQuizAttempts[key] = attempt;
         this.simpQuizMetrics[completed ? 'replays' : 'starts']++;
         countMetric(this.simpQuizMetrics.reached, attempt.current);
         await this.persistSimpState();
@@ -2116,6 +2190,7 @@ export class DashaLobby {
           ok: true,
           ...quizPublic(),
           retake: Boolean(completed),
+          ...(xId ? {} : { attemptId: key.slice(5) }),
           ...questionForAttempt(attempt),
         }, 200, allowedOrigin, cred);
       }
@@ -2139,9 +2214,8 @@ export class DashaLobby {
           ...meStatus(this.simpProfiles, session),
         }, 200, allowedOrigin, cred);
       }
-      if (!xId) return json({ error: 'link X to take the quiz' }, 401, allowedOrigin, cred);
-      const attemptKey = xId;
-      if (input?.action !== 'answer' || !this.simpQuizAttempts[attemptKey]) return json({ error: 'start quiz first' }, 400, allowedOrigin, cred);
+      const attemptKey = xId || (input.attemptId ? `anon:${String(input.attemptId)}` : '');
+      if (!attemptKey || input?.action !== 'answer' || !this.simpQuizAttempts[attemptKey]) return json({ error: 'start quiz first' }, 400, allowedOrigin, cred);
       const prior = this.simpQuizAttempts[attemptKey];
       const advanced = answerQuizAttempt(prior, input.answer);
       if (!advanced.ok) return json({ error: advanced.error }, advanced.status || 400, allowedOrigin, cred);
@@ -2153,10 +2227,15 @@ export class DashaLobby {
         return json({ ok: true, ...advanced }, 200, allowedOrigin, cred);
       }
       if (!xId) {
-        this.simpQuizAttempts[attemptKey] = advanced.attempt;
+        const quiz = quizResultForAttempt(advanced.attempt);
+        if (!quiz) return json({ error: 'quiz is incomplete' }, 400, allowedOrigin, cred);
+        const resultId = randomUrlToken(9);
+        quiz.resultUrl = simpShareWww(resultId);
+        this.simpQuizResults[resultId] = quiz;
+        delete this.simpQuizAttempts[attemptKey];
         this.simpQuizMetrics.completions++;
         await this.persistSimpState();
-        return json({ ok: true, done: true, linkRequired: true, attemptId: attemptKey.slice(5), feedback: advanced.feedback }, 200, allowedOrigin, cred);
+        return json({ ok: true, done: true, quiz, resultUrl: quiz.resultUrl, feedback: advanced.feedback }, 200, allowedOrigin, cred);
       }
       const result = submitQuiz(this.simpProfiles, session, advanced.attempt);
       if (!result.ok) return json({ error: result.error }, result.status || 400, allowedOrigin, cred);
@@ -3644,7 +3723,7 @@ async function productEdge(request, url, env) {
   }
   if (
     (request.method === 'GET' || request.method === 'HEAD') &&
-    (url.pathname === '/client/dasha-loop.mp3' || url.pathname === '/client/dasha-face.webp' || url.pathname === '/client/dasha.glb')
+    (url.pathname === '/client/dasha-loop.mp3' || url.pathname === '/client/dasha-face.webp' || url.pathname === '/client/dasha.glb' || url.pathname === '/client/grwm.mp4' || url.pathname === '/client/grwm-loop.mp4' || url.pathname === '/client/grwm.jpg')
   ) {
     return staticAssetResponse(request, env);
   }
@@ -3998,7 +4077,7 @@ export default {
     }
     if (
       (request.method === 'GET' || request.method === 'HEAD') &&
-      (url.pathname === '/client/dasha-loop.mp3' || url.pathname === '/client/dasha-face.webp' || url.pathname === '/client/dasha.glb')
+      (url.pathname === '/client/dasha-loop.mp3' || url.pathname === '/client/dasha-face.webp' || url.pathname === '/client/dasha.glb' || url.pathname === '/client/grwm.mp4' || url.pathname === '/client/grwm-loop.mp4' || url.pathname === '/client/grwm.jpg')
     ) {
       return staticAssetResponse(request, env);
     }

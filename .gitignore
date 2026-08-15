@@ -108,6 +108,7 @@ tmp/
 screenshots/
 *.mp4
 *.webm
+# tracked first-party GRWM files stay; do not add ! exceptions (privacy SoR bans new negations)
 playwright-report/
 test-results/
 
