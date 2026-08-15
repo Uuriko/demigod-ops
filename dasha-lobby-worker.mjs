@@ -52,7 +52,6 @@ import {
   leaveBoard,
   meStatus,
   PUBLIC_BOARD_LIMIT,
-  publicPerryRow,
   quizPublic,
   startQuizAttempt,
   questionForAttempt,
@@ -110,6 +109,7 @@ import {
   AWARD_CHROME_CSS,
   AWARD_CROP_CSS,
   AWARD_RAIL_CSS,
+  AWARD_ROOM_CSS,
   AWARD_SLIM_CSS,
   BUY_HREF,
   cropTicksHtml,
@@ -196,7 +196,7 @@ function stripLeftoverStyleRules(html, leftoverRe) {
     block.replace(/[^{}]+\{[^{}]*\}/g, (rule) => leftoverRe.test(rule.slice(0, rule.indexOf('{'))) ? '' : rule));
 }
 
-/** Drop leftover Webflow board chrome. Home remounts one `.dasha-quiz` in the first viewport. */
+/** Drop leftover Webflow board chrome. Home remounts a board-only #simp below the hero. */
 export function stripHomeSimpBoard(html) {
   let out = String(html || '');
   out = out.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, (block) =>
@@ -244,6 +244,9 @@ function stripHomeWebFonts(html) {
     .replace(/<script\b[^>]*\bsrc=["'][^"']*webfont[^"']*["'][^>]*>\s*<\/script>/gi, '')
     .replace(/<script\b[^>]*>[\s\S]*?WebFont\.load[\s\S]*?<\/script>/gi, '')
     .replace(/<link\b[^>]*href=["'][^"']*fonts\.(?:googleapis|gstatic)\.com[^"']*["'][^>]*>/gi, '')
+    .replace(/<link\b[^>]*href=["'][^"']*ajax\.googleapis\.com\/ajax\/libs\/webfont[^"']*["'][^>]*>/gi, '')
+    .replace(/<link\b[^>]*rel=["'](?:preconnect|dns-prefetch|preload|modulepreload)["'][^>]*(?:fonts\.(?:googleapis|gstatic)|fonts\.google)\.com[^>]*>/gi, '')
+    .replace(/<link\b[^>]*(?:fonts\.(?:googleapis|gstatic)|fonts\.google)\.com[^>]*rel=["'](?:preconnect|dns-prefetch|preload|modulepreload)["'][^>]*>/gi, '')
     .replace(/\b(?:Exo|Bangers|Raleway)\b/g, 'Arial')
     .replace(/system-ui/gi, 'Arial');
 }
@@ -285,7 +288,9 @@ function alignHomeLowerNav(html) {
 
 const HOME_BUY_HREF = BUY_HREF;
 const HOME_BUY_PILL = `<a class="pill primary buy-dasha" href="${HOME_BUY_HREF}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a>`;
-const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer{display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + AWARD_SLIM_CSS + AWARD_CROP_CSS;
+const HOME_CARNIVAL_HIDE = '#lobby,#remix,#stills,#oss,#voice,.poster-grid,.dasha-posters,#token h2,#token .section-title,#token .assoc,#token .disclaimer,#token .poster,#token .tape{display:none!important}';
+const HOME_FOLD_CSS = '#simp,#token,main.dasha>section{content-visibility:auto;contain-intrinsic-size:auto 720px}';
+const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer{display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + HOME_CARNIVAL_HIDE + HOME_FOLD_CSS + AWARD_SLIM_CSS + AWARD_CROP_CSS + AWARD_ROOM_CSS;
 
 function injectHomeCalmCss(html) {
   const page = String(html || '');
@@ -326,7 +331,7 @@ function ensureHomeBuyPill(html) {
 
 function ensureHomeSimpMount(html, sri = SIMP_BOARD_SRI) {
   if (/id=["']dasha-simp-board["']/i.test(html)) return html;
-  const mount = `<div id="simp"><div id="dasha-simp-board" class="dasha-quiz" data-simp-api="https://lobby.getdasha.com"><noscript>Answer in the browser — questions are not in this HTML.</noscript></div></div><script src="https://lobby.getdasha.com/client/simp-board.js" integrity="${sri}" crossorigin="anonymous" defer></script>`;
+  const mount = `<div id="simp"><div id="dasha-simp-board" data-simp-api="https://lobby.getdasha.com"><noscript>Needs JavaScript.</noscript></div></div><script src="https://lobby.getdasha.com/client/simp-board.js" integrity="${sri}" crossorigin="anonymous" defer></script>`;
   const hero = String(html).match(/<header\b[^>]*\bdasha-hero\b[^>]*>[\s\S]*?<\/header>/i);
   if (hero) {
     const at = html.indexOf(hero[0]) + hero[0].length;
@@ -337,6 +342,13 @@ function ensureHomeSimpMount(html, sri = SIMP_BOARD_SRI) {
   return html + mount;
 }
 
+function injectHomeReveal(html) {
+  const page = String(html || '');
+  if (/id=["']dasha-home-reveal["']/i.test(page)) return page;
+  const tag = `<noscript><style>#simp,#token{opacity:1;transform:none}</style></noscript><script id="dasha-home-reveal">(function(){var nodes=document.querySelectorAll('#simp,#token');if(!nodes.length)return;if(!window.IntersectionObserver||(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)){for(var i=0;i<nodes.length;i++)nodes[i].classList.add('is-in');return}var io=new IntersectionObserver(function(ents){ents.forEach(function(e){if(e.isIntersecting){e.target.classList.add('is-in');io.unobserve(e.target)}})},{threshold:.12,rootMargin:'0px 0px -8% 0px'});for(var j=0;j<nodes.length;j++)io.observe(nodes[j])})();</script>`;
+  return /<\/body>/i.test(page) ? page.replace(/<\/body>/i, `${tag}</body>`) : page + tag;
+}
+
 /** www/apex / only: first paint is headline + Buy $dasha. Never emit #dasha-lock. */
 export function rewriteHomeFirstViewport(html, sri = SIMP_BOARD_SRI) {
   let page = demoteHomeNavMint(stripHomeForumHrefs(stripHomeAtmosphere(stripHomeWebFonts(stripHomeCtaDecoy(String(html || ''))))));
@@ -345,6 +357,7 @@ export function rewriteHomeFirstViewport(html, sri = SIMP_BOARD_SRI) {
   page = ensureHomeBuyPill(page);
   if (/<header\b[^>]*\bdasha-hero\b/i.test(page)) page = ensureHomeSimpMount(page, sri);
   page = ensureHomeAwardChrome(page);
+  page = injectHomeReveal(page);
   return rewriteLeftoverLobbyHrefs(alignHomeLowerNav(page));
 }
 
@@ -630,6 +643,12 @@ function securityTxtResponse(request, host) {
 
 function applyHtmlSecurity(headers) {
   for (const [name, value] of Object.entries(HTML_SECURITY)) headers.set(name, value);
+  const link = headers.get('Link');
+  if (link) {
+    const kept = link.split(',').map((part) => part.trim()).filter((part) => !/fonts\.(?:googleapis|gstatic)\.com/i.test(part));
+    if (kept.length) headers.set('Link', kept.join(', '));
+    else headers.delete('Link');
+  }
   return headers;
 }
 
@@ -903,7 +922,6 @@ function htmlPage(title, body, { chrome = false, path = '/privacy' } = {}) {
 }
 
 const SIMP_WWW = 'https://www.getdasha.com/simp';
-const SIMP_RULES_LINE = 'PerryALPHA founding #1 is editorial and non-measured.';
 
 function isExactPath(pathname, base) {
   return pathname === base || pathname === `${base}/`;
@@ -915,20 +933,15 @@ export function simpQuizFirstPaintHtml() {
 <noscript><p>Needs JavaScript.</p></noscript>`;
 }
 
-/** Worker-owned first HTML for /simp. Quiz is the page. Tokens only. No handle list. */
+/** Worker-owned first HTML for /simp. Quiz + clean board. Tokens only. No handle list. */
 export function simpPageHtml() {
-  const perryDisplay = escapeHtml(String(publicPerryRow().display || '@PerryALPHA').slice(0, 20));
   return injectDanceDock(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Simp</title>
-<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}${AWARD_CHROME_CSS}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}h1{margin:0 0 .5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(3rem,12vw,6rem);line-height:.9}a{color:var(--acid)}.dasha-go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font-weight:900;text-decoration:none}#dasha-quiz,.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-quiz .dasha-go{margin:0 .5rem .75rem 0}#dasha-quiz ul{margin:.25rem 0 1rem;padding-left:1.2rem}</style>
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}${AWARD_CHROME_CSS}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}h1{margin:0 0 .5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(3rem,12vw,6rem);line-height:.9}a{color:var(--acid)}#dasha-quiz,.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--acid)}</style>
 <body>
 ${cropTicksHtml()}
 ${hamburgerHtml({ path: '/simp' })}
 <h1>Simp</h1>
 <p>How big of a Dasha simp are you?</p>
-<p>Take the quiz. Ranked by lore and contributions.</p>
-<p><a class="dasha-go" href="#dasha-quiz">Take Simp</a></p>
-<p>${SIMP_RULES_LINE}</p>
-<p>${perryDisplay} · editorial #1 · not measured</p>
 <div id="dasha-quiz" class="dasha-quiz"><div id="dasha-simp-board">${simpQuizFirstPaintHtml()}</div></div>
 ${simpBoardClientScript()}
 ${siteFooter('/simp')}

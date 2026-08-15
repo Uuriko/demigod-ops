@@ -20,6 +20,9 @@ export const AWARD_TYPE_CSS = 'html,body{font-family:Arial,Helvetica,sans-serif}
 
 export const AWARD_RAIL_CSS = '.dasha-rooms{display:flex;flex-wrap:nowrap;gap:.65rem 1.1rem;margin:1rem 0;overflow:auto}.dasha-rooms a{display:inline-flex;align-items:center;gap:.35rem;min-height:48px;color:#f4eddb;font-weight:900;text-transform:uppercase;text-decoration:none;white-space:nowrap}.dasha-rooms b{color:#dfff00;font-family:"Arial Black",Helvetica,Arial,sans-serif}.dasha-next{margin:0 0 1rem;font-weight:900;text-transform:uppercase}.dasha-next a{color:#dfff00}';
 
+/** Home rooms. Tiny acid index. Native scroll. */
+export const AWARD_ROOM_CSS = 'header.dasha-hero,#simp,#token{position:relative}header.dasha-hero::before,#simp::before,#token::before{position:absolute;left:1rem;top:1.1rem;color:#dfff00;font:700 11px/1 Arial,Helvetica,sans-serif;letter-spacing:.12em}header.dasha-hero::before{content:"[01]"}#simp::before{content:"[02]"}#token::before{content:"[03]"}#simp{min-height:100svh;box-sizing:border-box;padding:4.5rem 1.25rem 8rem}#token{box-sizing:border-box;padding:3.5rem 1.25rem 8rem}#simp,#token{opacity:0;transform:translateY(16px);transition:opacity .4s ease,transform .4s ease}#simp.is-in,#token.is-in{opacity:1;transform:none}@media(prefers-reduced-motion:reduce){#simp,#token{opacity:1;transform:none;transition:none}}';
+
 export const AWARD_HAM_CSS = AWARD_SLIM_CSS;
 export const AWARD_TICK_CSS = AWARD_CROP_CSS;
 export const AWARD_CHROME_CSS = `${AWARD_TYPE_CSS}${AWARD_SLIM_CSS}${AWARD_CROP_CSS}${AWARD_INK_CSS}${AWARD_DOCK_CSS}`;

@@ -165,7 +165,8 @@ assert(!worker.includes('injectBountiesBoard(stripBountiesIframe'), 'www /bounti
 assert(worker.includes('SIMP_BOARD_SRI') && worker.includes('client/simp-board.js'), 'www /simp mounts the existing board client');
 assert(worker.includes('injectDanceDock') && worker.includes('client/dasha-dance.js') && worker.includes('DANCE_CLIENT_SRI'), 'worker injects the idle dance dock');
 assert(worker.includes("path === '/graph'") && worker.includes('GRAPH_PAGE = GRAPH_PAGE_HTML'), '/graph must not grow the dance dock');
-assert(worker.includes('ensureHomeSimpMount') && worker.includes('class="dasha-quiz"'), 'home rewrite can keep the quiz below the hero');
+assert(worker.includes('ensureHomeSimpMount') && worker.includes('id="dasha-simp-board"') && worker.includes('injectHomeReveal'), 'home rewrite mounts the board below the hero');
+assert(!worker.includes('class="dasha-quiz" data-simp-api'), 'home board mount is not quiz chrome');
 assert(worker.includes('stripLobbySimpQuiz') && worker.includes('stripLobbySimpQuiz(LOBBY_PAGE_HTML)'), 'first-party /lobby must not mount the quiz');
 assert(!worker.includes('SIMP_QUIZ_JS'), 'must not invent a second quiz client');
 assert(worker.includes('simpSharePageHtml') && worker.includes('og:image:alt'), 'www /simp/r is type-first share HTML');
@@ -423,13 +424,10 @@ for (const path of ['/studio', '/studio/']) {
     assert.match(html, /class="buy-dasha"[^>]*>Buy \$dasha</, `${label} must keep one acid Buy pill`);
     assert.doesNotMatch(html.match(/<nav aria-label="Dasha">[\s\S]*?<\/nav>/i)?.[0] || '', /\/bounties|\/learn|\/faucet|\/forum|\/rally|\/privacy|\/airdrop|\/earn|\/claim/i, `${label} hamburger must stay four doors`);
     assert.match(html, /How big of a Dasha simp are you\?/, `${label} must lead with the quiz`);
-    assert.match(html, /Take the quiz\. Ranked by lore and contributions\./);
     assert.doesNotMatch(html, /Quick 10Q|Deep 20Q|\b10Q\b|\b20Q\b/);
-    assert.match(html, /<a class="dasha-go" href="#dasha-quiz">Take Simp<\/a>/);
+    assert.doesNotMatch(html, /Take Simp|Ranked by lore|founding #1|not measured/);
     assert.match(html, /<a href="https:\/\/www\.getdasha\.com\/">\$dasha<\/a> · <a class="buy-dasha"[^>]*>Buy \$dasha ↗<\/a> · <a href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats<\/a>/, `${label} footer must stay \$dasha + Buy + @dash_eats`);
     assert.doesNotMatch(html.match(/<footer[\s\S]*?<\/footer>/i)?.[0] || '', /\/verse|\/learn|\/faucet|\/airdrop|\/earn|\/bounties|\/simp|\/studio/, `${label} footer must not be a sitemap`);
-    assert.match(html, /PerryALPHA founding #1 is editorial and non-measured/);
-    assert.match(html, /editorial #1 · not measured/);
     assert.match(html, /id="dasha-quiz"[\s\S]*How big of a Dasha simp are you\?/);
     assert.match(html, /<noscript><p>Needs JavaScript\.<\/p><\/noscript>/);
     assert.doesNotMatch(html, /Pick your strongest lane/);
@@ -1439,6 +1437,8 @@ try {
   const buy = 'https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
   const webflowHome = `<!doctype html><html class="w-mod-js"><title>$dasha — make the timeline stranger</title>
 <link href="https://cdn.prod.website-files.com/img/favicon.ico" rel="shortcut icon" type="image/x-icon"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
 <script>WebFont.load({google:{families:["Exo:400","Bangers:regular","Raleway:400"]}});</script>
 <style>
@@ -1478,6 +1478,11 @@ try {
     assert.match(css, /\.dasha-hero \.actions \.pill:not\(\.buy-dasha\)/, `${label} must hide non-Buy hero pills`);
     assert.match(css, /github\.com\/Uuriko\/dasha-desk/, `${label} must hide desk source hrefs`);
     assert.match(css, /a\[href\^="\/studio#"\]/, `${label} must hide studio-hash CTAs`);
+    assert.match(css, /content-visibility:\s*auto/, `${label} must skip paint on below-fold rooms`);
+    assert.match(css, /content:"\[01\]"/, `${label} must number the hero room`);
+    assert.match(css, /#simp::before\{content:"\[02\]"/, `${label} must number the board room`);
+    assert.match(css, /#token::before\{content:"\[03\]"/, `${label} must number the mint band`);
+    assert.match(css, /#lobby,#remix,#stills,#oss,#voice/, `${label} must hide leftover carnival`);
     assert.doesNotMatch(css, /\.buy-dasha\{display:none/, `${label} must not hide Buy`);
     assert.equal([...String(html).matchAll(/id=["']dasha-home-calm["']/g)].length, 1, `${label} must inject calm CSS once`);
   };
@@ -1503,12 +1508,14 @@ try {
     assert.match(hero, /Open Studio →/, `${label} must keep other action links in the DOM`);
     assert.match(html, /class="dasha-nav"/, `${label} must keep Designer nav in the DOM`);
     assert.match(html, new RegExp(`id="token"[\\s\\S]*${mint}[\\s\\S]*buy-dasha`), `${label} must keep CA + Buy in #token`);
-    assert.match(html, /id="dasha-simp-board"/, `${label} must keep the quiz below`);
-    assert.equal([...html.matchAll(/class="dasha-quiz"/g)].length, 1, `${label} must keep one .dasha-quiz`);
-    assert.match(html, /lobby\.getdasha\.com\/client\/simp-board\.js/, `${label} must load the existing quiz client`);
+    assert.match(html, /id="dasha-simp-board"/, `${label} must keep the board below`);
+    assert.equal([...html.matchAll(/class="dasha-quiz"/g)].length, 0, `${label} must not mount quiz chrome on home`);
+    assert.match(html, /id="dasha-home-reveal"/, `${label} must reveal rooms once`);
+    assert.match(html, /lobby\.getdasha\.com\/client\/simp-board\.js/, `${label} must load the existing board client`);
     assert.ok(html.includes(`integrity="${SIMP_BOARD_SRI}"`), `${label} quiz client must be SRI-pinned`);
     assert.match(html, /crossorigin="anonymous"/, `${label} quiz client must be CORS-anonymous`);
     assert.doesNotMatch(html, /WebFont\.load|webfont\.js/, `${label} must drop WebFont.load`);
+    assert.doesNotMatch(html, /fonts\.googleapis|fonts\.gstatic/, `${label} must drop Google Fonts preconnect`);
     assert.doesNotMatch(html, /Exo|Bangers|Raleway/, `${label} must drop Exo\/Bangers\/Raleway`);
     assert.doesNotMatch(html, /\/forum/, `${label} must drop Forum hrefs`);
     assert.doesNotMatch(html, /--hot-deep|rgba\(124,\s*77,\s*255/, `${label} must drop the violet wash and --hot-deep`);
@@ -1539,7 +1546,7 @@ try {
   assert.match(injected, /<a class="skip-link" href="#content">Skip to content<\/a>/, 'Designer skip → #content must stay when the hero is #content');
   assert.match(injected, /id="dasha-home"/, 'live Webflow wrapper id=dasha-home must not block the hero');
   assert.match(injected, new RegExp(mint));
-  assert.equal(rewriteHomeFirstViewport(injected), injected, 'second pass must not duplicate calm CSS, Buy pill, or quiz');
+  assert.equal(rewriteHomeFirstViewport(injected), injected, 'second pass must not duplicate calm CSS, Buy pill, board, or reveal');
   assert.equal([...injected.matchAll(/id=["']dasha-lock["']/g)].length, 0);
   const alreadyBuy = rewriteHomeFirstViewport(stripHomeSimpBoard(webflowHome.replace(
     '<p class="actions"><a href="/studio">Open Studio →</a><a href="/lobby">Open lobby →</a></p>',
@@ -1557,11 +1564,13 @@ try {
   assert.equal(rewriteHomeFirstViewport(noHero), noHero, 'no-hero second pass must be idempotent');
   const nativeFetch = globalThis.fetch;
   try {
-    globalThis.fetch = async () => new Response(webflowHome, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    globalThis.fetch = async () => new Response(webflowHome, { headers: { 'Content-Type': 'text/html; charset=utf-8', Link: '<https://fonts.googleapis.com>; rel=preconnect, <https://www.getdasha.com/favicon.ico>; rel=preload; as=image' } });
     for (const host of ['www.getdasha.com', 'getdasha.com']) {
       const home = await workerModule.default.fetch(new Request(`https://${host}/`), {});
       const html = await home.text();
       assertHomeFirst(html, `${host} /`);
+      assert.doesNotMatch(home.headers.get('link') || '', /fonts\.googleapis|fonts\.gstatic/, `${host} / must drop Google Fonts Link hints`);
+      assert.match(home.headers.get('link') || '', /favicon\.ico/, `${host} / must keep unrelated Link hints`);
       assert.equal([...html.matchAll(/href=["']\/privacy["']/g)].length, 1, `${host} / must keep one Privacy link`);
       assert.match(html, /<link href="\/favicon\.ico" rel="shortcut icon"/);
       assert.match(html, new RegExp(mint), `${host} / must keep the mint string`);

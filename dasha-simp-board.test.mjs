@@ -119,11 +119,14 @@ assert(client.includes('max-height:min(56svh,480px)') && client.includes('width:
 assert(client.includes('align-content:start'), 'active quiz must top-align on short mobile screens');
 assert(client.includes("scrollIntoView({ behavior: 'smooth', block: 'start' })"), 'quiz start must scroll into view');
 assert(client.includes('is-correct') && client.includes('is-wrong'), 'correct and incorrect feedback states missing');
-assert(
-  landing.includes('Take the quiz') && landing.includes('ranked by lore') && !landing.includes('10Q') && !landing.includes('20Q'),
-  'landing board intro must name one quiz without Quick/Deep lengths',
+assert(!landing.includes('10Q') && !landing.includes('20Q'),
+  'landing board intro must not advertise Quick/Deep lengths',
 );
-assert(landing.includes('simp-breakdown') && client.includes("el('details', 'simp-breakdown')"), 'compact native score breakdown missing');
+assert(!client.includes("el('details', 'simp-breakdown')") && !client.includes('simp-badge'), 'board rows must drop breakdown and badge chrome');
+assert(client.includes('rowClean') && client.includes("el('span', 'simp-rank'") && client.includes("el('span', 'simp-pts'"), 'board row is rank · handle · number');
+assert(client.includes('homeBoard') && client.includes("hopA.href = '/simp'"), 'home mounts the board plus one quiz hop');
+assert(client.includes('rows.slice(0, 10)'), 'home board is top 10');
+assert(client.includes("el('p', 'simp-empty', 'Empty.')"), 'empty board is one quiet line');
 assert(client.includes("el('details', 'simp-tools')") && client.includes("el('summary', '', 'More')"), 'secondary board tools must stay under More');
 assert.equal((client.match(/Post result on X/g) || []).length, 1, 'result screen regained a second X share action');
 assert(!client.includes('Copy invite link'), 'result screen regained a duplicate invite action');
@@ -164,7 +167,8 @@ assert(worker.includes('/simp/review') && worker.includes('/simp/seasons/snapsho
 assert.equal((worker.match(/url\.pathname\.startsWith\('\/simp\/'\)/g) || []).length, 2, 'both Worker and Durable Object routers must forward every simp endpoint');
 assert(client.includes('Share on X') && client.includes('openXIntent'), 'X share path missing');
 assert(client.includes('quizCardBlob') && client.includes('canvas.toBlob'), 'quiz result card (preview/share) missing');
-assert(client.includes('entry.badges') && score.includes('badgesForProfile'), 'public badges missing');
+assert(score.includes('badgesForProfile'), 'public badges missing from score math');
+assert(!client.includes('entry.badges'), 'board row must not dump badges');
 assert(client.includes('signMessage') && actions.includes('verifyEd25519'), 'signed wallet proof missing');
 assert(client.includes('global.phantom') && client.includes('global.solflare'), 'wallet provider detection is too narrow');
 assert(client.includes('https://phantom.app/ul/browse/') && client.includes('Opening in Phantom'), 'mobile holder proof must reopen inside a signing-capable wallet browser');
@@ -180,7 +184,8 @@ assert(worker.includes('challenge.origin !== allowedOrigin'), 'holder challenge 
 assert(actions.includes('{32,44}') && actions.includes('{64,88}'), 'wallet proof must bound base58 work before decoding');
 assert(/AbortSignal\.timeout\((?:[1-7]\d{3}|8000)\)/.test(worker), 'Solana RPC check must be time-bounded');
 assert(worker.includes("Solana holder check unavailable — try again") && worker.includes('503'), 'RPC failure must fail closed without becoming an internal error');
-assert(client.includes('Holder checked ') && score.includes('holderCheckedAt'), 'holder badge must disclose proof time');
+assert(score.includes('holderCheckedAt'), 'holder proof time stays on the profile');
+assert(!client.includes('Holder checked '), 'board row must not dump holder-checked dates');
 assert(client.includes('Holder verified. Access open for 24h.'), 'holder success must disclose the 24h session');
 assert(!/access is immediate/i.test(client), 'holder success must not claim immediate/no-expiry access');
 assert(!/<nav[^>]*>[\s\S]*?(?:Simp|Leaderboard)[\s\S]*?<\/nav>/i.test(landing), 'board expanded main nav');
@@ -188,8 +193,8 @@ assert(!/href="\/simp/.test(landing), 'landing must not invent a public /simp pa
 
 // Perry editorial, never measured/OAuth-linked points
 assert(client.includes('PerryALPHA') || client.includes('@PerryALPHA'), 'Perry founding missing');
-assert(client.includes('Founding simp') || client.includes('editorial'), 'Perry not labeled founding/editorial');
-assert(client.includes('Founding simp · editorial') || client.includes('Not a measured'), 'client missing Perry editorial label');
+assert(client.includes('@PerryALPHA') || client.includes('PerryALPHA'), 'Perry founding row missing');
+assert(!client.includes('Founding simp') && !client.includes('Founding simp · editorial'), 'row must not lecture founding/editorial');
 assert(score.includes("measured: false") && score.includes("linked: false"), 'score module Perry not non-measured');
 assert(score.includes("kind: 'editorial'"), 'Perry kind must be editorial');
 assert(!/PERRY_EDITORIAL[\s\S]{0,400}measured:\s*true/.test(score), 'Perry falsely measured');

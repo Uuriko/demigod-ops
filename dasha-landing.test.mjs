@@ -138,8 +138,7 @@ assert(simpClient.includes('Leave board'), 'board leave-state CTA missing in cli
 assert(simpClient.includes('/oauth/x/start') || lobbyClient.includes('/oauth/x/start'), 'board must reuse lobby X OAuth start');
 assert(simpClient.includes('/simp/join') && simpClient.includes('/simp/leave') && simpClient.includes('/simp/board'), 'board client must call simp API');
 assert(simpClient.includes('@PerryALPHA') || simpClient.includes('PerryALPHA'), 'Perry founding row missing from board client/fallback');
-assert(simpClient.includes('Founding simp') || simpClient.includes('editorial'), 'Perry must be labeled editorial founding');
-assert(/not a measured|Founding simp · editorial|kind:\s*['"]editorial['"]/i.test(simpClient), 'Perry must not be marked measured');
+assert(!/Founding simp · editorial/i.test(simpClient), 'board row must not lecture founding/editorial');
 assert(!/<nav[^>]*>[\s\S]*?(?:Simp|Leaderboard)[\s\S]*?<\/nav>/i.test(html), 'Simp Board must not expand main navigation');
 assert.ok(html.indexOf('id="simp"') > html.indexOf('id="lobby"'), 'board should sit after lobby, not replace it');
 assert(html.includes('All I want is free healthcare, honey'), 'replacement Dasha line missing');
