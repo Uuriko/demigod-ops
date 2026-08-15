@@ -9,9 +9,11 @@ export { MINT, PAIR, WSOL };
 export const RAYDIUM_AMM_V4 = '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8';
 export const TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
 export const JUPITER_SEARCH = 'https://lite-api.jup.ag/tokens/v2/search';
+export const DEXSCREENER_PAIR = `https://api.dexscreener.com/latest/dex/pairs/solana/${PAIR}`;
 export const GRAPH_CACHE_CONTROL = 'public, s-maxage=90, stale-while-revalidate=60';
 export const SNAPSHOT_TTL_MS = 90_000;
 export const MAX_TXS = 8;
+export const SIG_LIMIT = 20;
 export const MAX_EXPAND_MINTS = 8;
 export const MAX_RETRY_WAIT_MS = 2000;
 
@@ -69,7 +71,63 @@ export function mintFields(token) {
 }
 
 export function mintNode(jup) {
-  return { id: MINT, kind: 'mint', ring: 0, ...mintFields(jup) };
+  return { id: MINT, kind: 'mint', role: 'mint', ring: 0, ...mintFields(jup) };
+}
+
+export function pickDexPair(data, pair = PAIR) {
+  const rows = Array.isArray(data?.pairs) ? data.pairs : data?.pair ? [data.pair] : [];
+  return rows.find((row) => row && String(row.pairAddress || '').toLowerCase() === pair.toLowerCase() && row.chainId === 'solana') || null;
+}
+
+export function dexHud(pair) {
+  if (!pair || typeof pair !== 'object') return {};
+  const out = {};
+  if (pair.priceUsd != null && String(pair.priceUsd) !== '') out.priceUsd = String(pair.priceUsd);
+  const liq = Number(pair.liquidity?.usd);
+  if (Number.isFinite(liq)) out.liquidityUsd = liq;
+  const vol = Number(pair.volume?.h24);
+  if (Number.isFinite(vol)) out.volume24h = vol;
+  const fdv = Number(pair.fdv);
+  if (Number.isFinite(fdv)) out.fdv = fdv;
+  const quote = pair.quoteToken?.address;
+  if (quote === WSOL) out.quote = WSOL;
+  return out;
+}
+
+export function supplyFields(result) {
+  const value = result?.value;
+  if (!value || typeof value !== 'object') return null;
+  const out = {};
+  if (typeof value.uiAmountString === 'string' && value.uiAmountString) out.uiAmountString = value.uiAmountString;
+  if (Number.isFinite(Number(value.uiAmount))) out.uiAmount = Number(value.uiAmount);
+  return out.uiAmountString || out.uiAmount != null ? out : null;
+}
+
+function roleFor(id) {
+  if (id === MINT) return 'mint';
+  if (id === PAIR) return 'pair';
+  if (id === RAYDIUM_AMM_V4) return 'program';
+  if (id === WSOL) return 'token';
+  const tag = tagPubkey(id);
+  if (tag === 'pool') return 'pair';
+  if (tag === 'program') return 'program';
+  return 'wallet';
+}
+
+function kindFor(role) {
+  if (role === 'pair') return 'pool';
+  return role;
+}
+
+function ensureNode(nodes, seen, id) {
+  if (!id || seen.has(id) || !isValidSolanaAddress(id)) return;
+  const role = roleFor(id);
+  const node = { id, kind: kindFor(role), role, ring: role === 'wallet' ? 1 : role === 'mint' ? 0 : 3 };
+  const tag = tagPubkey(id);
+  if (tag) node.tag = tag;
+  if (id === WSOL) node.symbol = 'WSOL';
+  nodes.push(node);
+  seen.add(id);
 }
 
 function sleep(ms) {
@@ -91,9 +149,11 @@ export function collapseOwners(accounts) {
   }
   return [...byOwner.values()].map((row) => {
     const tag = tagPubkey(row.owner);
+    const role = tag === 'pool' ? 'pair' : tag === 'program' ? 'program' : 'wallet';
     const node = {
       id: row.owner,
       kind: tag || 'wallet',
+      role,
       ring: 1,
     };
     if (Number.isFinite(row.uiAmount)) node.uiAmount = row.uiAmount;
@@ -164,65 +224,82 @@ export function parseMintTransfers(tx, mint = MINT) {
   return edges;
 }
 
-export function ring3Nodes(jup, extra = {}) {
-  const nodes = [];
-  const links = [];
-  const seen = extra.seen instanceof Set ? extra.seen : new Set();
-  const pool = typeof jup?.graduatedPool === 'string' ? jup.graduatedPool : '';
-  if (pool && isValidSolanaAddress(pool) && !seen.has(pool)) {
-    const tag = tagPubkey(pool);
-    nodes.push({ id: pool, kind: tag || 'pool', ring: 3, ...(tag ? { tag } : {}) });
-    links.push({ source: MINT, target: pool, kind: 'graduated' });
-    seen.add(pool);
-  }
-  if (jup?.launchpad === 'pump.fun' && !seen.has('pump.fun')) {
-    nodes.push({ id: 'pump.fun', kind: 'launchpad', ring: 3, label: 'minted on pump.fun' });
-    links.push({ source: MINT, target: 'pump.fun', kind: 'launchpad' });
-    seen.add('pump.fun');
-  }
-  if (extra.wsol && !seen.has(WSOL)) {
-    nodes.push({ id: WSOL, kind: 'mint', ring: 3, symbol: 'WSOL' });
-    const from = extra.wsolFrom && isValidSolanaAddress(extra.wsolFrom) ? extra.wsolFrom : MINT;
-    links.push({ source: from, target: WSOL, kind: 'wsol' });
-    seen.add(WSOL);
-  }
-  return { nodes, links };
-}
-
-export function buildSnapshot({ jup = null, holders = [], transfers = [], rpcError = '' } = {}) {
+export function buildSnapshot({
+  jup = null,
+  holders = [],
+  transfers = [],
+  dex = {},
+  supply = null,
+  holdersLoaded = true,
+  rpcError = '',
+  now = Date.now(),
+} = {}) {
   const mint = mintNode(jup);
   const nodes = [mint];
   const links = [];
+  const pulses = [];
   const seen = new Set([MINT]);
-  const rings = { 0: { empty: false } };
-  if (rpcError) {
-    rings[1] = { empty: true, reason: rpcError };
-  } else if (!holders.length) {
-    rings[1] = { empty: true, reason: 'no_accounts' };
-  } else {
-    rings[1] = { empty: false };
+  const hud = dex && typeof dex === 'object' ? dex : {};
+  const loaded = holdersLoaded && !rpcError;
+
+  ensureNode(nodes, seen, PAIR);
+  links.push({ source: MINT, target: PAIR, kind: 'pair' });
+  if (hud.quote === WSOL) {
+    ensureNode(nodes, seen, WSOL);
+    links.push({ source: PAIR, target: WSOL, kind: 'quote' });
+  }
+
+  const holderNodes = [];
+  if (loaded) {
     for (const node of holders) {
-      if (seen.has(node.id)) continue;
-      nodes.push(node);
-      seen.add(node.id);
-      const hold = { source: MINT, target: node.id, kind: 'hold' };
-      if (Number.isFinite(node.uiAmount)) hold.amount = node.uiAmount;
-      if (node.uiAmountString) hold.uiAmountString = node.uiAmountString;
+      if (!node?.id || seen.has(node.id)) continue;
+      const next = { ...node, role: node.role || roleFor(node.id) };
+      nodes.push(next);
+      seen.add(next.id);
+      holderNodes.push(next);
+      const hold = { source: MINT, target: next.id, kind: 'hold' };
+      if (Number.isFinite(next.uiAmount)) hold.amount = next.uiAmount;
+      if (next.uiAmountString) hold.uiAmountString = next.uiAmountString;
       links.push(hold);
     }
   }
+
+  const outflows = new Set();
   for (const edge of transfers) {
+    if (!edge?.source || !edge?.target) continue;
+    ensureNode(nodes, seen, edge.source);
+    ensureNode(nodes, seen, edge.target);
     if (!seen.has(edge.source) || !seen.has(edge.target)) continue;
     links.push(edge);
+    outflows.add(edge.source);
+    if (edge.signature) pulses.push({ signature: edge.signature, source: edge.source, target: edge.target });
   }
-  const showWsol = Boolean(jup?.graduatedPool) || holders.some((node) => node.id === WSOL);
-  const extra = ring3Nodes(jup, { seen, wsol: showWsol });
-  if (extra.nodes.length) {
-    nodes.push(...extra.nodes);
-    links.push(...extra.links);
-    rings[3] = { empty: false };
+  for (const node of nodes) {
+    if (node.role === 'wallet' && outflows.has(node.id)) node.hot = true;
   }
-  return { mint: MINT, nodes, links, rings };
+
+  const rings = {
+    0: { empty: false, nodes: [mint] },
+    1: !loaded
+      ? { empty: true, reason: rpcError || 'rpc_unavailable' }
+      : holderNodes.length
+        ? { empty: false, nodes: holderNodes }
+        : { empty: true, reason: 'no_accounts' },
+  };
+
+  return {
+    generatedAt: new Date(now).toISOString(),
+    ttlSec: SNAPSHOT_TTL_MS / 1000,
+    mint: MINT,
+    pair: PAIR,
+    holdersLoaded: loaded,
+    dex: hud,
+    supply: supply && typeof supply === 'object' ? supply : null,
+    nodes,
+    links,
+    pulses,
+    rings,
+  };
 }
 
 export function buildExpand({ owner, holdings = [], symbols = {}, wsol = false } = {}) {
@@ -232,7 +309,7 @@ export function buildExpand({ owner, holdings = [], symbols = {}, wsol = false }
   const nodes = [];
   const links = [];
   for (const row of holdings) {
-    const node = { id: row.mint, kind: 'mint', ring: 2 };
+    const node = { id: row.mint, kind: 'token', role: 'token', ring: 2 };
     const meta = symbols[row.mint];
     if (meta?.symbol) node.symbol = meta.symbol;
     if (meta?.name) node.name = meta.name;
@@ -245,7 +322,7 @@ export function buildExpand({ owner, holdings = [], symbols = {}, wsol = false }
     links.push(link);
   }
   if (wsol) {
-    nodes.push({ id: WSOL, kind: 'mint', ring: 3, symbol: 'WSOL' });
+    nodes.push({ id: WSOL, kind: 'token', role: 'token', ring: 3, symbol: 'WSOL' });
     links.push({ source: owner, target: WSOL, kind: 'wsol' });
   }
   return { id: owner, empty: false, nodes, links };
@@ -343,7 +420,7 @@ async function loadHolders(env, opts) {
 }
 
 async function loadTransfers(env, opts) {
-  const sigs = await solanaRpc(env, 'getSignaturesForAddress', [MINT, { limit: 20 }], opts);
+  const sigs = await solanaRpc(env, 'getSignaturesForAddress', [PAIR, { limit: SIG_LIMIT }], opts);
   const list = Array.isArray(sigs) ? sigs : [];
   const ok = list.filter((row) => row && row.err == null && row.signature).slice(0, MAX_TXS);
   const edges = [];
@@ -358,42 +435,57 @@ async function loadTransfers(env, opts) {
   return edges;
 }
 
+async function loadDex(fetchImpl) {
+  const res = await fetchImpl(DEXSCREENER_PAIR, { method: 'GET', signal: AbortSignal.timeout(4000) });
+  if (res.status !== 200) return {};
+  return dexHud(pickDexPair(await res.json().catch(() => null)));
+}
+
+async function soft(fn) {
+  try {
+    return { ok: true, value: await fn() };
+  } catch {
+    return { ok: false, value: null };
+  }
+}
+
 export async function fetchGraphSnapshot(env, { fetchImpl = fetch, now = Date.now(), endpoints } = {}) {
   if (mem.snapshot && now - mem.snapshotAt < SNAPSHOT_TTL_MS) return mem.snapshot;
   const opts = { fetchImpl, now, endpoints };
-  let jup = null;
-  try {
-    jup = pickJupiterToken(await jupiterSearch(MINT, fetchImpl));
-  } catch {
-    jup = null;
-  }
-  if (now < mem.cooldownUntil) {
-    const body = buildSnapshot({ jup, rpcError: 'rpc_unavailable' });
-    mem.snapshot = body;
-    mem.snapshotAt = now;
-    return body;
-  }
-  try {
-    const holders = await loadHolders(env, opts);
-    let transfers = [];
-    try {
-      transfers = await loadTransfers(env, opts);
-    } catch (err) {
-      if (!(err instanceof RpcUnavailable) && err?.message !== 'rpc_failed') throw err;
+  const [jupHit, dexHit] = await Promise.all([
+    soft(async () => pickJupiterToken(await jupiterSearch(MINT, fetchImpl))),
+    soft(() => loadDex(fetchImpl)),
+  ]);
+  const jup = jupHit.value;
+  const dex = dexHit.value || {};
+  let supply = null;
+  let holders = [];
+  let holdersLoaded = false;
+  let transfers = [];
+  if (now >= mem.cooldownUntil) {
+    const supplyHit = await soft(() => solanaRpc(env, 'getTokenSupply', [MINT], opts));
+    if (supplyHit.ok) supply = supplyFields(supplyHit.value);
+    const holdHit = await soft(() => loadHolders(env, opts));
+    if (holdHit.ok) {
+      holders = holdHit.value || [];
+      holdersLoaded = true;
     }
-    const body = buildSnapshot({ jup, holders, transfers });
-    mem.snapshot = body;
-    mem.snapshotAt = now;
-    return body;
-  } catch (err) {
-    const reason = err instanceof RpcUnavailable || err?.message === 'rpc_failed' || err?.message === 'rpc_unavailable'
-      ? 'rpc_unavailable'
-      : 'rpc_unavailable';
-    const body = buildSnapshot({ jup, rpcError: reason });
-    mem.snapshot = body;
-    mem.snapshotAt = now;
-    return body;
+    const txHit = await soft(() => loadTransfers(env, opts));
+    if (txHit.ok) transfers = txHit.value || [];
   }
+  const body = buildSnapshot({
+    jup,
+    holders,
+    transfers,
+    dex,
+    supply,
+    holdersLoaded,
+    rpcError: holdersLoaded ? '' : 'rpc_unavailable',
+    now,
+  });
+  mem.snapshot = body;
+  mem.snapshotAt = now;
+  return body;
 }
 
 function parseHolding(value) {

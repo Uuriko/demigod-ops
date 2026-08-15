@@ -612,7 +612,7 @@ async function graphExpandResponse(request, env) {
     return new Response(null, { status: 200, headers: { ...SECURITY, 'X-Dasha-Edge': 'graph-api' } });
   }
   const body = await fetchGraphExpand(env, id, { endpoints: solanaRpcEndpoints(env) });
-  return graphApiResponse(body, allowedOrigin, 'public, max-age=30');
+  return graphApiResponse(body, allowedOrigin);
 }
 
 function id() {
