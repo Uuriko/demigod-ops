@@ -126,6 +126,39 @@ navigation almost nothing to work with.
 choice, keep it — but the hidden section headings and the duplicated chess block are separate from
 that choice and should be fixed regardless.
 
+## 3c. Live is deliberately curated. Do not "restore" these.
+
+Two things on live are easy to mistake for regressions and are not:
+
+- **Scroll animations are switched off on purpose.** Live carries
+  `animation-timeline:none!important`. That is an explicit override, not an absent feature — the
+  `@supports (animation-timeline: view())` block is still there underneath it. Someone disabled the
+  motion deliberately. Do not re-enable it without asking whoever did.
+- **The poster collage is gone from the markup, not from the stylesheet.** Live has 12 `.poster-tile`
+  CSS selector occurrences and **zero** `class="poster-tile"` in markup. The rules are dead weight;
+  the collage was removed on purpose, consistent with `/studio` being retired.
+
+Taken with the retired routes, live is a curated, retirement-aware page. This tree's
+`dasha-landing.html` is behind it: it still contains 2 `href="/studio"`, 2 `href="/lobby"`, 1
+`href="/dasha"` and 1 `href="/how-to-buy"`, and the poster collage markup. **Do not ship this tree's
+landing over live** — that is a rollback, independent of the SRI problem in §4.
+
+### The trap waiting for whoever aligns the source
+
+`dasha-ship.mjs:319` hard-requires the retired routes in the landing source:
+
+```js
+if (!landing.includes('/studio') || !landing.includes('/dasha')) fail('landing missing dual-path routes');
+```
+
+So updating `dasha-landing.html` to match live — removing the links to retired surfaces — **fails
+the fast gate**. The gate currently enforces links to pages that 308 to home.
+
+I have deliberately not changed it. Whether `/studio` and `/dasha` are retired permanently or
+temporarily is a product decision I do not have, and loosening a release gate on an inference is how
+guards quietly stop guarding. Resolve it explicitly: if the retirement is permanent, drop that
+assertion in the same change that removes the links, so the gate and the page move together.
+
 ## 4. Do not publish getdasha.com from the Webflow Designer or MCP
 
 The Designer holds unpublished changes that are **not** safe to ship:
