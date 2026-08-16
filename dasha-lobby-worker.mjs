@@ -2825,9 +2825,13 @@ export class DashaFaucet {
         const dest = String(input.dest || '').trim();
         const err = destShapeError(dest, input.last4);
         if (err) return json({ ok: false, error: err }, 400, allowedOrigin, cred);
-        this.faucetBinds[xId] = { dest, at: Date.now(), kind: 'IS_WALLET' };
+        /* PASTED, not IS_WALLET: nothing here proves the typer controls this address. It used to
+           write IS_WALLET, the same label the signature-verified path writes, so afterwards the
+           ledger could not tell them apart — and an unproven bind could take a stranger's
+           per-wallet slot, since Solana addresses are public. See DASHA-FAUCET-REVIEW-2026-08-16.md. */
+        this.faucetBinds[xId] = { dest, at: Date.now(), kind: 'PASTED' };
         await this.persistFaucet();
-        return json({ ok: true, dest, kind: 'IS_WALLET' }, 200, allowedOrigin, cred);
+        return json({ ok: true, dest, kind: 'PASTED' }, 200, allowedOrigin, cred);
       }
 
       const publicKey = String(input.publicKey || '').trim();
@@ -2872,7 +2876,11 @@ export class DashaFaucet {
       if (!status.configured) return json({ error: 'not_configured' }, 501, allowedOrigin, cred);
       if (status.error === 'faucet_paused') return json({ error: 'faucet_paused' }, 503, allowedOrigin, cred);
       if (!status.funded) return json({ error: status.error || 'treasury_empty' }, 503, allowedOrigin, cred);
-      const allowed = claimAllowed(this.faucetClaims, { xId, wallet: bind.dest });
+      /* Only a signature-verified destination may hold the per-wallet slot. A pasted one still
+         deduplicates by X id, so a claimer cannot double-dip; it just cannot lock out the owner
+         of an address they merely typed. */
+      const proven = bind.kind === 'IS_WALLET';
+      const allowed = claimAllowed(this.faucetClaims, { xId, wallet: bind.dest, proven });
       if (!allowed.ok) {
         if (allowed.error === 'already claimed') {
           const replay = alreadyClaimedResponse(allowed.prev);
@@ -2888,7 +2896,7 @@ export class DashaFaucet {
         }
         return json({ error: allowed.error }, 409, allowedOrigin, cred);
       }
-      this.faucetClaims = reserveClaim(this.faucetClaims, { xId, wallet: bind.dest });
+      this.faucetClaims = reserveClaim(this.faucetClaims, { xId, wallet: bind.dest, proven });
       await this.persistFaucet();
       const sent = await sendTipTransfer(this.env, {
         destOwner: bind.dest,
@@ -2908,6 +2916,7 @@ export class DashaFaucet {
         xId,
         wallet: bind.dest,
         signature: sent.signature,
+        proven,
       });
       this.faucetMetrics = noteSuccessfulClaim(this.faucetMetrics, cfg);
       await this.persistFaucet();

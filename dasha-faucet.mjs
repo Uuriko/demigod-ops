@@ -244,16 +244,21 @@ export function buildStatus(cfg, inventory = {}) {
   });
 }
 
-export function claimLookup(store, { xId, wallet }) {
+/* `proven` means the destination was demonstrated by an ed25519 signature over the SIWS challenge,
+   not merely typed in. Only a proven wallet may occupy the byWallet index: addresses are public, so
+   an unproven bind lets anyone spend a stranger's per-wallet slot and lock them out for the whole
+   cooldown. Unproven claims still dedup by X id, so nobody double-dips. Defaults to true so a call
+   site that has not been updated errs toward more deduplication, never less. */
+export function claimLookup(store, { xId, wallet, proven = true }) {
   const byX = xId ? store?.byX?.[String(xId)] : null;
-  const byW = wallet ? store?.byWallet?.[String(wallet)] : null;
+  const byW = proven && wallet ? store?.byWallet?.[String(wallet)] : null;
   return byX || byW || null;
 }
 
-export function claimAllowed(store, { xId, wallet, now = Date.now(), cooldownMs = FAUCET_COOLDOWN_MS }) {
+export function claimAllowed(store, { xId, wallet, proven = true, now = Date.now(), cooldownMs = FAUCET_COOLDOWN_MS }) {
   if (!xId) return { ok: false, error: 'link X first' };
   if (!wallet || destShapeError(wallet)) return { ok: false, error: destShapeError(wallet) || 'dest_not_wallet' };
-  const prev = claimLookup(store, { xId, wallet });
+  const prev = claimLookup(store, { xId, wallet, proven });
   // In-flight reservation (multi-tab): wait / poll.
   if (prev?.pending) return { ok: false, error: 'confirming', prev };
   if (prev?.signature) {
@@ -267,7 +272,7 @@ export function claimAllowed(store, { xId, wallet, now = Date.now(), cooldownMs 
  * Reserve claim slot before broadcast (prevents double-send).
  * Clear with clearPendingClaim on hard failure; finalize with recordClaim on success.
  */
-export function reserveClaim(store, { xId, wallet, at = Date.now() }) {
+export function reserveClaim(store, { xId, wallet, at = Date.now(), proven = true }) {
   const next = {
     byX: { ...(store?.byX || {}) },
     byWallet: { ...(store?.byWallet || {}) },
@@ -278,13 +283,14 @@ export function reserveClaim(store, { xId, wallet, at = Date.now() }) {
     signature: '',
     at,
     pending: true,
+    proven: Boolean(proven),
   };
   next.byX[String(xId)] = row;
-  next.byWallet[String(wallet)] = row;
+  if (proven) next.byWallet[String(wallet)] = row;
   return next;
 }
 
-export function recordClaim(store, { xId, wallet, signature, at = Date.now() }) {
+export function recordClaim(store, { xId, wallet, signature, at = Date.now(), proven = true }) {
   const next = {
     byX: { ...(store?.byX || {}) },
     byWallet: { ...(store?.byWallet || {}) },
@@ -295,9 +301,10 @@ export function recordClaim(store, { xId, wallet, signature, at = Date.now() }) 
     signature: String(signature),
     at,
     pending: false,
+    proven: Boolean(proven),
   };
   next.byX[String(xId)] = row;
-  next.byWallet[String(wallet)] = row;
+  if (proven) next.byWallet[String(wallet)] = row;
   return next;
 }
 

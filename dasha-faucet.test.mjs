@@ -216,4 +216,37 @@ assert.equal(checkXEligibility({ xId: '1' }, { minXAgeDays: 7 }).ok, true); // s
 assert.match(humanError('daily_cap'), /daily/i);
 assert.match(humanError('x_too_new'), /new/i);
 
-console.log('dasha-faucet: PASS (helpers, ledger, ATA, rate limits, X age, routes)');
+/* Unproven destinations must not hold the per-wallet slot.
+   Solana addresses are public, so before this an attacker could paste a stranger's address, claim,
+   and lock the owner out for the whole 30-day cooldown while the payout left the treasury to an
+   address nobody proved. See DASHA-FAUCET-REVIEW-2026-08-16.md. */
+{
+  const victim = 'DwpCrg5qfCMW11a9FYFsAR9ZYQUYKNhfLdnzpci7sYgb';
+  // an attacker claims to a pasted (unproven) address
+  let store = recordClaim({ byX: {}, byWallet: {} }, { xId: 'attacker', wallet: victim, signature: 'sig1', proven: false });
+  assert.equal(store.byX.attacker.wallet, victim, 'unproven claim still recorded against the claiming X id');
+  assert.equal(store.byWallet[victim], undefined, 'unproven claim must NOT occupy the per-wallet slot');
+  assert.equal(store.byX.attacker.proven, false, 'row records that the destination was never proven');
+
+  // the real owner can still claim with the same wallet
+  assert.equal(claimAllowed(store, { xId: 'owner', wallet: victim, proven: true }).ok, true, 'owner is not locked out by someone else pasting their address');
+
+  // the attacker cannot double-dip: their own X id is still spent
+  assert.equal(claimAllowed(store, { xId: 'attacker', wallet: 'So11111111111111111111111111111111111111112', proven: false }).error, 'already claimed', 'unproven claims still dedup by X id');
+
+  // a proven claim does take the wallet slot, and blocks a second X id on the same wallet
+  const proven = recordClaim({ byX: {}, byWallet: {} }, { xId: 'owner', wallet: victim, signature: 'sig2', proven: true });
+  assert.equal(proven.byWallet[victim].signature, 'sig2', 'proven claim occupies the per-wallet slot');
+  assert.equal(claimAllowed(proven, { xId: 'someone-else', wallet: victim, proven: true }).error, 'already claimed', 'proven wallet blocks a second claimer');
+
+  // reservation follows the same rule, so the pre-broadcast slot cannot be griefed either
+  const reserved = reserveClaim({ byX: {}, byWallet: {} }, { xId: 'attacker', wallet: victim, proven: false });
+  assert.equal(reserved.byWallet[victim], undefined, 'unproven reservation must not hold the wallet slot');
+  assert.equal(reserved.byX.attacker.pending, true, 'unproven reservation still holds the X slot');
+
+  // default stays strict: a call site that forgets `proven` deduplicates MORE, never less
+  const dflt = recordClaim({ byX: {}, byWallet: {} }, { xId: 'x', wallet: victim, signature: 'sig3' });
+  assert.equal(dflt.byWallet[victim].signature, 'sig3', 'proven defaults to true');
+}
+
+console.log('dasha-faucet: PASS (helpers, ledger, ATA, rate limits, X age, routes, unproven-dest isolation)');
