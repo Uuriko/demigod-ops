@@ -308,15 +308,21 @@ export function recordClaim(store, { xId, wallet, signature, at = Date.now(), pr
   return next;
 }
 
-export function clearPendingClaim(store, { xId, wallet }) {
+/* Rollback must only ever undo the caller's OWN reservation.
+   Introduced by the unproven-destination change: an unproven claim no longer consults byWallet, so
+   two claims can now be in flight for the same wallet — the owner's proven one and a stranger's
+   pasted one. Without these guards the stranger's failed send would delete the owner's in-flight
+   byWallet row, removing the guard mid-transfer. Gate on `proven` (an unproven claim never touches
+   the wallet index, read or write) and on xId ownership (never delete a row someone else placed). */
+export function clearPendingClaim(store, { xId, wallet, proven = true }) {
   const next = {
     byX: { ...(store?.byX || {}) },
     byWallet: { ...(store?.byWallet || {}) },
   };
   const px = xId ? next.byX[String(xId)] : null;
-  const pw = wallet ? next.byWallet[String(wallet)] : null;
+  const pw = proven && wallet ? next.byWallet[String(wallet)] : null;
   if (px?.pending) delete next.byX[String(xId)];
-  if (pw?.pending) delete next.byWallet[String(wallet)];
+  if (pw?.pending && String(pw.xId) === String(xId)) delete next.byWallet[String(wallet)];
   return next;
 }
 

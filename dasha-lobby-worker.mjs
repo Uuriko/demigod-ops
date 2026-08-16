@@ -55,6 +55,7 @@ import {
   questionForAttempt,
   answerQuizAttempt,
   quizResultForAttempt,
+  storedQuizTitle,
   submitQuiz,
 } from './dasha-simp-score.mjs';
 import {
@@ -1140,7 +1141,9 @@ export class DashaLobby {
 
     if (path.startsWith('/simp/result/') && request.method === 'GET') {
       const result = this.simpQuizResults[path.slice('/simp/result/'.length)];
-      return result ? json({ ok: true, result: { correct: result.correct, total: result.total, title: result.title, lane: result.lane } }, 200, allowedOrigin) : json({ error: 'result not found' }, 404, allowedOrigin);
+      if (!result) return json({ error: 'result not found' }, 404, allowedOrigin);
+      const title = storedQuizTitle(result.title, result.correct, result.total);
+      return json({ ok: true, result: { correct: result.correct, total: result.total, title, lane: result.lane } }, 200, allowedOrigin);
     }
 
     if (path.startsWith('/simp/r/') && (request.method === 'GET' || request.method === 'HEAD')) {
@@ -1148,11 +1151,12 @@ export class DashaLobby {
       const result = this.simpQuizResults[id];
       const headOnly = request.method === 'HEAD';
       if (!result) return new Response(headOnly ? null : 'Result not found', { status: 404, headers: SECURITY });
-      const identity = `${result.title} · ${result.lane}`;
+      const title = storedQuizTitle(result.title, result.correct, result.total);
+      const identity = `Beat ${result.correct}/${result.total} · ${title}`;
       const description = `${result.correct}/${result.total} on the Dasha simp quiz. Beat this score.`;
       const resultUrl = `https://lobby.getdasha.com/simp/r/${id}`;
       const imageUrl = 'https://lobby.getdasha.com/simp/card/quiz.png';
-      const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${identity}</title><link rel="canonical" href="${resultUrl}"><meta property="og:type" content="website"><meta property="og:site_name" content="getdasha"><meta property="og:url" content="${resultUrl}"><meta property="og:title" content="${identity}"><meta property="og:description" content="${description}"><meta property="og:image" content="${imageUrl}"><meta property="og:image:secure_url" content="${imageUrl}"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="628"><meta property="og:image:alt" content="Dasha simp quiz"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${identity}"><meta name="twitter:description" content="${description}"><meta name="twitter:image" content="${imageUrl}"><meta name="twitter:image:alt" content="Dasha simp quiz"><style>body{margin:0;background:#070608;color:#f4eddb;font:20px/1.4 system-ui;display:grid;place-items:center;min-height:100vh}.r{max-width:36rem;padding:32px}h1{font-size:clamp(42px,9vw,76px);line-height:.95}b{color:#dfff00}a{display:inline-block;background:#dfff00;color:#070608;padding:14px 20px;font-weight:900;text-decoration:none}</style></head><body><main class="r"><b>DASHA SIMP QUIZ</b><h1>${result.correct}/${result.total}<br>${identity}</h1><p>${description}</p><a href="https://www.getdasha.com/?challenge=${id}#simp">Beat this score</a></main></body></html>`;
+      const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${identity}</title><link rel="canonical" href="${resultUrl}"><meta property="og:type" content="website"><meta property="og:site_name" content="getdasha"><meta property="og:url" content="${resultUrl}"><meta property="og:title" content="${identity}"><meta property="og:description" content="${description}"><meta property="og:image" content="${imageUrl}"><meta property="og:image:secure_url" content="${imageUrl}"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="628"><meta property="og:image:alt" content="Dasha simp quiz"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${identity}"><meta name="twitter:description" content="${description}"><meta name="twitter:image" content="${imageUrl}"><meta name="twitter:image:alt" content="Dasha simp quiz"><style>body{margin:0;background:#070608;color:#f4eddb;font:20px/1.4 system-ui;display:grid;place-items:center;min-height:100vh}.r{max-width:36rem;padding:32px}h1{font-size:clamp(42px,9vw,76px);line-height:.95}b{color:#dfff00}a{display:inline-block;background:#dfff00;color:#070608;padding:14px 20px;font-weight:900;text-decoration:none}</style></head><body><main class="r"><b>DASHA SIMP QUIZ</b><h1>${result.correct}/${result.total}<br>${title}</h1><p>${description}</p><a href="https://www.getdasha.com/?challenge=${id}#simp">Beat this score</a></main></body></html>`;
       return new Response(headOnly ? null : html, { headers: htmlHeaders({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' }) });
     }
 
@@ -2904,7 +2908,7 @@ export class DashaFaucet {
         mint: status.mint || FAUCET_MINT,
       });
       if (!sent.ok) {
-        this.faucetClaims = clearPendingClaim(this.faucetClaims, { xId, wallet: bind.dest });
+        this.faucetClaims = clearPendingClaim(this.faucetClaims, { xId, wallet: bind.dest, proven });
         await this.persistFaucet();
         const code =
           sent.error === 'treasury_empty' || sent.error === 'treasury_rent' || sent.error === 'rpc_unavailable'

@@ -249,4 +249,31 @@ assert.match(humanError('x_too_new'), /new/i);
   assert.equal(dflt.byWallet[victim].signature, 'sig3', 'proven defaults to true');
 }
 
-console.log('dasha-faucet: PASS (helpers, ledger, ATA, rate limits, X age, routes, unproven-dest isolation)');
+/* Rollback must undo only the caller's own reservation.
+   The unproven-destination change made two claims for one wallet possible: the owner's proven one
+   and a stranger's pasted one. A failed send from the stranger must not delete the owner's in-flight
+   guard, and no caller may clear a row another X id placed. */
+{
+  const w = 'DwpCrg5qfCMW11a9FYFsAR9ZYQUYKNhfLdnzpci7sYgb';
+  // owner has a proven reservation in flight for w
+  let store = reserveClaim({ byX: {}, byWallet: {} }, { xId: 'owner', wallet: w, proven: true });
+  assert.equal(store.byWallet[w].pending, true, 'owner holds the wallet slot while sending');
+
+  // a stranger's unproven claim for the same wallet reserves, then fails and rolls back
+  store = reserveClaim(store, { xId: 'stranger', wallet: w, proven: false });
+  store = clearPendingClaim(store, { xId: 'stranger', wallet: w, proven: false });
+  assert.equal(store.byX.stranger, undefined, "stranger's own row is rolled back");
+  assert.ok(store.byWallet[w], "stranger's rollback must NOT delete the owner's in-flight wallet slot");
+  assert.equal(store.byWallet[w].xId, 'owner', 'the surviving row is still the owner\'s');
+
+  // even a proven caller may not clear a row placed by a different X id
+  const foreign = clearPendingClaim(store, { xId: 'someone-else', wallet: w, proven: true });
+  assert.ok(foreign.byWallet[w], 'a proven caller cannot clear another X id\'s reservation');
+
+  // the owner can still roll back their own
+  const own = clearPendingClaim(store, { xId: 'owner', wallet: w, proven: true });
+  assert.equal(own.byWallet[w], undefined, 'owner rolls back their own wallet slot');
+  assert.equal(own.byX.owner, undefined, 'owner rolls back their own X slot');
+}
+
+console.log('dasha-faucet: PASS (helpers, ledger, ATA, rate limits, X age, routes, unproven-dest isolation, rollback ownership)');
