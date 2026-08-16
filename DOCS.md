@@ -82,7 +82,7 @@ Compatibility entry files—`AGENT-SIMPLE.md`, `AGENT-STATE.md`, `AGENT-RULES.md
 | EventsBot product and safety | [`DEMIGOD-EVENTS-BOT.md`](DEMIGOD-EVENTS-BOT.md) | `docs/events/`, `bin/dg events status` |
 | Demand and pilot status | [`docs/process/OPS.md`](docs/process/OPS.md) | `bin/dg demand status`, `bin/dg pilot status` |
 | GTM research and scripts | [`docs/gtm/`](docs/gtm/) | Draft-only unless current request authorizes an external action |
-| DIE/Clay-like operations | [`DEMIGOD-DIE-BRIEF.md`](DEMIGOD-DIE-BRIEF.md) | [`DEMIGOD-DIE-SPEC.md`](DEMIGOD-DIE-SPEC.md), `docs/die/` |
+| DIE/Clay-like operations | [`DEMIGOD-DIE-BRIEF.md`](DEMIGOD-DIE-BRIEF.md) | [`DEMIGOD-DIE-SPEC.md`](DEMIGOD-DIE-SPEC.md), [`docs/die/WEBAPP-PLAN.md`](docs/die/WEBAPP-PLAN.md), `docs/die/` |
 | Local operator workflow | [`docs/DEMIGOD-TOTAL-WORKFLOW-DIAGRAM.md`](docs/DEMIGOD-TOTAL-WORKFLOW-DIAGRAM.md) | [`docs/DEMIGOD-MULTI-AGENT-COORD-DIAGRAM.md`](docs/DEMIGOD-MULTI-AGENT-COORD-DIAGRAM.md) |
 
 ### Agents, tools, and machine operation

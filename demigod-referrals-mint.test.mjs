@@ -67,7 +67,7 @@ test('mint-talent creates unique engineer link and pack with 20% / 90-day honest
     assert.match(referralMount, new RegExp(`\\\\?['"]${name}\\\\?['"]`), `${name} stays in the minimal form contract`);
   }
   assert.match(referralMount, /field\.required = true/);
-  assert.match(referralMount, /\['partner-email', 'email', 'email', 160\]/);
+  assert.match(referralMount, /\['partner-email', 'email', 'email', 160,/);
   assert.match(referralMount, /data-wf-element-id/);
   assert.match(referralMount, /visibleFields\.length !== expectedFields\.length/);
   assert.match(referralMount, /visibleFields\.some\(function \(field\)/);

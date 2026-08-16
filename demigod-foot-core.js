@@ -1,5 +1,5 @@
-/*dg-foot-v1096-core*/
-window.dgFootVersion = 'v1096'; console.log('[demigod] foot v1096-core loaded');
+/*dg-foot-v1103-core*/
+window.dgFootVersion = 'v1103'; console.log('[demigod] foot v1103-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
@@ -8,13 +8,13 @@ var S='#startup-modal',J='#jobseeker-modal',OPEN=null;
 /* ==== SECTION: COPY (runtime marketing strings) ==== */
 var MATCH_DISCLOSURE='Software compares role goals, skills, location, and compensation; a human decides what to propose and can explain why; nothing is sent automatically.';
 var COPY={
-heroSub:'One SF Bay role. One concrete first result. Mutual yes before any intro.',
+heroSub:'SF Bay Area roles',
 badge:'SF startup talent · software compares · humans review',
-/* design-track v1072: one calm sentence — fee/free already live in dual-path CTA hints */
-heroTrustLine:'No public profiles. No feed. No blasts — nothing is sent until both sides approve.',
+/* empty: hero() must not paint a second paragraph under the outcome line */
+heroTrustLine:'',
 antiLinkedIn:'No public profiles. No feed. No blasts. Mutual yes only — candidate identity stays private until both sides approve.',
 ctaFounder:'Hire talent',
-ctaEngineer:'Share privately',
+ctaEngineer:'Sign up to Demigod',
 navCta:'Hire talent',
 /* Risk-reversal microcopy under dual CTAs (research: objection text next to action beats audience-only labels). */
 ctaHireHint:'Nothing until a hire starts',
@@ -26,7 +26,7 @@ engineerBody:'Your details stay private — this is not a public profile. '+MATC
 feeNote:'10% of first-year base salary when a hire starts. Free for talent. Nothing until then.',
 pricingNote:'10% of first-year base salary when a hire starts — nothing until then',
 trustKicker:'How it works',
-trustSteps:['You share a brief or preferences','Software compares · a human proposes (can explain why)','Both approve → intro'],
+trustSteps:['Send a brief','A person picks','You both say yes'],
 
 
 
@@ -56,16 +56,17 @@ var SALARY_BAND_HTML='<option value="">Select range</option>'
   +'<option value="flexible">Flexible / open</option>';
 var WIZ_CFG={
   startup:{
-    steps:[['welcome'],['role-title'],['company-name'],['company-stage'],['stack-needs'],['work-location'],['salary-range'],['90day-outcome'],['contact-email'],['__submit__'],['__thanks__']],
+    /* First result before logistics: define “strong” before salary (intake research). */
+    steps:[['welcome'],['role-title'],['company-name'],['company-stage'],['stack-needs'],['90day-outcome'],['work-location'],['salary-range'],['contact-email'],['__submit__'],['__thanks__']],
     welcome:{t:'Hiring brief',b:'~2 min · 8 short answers. One SF Bay permanent role, one concrete first result, mutual yes before intro. 10% of first-year base only when a hire starts. Press Enter to continue.',btn:'Start the brief'},
     thanks:STARTUP_OK,
     optional:[]
   },
   engineer:{
-    steps:[['welcome'],['sf-bay'],['full-name'],['seeker-email'],['skills-stack'],['experience'],['availability'],['salary-expectation'],['resume'],['__submit__'],['__thanks__']],
-    welcome:{t:'Open to the right startup?',b:'~2 min · 8 short answers · free · private · resume optional. Software compares, a human proposes and can explain why, you approve every intro. Same email resubmits to update — not a public profile. Press Enter to continue.',btn:'Start privately'},
+    steps:[['welcome'],['sf-bay'],['full-name'],['seeker-email'],['skills-stack'],['experience'],['proof-url'],['availability'],['salary-expectation'],['resume'],['__submit__'],['__thanks__']],
+    welcome:{t:'Open to the right startup?',b:'~2 min · 9 short answers · 2 optional · free · private · resume optional. Software compares, a human proposes and can explain why, you approve every intro. Same email resubmits to update — not a public profile. Press Enter to continue.',btn:'Start privately'},
     thanks:ENGINEER_OK,
-    optional:['resume']
+    optional:['resume','proof-url']
   }
 };
 /* ==== SECTION: WIZ_Q (questions + hints) ==== */
@@ -73,11 +74,11 @@ var WIZ_Q={
   startup:{
     'contact-email':{q:'Work email?',h:'Match notes only — not a list, not spam.'},
     'company-name':{q:'Company name?',h:'Legal or product name is fine.'},
-    'company-stage':{q:'Company stage?',h:'Pick the closest stage — we match to reality, not the pitch deck.'},
-    'role-title':{q:'Role title?',h:'Be specific: founding engineer, first PM, head of growth…'},
+    'company-stage':{q:'Company stage?',h:'Closest stage wins — we match to reality, not the pitch deck.'},
+    'role-title':{q:'What role are you hiring?',h:'Be specific: founding engineer, first PM, head of growth…'},
     'stack-needs':{q:'What are the 2–3 true must-haves?',h:'Skills, domain, or ownership level. Include any genuine deal-breaker; skip nice-to-haves.'},
     '90day-outcome':{q:'What should this person accomplish first?',h:'One concrete result is enough. A 30–90 day horizon is useful; we can calibrate timing.'},
-    'work-location':{q:'Where can they work?',h:'Only arrangements you can actually support.'},
+    'work-location':{q:'Where and how can they work?',h:'Only arrangements you can actually support day one.'},
     'salary-range':{q:'Target base salary range?',h:'USD base only — candidates see this band before approving any intro. Equity is separate.'},
     '__submit__':{q:'Ready to send this brief?',h:'Edit any answer below. Sending confirms this role is open now. If you request an intro, the candidate privately sees the company, exact role, and base cash band before deciding; their identity stays private until both approve.'}
   },
@@ -86,8 +87,9 @@ var WIZ_Q={
     'seeker-email':{q:'Best email?',h:'Only potter@trydemigod.com for match notes.'},
     'skills-stack':{q:'What kind of work do you want next?',h:'Name the role or problems, plus the strengths and domain you want to use.'},
     'experience':{q:'Work you are proud of?',h:'2–3 concrete wins with outcomes beat a long bio.'},
+    'proof-url':{q:'A GitHub issue or PR you shipped? (optional)',h:'HTTPS github.com issue or pull URL. Skip if you have none. Evidence for matching, not a public profile.'},
     'sf-bay':{q:'Which work setup are you open to?',h:'Choose one you would genuinely consider. If neither fits, close the form; nothing is saved.'},
-    'availability':{q:'When could you start?',h:'Pick the closest window.'},
+    'availability':{q:'When could you start?',h:'Pick the closest window — no commitment, only matching.'},
     'salary-expectation':{q:'Target base salary range?',h:'Your target for matching — never salary history. USD base only; startups do not see it until you approve an intro.'},
     'resume':{q:'Resume or work link? (optional)',h:'Skip if you prefer. PDF/Word upload or one HTTPS portfolio / resume link works. Shared only after both sides approve — not a public profile.'},
     '__submit__':{q:'Ready to send privately?',h:'Edit anything first. You see company, role, and base cash band before any intro. Free for talent — no blasts. No public profile.'}
@@ -99,6 +101,14 @@ function resumeUrlError(value){
   if(text.length>2048)return 'Keep the link under 2,048 characters.';
   try{var parsed=new URL(text);if(parsed.protocol!=='https:'||parsed.username||parsed.password)return 'Use an HTTPS link without an embedded username or password.';}
   catch(e){return 'Enter a valid HTTPS link.';}
+  return '';
+}
+function proofUrlError(value){
+  var text=String(value||'').trim();
+  if(!text)return '';
+  var base=resumeUrlError(text);
+  if(base)return base;
+  if(!/^https:\/\/github\.com\/[^/]+\/[^/]+\/(issues|pull)\/\d+/i.test(text))return 'Use a GitHub issue or pull request URL.';
   return '';
 }
 function resumeFileError(file){
@@ -614,6 +624,10 @@ function wizBuild(form, kind) {
       el.maxLength = 2048;
       el.setCustomValidity(resumeUrlError(value));
     }
+    if (/^proof-url$/i.test(String(el.name || el.id || ''))) {
+      el.maxLength = 2048;
+      el.setCustomValidity(proofUrlError(value));
+    }
   }
   var progress = head.querySelector('.dg-wiz-bar');
   var bar = head.querySelector('.dg-wiz-bar i');
@@ -698,6 +712,10 @@ function wizBuild(form, kind) {
   function showStep(idx) {
     current = Math.max(0, Math.min(idx, steps.length - 1));
     collect();
+    try {
+      qa('.dg-wiz-req-err,.dg-wiz-err', form).forEach(function(n){ n.remove(); });
+      qa('[aria-invalid="true"]', form).forEach(function(n){ n.removeAttribute('aria-invalid'); n.style.borderColor=''; });
+    } catch (eClr) {}
     try { form.dataset.dgWizKey = (steps[current]||[])[0] || ''; } catch(e){}
     // One-question: clear prior ownership classes/hides before showing step
     try {
@@ -866,6 +884,7 @@ function wizBuild(form, kind) {
         var lab = (qd.q || k).replace(/\s*\(optional[^)]*\)/i, '').replace(/[?？]+\s*$/, '');
         if (k === '90day-outcome') lab = 'First result';
         if (k === 'resume-url') lab = 'Resume link';
+        if (k === 'proof-url') lab = 'Shipped GitHub proof';
         var extra = (k === '90day-outcome') ? ' style="font-weight:600;border-left:2px solid #10c674;padding-left:.5rem"' : '';
         // <select> stores the option value ('series-a'); show the label the user actually picked ('Series A').
         // Display-only: answers[k] stays canonical so localStorage restore (i.value = answers[nm]) still matches.
@@ -1182,6 +1201,22 @@ function wizBuild(form, kind) {
       if (!rev) { rev = document.createElement('div'); rev.className = 'dg-wiz-review'; form.insertBefore(rev, nav); }
       rev.style.display = '';
       rev.style.removeProperty('display');
+      if (kind === 'engineer') {
+        try {
+          var proofEl = form.querySelector('[name=proof-url]');
+          var proofVal = proofEl ? String(proofEl.value || '').trim() : '';
+          if (proofVal) {
+            var resumeEl = form.querySelector('[name=resume-url]');
+            if (resumeEl && !String(resumeEl.value || '').trim()) resumeEl.value = proofVal;
+            else {
+              var expEl = form.querySelector('[name=experience]');
+              if (expEl && String(expEl.value || '').indexOf(proofVal) < 0) {
+                expEl.value = String(expEl.value || '').replace(/\s+$/,'') + '\n\nShipped proof: ' + proofVal;
+              }
+            }
+          }
+        } catch (eProof) {}
+      }
       if (nativeSub) {
         nativeSub.style.display = '';
         setTimeout(function(){ try { nativeSub.click(); } catch(e){ form.submit && form.submit(); } }, 10);
@@ -1271,6 +1306,13 @@ function wizBuild(form, kind) {
   backBtn.onclick = function(ev){ ev&&ev.preventDefault(); reviewReturn = -1; reviewEditStep = -1; if (current > 0) showStep(current - 1); };
   // keyboard advance on visible inputs + arrows for nav (Typeform polish)
   form.addEventListener('keydown', function(e) {
+    if (form.dataset.dgSwallowKey === '1') { e.preventDefault(); e.stopPropagation(); return; }
+    var swallow = function(){
+      form.dataset.dgSwallowKey = '1';
+      var done = function(){ try { delete form.dataset.dgSwallowKey; } catch (eS) {} };
+      document.addEventListener('keyup', done, { once: true, capture: true });
+      setTimeout(done, 400);
+    };
     var act = document.activeElement;
     var inText = act && (act.tagName === 'TEXTAREA' || act.isContentEditable);
     var onChoice = act && act.classList && act.classList.contains('dg-wiz-choice');
@@ -1279,7 +1321,7 @@ function wizBuild(form, kind) {
       var chipsN = form.querySelectorAll('.dg-wiz-choices .dg-wiz-choice');
       if (chipsN.length) {
         var pick = chipsN[parseInt(e.key, 10) - 1];
-        if (pick) { e.preventDefault(); pick.click(); return; }
+        if (pick) { e.preventDefault(); e.stopPropagation(); swallow(); pick.click(); return; }
       }
     }
     // Typeform: arrow keys move between choice chips when one is focused
@@ -1297,13 +1339,13 @@ function wizBuild(form, kind) {
     // Enter advances single-line; Ctrl/Cmd+Enter advances textarea (Shift+Enter = newline)
     if (e.key === 'Enter' && !e.shiftKey) {
       if (onChoice) {
-        e.preventDefault(); act.click(); return;
+        e.preventDefault(); swallow(); act.click(); return;
       }
       if (inText && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault(); nextBtn.click(); return;
+        e.preventDefault(); swallow(); nextBtn.click(); return;
       }
       if (act && (act.tagName === 'INPUT' || act.tagName === 'SELECT') && act.type !== 'file' && !inText) {
-        e.preventDefault(); nextBtn.click();
+        e.preventDefault(); swallow(); nextBtn.click();
       }
     }
     if (e.key === 'Escape') {
@@ -1388,17 +1430,17 @@ function referralNotice(){
 }
 /* === FORMS / NATIVE WEBFLOW — id + labels + optional fields; WIZ wraps after === */
 /* ==== SECTION: forms (Webflow form repair + required fields + submit trust) ==== */
-function forms(){var stWrap=q('#startup-hire.w-form')||q(S+' .w-form');var st=formEl('#startup-hire')||formEl('#startup-form')||formEl(S+' form')||formEl(stWrap);if(st&&!st.dataset.dgStartup){st.dataset.dgStartup='1';if(stWrap&&stWrap!==st&&stWrap.id==='startup-hire')stWrap.removeAttribute('id');st.classList.add('w-form');st.classList.remove('w-form-loading');st.id='startup-hire';st.name='startup-hire';st.setAttribute('data-name','startup-hire');st.removeAttribute('aria-label');st.removeAttribute('action');st.setAttribute('method','post');['Source','hiring-model','timeline','team-size','why-this-role','role-jd'].forEach(function(name){rmF(st,name)});qa('label,span,p',st).forEach(function(el){if(/Hiring Model|Commission-only|Subscription/i.test(el.textContent||''))(el.closest('.w-radio,fieldset,.w-form-label,div')||el).remove();if(/Stack Needs|Tech stack/i.test(el.textContent||''))el.textContent='Skills / requirements *';if(/Role Title|Job Title/i.test(el.textContent||''))el.textContent='Role title *';if(/Company stage/i.test(el.textContent||''))el.textContent='Company stage *'});ph(st.querySelector('[name=contact-email]'),'name@company.com');ph(st.querySelector('[name=role-title]'),'Role title');ph(st.querySelector('[name=stack-needs]'),'Required skills or domain knowledge');['contact-email','role-title','stack-needs'].forEach(function(n){var i=st.querySelector('[name='+n+']');if(i){i.required=true; if(n==='contact-email')i.setAttribute('autocomplete','email'); var l=i.closest('label')||i.previousElementSibling; if(l&&l.tagName==='LABEL') l.setAttribute('for',n); else if(!l){var nl=document.createElement('label');nl.className='w-form-label';nl.setAttribute('for',n);nl.textContent=(n==='contact-email'?'Best email?':n==='role-title'?'Role title?':'Key skills?'); i.parentNode.insertBefore(nl,i); } } });var cs=st.querySelector('[name=company-stage]');if(cs){cs.required=true} // remove Webflow static title
+function forms(){var stWrap=q('#startup-hire.w-form')||q(S+' .w-form');var st=formEl('#startup-hire')||formEl('#startup-form')||formEl(S+' form')||formEl(stWrap);if(st&&!st.dataset.dgStartup){st.dataset.dgStartup='1';if(stWrap&&stWrap!==st&&stWrap.id==='startup-hire')stWrap.removeAttribute('id');st.classList.add('w-form');st.classList.remove('w-form-loading');st.id='startup-hire';st.name='startup-hire';st.setAttribute('data-name','startup-hire');st.removeAttribute('aria-label');st.removeAttribute('action');st.setAttribute('method','post');['Source','hiring-model','timeline','team-size','why-this-role','role-jd'].forEach(function(name){rmF(st,name)});qa('label,span,p',st).forEach(function(el){if(/Hiring Model|Commission-only|Subscription/i.test(el.textContent||''))(el.closest('.w-radio,fieldset,.w-form-label,div')||el).remove();if(/Stack Needs|Tech stack|Skills\s*\/\s*requirements/i.test(el.textContent||''))el.textContent='What are the 2–3 true must-haves? *';if(/Role Title|Job Title|Role title/i.test(el.textContent||''))el.textContent='What role are you hiring? *';if(/Company stage/i.test(el.textContent||''))el.textContent='Company stage *';if(/Contact Email|Work email|Best email/i.test(el.textContent||''))el.textContent='Work email? *';if(/Salary range/i.test(el.textContent||''))el.textContent='Target base salary range *'});ph(st.querySelector('[name=contact-email]'),'name@company.com');ph(st.querySelector('[name=role-title]'),'e.g. Founding engineer, first PM');ph(st.querySelector('[name=stack-needs]'),'2–3 must-haves — skip nice-to-haves');['contact-email','role-title','stack-needs'].forEach(function(n){var i=st.querySelector('[name='+n+']');if(i){i.required=true; if(n==='contact-email')i.setAttribute('autocomplete','email'); var l=i.closest('label')||i.previousElementSibling; if(l&&l.tagName==='LABEL'){ l.setAttribute('for',n); if(n==='contact-email')l.textContent='Work email? *'; else if(n==='role-title')l.textContent='What role are you hiring? *'; else l.textContent='What are the 2–3 true must-haves? *'; } else if(!l){var nl=document.createElement('label');nl.className='w-form-label';nl.setAttribute('for',n);nl.textContent=(n==='contact-email'?'Work email? *':n==='role-title'?'What role are you hiring? *':'What are the 2–3 true must-haves? *'); i.parentNode.insertBefore(nl,i); } } });var cs=st.querySelector('[name=company-stage]');if(cs){cs.required=true} // remove Webflow static title
 qa('h3,.w-form-title,[class*=title]',st).forEach(function(h){if(/STARTUP HIRING FORM|HIRING FORM/i.test(h.textContent||'')){h.style.display='none';h.textContent='';}});
 // ensure company-name field exists for its WIZ step (some Webflow forms may not have it)
 /* company-name */ if(!st.querySelector('[name=company-name]')){var cn=document.createElement('div');cn.className='dg-field-wrap';cn.innerHTML='<label class="w-form-label" for="company-name">Company name?</label><input class="w-input" type="text" id="company-name" name="company-name" autocomplete="organization" required placeholder="Company name">';var ce=st.querySelector('[name=contact-email]');var ceg=ce&&(ce.closest('.form-field-group')||ce.parentElement);if(ceg&&ceg.parentElement&&ceg!==st){ceg.insertAdjacentElement('afterend',cn);}else{(ce&&ce.parentElement||st).appendChild(cn);}}
 formAttribution(st);var sk=st.querySelector('[name=stack-needs]'),sa=sk&&(sk.closest('.w-input')||sk.parentElement);if(!st.querySelector('[name=company-stage]')){var ce=st.querySelector('[name=contact-email]'),cew=ce&&(ce.closest('.w-input')||ce.parentElement);var sw=document.createElement('div');sw.className='dg-field-wrap';sw.innerHTML='<label class="w-form-label" for="company-stage">Company stage *</label><select class="w-select" id="company-stage" name="company-stage" required><option value="">Select stage</option><option value="pre-seed">Pre-seed</option><option value="seed">Seed</option><option value="series-a">Series A</option><option value="series-b">Series B+</option></select>';var ceg3=ce&&(ce.closest('.form-field-group')||cew);if(ceg3&&ceg3.parentElement&&ceg3!==st)ceg3.parentElement.insertBefore(sw,ceg3.nextSibling);else if(cew&&cew.parentElement)cew.parentElement.insertBefore(sw,cew.nextSibling);else{var rt=st.querySelector('[name=role-title]'),rw=rt&&(rt.closest('.w-input')||rt.parentElement);if(rw&&rw.parentElement)rw.parentElement.insertBefore(sw,rw)}}
 // Keep the established field name for stored submissions; present it as a plain success question.
-if(!st.querySelector('[name="90day-outcome"]')){var od=document.createElement('div');od.className='dg-field-wrap';od.innerHTML='<label class="w-form-label" for="90day-outcome">What should this person accomplish first? *</label><textarea class="w-input" id="90day-outcome" name="90day-outcome" rows="2" required placeholder="One concrete result"></textarea>';var skg2=sk&&(sk.closest('.form-field-group')||sk.parentElement);if(skg2&&skg2.parentElement&&skg2!==st){skg2.insertAdjacentElement('afterend',od);}else{(sk&&sk.parentElement||st).appendChild(od);}}
-if(!st.querySelector('[name=work-location]')){var wl=document.createElement('div');wl.className='dg-field-wrap';wl.innerHTML='<label class="w-form-label" for="work-location">Where and how can this person work? *</label><select class="w-select" id="work-location" name="work-location" required><option value="">Select</option><option value="sf-onsite">SF onsite</option><option value="sf-hybrid">SF hybrid</option><option value="bay-flexible">SF Bay Area, flexible</option><option value="remote-us">Remote within the US</option><option value="remote-global">Remote internationally</option></select>';var outcome=st.querySelector('[name="90day-outcome"]');var outcomeWrap=outcome&&(outcome.closest('.form-field-group,.dg-field-wrap')||outcome.parentElement);if(outcomeWrap&&outcomeWrap.parentElement)outcomeWrap.parentElement.insertBefore(wl,outcomeWrap.nextSibling);else st.appendChild(wl);}
+if(!st.querySelector('[name="90day-outcome"]')){var od=document.createElement('div');od.className='dg-field-wrap';od.innerHTML='<label class="w-form-label" for="90day-outcome">What should this person accomplish first? *</label><textarea class="w-input" id="90day-outcome" name="90day-outcome" rows="2" required placeholder="One concrete first result (30–90 days)"></textarea>';var skg2=sk&&(sk.closest('.form-field-group')||sk.parentElement);if(skg2&&skg2.parentElement&&skg2!==st){skg2.insertAdjacentElement('afterend',od);}else{(sk&&sk.parentElement||st).appendChild(od);}}
+if(!st.querySelector('[name=work-location]')){var wl=document.createElement('div');wl.className='dg-field-wrap';wl.innerHTML='<label class="w-form-label" for="work-location">Where and how can they work? *</label><select class="w-select" id="work-location" name="work-location" required><option value="">Select</option><option value="sf-onsite">SF onsite</option><option value="sf-hybrid">SF hybrid</option><option value="bay-flexible">SF Bay Area, flexible</option><option value="remote-us">Remote, US (company is SF Bay)</option></select>';var outcome=st.querySelector('[name="90day-outcome"]');var outcomeWrap=outcome&&(outcome.closest('.form-field-group,.dg-field-wrap')||outcome.parentElement);if(outcomeWrap&&outcomeWrap.parentElement)outcomeWrap.parentElement.insertBefore(wl,outcomeWrap.nextSibling);else st.appendChild(wl);}(function(){var sel=st.querySelector('[name=work-location]');if(!sel)return;var gone=sel.querySelector('option[value="remote-global"]');if(gone)gone.remove();})();
 /* salary-range: always a band select (replace free-text if Webflow left one) */
 (function(){var el=st.querySelector('[name=salary-range]');var wrap=document.createElement('div');wrap.id='dg-salary-wrap';wrap.className='dg-field-wrap';wrap.innerHTML='<label class="w-form-label" for="salary-range">Target base salary range *</label><select class="w-select" id="salary-range" name="salary-range" required>'+SALARY_BAND_HTML+'</select>';if(el&&el.tagName==='SELECT'){el.required=true;if(!el.options||el.options.length<3){el.innerHTML=SALARY_BAND_HTML;}var lab=(el.closest('.form-field-group,.dg-field-wrap')||st).querySelector('label');if(lab)lab.textContent='Target base salary range *';return;}if(el){var host=el.closest('.dg-field-wrap,.form-field-group')||el;if(host.parentNode)host.parentNode.replaceChild(wrap,host);else el.replaceWith(wrap);}else if(sa&&sa.parentElement)sa.parentElement.insertBefore(wrap,sa.nextSibling);else{var sub=st.querySelector('[type=submit],.w-button');sub?.parentElement?.insertBefore(wrap,sub);}})();
-st.setAttribute('enctype','multipart/form-data');if(!st.querySelector('#dg-fee-note')){var n=document.createElement('p');n.id='dg-fee-note';n.style.cssText='color:#9ca3af;font-size:.85rem;margin:.5rem 0 1rem';n.textContent=COPY.feeNote;var b=st.querySelector('[type=submit],.w-button');b?.parentElement?.insertBefore(n,b)}submitTrust(st,'Nothing until a hire starts. A human reads every brief. potter@trydemigod.com emails only when there is a real next step — no automated drip.');charCount(st.querySelector('[name=stack-needs]'),500);charCount(st.querySelector('[name="90day-outcome"]'),500);var sb=st.querySelector('[type=submit],.w-button');if(sb){sb.value='Send brief';sb.textContent='Send brief'; sb.removeAttribute('disabled'); sb.disabled=false;}wizBuild(st,'startup');}var en=formEl('#engineer-join')||formEl('#jobseeker-form')||formEl(J+' form')||formEl(J+' .w-form');if(en&&!en.dataset.dgEngineer){en.dataset.dgEngineer='1';en.classList.add('w-form');en.id='engineer-join';en.name='engineer-join';en.setAttribute('data-name','engineer-join');en.removeAttribute('aria-label');en.removeAttribute('action');en.setAttribute('method','post');if(!en.dataset.dgMailStrip){en.dataset.dgMailStrip='1';en.addEventListener('submit',function(ev){/* keep native Webflow if wired; never open mail client */if(/^mailto:/i.test(en.getAttribute('action')||'')){ev.preventDefault();en.removeAttribute('action');}},true);}['github-url','portfolio-url','linkedin-url','phone','why-startups','work-auth'].forEach(function(name){rmF(en,name)});var ghWrap=en.querySelector('#dg-github-wrap');if(ghWrap)ghWrap.remove();var engChk=en.querySelector('#dg-engineer-check');if(engChk)engChk.remove();qa('label',en).forEach(function(l){if(/Years Experience|Background & highlights|What you have shipped/i.test(l.textContent||''))l.textContent='What you shipped *';if(/Skills\s*&\s*(Stack|experience)/i.test(l.textContent||''))l.textContent='Next role & strengths *'});ph(en.querySelector('[name=full-name]'),'Your full name');ph(en.querySelector('[name=seeker-email]'),'you@email.com');['full-name','seeker-email'].forEach(function(n){var i=en.querySelector('[name='+n+']');if(i){i.required=true;i.setAttribute('autocomplete',n==='full-name'?'name':'email')}});en.setAttribute('enctype','multipart/form-data');en.setAttribute('method','post');var resIn=en.querySelector('input[type=file][name=resume],input[type=file][name=Resume]');
+st.setAttribute('enctype','multipart/form-data');if(!st.querySelector('#dg-fee-note')){var n=document.createElement('p');n.id='dg-fee-note';n.style.cssText='color:#9ca3af;font-size:.85rem;margin:.5rem 0 1rem';n.textContent=COPY.feeNote;var b=st.querySelector('[type=submit],.w-button');b?.parentElement?.insertBefore(n,b)}submitTrust(st,'Nothing until a hire starts. A human reads every brief. potter@trydemigod.com emails only when there is a real next step — no automated drip.');charCount(st.querySelector('[name=stack-needs]'),500);charCount(st.querySelector('[name="90day-outcome"]'),500);var sb=st.querySelector('[type=submit],.w-button');if(sb){sb.value='Send brief';sb.textContent='Send brief'; sb.removeAttribute('disabled'); sb.disabled=false;}wizBuild(st,'startup');}var en=formEl('#engineer-join')||formEl('#jobseeker-form')||formEl(J+' form')||formEl(J+' .w-form');if(en&&!en.dataset.dgEngineer){en.dataset.dgEngineer='1';en.classList.add('w-form');en.id='engineer-join';en.name='engineer-join';en.setAttribute('data-name','engineer-join');en.removeAttribute('aria-label');en.removeAttribute('action');en.setAttribute('method','post');if(!en.dataset.dgMailStrip){en.dataset.dgMailStrip='1';en.addEventListener('submit',function(ev){/* keep native Webflow if wired; never open mail client */if(/^mailto:/i.test(en.getAttribute('action')||'')){ev.preventDefault();en.removeAttribute('action');}},true);}['github-url','portfolio-url','linkedin-url','phone','why-startups','work-auth'].forEach(function(name){rmF(en,name)});var ghWrap=en.querySelector('#dg-github-wrap');if(ghWrap)ghWrap.remove();var engChk=en.querySelector('#dg-engineer-check');if(engChk)engChk.remove();qa('label',en).forEach(function(l){if(/Years Experience|Background & highlights|What you have shipped|What you shipped|proud of/i.test(l.textContent||''))l.textContent='Work you are proud of? *';if(/Skills\s*&\s*(Stack|experience)|Next role/i.test(l.textContent||''))l.textContent='What kind of work do you want next? *';if(/Full Name|^Name\*?$/i.test((l.textContent||'').trim()))l.textContent='Your name? *';if(/^Email\*?$/i.test((l.textContent||'').trim())||/seeker|best email/i.test(l.textContent||''))l.textContent='Best email? *'});ph(en.querySelector('[name=full-name]'),'Your full name');ph(en.querySelector('[name=seeker-email]'),'you@email.com');['full-name','seeker-email','skills-stack','experience'].forEach(function(n){var i=en.querySelector('[name='+n+']');if(!i)return;if(n==='full-name'||n==='seeker-email'){i.required=true;i.setAttribute('autocomplete',n==='full-name'?'name':'email')}var id=i.id||n;if(!i.id)i.id=id;var l=en.querySelector('label[for="'+id+'"]')||i.closest('.form-field-group,.dg-field-wrap')&&(i.closest('.form-field-group,.dg-field-wrap').querySelector('label'));if(!l){l=document.createElement('label');l.className='w-form-label';l.setAttribute('for',id);i.parentNode.insertBefore(l,i)}l.setAttribute('for',id);if(n==='full-name')l.textContent='Your name? *';else if(n==='seeker-email')l.textContent='Best email? *';else if(n==='skills-stack')l.textContent='What kind of work do you want next? *';else if(n==='experience')l.textContent='Work you are proud of? *';});en.setAttribute('enctype','multipart/form-data');en.setAttribute('method','post');var resIn=en.querySelector('input[type=file][name=resume],input[type=file][name=Resume]');
 formAttribution(en);
 var nativeResume=!!(resIn&&resIn.classList.contains('w-file-upload-input'));
 if(nativeResume){
@@ -1434,13 +1476,16 @@ if(sf&&sf.type==='checkbox'){var sw=document.createElement('div');sw.className='
 if(!en.querySelector('[name=sf-bay]')){var c=document.createElement('div');c.className='dg-field-wrap';c.innerHTML='<label class="w-form-label" for="sf-bay">Which work setup are you open to?</label><select class="w-select" id="sf-bay" name="sf-bay" required>'+sfOptions+'</select>';var b2=en.querySelector('[type=submit],.w-button');b2?.parentElement?.insertBefore(c,b2)}
 else{var sfel=en.querySelector('[name=sf-bay]');if(sfel){sfel.required=true;if(sfel.tagName==='SELECT')sfel.innerHTML=sfOptions;}}
 // inject only match-critical availability and compensation constraints
-if(!en.querySelector('[name=availability]')){var av=document.createElement('div');av.className='dg-field-wrap';av.innerHTML='<label class="w-form-label" for="availability">Availability *</label><select class="w-select" id="availability" name="availability" required><option value="">Select</option><option value="now">Ready now</option><option value="2-4w">2–4 weeks</option><option value="1-3m">1–3 months</option><option value="passive">Passively open / flexible</option></select>';var avField=en.querySelector('[name=sf-bay]');var avAfter=avField&&(avField.closest('.form-field-group,.dg-field-wrap')||avField.parentElement);if(avAfter&&avAfter.parentElement)avAfter.parentElement.insertBefore(av,avAfter.nextSibling);else en.appendChild(av);}
-var avIn=en.querySelector('[name=availability]');if(avIn){avIn.required=true;var avLab=(avIn.closest('.form-field-group,.dg-field-wrap')||en).querySelector('label');if(avLab)avLab.textContent='Availability *';}
+if(!en.querySelector('[name=availability]')){var av=document.createElement('div');av.className='dg-field-wrap';av.innerHTML='<label class="w-form-label" for="availability">When could you start? *</label><select class="w-select" id="availability" name="availability" required><option value="">Select</option><option value="now">Ready now</option><option value="2-4w">2–4 weeks</option><option value="1-3m">1–3 months</option><option value="passive">Passively open / flexible</option></select>';var avField=en.querySelector('[name=sf-bay]');var avAfter=avField&&(avField.closest('.form-field-group,.dg-field-wrap')||avField.parentElement);if(avAfter&&avAfter.parentElement)avAfter.parentElement.insertBefore(av,avAfter.nextSibling);else en.appendChild(av);}
+var avIn=en.querySelector('[name=availability]');if(avIn){avIn.required=true;var avLab=(avIn.closest('.form-field-group,.dg-field-wrap')||en).querySelector('label');if(avLab)avLab.textContent='When could you start? *';}
 /* salary-expectation: band select (replace free-text) */
 (function(){var el=en.querySelector('[name=salary-expectation]');var wrap=document.createElement('div');wrap.className='dg-field-wrap';wrap.innerHTML='<label class="w-form-label" for="salary-expectation">Target base salary range *</label><select class="w-select" id="salary-expectation" name="salary-expectation" required>'+SALARY_BAND_HTML+'</select>';if(el&&el.tagName==='SELECT'){el.required=true;if(!el.options||el.options.length<3)el.innerHTML=SALARY_BAND_HTML;var lab=(el.closest('.form-field-group,.dg-field-wrap')||en).querySelector('label');if(lab)lab.textContent='Target base salary range *';return;}if(el){var host=el.closest('.dg-field-wrap,.form-field-group')||el;if(host.parentNode)host.parentNode.replaceChild(wrap,host);else el.replaceWith(wrap);}else{var avAfter2=en.querySelector('[name=availability]');var avH=avAfter2&&(avAfter2.closest('.form-field-group,.dg-field-wrap')||avAfter2.parentElement);if(avH&&avH.parentElement)avH.parentElement.insertBefore(wrap,avH.nextSibling);else en.appendChild(wrap);}})();
 var seIn=en.querySelector('[name=salary-expectation]');if(seIn)seIn.required=true;
 /* Resume is optional (conversion: skip CV friction). Strip Webflow/native required if present. */
 qa('[name=resume],[name=Resume],[name=resume-url],#resume,#resume-url',en).forEach(function(i){try{i.required=false;i.removeAttribute('required');i.setAttribute('aria-required','false')}catch(e){}});
+if(!en.querySelector('[name=proof-url]')){var pw=document.createElement('div');pw.id='dg-proof-wrap';pw.className='dg-field-wrap';pw.innerHTML='<label class="w-form-label" for="proof-url">GitHub issue or PR you shipped (optional)</label><input class="w-input" type="url" id="proof-url" name="proof-url" autocomplete="off" maxlength="2048" placeholder="https://github.com/owner/repo/issues/123"><p class="dg-resume-hint">Optional. One issue or pull URL. Evidence for matching, not a public profile.</p>';var rHost=en.querySelector('[name=resume-url],[name=resume],[name=Resume]');var rW=rHost&&(rHost.closest('.form-field-group,.dg-field-wrap,.w-file-upload')||rHost.parentElement);if(rW&&rW.parentElement)rW.parentElement.insertBefore(pw,rW.nextSibling);else{var subP=en.querySelector('[type=submit],.w-button');subP&&subP.parentElement&&subP.parentElement.insertBefore(pw,subP)}}
+qa('[name=proof-url],#proof-url',en).forEach(function(i){try{i.required=false;i.removeAttribute('required');i.setAttribute('aria-required','false')}catch(eP){}});
+
 if(!en.querySelector('#dg-privacy')){var p=document.createElement('p');p.id='dg-privacy';p.style.cssText='color:#9ca3af;font-size:.8rem;margin:.75rem 0 0';p.innerHTML='Demigod and its form/email providers process these answers for matching. You see the company, exact role, and base cash band before deciding; your identifying details move only after both sides approve. This is not a public profile or professional network feed. <a href="/legal" data-dg-page="legal">Privacy</a>.';var b3=en.querySelector('[type=submit],.w-button');b3?.parentElement?.insertBefore(p,b3)}submitTrust(en,'Private until you approve an intro. Resume optional. potter@trydemigod.com only on real fits — free for talent, no blasts.');var sb2=en.querySelector('[type=submit],.w-button');if(sb2){sb2.value='Send privately';sb2.textContent='Send privately'; sb2.removeAttribute('disabled'); sb2.disabled=false;}wizBuild(en,'engineer');qa('#tally-startup-embed,#tally-engineer-embed,iframe[data-tally-embed]').forEach(function(el){el.remove()});var stW=formEl('#startup-hire');if(stW)wizBuild(stW,'startup');var enW=formEl('#engineer-join');if(enW)wizBuild(enW,'engineer');} // ensure WIZ on any open
 // extra label safety for mobile a11y on both forms (build more)
 qa('input,select,textarea', document).forEach(function(i){ if(!i.id) return; var l = document.querySelector('label[for="'+i.id+'"]'); if(l) l.setAttribute('for', i.id); });
@@ -1662,7 +1707,7 @@ function nav(){
   var right=q('.nav_container .nav_right');
   if(right&&!q('#dg-nav-directory')){
     var menu=document.createElement('details');menu.id='dg-nav-directory';
-    menu.innerHTML='<summary>Explore</summary><div class="dg-nav-panel"><p class="dg-nav-group">Start</p><a href="/how-it-works" data-dg-page="how">How it works</a><a href="/pricing" data-dg-page="pricing">Pricing</a><a href="/sample" data-dg-page="sample">Sample match</a><a href="/hire" data-dg-page="hire">Hire guide</a><a href="/talent" data-dg-page="talent">Talent guide</a><p class="dg-nav-group">More</p><a href="/startups" data-dg-page="map">SF directory</a><a href="/blog" data-dg-page="blog">Notes</a><a href="/faq" data-dg-page="faq">FAQ</a><a href="/about" data-dg-page="about">About</a><a href="/contact" data-dg-page="contact">Contact</a><a href="/legal" data-dg-page="legal">Privacy & terms</a></div>';
+    menu.innerHTML='<summary>Explore</summary><div class="dg-nav-panel"><p class="dg-nav-group">Start</p><a href="/how-it-works" data-dg-page="how">How it works</a><a href="/pricing" data-dg-page="pricing">Pricing</a><a href="/sample" data-dg-page="sample">Sample match</a><a href="/?p=bounties" data-dg-page="bounties">Bounties</a><a href="/hire" data-dg-page="hire">Hire guide</a><a href="/talent" data-dg-page="talent">Talent guide</a><p class="dg-nav-group">More</p><a href="/startups" data-dg-page="map">SF directory</a><a href="/blog" data-dg-page="blog">Notes</a><a href="/faq" data-dg-page="faq">FAQ</a><a href="/about" data-dg-page="about">About</a><a href="/contact" data-dg-page="contact">Contact</a><a href="/legal" data-dg-page="legal">Privacy & terms</a></div>';
     qa('a',menu).forEach(function(a){a.style.setProperty('visibility','visible','important');a.style.setProperty('opacity','1','important')});
     menu.addEventListener('click',function(e){if(e.target.closest('a'))menu.removeAttribute('open')});right.prepend(menu);
     menu.addEventListener('keydown',function(e){if(e.key==='Escape'&&menu.open){e.preventDefault();menu.removeAttribute('open');menu.querySelector('summary').focus()}});
@@ -1691,6 +1736,7 @@ function foot(){
           '<a href="/hire" data-dg-page="hire">Hire talent guide</a>'+
           '<a href="/talent" data-dg-page="talent">Talent guide</a>'+
           '<a href="/sample" data-dg-page="sample">Sample match</a>'+
+          '<a href="/?p=bounties" data-dg-page="bounties">Bounties</a>'+
           '<a href="/blog" data-dg-page="blog">Notes</a>'+
           '<a href="/faq" data-dg-page="faq">FAQ</a>'+
         '</div>'+
@@ -2619,7 +2665,7 @@ function injectObservedRoles(){
       '<h2 id="dg-observed-roles-h">Open roles</h2>'+
       '<p class="dg-obs-note">Public employer ATS postings we observe — not Demigod matches, not engaged searches. Hire through us via a brief.</p>'+
       '<ul class="dg-obs-list">'+items+'</ul>'+
-      '<p class="dg-obs-more"><a href="/startups" data-dg-page="map">Browse SF startup directory →</a> · <a href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire">Start brief →</a></p>'+
+      '<p class="dg-obs-more"><a href="/startups" data-dg-page="map">Browse startup directory (SF · LA · NYC roles) →</a> · <a href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire">Start brief →</a></p>'+
       '</div>';
   }catch(e){}
 }
@@ -2627,7 +2673,7 @@ function injectObservedRoles(){
 function run(){if(busy)return;busy=true;try{brandAssets();ensureA11yCss()}catch(e){}try{skipLink();heroImgPerf();lazyBelowFold();hero();injectNightHero();copy();forms();referralNotice();fileUploadHonest();cta();fixFooterCtas();ctaHints();nav();ensureMotion();try{wireLogoHome();ensureLogo()}catch(e){}(function roles(){qa('h2,h3,.heading_primary,.heading_tertiary').forEach(function(h){if(h.id==='dg-observed-roles-h'||(h.closest&&h.closest('#dg-observed-roles')))return;var tx=(h.textContent||'').trim();/* exact Webflow sample titles only — never rewrite real "Open roles" rails (atlas + ATS) */if(/^(Live SF startup roles hiring now|Examples? of roles(?:\s*[—\-].*)?|Roles hiring now|Examples of roles we can help with)$/i.test(tx))h.textContent='Example roles — labeled samples';});qa('.badge-text').forEach(function(b){if(/^LIVE ROLES$|^EXAMPLE ROLES$/i.test((b.textContent||'').trim()))b.textContent='Samples'});qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.68rem;font-weight:600;color:#bdc9bf;border:1px solid rgba(166,255,203,.28);border-radius:4px;padding:1px 6px;margin:0 0 .35rem;letter-spacing:.04em;text-transform:none';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)});qa('h2,h3,.heading_primary,.heading_tertiary').forEach(function(h){if(h.id==='dg-observed-roles-h'||(h.closest&&h.closest('#dg-observed-roles')))return;var tx=(h.textContent||'').trim();if(!/^(Open roles|Examples of roles we can help with)$/i.test(tx))return;var root=h.closest('section,.roles-grid,div')||h.parentElement;if(!root)return;var cards=root.querySelectorAll('.role-card');if(!cards.length)return;var allSample=true;for(var i=0;i<cards.length;i++){if(!cards[i].querySelector('.dg-sample-tag')){allSample=false;break;}}if(allSample)h.textContent='Example roles — labeled samples';});var junk=new RegExp(['l','orem'].join('')+'|consectetur','i');qa('section,div,[class*=role]').forEach(function(c){if(c!==document.body&&c!==document.documentElement&&!c.matches?.('main,.hero-section,header,footer')&&junk.test(c.textContent||'')&&(c.textContent||'').length<2000)c.style.setProperty('display','none','important')});var ins=q('#insights-section');if(ins)ins.style.setProperty('display','none','important');qa('h3.step-title,.step-title,h2,h3').forEach(function(h){if(/Meet Your 3-5|Lightning Fast|100% Vetted/i.test(h.textContent||'')){var card=h.closest('.step-card,div,section')||h;if(/Meet Your 3-5|Meet Your\s*3/i.test(h.textContent||'')){h.textContent='Meet proposed fits';var d=card.querySelector&&card.querySelector('.step-desc,p');if(d&&/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(d.textContent||''))d.textContent='Startups get proposed fits after human review — no volume promise.';}if(/Lightning Fast/i.test(h.textContent||''))h.textContent='Human-paced matching';if(/^100% Vetted/i.test(h.textContent||''))h.textContent='Human-reviewed'}});qa('p.step-desc,.step-desc').forEach(function(p){if(/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(p.textContent||''))p.textContent='Startups get proposed fits after human review — no volume promise.';});qa('p,li,span,div').forEach(function(el){if(el.children&&el.children.length>2)return;var tx=el.textContent||'';if(tx.length>200)return;if(/90-?\s*day replacement guarantee/i.test(tx)&&!el.closest('#startup-modal,#jobseeker-modal')){el.textContent=tx.replace(/90-?\s*day replacement guarantee/ig,'human-reviewed matching')}})})();dgIdle(injectObservedRoles,1200);mob();if(!OPEN)hide();/* v970: below-fold observed roles no longer block first paint */}catch(e){console.error('Demigod foot fail',e)}finally{busy=false}
   dgIdle(function(){trust();foot();rmOrphanForms();successCta()},2200);
   dgIdle(dedupeAll,2600);
-  dgIdle(function(){scrubTimeClaims();scrubStaticLabels();scrubBadStaticClaims()},3000);
+  dgIdle(function(){scrubTimeClaims();scrubStaticLabels();scrubBadStaticClaims()},0);
   dgIdle(function(){try{hero()}catch(e){}try{document.documentElement.classList.add('dg-cta-honest','dg-pricing-honest','dg-volume-honest')}catch(e){}qa('a[target=_blank]').forEach(function(a){var r=a.getAttribute('rel')||'';if(r.indexOf('noopener')<0)a.setAttribute('rel',(r+' noopener noreferrer').trim())})},3400);
 }
 
@@ -2829,10 +2875,17 @@ function scrubStaticLabels(){
   });
   qa('.modal-intro,#startup-modal .modal-intro,#jobseeker-modal .modal-intro').forEach(function(el){
     var t=el.textContent||'';
-    if(/curated SF candidates|match you to SF startups/i.test(t)){
-      el.textContent=/startup|role|comp/i.test(t)
-        ? 'Share the role, real constraints, and one concrete first result. Software compares the evidence.'
-        : 'One private profile. Shared only when both sides approve.';
+    var inTalent=!!(el.closest&&el.closest('#jobseeker-modal'));
+    var inHire=!!(el.closest&&el.closest('#startup-modal'));
+    /* Shell still ships LinkedIn/GitHub/resume-required copy — always rewrite to product truth. */
+    if(inTalent||/LinkedIn|GitHub|portfolio|Upload your resume|CANDIDATE APPLICATION|match you to SF startups|curated SF candidates/i.test(t)){
+      if(inTalent||(!inHire&&/LinkedIn|GitHub|resume|match you to SF/i.test(t))){
+        el.textContent=COPY.engineerBody;
+        return;
+      }
+    }
+    if(inHire||/curated SF candidates|share the role|hiring brief/i.test(t)){
+      el.textContent=COPY.startupBody;
     }
   });
   /* design-track: process/pricing titles — honest copy + kill Webflow positive tracking */
@@ -3616,6 +3669,25 @@ var DG_PAGES = {
       '<p class="dg-p-note"><a href="/?wiz=startup" data-demigod-modal="startup">Start a hiring brief</a> · <a href="/how" data-dg-page="how">How it works →</a> · <a href="/pricing" data-dg-page="pricing">Fee →</a> · <a href="/private" data-dg-page="private">Why private →</a> · <a href="/legal" data-dg-page="legal">Privacy →</a> · <a href="/press" data-dg-page="press">Press kit →</a></p>',
   },
 
+  bounties: {
+    title: 'Bounties',
+    doc: 'Bounties · Demigod',
+    desc: "Declared USDC bounties. We don't hold it.",
+    html:
+      '<div class="dg-bounty-id" id="dg-bounty-id"></div>' +
+      '<div id="dg-bounty-live"></div>' +
+      '<form id="dg-bounty-form" class="dg-bounty-form">' +
+      '<label class="dg-bounty-lab" for="dg-bounty-repo">GitHub</label>' +
+      '<input class="dg-bounty-in" id="dg-bounty-repo" name="repo" type="url" required placeholder="https://github.com/owner/repo" autocomplete="off" />' +
+      '<label class="dg-bounty-lab" for="dg-bounty-amount">USDC</label>' +
+      '<input class="dg-bounty-in" id="dg-bounty-amount" name="amount" inputmode="decimal" required placeholder="25" />' +
+      '<label class="dg-bounty-lab" for="dg-bounty-payto">Wallet</label>' +
+      '<input class="dg-bounty-in" id="dg-bounty-payto" name="payTo" placeholder="Solana address" autocomplete="off" spellcheck="false" />' +
+      '<button type="submit" class="dg-bounty-submit">List</button>' +
+      '<p class="dg-bounty-msg" id="dg-bounty-msg" role="status" aria-live="polite"></p>' +
+      '</form>' +
+      "<p class=\"dg-p-note\">We don't hold it.</p>",
+  },
   map: {
     title: 'SF tech company directory',
     doc: 'SF tech company directory · Demigod',
@@ -3752,7 +3824,8 @@ function pageCss() {
     '@keyframes dg-page-in{from{opacity:0}to{opacity:1}}' +
     '@media(prefers-reduced-motion:reduce){#dg-page{animation:none}}' +
     '@media(forced-colors:active){#dg-page{background:Canvas!important;forced-color-adjust:auto}#dg-page .dg-page-card,#dg-page .dg-page-x,#dg-page .dg-page-ctas a{border:1px solid CanvasText!important;background:Canvas!important;color:CanvasText!important;box-shadow:none!important}#dg-page .dg-page-x:focus-visible,#dg-page .dg-page-ctas a:focus-visible,#dg-page summary:focus-visible{outline:2px solid Highlight!important}}' +
-    /* Events Bot — gold Demigod system (FOCUS: never phosphor MUD green) */
+    '#dg-page.dg-page-bounties{background:#03140D!important;font-family:Manrope,system-ui,sans-serif;color:#F3F0E7}' +'#dg-page.dg-page-bounties .dg-page-card{max-width:min(40rem,100%);margin:1.25rem auto;background:transparent;border:none;box-shadow:none;border-radius:0;padding:1.15rem;color:#F3F0E7}' +'#dg-page.dg-page-bounties .dg-page-x,#dg-page.dg-page-bounties .dg-page-ctas{display:none!important}' +'#dg-page.dg-page-bounties h1{font-family:Manrope,system-ui,sans-serif!important;color:#A6FFCB!important;font-weight:700;letter-spacing:-.02em}' +'#dg-page.dg-page-bounties .dg-p-note{color:#8A8A9E;font-size:.9rem}' +'#dg-page.dg-page-bounties a{color:#10C674}' +'#dg-page.dg-page-bounties .dg-bounty-id{display:flex;align-items:center;gap:.55rem;margin:0 0 .85rem}' +'#dg-page.dg-page-bounties .dg-bounty-av{width:28px;height:28px;border-radius:999px;border:1px solid rgba(166,255,203,.35);background:rgba(166,255,203,.08)}' +'#dg-page.dg-page-bounties .dg-bounty-handle{color:#A6FFCB;font-weight:650;text-decoration:none;font-size:.92rem}' +'#dg-page.dg-page-bounties .dg-bounty-gh{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.4rem 1rem;border-radius:12px;font-weight:700;cursor:pointer;font-family:Manrope,system-ui,sans-serif;border:0;background:#A6FFCB;color:#03140D}' +'#dg-page.dg-page-bounties .dg-bounty-x{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.4rem .9rem;border-radius:12px;font-weight:600;cursor:pointer;font-family:Manrope,system-ui,sans-serif;background:transparent;color:#A6FFCB;border:1px solid rgba(166,255,203,.35)}' +'#dg-page.dg-page-bounties .dg-bounty-rows{list-style:none;margin:0 0 1.15rem;padding:0;display:grid;gap:.5rem}' +'#dg-page.dg-page-bounties .dg-bounty-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.65rem;align-items:center;padding:.7rem .85rem;background:rgba(166,255,203,.08);border:1px solid rgba(166,255,203,.22);border-radius:12px}' +'#dg-page.dg-page-bounties .dg-bounty-amt{font-weight:700;color:#A6FFCB;white-space:nowrap}' +'#dg-page.dg-page-bounties .dg-bounty-title{color:#F3F0E7;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +'#dg-page.dg-page-bounties .dg-bounty-title:hover{color:#10C674}' +'#dg-page.dg-page-bounties .dg-bounty-pay{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.4rem 1rem;border-radius:12px;font-weight:700;text-decoration:none;cursor:pointer;border:0;background:#A6FFCB;color:#03140D;font-family:Manrope,system-ui,sans-serif}' +'#dg-page.dg-page-bounties .dg-bounty-form{display:grid;gap:.35rem;margin:0 0 .75rem}' +'#dg-page.dg-page-bounties .dg-bounty-lab{font-size:.78rem;color:#8A8A9E;margin-top:.3rem}' +'#dg-page.dg-page-bounties .dg-bounty-in{width:100%;min-height:48px;padding:.6rem .75rem;border-radius:12px;border:1px solid rgba(166,255,203,.22);background:rgba(166,255,203,.08);color:#F3F0E7;font-size:16px;font-family:Manrope,system-ui,sans-serif}' +'#dg-page.dg-page-bounties .dg-bounty-in:focus-visible{outline:2px solid #A6FFCB;outline-offset:3px}' +'#dg-page.dg-page-bounties .dg-bounty-submit{min-height:48px;margin-top:.55rem;border-radius:12px;border:0;background:#A6FFCB;color:#03140D;font-weight:700;cursor:pointer;font-family:Manrope,system-ui,sans-serif}' +'#dg-page.dg-page-bounties .dg-bounty-msg{min-height:1.2rem;font-size:.84rem;color:#8A8A9E;margin:.35rem 0 0}' +'#dg-page.dg-page-bounties .dg-bounty-note{margin:0;font-size:.9rem;color:#8A8A9E;font-weight:500}' +
+        /* Events Bot — gold Demigod system (FOCUS: never phosphor MUD green) */
     '#dg-page.dg-page-events{background:radial-gradient(120% 80% at 80% 0%,rgba(201,168,76,.09),transparent 55%),#060606!important}' +
     '#dg-page.dg-page-events .dg-page-card{max-width:min(44rem,96vw);border-color:rgba(201,168,76,.38);' +
     'background:linear-gradient(180deg,#161412 0%,#121212 40%,#0e0e12 100%);box-shadow:0 24px 70px rgba(0,0,0,.5),inset 0 1px 0 rgba(201,168,76,.1)}' +
@@ -4260,9 +4333,9 @@ function mountReferralForm(root) {
     };
   }
   [
-    ['partner-name', 'text', 'name', 120],
-    ['partner-email', 'email', 'email', 160],
-    ['referral-plan', '', '', 1200],
+    ['partner-name', 'text', 'name', 120, 'Your name?', 'How should we address you?'],
+    ['partner-email', 'email', 'email', 160, 'Best email?', 'you@company.com'],
+    ['referral-plan', '', '', 1200, 'Who might you introduce, and why do they trust you?', 'Former teammate, founder, investor, community — one concrete context.'],
   ].forEach(function (spec) {
     var field = form.querySelector('[name="' + spec[0] + '"]');
     if (!field) return;
@@ -4270,6 +4343,10 @@ function mountReferralForm(root) {
     field.maxLength = spec[3];
     if (spec[1] && field.tagName === 'INPUT') field.type = spec[1];
     if (spec[2]) field.setAttribute('autocomplete', spec[2]);
+    if (spec[5] && 'placeholder' in field) field.placeholder = spec[5];
+    var lab = field.id && form.querySelector('label[for="' + field.id + '"]');
+    if (!lab) lab = (field.closest('.form-field-group,.dg-field-wrap') || field.parentElement || form).querySelector('label');
+    if (lab && spec[4]) lab.textContent = spec[4];
     field.classList.add('dg-ev-in');
     if (field.tagName === 'TEXTAREA') field.classList.add('dg-ev-ta');
   });
@@ -4474,6 +4551,7 @@ function pageCtas(id) {
   var back = '<a class="back" href="/" id="dg-page-back">← Home</a>';
   if (id === 'hire') return '<a class="hire" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire">Start brief</a>' + talent + back;
   if (id === 'talent') return talent + hire + back;
+  if (id === 'bounties') return '';
   if (id === 'events' || id === 'map' || id === 'refer') return back;
   return hire + talent + back;
 }
@@ -4540,6 +4618,7 @@ function openPage(id, push) {
   if (id === 'events') root.classList.add('dg-page-events');
   if (id === 'event') root.classList.add('dg-page-events');
   if (id === 'map') root.classList.add('dg-page-map');
+  if (id === 'bounties') root.classList.add('dg-page-bounties');
   root.innerHTML =
     '<div class="dg-page-card"><div class="dg-page-top"><h1>' +
     meta.title +
@@ -4601,8 +4680,18 @@ function openPage(id, push) {
   } catch (e) {}
   try {
     window.__dgPagePrevSocial = window.__dgPagePrevSocial || {};
+    /* Webflow page settings and the injected head both emit og:*, so live pages carried up to four
+       og:description tags with conflicting text (verified 2026-08-15 on /, /apply, /pricing,
+       /about) plus a duplicate og:type. querySelector rewrote the first and left the siblings to
+       argue with it — a crawler picks one, and not necessarily ours. Keep the first node so the
+       restore path still has its target; drop the duplicates. */
+    function dedupeMeta(sel) {
+      var all = document.querySelectorAll(sel);
+      for (var i = 1; i < all.length; i++) all[i].remove();
+      return all[0] || null;
+    }
     function ensureMeta(sel, attr, key) {
-      var el = document.querySelector(sel);
+      var el = dedupeMeta(sel);
       if (!el) {
         el = document.createElement('meta');
         el.setAttribute(attr, key);
@@ -4625,7 +4714,7 @@ function openPage(id, push) {
   } catch (e) {}
   try {
     /* Prefer hard path (/events) over /?p= when we own a clean route. */
-    var preferred = { how:'/how', pricing:'/pricing', hire:'/hire', talent:'/talent', faq:'/faq', legal:'/legal', refer:'/refer', about:'/about', events:'/events', map:'/startups', contact:'/contact', blog:'/blog', sample:'/sample', press:'/press', private:'/private', notfound:'/' };
+    var preferred = { how:'/how', pricing:'/pricing', hire:'/hire', talent:'/talent', faq:'/faq', legal:'/legal', refer:'/refer', about:'/about', events:'/events', map:'/startups', contact:'/contact', blog:'/blog', sample:'/sample', bounties:'/?p=bounties', press:'/press', private:'/private', notfound:'/' };
     var pathNow = (location.pathname || '/').replace(/\/+$/, '') || '/';
     /* v860: an ALIAS must not claim canonical for itself. DG_PAGE_PATHS declares 36 paths across ~19
        routes, so /referral, /referrals and /partners are all route 'refer', and /press-kit and
@@ -4644,8 +4733,12 @@ function openPage(id, push) {
     if (!window.__dgPagePrevCanonical) window.__dgPagePrevCanonical = can.getAttribute('href') || '';
     can.setAttribute('href', pageUrl);
     window.__dgPagePrevSocial = window.__dgPagePrevSocial || {};
+    /* Same duplicate-sibling problem as og:description above; dedupe inline rather than reach
+       across try blocks for the helper. */
     function ensureUrlMeta(sel, attr, key) {
-      var el = document.querySelector(sel);
+      var all = document.querySelectorAll(sel);
+      for (var i = 1; i < all.length; i++) all[i].remove();
+      var el = all[0];
       if (!el) { el = document.createElement('meta'); el.setAttribute(attr, key); document.head.appendChild(el); }
       if (!(sel in window.__dgPagePrevSocial)) window.__dgPagePrevSocial[sel] = el.getAttribute('content') || '';
       el.setAttribute('content', pageUrl);
@@ -4728,6 +4821,9 @@ function openPage(id, push) {
   if (id === 'blog') {
     try { blogPageMount(root); focusBlogNoteFromHash(root); } catch (e) {}
   }
+  if (id === 'bounties') {
+    try { bountyFormMount(root); } catch (e) {}
+  }
   // soft focus trap
   root.addEventListener('keydown', function(ev){
     if(ev.key!=='Tab') return;
@@ -4744,6 +4840,292 @@ function blogBodyHtml(body) {
     return '<p>' + esc(p.replace(/\n/g, ' ').trim()) + '</p>';
   }).join('');
 }
+function bountyListingKey(item) {
+  return String(item.itemUrl || '').toLowerCase() || (String(item.repo || '') + '|' + String(item.name || '')).toLowerCase();
+}
+var DG_USDC_SOL = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+var DG_USDC_BASE = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+var DG_BOUNTY_GH_KEY = 'dgBountyGh';
+var DG_BOUNTY_X_KEY = 'dgBountyX';
+function bountyIsSolana(addr) {
+  var a = String(addr || '').trim();
+  return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a) && !/^0x/i.test(a);
+}
+function bountyIsEvm(addr) {
+  return /^0x[a-fA-F0-9]{40}$/.test(String(addr || '').trim());
+}
+function bountyPayHref(it) {
+  var to = String(it.payTo || '').trim();
+  var amt = it.amount;
+  if (!to || amt == null || amt === '') return '';
+  if (String(it.chain || '').toLowerCase() === 'base' && bountyIsEvm(to)) {
+    var units = String(Math.round(Number(amt) * 1e6));
+    if (!/^\d+$/.test(units)) return '';
+    return 'ethereum:' + DG_USDC_BASE + '@8453/transfer?address=' + encodeURIComponent(to) + '&uint256=' + units;
+  }
+  if (bountyIsSolana(to)) {
+    return 'solana:' + to + '?amount=' + encodeURIComponent(String(amt)) + '&spl-token=' + DG_USDC_SOL;
+  }
+  return '';
+}
+function bountyNormalize(item, source) {
+  if (!item || typeof item !== 'object') return null;
+  var name = String(item.name || '').trim();
+  var repo = String(item.repo || '').trim();
+  if (!name && !repo) return null;
+  var cur = String(item.currency || 'USDC').trim().toUpperCase();
+  if (cur === 'USD') cur = 'USDC';
+  return {
+    kind: item.kind === 'project' ? 'project' : 'item',
+    name: name || repo,
+    repo: repo,
+    itemUrl: item.itemUrl || null,
+    amount: item.amount,
+    currency: 'USDC',
+    payTo: String(item.payTo || '').trim(),
+    chain: String(item.chain || '').trim().toLowerCase(),
+    source: source || ''
+  };
+}
+var DG_BOUNTY_SEED = [
+  {kind:'item',name:'docs: add CONTRIBUTING screenshot of GitHub web edit flow',repo:'Uuriko/dasha-desk',itemUrl:'https://github.com/Uuriko/dasha-desk/issues/8',amount:25,currency:'USDC',payTo:'',chain:''},
+  {kind:'project',name:'dasha desk',repo:'Uuriko/dasha-desk',itemUrl:null,amount:50,currency:'USDC',payTo:'',chain:''}
+];
+function bountyGhUser() {
+  try {
+    var j = JSON.parse(sessionStorage.getItem(DG_BOUNTY_GH_KEY) || 'null');
+    if (j && j.login && j.token) return j;
+  } catch (e) {}
+  return null;
+}
+function bountyXUser() {
+  try {
+    var j = JSON.parse(sessionStorage.getItem(DG_BOUNTY_X_KEY) || 'null');
+    if (j && j.handle && j.token) return j;
+  } catch (e) {}
+  return null;
+}
+function bountyAuthBase() {
+  var bases = [];
+  try { bases = dgEventsBotBases() || []; } catch (e) {}
+  return bases[0] || '';
+}
+function bountyOauth(path, opts) {
+  function send(base) {
+    if (!base) return Promise.reject(new Error('no_api'));
+    return dgEventsBotFetch(base + path, opts || {});
+  }
+  if (typeof dgEventsBotPickBase === 'function') {
+    return dgEventsBotPickBase(4000).then(function (hit) {
+      return send((hit && hit.base) || bountyAuthBase());
+    });
+  }
+  return send(bountyAuthBase());
+}
+function bountyOauthFlags(j) {
+  return {
+    github: Boolean(j && (j.github === true || j.configured === true)),
+    x: Boolean(j && j.x)
+  };
+}
+function bountyShowUnconfigured(root) {
+  var host = root && root.querySelector('#dg-bounty-id');
+  if (host) host.innerHTML = '<p class="dg-bounty-note">GitHub link not configured</p>';
+  var msg = root && root.querySelector('#dg-bounty-msg');
+  if (msg) msg.textContent = 'GitHub link not configured';
+}
+function bountyPaintId(root, cfg) {
+  var host = root && root.querySelector('#dg-bounty-id');
+  if (!host) return;
+  var gh = bountyGhUser();
+  var x = bountyXUser();
+  var githubOn = Boolean(cfg && cfg.github);
+  var xOn = Boolean(cfg && cfg.x);
+  var html = '';
+  if (gh && gh.login && gh.token) {
+    var av = /^https:\/\//i.test(String(gh.avatarUrl || ''))
+      ? ('<img class="dg-bounty-av" src="' + esc(gh.avatarUrl) + '" alt="" width="28" height="28" referrerpolicy="no-referrer" />')
+      : '';
+    html += av + '<a class="dg-bounty-handle" href="' + esc(gh.htmlUrl || ('https://github.com/' + gh.login)) + '" rel="noopener" target="_blank">' + esc(gh.login) + '</a>';
+    if (x && x.handle) {
+      html += '<a class="dg-bounty-handle" href="' + esc(x.htmlUrl || ('https://x.com/' + x.handle)) + '" rel="noopener" target="_blank">@' + esc(x.handle) + '</a>';
+    } else if (xOn) {
+      html += '<button type="button" class="dg-bounty-x" id="dg-bounty-x">X</button>';
+    }
+  } else if (githubOn) {
+    html += '<button type="button" class="dg-bounty-gh" id="dg-bounty-gh">GitHub</button>';
+    if (xOn) html += '<button type="button" class="dg-bounty-x" id="dg-bounty-x">X</button>';
+  } else {
+    html = '<p class="dg-bounty-note">GitHub link not configured</p>';
+  }
+  host.innerHTML = html;
+  var ghBtn = host.querySelector('#dg-bounty-gh');
+  if (ghBtn) ghBtn.addEventListener('click', function () { bountyGhStart(root); });
+  var xBtn = host.querySelector('#dg-bounty-x');
+  if (xBtn) xBtn.addEventListener('click', function () { bountyXStart(); });
+}
+function bountyRenderId(root) {
+  var host = root && root.querySelector('#dg-bounty-id');
+  if (!host) return;
+  if (bountyGhUser()) bountyPaintId(root, { github: true, x: false });
+  bountyOauth('/oauth/github/status').then(function (r) { return r.json(); }).then(function (j) {
+    bountyPaintId(root, bountyOauthFlags(j));
+  }).catch(function () {
+    if (!bountyGhUser()) bountyShowUnconfigured(root);
+  });
+}
+function bountyGhStart(root) {
+  bountyOauth('/oauth/github/start').then(function (r) { return r.json(); }).then(function (j) {
+    if (j && j.authorizeUrl) {
+      try { sessionStorage.setItem('dgBountyGhState', j.state || ''); } catch (e) {}
+      location.href = j.authorizeUrl;
+      return;
+    }
+    bountyShowUnconfigured(root);
+  }).catch(function () { bountyShowUnconfigured(root); });
+}
+function bountyXStart() {
+  bountyOauth('/oauth/x/start').then(function (r) { return r.json(); }).then(function (j) {
+    if (j && j.authorizeUrl) {
+      try {
+        sessionStorage.setItem('dgBountyXState', j.state || '');
+        sessionStorage.setItem('dgBountyXVerifier', j.verifier || '');
+      } catch (e) {}
+      location.href = j.authorizeUrl;
+    }
+  }).catch(function () {});
+}
+function bountyConsumeOauth(root) {
+  try {
+    var u = new URL(location.href);
+    var code = u.searchParams.get('code');
+    var state = u.searchParams.get('state');
+    if (!code || !state) return;
+    u.searchParams.delete('code');
+    u.searchParams.delete('state');
+    try { history.replaceState({}, '', u.pathname + u.search + u.hash); } catch (e0) {}
+    var ghState = '';
+    var xState = '';
+    try { ghState = sessionStorage.getItem('dgBountyGhState') || ''; xState = sessionStorage.getItem('dgBountyXState') || ''; } catch (e1) {}
+    if (xState && state === xState) {
+      var verifier = '';
+      try { verifier = sessionStorage.getItem('dgBountyXVerifier') || ''; } catch (e2) {}
+      bountyOauth('/oauth/x/exchange', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, state: state, verifier: verifier }) })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (j && j.ok && j.token && j.handle) {
+            try { sessionStorage.setItem(DG_BOUNTY_X_KEY, JSON.stringify({ token: j.token, handle: j.handle, avatarUrl: j.avatarUrl, htmlUrl: j.htmlUrl })); } catch (e3) {}
+          }
+          bountyRenderId(root);
+        }).catch(function () {});
+      return;
+    }
+    bountyOauth('/oauth/github/exchange', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, state: state }) })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j && j.ok && j.token && j.login) {
+          try { sessionStorage.setItem(DG_BOUNTY_GH_KEY, JSON.stringify({ token: j.token, login: j.login, avatarUrl: j.avatarUrl, htmlUrl: j.htmlUrl })); } catch (e4) {}
+        }
+        bountyRenderId(root);
+      }).catch(function () {});
+  } catch (e) {}
+}
+function bountyCopyPay(amount) {
+  var text = String(amount) + ' USDC';
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text);
+  } catch (e) {}
+}
+function bountyRender(root, listings) {
+  var host = root && root.querySelector('#dg-bounty-live');
+  if (!host) return;
+  if (!listings.length) {
+    host.innerHTML = '<p class="dg-p-note">None yet.</p>';
+    return;
+  }
+  host.innerHTML = '<ul class="dg-bounty-rows">' + listings.map(function (it) {
+    var href = it.itemUrl || (it.repo ? ('https://github.com/' + it.repo) : '');
+    var amt = (it.amount != null && it.amount !== '') ? (esc(String(it.amount)) + ' USDC') : '';
+    var title = href ? ('<a class="dg-bounty-title" href="' + esc(href) + '" rel="noopener" target="_blank">' + esc(it.name) + '</a>') : ('<span class="dg-bounty-title">' + esc(it.name) + '</span>');
+    var payHref = bountyPayHref(it);
+    var pay = payHref
+      ? ('<a class="dg-bounty-pay" href="' + esc(payHref) + '" data-dg-bounty-pay="1">Pay</a>')
+      : ('<button type="button" class="dg-bounty-pay" data-dg-bounty-copy="' + esc(String(it.amount || '')) + '">Pay</button>');
+    return '<li class="dg-bounty-row"><span class="dg-bounty-amt">' + amt + '</span>' + title + pay + '</li>';
+  }).join('') + '</ul>';
+  host.querySelectorAll('[data-dg-bounty-pay],[data-dg-bounty-copy]').forEach(function (el) {
+    el.addEventListener('click', function (ev) {
+      if (!bountyGhUser()) { ev.preventDefault(); bountyGhStart(root); return; }
+      var copyAmt = el.getAttribute('data-dg-bounty-copy');
+      if (copyAmt != null && copyAmt !== '') bountyCopyPay(copyAmt);
+    });
+  });
+}
+function bountyLoadFeeds(root) {
+  bountyRender(root, DG_BOUNTY_SEED.map(function (it) { return bountyNormalize(it, 'demigod'); }).filter(Boolean));
+  var bust = '?t=' + Math.floor(Date.now() / 60000);
+  var urls = [
+    { src: 'demigod', url: 'https://raw.githubusercontent.com/Uuriko/demigod-site-cdn/main/bounties-feed.json' },
+    { src: 'dasha', url: 'https://raw.githubusercontent.com/Uuriko/dasha-desk/main/bounties/feed.json' }
+  ];
+  Promise.all(urls.map(function (u) {
+    return fetch(u.url + bust, { mode: 'cors', cache: 'no-store', signal: AbortSignal.timeout(4000) })
+      .then(function (r) { if (!r.ok) throw new Error('n'); return r.json(); })
+      .then(function (j) { return { src: u.src, json: j }; })
+      .catch(function () { return { src: u.src, json: null }; });
+  })).then(function (parts) {
+    var seen = {};
+    var out = [];
+    function add(item, src) {
+      var n = bountyNormalize(item, src);
+      if (!n) return;
+      var k = bountyListingKey(n);
+      if (!k || seen[k]) return;
+      seen[k] = 1;
+      out.push(n);
+    }
+    DG_BOUNTY_SEED.forEach(function (it) { add(it, 'demigod'); });
+    parts.forEach(function (p) {
+      var list = p.json && Array.isArray(p.json.listings) ? p.json.listings : [];
+      list.forEach(function (it) { add(it, p.src); });
+    });
+    bountyRender(root, out);
+  });
+}
+
+function bountyFormMount(root) {
+  try { bountyLoadFeeds(root); } catch (e0) {}
+  try { bountyRenderId(root); } catch (e1) {}
+  try { bountyConsumeOauth(root); } catch (e2) {}
+  var form = root && root.querySelector('#dg-bounty-form');
+  if (!form || form.dataset.dgBounty === '1') return;
+  form.dataset.dgBounty = '1';
+  form.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var gh = bountyGhUser();
+    if (!gh) { bountyGhStart(root); return; }
+    var repo = String((root.querySelector('#dg-bounty-repo') || {}).value || '').trim();
+    var amount = String((root.querySelector('#dg-bounty-amount') || {}).value || '').trim();
+    var payTo = String((root.querySelector('#dg-bounty-payto') || {}).value || '').trim();
+    var msg = root.querySelector('#dg-bounty-msg');
+    if (!/^https:\/\/github\.com\/[^/]+\/[^/]+/i.test(repo)) {
+      if (msg) msg.textContent = 'GitHub URL';
+      return;
+    }
+    if (!amount) {
+      if (msg) msg.textContent = 'USDC';
+      return;
+    }
+    var body = [
+      'Repo: ' + repo,
+      'Amount: ' + amount + ' USDC',
+      'PayTo: ' + (payTo || ''),
+      'GitHub: ' + gh.login
+    ].join('\n');
+    location.href = 'mailto:potter@trydemigod.com?subject=' + encodeURIComponent('Demigod bounty: ' + repo) + '&body=' + encodeURIComponent(body);
+  });
+}
+
 function blogPageMount(root) {
   var grid = root && root.querySelector('#dg-blog-grid');
   if (!grid || grid.dataset.dgBlog === '1') return;
@@ -4785,6 +5167,11 @@ var DG_PAGE_PATHS = {
   '/contact': 'contact',
   '/legal': 'legal',
   '/privacy': 'legal',
+  '/bounties': 'bounties',
+  '/tryouts': 'bounties',
+  '/tryout': 'bounties',
+  '/terms': 'legal',
+  '/cookies': 'legal',
   '/refer': 'refer',
   '/referral': 'refer',
   '/referrals': 'refer',
@@ -4842,6 +5229,7 @@ function deepLink(){
     var h=(location.hash||'').replace(/^#/,'').toLowerCase();
     if(!w&&/^(startup|founder|hire|engineer|talent|join|jobseeker)$/.test(h))w=h;
     if(h==='legal'||h==='privacy'||h==='terms'){ openPage('legal',false); window.__dgDeepLinked=1; return; }
+    if(h==='bounties'||h==='tryouts'||h==='tryout'){ openPage('bounties',false); window.__dgDeepLinked=1; return; }
     if(h==='partnerships'||h==='partners'){ openPage('refer',false); window.__dgDeepLinked=1; return; }
     if(/^note-/.test(h)||/^(epicurus-garden-hacker-houses)$/.test(h)){ openPage('blog',false); focusBlogNoteFromHash(q('#dg-page')); window.__dgDeepLinked=1; return; }
     if(!w)return;
@@ -4859,7 +5247,7 @@ function deepLink(){
 }
 
 /* Intent-named submit labels (forms/WIZ already use these; never demote to generic Submit). */
-function finalButtonLabels(){var a=q('#startup-hire [type=submit],#startup-modal form [type=submit]');if(a){a.value='Send brief';a.textContent='Send brief'}var b=q('#engineer-join [type=submit],#jobseeker-modal form [type=submit]');if(b){b.value='Send privately';b.textContent='Send privately'}var o=q('#startup-hire [name="90day-outcome"],#startup-modal [name="90day-outcome"]');if(o){o.placeholder='One concrete result';var l=o.id&&q('label[for="'+o.id+'"]');if(l)l.textContent='What should this person accomplish first?'}}
+function finalButtonLabels(){var a=q('#startup-hire [type=submit],#startup-modal form [type=submit]');if(a){a.value='Send brief';a.textContent='Send brief'}var b=q('#engineer-join [type=submit],#jobseeker-modal form [type=submit]');if(b){b.value='Send privately';b.textContent='Send privately'}var o=q('#startup-hire [name="90day-outcome"],#startup-modal [name="90day-outcome"]');if(o){o.placeholder='One concrete first result (30–90 days)';var l=o.id&&q('label[for="'+o.id+'"]');if(l)l.textContent='What should this person accomplish first? *'}var av=q('#engineer-join [name=availability],#jobseeker-modal [name=availability]');if(av){var al=av.id&&q('label[for="'+av.id+'"]')||(av.closest('.form-field-group,.dg-field-wrap')||{}).querySelector?.('label');if(al)al.textContent='When could you start? *'}var rt=q('#startup-hire [name=role-title],#startup-modal [name=role-title]');if(rt){var rl=rt.id&&q('label[for="'+rt.id+'"]')||(rt.closest('.form-field-group,.dg-field-wrap')||{}).querySelector?.('label');if(rl)rl.textContent='What role are you hiring? *'}}
 function orgJsonLd(){if(q('#dg-org-jsonld'))return;var ld=document.createElement('script');ld.type='application/ld+json';ld.id='dg-org-jsonld';ld.textContent=JSON.stringify({'@context':'https://schema.org','@graph':[{'@type':'Organization','@id':'https://www.trydemigod.com/#org',name:'Demigod',url:'https://www.trydemigod.com',email:'potter@trydemigod.com',description:'Software compares role and talent evidence; a human decides what to propose. 10% of first-year base salary when a hire starts.',areaServed:{'@type':'AdministrativeArea',name:'San Francisco Bay Area'}},{'@type':'WebSite','@id':'https://www.trydemigod.com/#website',url:'https://www.trydemigod.com',name:'Demigod',publisher:{'@id':'https://www.trydemigod.com/#org'},description:'SF startup talent matching — private profiles, mutual yes, 10% of first-year base salary when a hire starts.'}]});document.head.appendChild(ld)}
 
 
@@ -4940,7 +5328,7 @@ else if(k==='jobseeker'||h===J||h==='#jobseeker-modal'){if(!q(J))return;e.preven
 document.addEventListener('input',function(e){if(OPEN&&e.target&&e.target.closest&&e.target.closest(S+','+J)){/*dg-wiz-err-clear*/try{var f=e.target.closest('form');var er=f&&f.querySelector('.dg-wiz-err,.dg-wiz-req-err'),eid=er&&er.id;if(er)er.remove();e.target.style.borderColor='';e.target.removeAttribute('aria-invalid');if(eid){var ids=(e.target.getAttribute('aria-describedby')||'').split(/\s+/).filter(function(id){return id&&id!==eid});if(ids.length)e.target.setAttribute('aria-describedby',ids.join(' '));else e.target.removeAttribute('aria-describedby')}}catch(err){}}},true);
 document.addEventListener('keydown',function(e){if(e.defaultPrevented)return;if(e.key==='Escape'&&q('#dg-page')){closePage();return}if(e.key==='Escape'&&OPEN){OPEN=null;hide(true)}});
 typeof window.addEventListener==='function'&&window.addEventListener('popstate',function(){/*dg-page-popstate*/ try{ if(!routePages()) closePage(); }catch(e){} });
-window.__dgFootVer='1096';console.log('Demigod v1096');
+window.__dgFootVer='1103';console.log('Demigod v1103');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 

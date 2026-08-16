@@ -80,11 +80,32 @@ Edit `DEMIGOD-COMPANY-RESEARCH.json`.
 
 Do not add operational rows to the benchmark.
 
-## 5. Focused check
+## 5. Use the supported company command
+
+```bash
+node demigod-company-intelligence.mjs list --limit=10
+node demigod-company-intelligence.mjs get --id=yc:example
+node demigod-company-intelligence.mjs enrich --id=yc:example
+node demigod-company-intelligence.mjs memo --id=yc:example
+node demigod-company-intelligence.mjs writeback --id=yc:example --out=/tmp/company-preview
+```
+
+`enrich` and `writeback` are dry-run-only. Mutation flags fail closed. The memo and writeback
+commands may create only the explicitly requested local private artifacts; nothing is published or
+sent.
+
+## 6. Focused check
 
 ```bash
 node --test demigod-match-review-evidence.test.mjs
 node demigod-company-research-benchmark.mjs --selftest
+node demigod-company-intelligence.test.mjs
+node demigod-company-identity.mjs --selftest
+node demigod-company-packet.mjs --selftest
+node demigod-company-waterfall.mjs --selftest
+node demigod-company-table.mjs --selftest
+node demigod-company-memo.mjs --selftest
+node demigod-packet-writeback.mjs --selftest
 ```
 
 The projection test must show:
@@ -94,7 +115,7 @@ The projection test must show:
 - pricing remains withheld;
 - invalid operational claims fail closed.
 
-## 6. Live replay
+## 7. Live replay
 
 The frozen benchmark:
 
@@ -106,7 +127,7 @@ node demigod-evidence.mjs fresh company-research-benchmark
 Operational catalog rows are not covered by the 30-row receipt. Do not call an operational
 row live-benchmark-verified unless a future catalog verifier explicitly checks it.
 
-## 7. Integration checks
+## 8. Integration checks
 
 ```bash
 npm run demigod:verify:source
@@ -115,7 +136,7 @@ npm run demigod:verify:all
 
 `verify:all` is proportionate after a multi-surface change. Use focused checks while editing.
 
-## 8. Inspect product projection
+## 9. Inspect product projection
 
 The private path is:
 
@@ -135,7 +156,7 @@ Confirm that:
 - quarantine hides hiring display;
 - score, rank ordering, pair state, and consent remain unchanged.
 
-## 9. Common failures
+## 10. Common failures
 
 ### Research disappears for every company
 
@@ -171,7 +192,7 @@ Run the live benchmark. Do not rewrite receipt files manually.
 Correct or remove the operational row. An invalid operational override intentionally does
 not fall back silently to benchmark gold.
 
-## 10. Recovery
+## 11. Recovery
 
 No destructive repair command is required.
 
@@ -181,7 +202,7 @@ No destructive repair command is required.
 - receipts live under `/tmp/dg-busy`;
 - full verification reconstructs current truth.
 
-## 11. Tool dogfood
+## 12. Tool dogfood
 
 Wrap meaningful CLI jobs:
 
@@ -191,4 +212,3 @@ node demigod-tool-dogfood.mjs wrap --tool=company-research-benchmark -- \
 ```
 
 Log usefulness after the cycle.
-

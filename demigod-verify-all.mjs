@@ -72,6 +72,15 @@ if (ship || wizard) {
     ['demigod-accepted-role-poison.test.mjs'],
     ['demigod-accepted-role.test.mjs'],
     ['demigod-company-research-benchmark.mjs', ['--selftest']],
+    // DIE company intelligence: one supported CLI over exact identity, packet, table, dry-run
+    // waterfall, private memo, and writeback preview. Existing focused checks remain authoritative.
+    ['demigod-company-identity.mjs', ['--selftest']],
+    ['demigod-company-packet.mjs', ['--selftest']],
+    ['demigod-company-waterfall.mjs', ['--selftest']],
+    ['demigod-company-table.mjs', ['--selftest']],
+    ['demigod-company-memo.mjs', ['--selftest']],
+    ['demigod-packet-writeback.mjs', ['--selftest']],
+    ['demigod-company-intelligence.test.mjs'],
     // Decay-aware source history: transport failures never stamp absence (Claude poison suite)
     ['demigod-source-history-poison.test.mjs'],
     // Research projection SSRF/quarantine poison — locks safeResearchUrl + field drop semantics

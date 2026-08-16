@@ -103,6 +103,7 @@ export function rediscover(touches, { roleId = null, limit = 10, suppress = new 
       channels: new Set(),
       roleHits: 0,
       lastNote: null,
+      lastOutcome: null,
       scoreParts: { recency: 0, channel: 0, role: 0, volume: 0 },
     };
     g.touches += 1;
@@ -111,6 +112,7 @@ export function rediscover(touches, { roleId = null, limit = 10, suppress = new 
     if (!g.lastAt || Date.parse(t.at) > Date.parse(g.lastAt)) {
       g.lastAt = t.at;
       g.lastNote = t.note || g.lastNote;
+      g.lastOutcome = t.outcome || null;
     }
     by.set(t.candId, g);
   }
@@ -131,6 +133,7 @@ export function rediscover(touches, { roleId = null, limit = 10, suppress = new 
       roleHits: g.roleHits,
       channels: [...g.channels],
       lastNote: g.lastNote,
+      lastOutcome: g.lastOutcome,
       rankKey, // internal sort only
       fitScore: null,
     };
@@ -155,6 +158,7 @@ function selftest() {
     channel: 'intro',
     roleId: 'role-1',
     note: 'intro made',
+    outcome: 'opt_out',
     at: '2026-07-20T00:00:00.000Z',
   });
   const t3 = makeTouch({
@@ -167,6 +171,7 @@ function selftest() {
   assert(hits[0].candId === 'c-a', 'role hit ranks first');
   assert(hits[0].fitScore === null, 'no fit score');
   assert(hits[0].roleHits === 2, 'role hits');
+  assert(hits[0].lastOutcome === 'opt_out', 'latest outcome retained for suppression');
   let threw = false;
   try {
     makeTouch({ candId: 'x', channel: 'linkedin' });

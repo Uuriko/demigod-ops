@@ -287,3 +287,50 @@ Rejected:
 `projectCompanyResearch` is the only entry point. A `companyResearchEvidence` wrapper existed
 alongside it with no live caller and no test exercising it; it was deleted rather than
 deprecated, since an unused, unexercised export is a second contract nobody is verifying.
+
+## 13. Company packet
+
+`buildCompanyPacket({ companyId, ...inputs })` returns `demigod.company-packet/1` from an exact map
+ID. An absent ID returns `status: "unknown"`; duplicate IDs throw and never select a winner.
+
+The packet may contain identity, hiring, accepted research, evidence, unknowns, role journal,
+signals, and peers. It contains no people/contact fields and grants no score, match, consent,
+intro, writeback, or public-claim authority.
+
+## 14. Company table
+
+`listCompanyRows(inputs, { limit })` returns `demigod.company-table/1` in map order. Every row is a
+projection of the corresponding company packet. Duplicate IDs and vanished map IDs fail closed.
+
+The HTTP table binds only to `127.0.0.1`, accepts read-only `GET`, and exposes no people/contact
+fields or score. A successful loopback selftest requires an environment that permits local binds.
+
+## 15. Company waterfall
+
+`runCompanyWaterfall` returns `demigod.company-waterfall/1` and evaluates sources in this order:
+
+```text
+first_party -> yc -> wikidata -> ats_json -> unknown
+```
+
+The first confident value wins per field. Empty or uncertain later values cannot overwrite verified
+evidence. Every fill retains its public source URL and retrieval time. The supported path is always
+dry-run and never writes the map.
+
+## 16. Private memo
+
+`renderCompanyMemo(packet)` returns `demigod.company-memo/1`. The memo is private, bounded,
+citation-preserving, and explicitly not a recommendation. Contact-shaped data, scores, and unsafe
+links are omitted. `--out` may write only the rendered local memo requested by the operator.
+
+## 17. Writeback preview
+
+`buildWritebackPlan(packets)` returns `demigod.packet-writeback/1` with `mode: "dry-run"`.
+Evidence sidecars are private read-only context; rows reuse the existing RecruitAI import shape.
+There is no apply command and no database, score, consent, match, intro, or external-write authority.
+
+## 18. Supported command surface
+
+`demigod-company-intelligence.mjs` is the supported dispatcher for `list`, `get`, `enrich`, `memo`,
+and `writeback`. It delegates to the contracts above rather than reimplementing them. `enrich`
+forces `--dry-run`; `--write`, `--apply`, and `--apply-map` fail before dispatch.

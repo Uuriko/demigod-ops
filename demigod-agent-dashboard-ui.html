@@ -86,12 +86,12 @@ kbd{
   font:600 .65rem var(--mono);border:1px solid var(--line);border-radius:5px;
   padding:.1rem .32rem;color:var(--muted);background:rgba(0,0,0,.4);
 }
-input,textarea{
+input,textarea,select{
   width:100%;background:rgba(6,5,4,.9);border:1px solid var(--line);border-radius:var(--radius-sm);
   color:var(--text);padding:.6rem .75rem;font:inherit;
   transition:border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
 }
-input:focus,textarea:focus{outline:none;border-color:rgba(201,168,76,.55);box-shadow:0 0 0 3px rgba(201,168,76,.12)}
+input:focus,textarea:focus,select:focus{outline:none;border-color:rgba(201,168,76,.55);box-shadow:0 0 0 3px rgba(201,168,76,.12)}
 textarea{min-height:4.2rem;resize:vertical}
 
 /* ===== Header ===== */
@@ -546,14 +546,19 @@ pre{
   </div>
   <div id="panel-tools" class="panel">
     <div class="card wide" id="structuredHiringCard">
-      <h2><span>Structured hiring</span><span class="meta" id="shMeta">Ashby · Underdog · Gem · Affinity</span></h2>
+      <h2><span>Role workspace</span><span class="meta" id="shMeta">calibration · evidence · review</span></h2>
       <div class="meta" id="shBody">Loading…</div>
+      <div style="margin-top:.65rem">
+        <label for="shRoleSelect" class="meta">Open role workspace</label>
+        <select id="shRoleSelect" style="margin-top:.25rem" aria-describedby="shWorkspace"><option value="">No role packets</option></select>
+      </div>
+      <div id="shWorkspace" class="meta" style="margin-top:.65rem" aria-live="polite">Choose a role packet.</div>
       <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem">
         <button type="button" class="ghost" id="btnShRefresh">Refresh</button>
         <button type="button" class="ghost" id="btnShJob" title="Run structured-hiring job">Run status job</button>
         <button type="button" class="ghost" id="btnCbJob" title="Run control-board job">Control board</button>
       </div>
-      <div class="meta" style="margin-top:.4rem">CLI: <code>node demigod-structured-hiring.mjs status|desk --role=…</code> · intro: <code>node demigod-intro-path.mjs warm</code> · API: <code>/api/structured-hiring</code> · <code>/api/control-board?history=1</code></div>
+      <div class="meta" style="margin-top:.4rem">CLI: <code>node demigod-structured-hiring.mjs workspace --role=… --json</code> · API: <code>/api/structured-hiring?role=…</code></div>
     </div>
     <div class="card wide">
       <h2><span>Tools registry</span><span class="meta" id="toolsMeta">—</span></h2>
@@ -1557,6 +1562,44 @@ async function load(force){
   return request;
 }
 
+async function loadRoleWorkspace(role){
+  const el=$('shWorkspace');
+  if(!el) return;
+  if(!role){el.textContent='Choose a role packet.';return;}
+  el.textContent='Loading role workspace…';
+  try{
+    const r=await fetch('/api/structured-hiring?role='+encodeURIComponent(role)+'&t='+Date.now());
+    const desk=await r.json().catch(()=>null);
+    if(!r.ok||!desk) throw new Error(desk&&desk.error||('HTTP '+r.status));
+    const w=desk.workspace;
+    if(!w||w.schema!=='demigod.role-workspace/1') throw new Error('role workspace unavailable');
+    const calibration=w.calibration||{};
+    const company=w.company||{};
+    const channels=w.candidateChannels||{};
+    const evidence=w.evidenceReview||{};
+    const checkpoints=(w.checkpoints||[]).map(row=>
+      '<span class="pill '+(row.ok?'ok':'warn')+'">'+esc(row.id.replaceAll('_',' '))+' '+(row.ok?'✓':'—')+'</span>'
+    ).join(' ');
+    const channelLine=['inbound','referrals','shortlist','rediscovery','priorPairs','reviewed'].map(name=>{
+      const value=channels[name]||{};
+      return name.replace(/([A-Z])/g,' $1').toLowerCase()+' '+(value.count??value.total??value.noteCount??0);
+    }).join(' · ');
+    const suppressed=[...(channels.inbound&&channels.inbound.candidates||[]),...(channels.rediscovery&&channels.rediscovery.candidates||[])]
+      .filter(row=>(row.suppression||[]).length).length;
+    const evidenceLine=(evidence.questions||[]).map(row=>
+      esc(row.label)+' <span class="pill '+(row.state==='answered'?'ok':'warn')+'">'+esc(row.state||'unknown')+'</span>'
+    ).join(' · ')||'role packet required';
+    el.innerHTML=
+      '<div><strong>'+esc(calibration.title||w.roleId)+'</strong> <span class="pill '+(w.state==='review_ready'?'ok':'warn')+'">'+esc(String(w.state||'unknown').replaceAll('_',' '))+'</span></div>'+
+      '<div style="margin-top:.3rem">'+checkpoints+'</div>'+
+      '<div style="margin-top:.35rem"><strong>Calibration</strong> · '+esc(calibration.status||'missing')+' · must-haves '+((calibration.mustHaves||[]).length)+' · '+esc(calibration.outcome90d||'outcome missing')+'</div>'+
+      '<div style="margin-top:.25rem"><strong>Company</strong> · '+esc(company.identity&&company.identity.name||company.companyId||'unknown')+' · '+esc(company.hiring&&company.hiring.status||company.status||'unknown')+'</div>'+
+      '<div style="margin-top:.25rem"><strong>Candidate channels</strong> · '+esc(channelLine)+(suppressed?' · '+suppressed+' suppressed':'')+'</div>'+
+      '<div style="margin-top:.25rem"><strong>Evidence questions</strong> · '+evidenceLine+'</div>'+
+      '<div style="margin-top:.25rem"><strong>Authority</strong> · review '+esc(w.authority&&w.authority.review||'unknown')+' · external action '+esc(w.authority&&w.authority.externalAction||'unknown')+'</div>';
+  }catch(e){el.innerHTML='<span class="bad">'+esc(e.message||String(e))+'</span>';}
+}
+
 async function loadStructuredHiring(){
   const body=$('shBody');
   if(!body) return;
@@ -1586,7 +1629,16 @@ async function loadStructuredHiring(){
       '<div class="meta" id="shDebrief" style="margin-top:.35rem"></div>'+
       '<div class="meta" style="margin-top:.35rem">'+(j.policy?esc(j.policy):'')+'</div>';
     if($('shMeta')) $('shMeta').textContent=(j.at||'').slice(0,19)+'Z · no fit score';
-    const firstRole=(j.packets&&j.packets[0]&&j.packets[0].roleId)||null;
+    const selector=$('shRoleSelect');
+    const previous=selector&&selector.value;
+    const roles=(j.packets||[]).map(p=>({id:p.roleId,label:(p.title||p.roleId)+(p.demo?' · demo':'')}));
+    if(selector){
+      selector.innerHTML=roles.length?roles.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.label)+'</option>').join(''):'<option value="">No role packets</option>';
+      if(previous&&roles.some(p=>p.id===previous)) selector.value=previous;
+      selector.onchange=()=>loadRoleWorkspace(selector.value);
+    }
+    const firstRole=(selector&&selector.value)||(roles[0]&&roles[0].id)||null;
+    loadRoleWorkspace(firstRole);
     if(firstRole){
       fetch('/api/structured-hiring?role='+encodeURIComponent(firstRole)+'&t='+Date.now())
         .then(r=>r.json())
