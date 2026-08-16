@@ -11,7 +11,7 @@ last_verified: 2026-08-11
 
 Iterative audit, fix and feature loop: [`DASHA-ITERATIVE-QUALITY-PLAN.md`](DASHA-ITERATIVE-QUALITY-PLAN.md).
 
-**Surfaces (product vocabulary):** Home · Simp `/simp` · Chess `/chess` · Studio · Desk · Lobby (plus how-to-buy).
+**Surfaces (product vocabulary):** Home · Simp Board `/simp` · Chess `/chess` · Studio · Desk · Lobby (plus how-to-buy).
 
 > **Live drift, 2026-08-15.** `/studio`, `/dasha` and `/desk` currently 308 to home while this file
 > and `DASHA-PRODUCT-BRIEF.md` describe Studio and Desk as active. The user's direction call keeps

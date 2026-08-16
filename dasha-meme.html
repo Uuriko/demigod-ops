@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Make a $dasha meme</title>
+<meta name="description" content="Pick a picture, type a line, share it. That is the whole thing.">
+<link rel="canonical" href="https://www.getdasha.com/meme">
+<style>
+  /* One format, one column, no chrome. The old Studio asked for a format, a layer and a licence
+     before it asked for a joke; 800 opens produced 29 exports. Everything here is on the path
+     between picking a picture and sending it. */
+  :root { --acid:#dfff00; --ink:#0b0b0b; --paper:#f6f6f4; --dim:#6b6b66; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--ink); color:var(--paper);
+    font:16px/1.4 "Helvetica Neue",Helvetica,Arial,sans-serif; -webkit-text-size-adjust:100%; }
+  main { max-width:560px; margin:0 auto; padding:16px 16px calc(16px + env(safe-area-inset-bottom)); }
+  h1 { font:900 clamp(22px,6vw,30px)/1 "Arial Black",Helvetica,Arial,sans-serif;
+    text-transform:uppercase; letter-spacing:-.02em; margin:.2em 0 .6em; }
+  #picks { display:grid; grid-template-columns:repeat(auto-fill,minmax(84px,1fr)); gap:8px; margin:0 0 14px; }
+  #picks button { padding:0; border:2px solid transparent; border-radius:8px; overflow:hidden;
+    background:#1a1a18; aspect-ratio:1; cursor:pointer; }
+  #picks button[aria-pressed=true] { border-color:var(--acid); }
+  #picks img { width:100%; height:100%; object-fit:cover; display:block; }
+  #picks .own { color:var(--paper); font-size:12px; font-weight:700; text-transform:uppercase;
+    display:flex; align-items:center; justify-content:center; text-align:center; padding:6px; }
+  canvas { width:100%; height:auto; display:block; border-radius:10px; background:#1a1a18; touch-action:manipulation; }
+  .lines { display:grid; gap:8px; margin:12px 0; }
+  input[type=text] { width:100%; padding:12px; border-radius:8px; border:1px solid #33332f;
+    background:#141412; color:var(--paper); font:700 16px/1.2 inherit; text-transform:uppercase; }
+  input[type=text]:focus { outline:2px solid var(--acid); outline-offset:1px; }
+  #go { width:100%; padding:16px; border:0; border-radius:10px; background:var(--acid); color:var(--ink);
+    font:900 18px/1 "Arial Black",Helvetica,Arial,sans-serif; text-transform:uppercase; cursor:pointer; }
+  #go:disabled { opacity:.45; cursor:default; }
+  .note { color:var(--dim); font-size:12.5px; margin:10px 0 0; }
+  .note a { color:var(--dim); }
+  #say { min-height:1.2em; font-size:13px; color:var(--acid); margin:8px 0 0; }
+  @media (prefers-reduced-motion:no-preference) { #go { transition:transform .08s; } #go:active { transform:scale(.99); } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Make a $dasha meme</h1>
+
+  <div id="picks" role="group" aria-label="Pick a picture"></div>
+
+  <canvas id="c" width="1080" height="1080" aria-label="Your meme"></canvas>
+
+  <div class="lines">
+    <input id="top" type="text" maxlength="60" placeholder="Top line" aria-label="Top line" autocomplete="off" enterkeyhint="done">
+    <input id="bot" type="text" maxlength="60" placeholder="Bottom line" aria-label="Bottom line" autocomplete="off" enterkeyhint="done">
+  </div>
+
+  <button id="go" type="button" disabled>Share it</button>
+  <p id="say" role="status" aria-live="polite"></p>
+
+  <p class="note">
+    Made here, yours to post. References to Dasha Nekrasova describe internet culture and do not
+    imply her authorization, participation, or endorsement.
+    <a href="/">getdasha.com</a>
+  </p>
+
+  <input id="file" type="file" accept="image/*" hidden>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  /* Templates live where the Worker already serves them (/simp/photo/*). dasha-meme.test.mjs
+     asserts this list matches the files on disk, because a grid of 404s is the one failure that
+     makes the tool worthless while still "loading fine". */
+  var TEMPLATES = ['hero', 'bull', 'chart', 'sweet', 'weekend', 'archive', 'media', 'press', 'public', 'profile'];
+  var BASE = 'https://lobby.getdasha.com/simp/photo/';
+
+  var c = document.getElementById('c'), ctx = c.getContext('2d');
+  var top_ = document.getElementById('top'), bot = document.getElementById('bot');
+  var go = document.getElementById('go'), say = document.getElementById('say');
+  var picks = document.getElementById('picks'), file = document.getElementById('file');
+  var img = null, busy = false;
+
+  function tell(m) { say.textContent = m || ''; }
+
+  /* Shrink-to-fit rather than wrap-and-overflow: a meme line that runs off the canvas is the
+     other way this kind of tool silently produces garbage. */
+  function drawLine(text, atBottom) {
+    if (!text) return;
+    var t = text.toUpperCase(), pad = 40, max = c.width - pad * 2, size = 92;
+    do {
+      ctx.font = '900 ' + size + 'px "Arial Black", Helvetica, Arial, sans-serif';
+      size -= 3;
+    } while (ctx.measureText(t).width > max && size > 24);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = atBottom ? 'bottom' : 'top';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(6, size * 0.14);
+    ctx.strokeStyle = '#000';
+    ctx.fillStyle = '#fff';
+    var y = atBottom ? c.height - pad : pad;
+    ctx.strokeText(t, c.width / 2, y);
+    ctx.fillText(t, c.width / 2, y);
+  }
+
+  function render() {
+    ctx.fillStyle = '#1a1a18';
+    ctx.fillRect(0, 0, c.width, c.height);
+    if (img) {
+      // cover-fit, centred — never stretch someone's picture
+      var s = Math.max(c.width / img.width, c.height / img.height);
+      var w = img.width * s, h = img.height * s;
+      ctx.drawImage(img, (c.width - w) / 2, (c.height - h) / 2, w, h);
+    }
+    drawLine(top_.value, false);
+    drawLine(bot.value, true);
+    // attribution: the only reason a shared meme sends anyone back here
+    ctx.font = '700 26px Helvetica, Arial, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.fillStyle = 'rgba(255,255,255,.72)';
+    ctx.strokeStyle = 'rgba(0,0,0,.55)';
+    ctx.lineWidth = 5;
+    ctx.strokeText('$dasha · getdasha.com', c.width - 14, c.height - 12);
+    ctx.fillText('$dasha · getdasha.com', c.width - 14, c.height - 12);
+    go.disabled = !img;
+  }
+
+  function use(src, btn) {
+    var next = new Image();
+    next.crossOrigin = 'anonymous'; // else toBlob taints the canvas and Share silently dies
+    next.onload = function () { img = next; render(); tell(''); };
+    next.onerror = function () { tell('That picture would not load. Try another, or use your own.'); };
+    next.src = src;
+    [].forEach.call(picks.querySelectorAll('button'), function (b) { b.setAttribute('aria-pressed', String(b === btn)); });
+  }
+
+  TEMPLATES.forEach(function (name, i) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('aria-pressed', 'false');
+    b.setAttribute('aria-label', 'Picture ' + (i + 1));
+    var im = document.createElement('img');
+    im.src = BASE + name + '.jpg';
+    im.alt = '';
+    im.loading = i < 4 ? 'eager' : 'lazy';
+    b.appendChild(im);
+    b.addEventListener('click', function () { use(BASE + name + '.jpg', b); });
+    picks.appendChild(b);
+  });
+
+  var own = document.createElement('button');
+  own.type = 'button';
+  own.className = 'own';
+  own.textContent = 'Your own';
+  own.setAttribute('aria-pressed', 'false');
+  own.addEventListener('click', function () { file.click(); });
+  picks.appendChild(own);
+
+  function loadFile(f) {
+    if (!f || !/^image\//.test(f.type)) return;
+    var url = URL.createObjectURL(f);
+    var next = new Image();
+    next.onload = function () { img = next; render(); URL.revokeObjectURL(url); tell(''); };
+    next.src = url;
+    [].forEach.call(picks.querySelectorAll('button'), function (b) { b.setAttribute('aria-pressed', String(b === own)); });
+  }
+  file.addEventListener('change', function () { loadFile(file.files[0]); });
+  document.addEventListener('paste', function (e) {
+    var items = (e.clipboardData || {}).files;
+    if (items && items[0]) loadFile(items[0]);
+  });
+  document.addEventListener('dragover', function (e) { e.preventDefault(); });
+  document.addEventListener('drop', function (e) {
+    e.preventDefault();
+    if (e.dataTransfer && e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+  });
+
+  top_.addEventListener('input', render);
+  bot.addEventListener('input', render);
+
+  /* Share first, download second. navigator.share needs a user gesture and HTTPS, and desktop
+     support is poor — so the fallback is not an error path, it is the desktop path. */
+  go.addEventListener('click', function () {
+    if (busy || !img) return;
+    busy = true;
+    c.toBlob(function (blob) {
+      if (!blob) { busy = false; tell('Could not build the image.'); return; }
+      var f = new File([blob], 'dasha-meme.png', { type: 'image/png' });
+      var data = { files: [f], text: '$dasha' };
+      if (navigator.canShare && navigator.canShare(data) && navigator.share) {
+        navigator.share(data)
+          .then(function () { tell('Sent.'); })
+          .catch(function () { tell(''); })       // user cancelled is not a failure
+          .then(function () { busy = false; });
+        return;
+      }
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'dasha-meme.png';
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+      tell('Saved to your downloads.');
+      busy = false;
+    }, 'image/png');
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
