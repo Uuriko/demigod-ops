@@ -11,7 +11,14 @@ last_verified: 2026-08-11
 
 Iterative audit, fix and feature loop: [`DASHA-ITERATIVE-QUALITY-PLAN.md`](DASHA-ITERATIVE-QUALITY-PLAN.md).
 
-**Surfaces (product vocabulary):** Home · Studio · Desk · Lobby · Simp Board (plus how-to-buy / Chess as secondary).
+**Surfaces (product vocabulary):** Home · Simp `/simp` · Chess `/chess` · Studio · Desk · Lobby (plus how-to-buy).
+
+> **Live drift, 2026-08-15.** `/studio`, `/dasha` and `/desk` currently 308 to home while this file
+> and `DASHA-PRODUCT-BRIEF.md` describe Studio and Desk as active. The user's direction call keeps
+> them active, so the redirects are the defect — restoring those two surfaces is a publish, not a
+> doc edit. `dasha-live-verify` reports it as `canonical-surface-redirected` and exits 1 until it is
+> fixed; that red is expected, not a broken gate. `/faucet`, `/airdrop`, `/earn` and `/claim` are
+> live and indexed but are not surfaces — see `DASHA-ROADMAP.md` D8.
 
 ## Read path (active work)
 
