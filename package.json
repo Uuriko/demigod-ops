@@ -69,6 +69,7 @@
     "demigod:form:test": "node demigod-form-submit-test.mjs",
     "demigod:screenshots": "node -e \"import('./demigod-turn-lib.mjs').then(m=>m.captureDemigodScreenshots('manual').then(console.log))\"",
     "demigod:dash": "node demigod-agent-dashboard.mjs",
+    "demigod:die:web": "node demigod-die-web.mjs",
     "demigod:ship:status": "node demigod-ship-status.mjs",
     "demigod:cm6:selftest": "node demigod-cm6-paste-publish.mjs --selftest",
     "demigod:claim-verify": "node demigod-claim-verify.mjs",
@@ -193,6 +194,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "@noble/ed25519": "^2.3.0",
     "undici": "^7.29.0",
     "ws": "^8.21.3"
   }

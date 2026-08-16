@@ -143,23 +143,43 @@ function build() {
   const lobbySrc = loadClient('dasha-lobby-client.js');
   const simpSrc = loadClient('dasha-simp-board-client.js');
   const studioSrc = loadClient('dasha-studio-embed.js');
+  const faucetSrc = loadClient('dasha-faucet-client.js');
+  const xConnectSrc = loadClient('dasha-x-connect-prompt.js');
   assertSingleClient(lobbySrc, 'dasha-lobby-client.js', 'global.DashaLobby');
   assertSingleClient(simpSrc, 'dasha-simp-board-client.js', 'global.DashaSimpBoard');
+  assertSingleClient(faucetSrc, 'dasha-faucet-client.js', 'global.DashaFaucet');
+  assertSingleClient(xConnectSrc, 'dasha-x-connect-prompt.js', 'global.DashaXConnectPrompt');
   const lobby = minifyJs(lobbySrc);
   const simp = minifyJs(simpSrc);
   const studio = minifyJs(studioSrc);
+  const faucet = minifyJs(faucetSrc);
+  const xConnect = minifyJs(xConnectSrc);
   const lobbySri = sri(lobby);
   const simpSri = sri(simp);
   const studioSri = sri(studio);
+  const faucetSri = sri(faucet);
+  const xConnectSri = sri(xConnect);
   const robots = readFileSync(join(root, 'dasha-robots.txt'), 'utf8').trim() + '\n';
   const sitemap = readFileSync(join(root, 'dasha-sitemap.xml'), 'utf8')
     .replace(/<!--[\s\S]*?-->\n?/g, '')
     .trim() + '\n';
-  const landing = readFileSync(join(root, 'dasha-landing.html'), 'utf8');
-  const home = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>$dasha — make the timeline stranger</title><meta name="description" content="$dasha. Make something. Pass it on."><link rel="canonical" href="https://www.getdasha.com/"><link rel="sitemap" type="application/xml" href="https://www.getdasha.com/sitemap.xml"><meta property="og:type" content="website"><meta property="og:url" content="https://www.getdasha.com/"><meta property="og:title" content="$dasha — make the timeline stranger"><meta property="og:description" content="Make something. Pass it on."><meta property="og:image" content="https://lobby.getdasha.com/og/dasha-social-card.png"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="$dasha — make the timeline stranger"><meta name="twitter:description" content="Make something. Pass it on."><meta name="twitter:image" content="https://lobby.getdasha.com/og/dasha-social-card.png"><link rel="icon" href="https://cdn.prod.website-files.com/5f1458122ba25e70a3ff2bd0/6a767a48e1dd29d210f01235_dasha-icon-32.png"><link rel="apple-touch-icon" sizes="180x180" href="https://cdn.prod.website-files.com/5f1458122ba25e70a3ff2bd0/6a767a48cdcf3c87b29fc830_dasha-icon-180.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","@id":"https://www.getdasha.com/#website","name":"$dasha","url":"https://www.getdasha.com/"}</script></head><body>${landing}</body></html>`;
+  const landingRaw = readFileSync(join(root, 'dasha-landing.html'), 'utf8');
+  let landingOut = landingRaw;
+  const xTag = `<script src="https://lobby.getdasha.com/client/x-connect.js" integrity="${xConnectSri}" crossorigin="anonymous" defer></script>`;
+  if (!landingOut.includes('client/x-connect.js')) {
+    landingOut = `${landingOut.trimEnd()}\n${xTag}\n`;
+  } else {
+    landingOut = landingOut.replace(
+      /<script src="https:\/\/lobby\.getdasha\.com\/client\/x-connect\.js"[^>]*><\/script>/,
+      xTag,
+    );
+  }
   const howto = readFileSync(join(root, 'dasha-how-to-buy.html'), 'utf8');
   const chessPage = readFileSync(join(root, 'dasha-chess-page.html'), 'utf8');
   const lobbyPage = readFileSync(join(root, 'dasha-lobby-page.html'), 'utf8');
+  const faucetPage = readFileSync(join(root, 'dasha-faucet-page.html'), 'utf8')
+    .replace(/__FAUCET_CLIENT_SRI__/g, faucetSri)
+    .replace(/__X_CONNECT_SRI__/g, xConnectSri);
   const socialCard = readFileSync(join(root, 'dasha-worker-assets/og/dasha-social-card.png'));
   const worker = readFileSync(join(root, 'dasha-lobby-worker.mjs'), 'utf8');
   const workerDependencies = [
@@ -168,8 +188,11 @@ function build() {
     'dasha-simp-actions.mjs',
     'dasha-simp-score.mjs',
     'dasha-chess.mjs',
+    'dasha-faucet.mjs',
+    'dasha-faucet-solana.mjs',
   ].map(file => readFileSync(join(root, file), 'utf8')).join('\n');
   const wrangler = readFileSync(join(root, 'dasha-lobby-wrangler.jsonc'), 'utf8');
+  const homeWithX = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>$dasha — make the timeline stranger</title><meta name="description" content="$dasha. Make something. Pass it on."><link rel="canonical" href="https://www.getdasha.com/"><link rel="sitemap" type="application/xml" href="https://www.getdasha.com/sitemap.xml"><meta property="og:type" content="website"><meta property="og:url" content="https://www.getdasha.com/"><meta property="og:title" content="$dasha — make the timeline stranger"><meta property="og:description" content="Make something. Pass it on."><meta property="og:image" content="https://lobby.getdasha.com/og/dasha-social-card.png"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="$dasha — make the timeline stranger"><meta name="twitter:description" content="Make something. Pass it on."><meta name="twitter:image" content="https://lobby.getdasha.com/og/dasha-social-card.png"><link rel="icon" href="https://cdn.prod.website-files.com/5f1458122ba25e70a3ff2bd0/6a767a48e1dd29d210f01235_dasha-icon-32.png"><link rel="apple-touch-icon" sizes="180x180" href="https://cdn.prod.website-files.com/5f1458122ba25e70a3ff2bd0/6a767a48cdcf3c87b29fc830_dasha-icon-180.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","@id":"https://www.getdasha.com/#website","name":"$dasha","url":"https://www.getdasha.com/"}</script></head><body>${landingOut}</body></html>`;
   const hash = createHash('sha256')
     .update(
       worker +
@@ -184,11 +207,15 @@ function build() {
         '\n' +
         studio +
         '\n' +
+        faucet +
+        '\n' +
+        xConnect +
+        '\n' +
         robots +
         '\n' +
         sitemap +
         '\n' +
-        home +
+        homeWithX +
         '\n' +
         howto +
         '\n' +
@@ -196,24 +223,38 @@ function build() {
         '\n' +
         lobbyPage +
         '\n' +
+        faucetPage +
+        '\n' +
         socialCard.toString('base64'),
     )
     .digest('hex')
     .slice(0, 16);
+  if (args.has('--write') && landingOut !== landingRaw) {
+    try {
+      writeFileSync(join(root, 'dasha-landing.html'), landingOut);
+    } catch {
+      /* ignore */
+    }
+  }
   return {
     hash,
     lobbyBytes: lobby.length,
     simpBytes: simp.length,
     studioBytes: studio.length,
+    faucetBytes: faucet.length,
+    xConnectBytes: xConnect.length,
     lobbySri,
     simpSri,
     studioSri,
+    faucetSri,
+    xConnectSri,
     robotsBytes: robots.length,
     sitemapBytes: sitemap.length,
-    homeBytes: home.length,
+    homeBytes: homeWithX.length,
     howtoBytes: howto.length,
     chessPageBytes: chessPage.length,
     lobbyPageBytes: lobbyPage.length,
+    faucetPageBytes: faucetPage.length,
     source: `/** Auto-generated by dasha-lobby-assets-build.mjs — do not edit. */
 export const LOBBY_CLIENT_JS = \`${escTemplate(lobby)}\`;
 export const SIMP_BOARD_JS = \`${escTemplate(simp)}\`;
@@ -221,12 +262,17 @@ export const LOBBY_CLIENT_SRI = ${JSON.stringify(lobbySri)};
 export const SIMP_BOARD_SRI = ${JSON.stringify(simpSri)};
 export const STUDIO_CLIENT_SRI = ${JSON.stringify(studioSri)};
 export const STUDIO_CLIENT_JS = \`${escTemplate(studio)}\`;
+export const FAUCET_CLIENT_JS = \`${escTemplate(faucet)}\`;
+export const FAUCET_CLIENT_SRI = ${JSON.stringify(faucetSri)};
+export const X_CONNECT_JS = \`${escTemplate(xConnect)}\`;
+export const X_CONNECT_SRI = ${JSON.stringify(xConnectSri)};
 export const ROBOTS_TXT = \`${escTemplate(robots)}\`;
 export const SITEMAP_XML = \`${escTemplate(sitemap)}\`;
-export const HOME_HTML = \`${escTemplate(home)}\`;
+export const HOME_HTML = \`${escTemplate(homeWithX)}\`;
 export const HOWTO_HTML = \`${escTemplate(howto)}\`;
 export const CHESS_PAGE_HTML = \`${escTemplate(chessPage)}\`;
 export const LOBBY_PAGE_HTML = \`${escTemplate(lobbyPage)}\`;
+export const FAUCET_PAGE_HTML = \`${escTemplate(faucetPage)}\`;
 export const ASSET_HASH = ${JSON.stringify(hash)};
 `,
   };
