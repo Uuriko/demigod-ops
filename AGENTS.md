@@ -29,6 +29,14 @@ Short door only. Project runbooks live elsewhere — do not restate them here.
   | Demigod | `bin/dg truth` (+ `npm run demigod:verify:source` / targeted) |
 
 - **Workspace SoR for ship-bound sources:** `/home/potter`. Worktrees are for isolated edits; promote before ship.
+- **The Dasha lobby Worker is deployed from a second tree, and root cannot deploy it.** Live is at
+  Durable Object migration `v2` (`DashaFaucet`); root's `dasha-lobby-wrangler.jsonc` declares only
+  `v1`, so `wrangler deploy` from root fails with Cloudflare 10074. Only
+  `.grok/worktrees/potter/dasha-2` can currently deploy. Do not "fix" this by forcing a deploy or by
+  adding `deleted_classes` — that destroys a live Durable Object's state. The inventory for making
+  root deployable is [`DASHA-WORKER-MERGE-PLAN-2026-08-16.md`](DASHA-WORKER-MERGE-PLAN-2026-08-16.md);
+  current defects and decisions are [`DASHA-DEMIGOD-BACKLOG-2026-08-16.md`](DASHA-DEMIGOD-BACKLOG-2026-08-16.md).
+  Verify both against live before trusting them — they are snapshots, the gates are the truth.
 - Local research, audits, screenshots, verification, and scoped code edits are fine without mid-cycle questions. Fable/Claude/Codex opinions are advisory; verify against disk.
 
 ## User communication
