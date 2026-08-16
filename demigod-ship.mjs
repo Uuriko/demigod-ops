@@ -270,6 +270,9 @@ function prepare() {
   // Clone-breaker edges + export contracts (poison: demigod-import-integrity.test.mjs)
   steps.push(run('import-integrity', ['demigod-import-integrity.mjs']));
   steps.push(run('foot-smoke', ['demigod-foot-smoke.mjs']));
+  /* Roadmap S1: cross-brand contamination check, required on both ship paths. Scoped to demigod so
+     a Dasha finding cannot block a Demigod release; the written report still covers both. */
+  steps.push(run('site-hunt', ['site-hunt.mjs', '--site=demigod']));
   steps.push({
     ...run('truth', ['demigod-truth.mjs'], { allowFail: true }),
     observational: true,

@@ -12,6 +12,9 @@
     <loc>https://www.getdasha.com/</loc>
   </url>
   <url>
+    <loc>https://www.getdasha.com/simp</loc>
+  </url>
+  <url>
     <loc>https://www.getdasha.com/studio</loc>
   </url>
   <url>
@@ -23,12 +26,12 @@
   <url>
     <loc>https://www.getdasha.com/how-to-buy</loc>
   </url>
-  <!-- Chess answers on both hosts but declares lobby.getdasha.com canonical, so that is the URL
-       listed: a sitemap entry that disagrees with the page's own canonical asks a crawler to pick,
-       and it will not pick ours. The live sitemap has carried this route since chess shipped; this
-       file did not, which is the same two-copies problem the worker tree keeps producing. -->
+  <!-- Chess answers on both hosts. Both copies now declare https://www.getdasha.com/chess as
+       canonical (verified live 2026-08-15), so www is the URL listed. A sitemap entry that
+       disagrees with the page's own canonical asks a crawler to pick, and it will not pick ours.
+       If the canonical ever moves back to lobby, this entry moves with it — not the other way. -->
   <url>
-    <loc>https://lobby.getdasha.com/chess</loc>
+    <loc>https://www.getdasha.com/chess</loc>
   </url>
   <!-- Forum: Worker-hosted, canonical on lobby; linked from home footer + lobby chrome. -->
   <url>

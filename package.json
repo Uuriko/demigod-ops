@@ -125,6 +125,7 @@
     "dasha:test:docs": "node dasha-doc-registry.mjs --check && node dasha-docs-links.test.mjs && node dasha-product-coherence.test.mjs",
     "dasha:test:all": "node dasha-desk/build.mjs --check && node dasha-discovery.test.mjs --local && npm run dasha:test:docs && node dasha-studio-publish.mjs --check && node dasha-studio-media.test.mjs && node dasha-desk/dasha-share.test.mjs && node dasha-growth.test.mjs && node dasha-how-to-buy.test.mjs && npm run dasha:test:simp && node dasha-simp-oss-scorer.test.mjs && node dasha-landing.test.mjs && node dasha-desk.test.mjs && node dasha-meme-studio.test.mjs && node dasha-loop.test.mjs --local && node dasha-lobby-page.test.mjs && node dasha-brand.test.mjs && node dasha-mark.test.mjs && node dasha-gif.test.mjs && node dasha-studio-embed.test.mjs && node dasha-desk/dasha-desk-resilience.test.mjs && node dasha-forum.test.mjs && node dasha-desk/dasha-mint-consistency.test.mjs && node dasha-desk/dasha-oss-docs.test.mjs && node dasha-relay-lab.test.mjs && node dasha-remix-pack.test.mjs && node dasha-social-card.test.mjs && node dasha-buy-path.test.mjs && npm run dasha:test:chess && node dasha-studio-handoff.test.mjs",
     "dasha:verify:live": "node dasha-live-verify.mjs",
+    "dasha:site-hunt": "node site-hunt.mjs --site=dasha",
     "dasha:where": "node dasha-where.mjs",
     "dasha:check": "node dasha-check.mjs",
     "dasha:check:home": "node dasha-check.mjs home",

@@ -330,6 +330,12 @@ function fastGate(changed, receipt) {
   gate(receipt, 'growthTrust', 'node', ['dasha-growth.test.mjs'], 'required for every product release');
   // Disk love/identity radar (no network) — catches handoff/schema/mint drift before push.
   gate(receipt, 'loveRadar', 'node', ['dasha-radar.mjs'], 'identity + L1–L7 love-paths + handoff unit');
+  /* Roadmap S1: cross-brand contamination check, required on ship. Scoped to dasha so a Demigod
+     finding cannot block a Dasha release. One live HTTP sweep; set DASHA_SHIP_SKIP_SITEHUNT=1 to
+     skip it offline, the same escape hatch the browser gates use. */
+  const siteHunt = process.env.DASHA_SHIP_SKIP_SITEHUNT !== '1';
+  gate(receipt, 'siteHunt', 'node', ['site-hunt.mjs', '--site=dasha'],
+    siteHunt ? 'brand-mix + dead-link sweep across live surfaces' : 'offline skip', siteHunt);
   const browser = process.env.DASHA_SHIP_SKIP_BROWSER !== '1';
   const why = (surface) => !browser ? 'fixture-only browser skip' : changed.includes(surface) ? `${surface} artifact changed` : `${surface} hash unchanged`;
   // landing.test covers home+studio+desk invariants — do not skip when only studio/desk drifted
@@ -498,6 +504,7 @@ async function syncSocialMetadata(client) {
  * the bytes, so real drift could pass while a rebuild failed.
  */
 async function driftedPins(keys) {
+  if (process.env.DASHA_SHIP_FAKE_LIVE === '1') return [];
   const drifted = [];
   for (const [key, surface] of Object.entries(SURFACES)) {
     if (keys?.length && !keys.includes(key)) continue;
