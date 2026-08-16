@@ -1,0 +1,100 @@
+#!/usr/bin/env node
+/**
+ * PreToolUse(Bash) guard: keep getdasha.com publishes on the one path that has the safety checks.
+ *
+ * Why this exists, twice over:
+ *
+ *   2026-08-11 — a publish that bypassed dasha-ship left the homepage pinning an SRI hash the
+ *   Worker no longer served. The browser refused the script and the Simp Board was dead for a day.
+ *
+ *   2026-08-16 — the same class again, from the other end: ten raw `wrangler deploy` runs from a
+ *   second worktree, plus Webflow Designer edits on top of a paste. The board died again and the
+ *   homepage gained nav links to /simp, /graph and /bounties — pages that exist in no tree.
+ *
+ * dasha-ship.mjs holds the publish lock, runs the gate, pushes the embed, reads it back, and
+ * verifies live. dasha-deploy-guard.mjs refuses to bundle uncommitted work. Going around either is
+ * how the page and the Worker end up disagreeing, and nothing notices until a user sees an empty box.
+ *
+ * Contract: reads the PreToolUse payload on stdin, prints a decision on stdout. Silence = allow.
+ * Fails OPEN — a guard that blocks work because it crashed would be turned off within a day.
+ *
+ *   node bin/dasha-publish-guard-hook --selftest
+ */
+/* package.json declares "type": "module", so this extensionless file is parsed as ESM. */
+import assert from 'node:assert/strict';
+
+// Raw wrangler deploy aimed at the Dasha lobby Worker.
+const WRANGLER_DEPLOY = /\bwrangler(@[\w.]+)?\b[^|;&]*\bdeploy\b/;
+const DASHA_LOBBY = /dasha-lobby/;
+// Paths that already carry the checks. npm run dasha:lobby:deploy routes through the deploy guard.
+const SANCTIONED = /dasha-deploy-guard|dasha-ship\.mjs|dasha:lobby:deploy/;
+// Direct Webflow publishers, quarantined 2026-08-16 — they skip the lock, the gate and the SRI pin.
+const WEBFLOW_PUBLISH = /dasha-call-webflow-(publish|pub-now|set-now)|publish_site|queue-publish/;
+
+function decide(command) {
+  const cmd = String(command || '');
+  if (WRANGLER_DEPLOY.test(cmd) && DASHA_LOBBY.test(cmd) && !SANCTIONED.test(cmd)) {
+    return {
+      action: 'deny',
+      reason:
+        'Raw `wrangler deploy` on the Dasha lobby Worker skips dasha-deploy-guard, which refuses to '
+        + 'bundle uncommitted work, and skips the publish lock that stops two trees shipping at once. '
+        + 'This exact bypass killed the Simp Board on 2026-08-11 and again on 2026-08-16.\n\n'
+        + 'Use: npm run dasha:lobby:deploy   (guarded)\n'
+        + 'Or:  node dasha-ship.mjs --ship   (gate → push → publish → verify)\n\n'
+        + 'Publishing still needs the user to authorize it in their current request.',
+    };
+  }
+  if (WEBFLOW_PUBLISH.test(cmd) && !SANCTIONED.test(cmd)) {
+    return {
+      action: 'ask',
+      reason:
+        'This publishes to Webflow without going through dasha-ship.mjs, so it skips the SRI drift '
+        + 'guard and the readback that proves the page holds what was sent. On 2026-08-16 a publish '
+        + 'around that path left live home linking /simp, /graph and /bounties — pages in no tree. '
+        + 'Prefer `node dasha-ship.mjs --ship`. Continue only if you mean to bypass it.',
+    };
+  }
+  return null;
+}
+
+if (process.argv.includes('--selftest')) {
+  const d = (c) => decide(c);
+  // blocked: the real bypass
+  assert.equal(d('npx wrangler@4.120.1 deploy -c dasha-lobby-wrangler.jsonc').action, 'deny');
+  assert.equal(d('cd /tmp && npx --yes wrangler deploy -c dasha-lobby-wrangler.deploy.jsonc').action, 'deny');
+  // allowed: the sanctioned paths
+  assert.equal(d('npm run dasha:lobby:deploy'), null, 'guarded npm script must pass');
+  assert.equal(d('node dasha-deploy-guard.mjs -- npx wrangler deploy -c dasha-lobby-wrangler.jsonc'), null);
+  assert.equal(d('node dasha-ship.mjs --ship'), null);
+  // allowed: unrelated work must never be caught, or the guard gets switched off
+  assert.equal(d('git status'), null);
+  assert.equal(d('node dasha-live-verify.mjs'), null);
+  assert.equal(d('wrangler deploy -c demigod-html-wrangler.jsonc'), null, 'other workers are not this guard\'s business');
+  assert.equal(d('grep -r "wrangler deploy" DASHA-WORKFLOW.md'), null, 'reading about it is not doing it');
+  assert.equal(d('cat dasha-lobby-wrangler.jsonc'), null);
+  // webflow publishers warn rather than block
+  assert.equal(d('node dasha-call-webflow-publish.mjs').action, 'ask');
+  assert.equal(d('node dasha-call-webflow-pub-now.mjs').action, 'ask');
+  assert.equal(d('node dasha-ship.mjs --ship --only=studio'), null, 'ship is the sanctioned publisher');
+  console.log(JSON.stringify({ ok: true, selftest: 'dasha-publish-guard-hook' }));
+  process.exit(0);
+}
+
+let raw = '';
+process.stdin.on('data', (d) => { raw += d; });
+process.stdin.on('end', () => {
+  try {
+    const verdict = decide(JSON.parse(raw || '{}')?.tool_input?.command);
+    if (!verdict) return; // silence = allow
+    process.stdout.write(JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: verdict.action,
+        permissionDecisionReason: verdict.reason,
+      },
+    }));
+  } catch {
+    /* fail open: never block work because the guard itself broke */
+  }
+});
