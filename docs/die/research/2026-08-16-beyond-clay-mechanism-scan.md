@@ -71,9 +71,19 @@ warmest possible re-open — and it is also a company signal, because they now s
 Demigod tracks. `demigod-candidate-touch.mjs` (rediscovery) and `demigod-intro-path.mjs` (manual
 warm paths) are the primitives; what is missing is the trigger.
 
-**Boundary.** Their version watches people across the open web. Demigod's must watch only people who
-consented, and must expire that consent. The mechanism survives the narrowing; the coverage does not,
-and that is the correct trade.
+**Already built: the ranking. Missing: the trigger — and it may have to stay missing.**
+`rediscover()` in `demigod-candidate-touch.mjs` ranks owned touch history by recency, channel weight
+and optional role match, with a suppression set and deliberately no global fit score. Given a role,
+it already answers "who that we know is worth re-opening".
+
+What it cannot do is notice that someone *moved*, because noticing requires watching people, and
+Demigod has no consented feed of employment changes. UserGems and Champify get theirs from CRM
+records their customer owns plus open-web monitoring. Demigod owns the first kind at seed scale and
+has ruled out the second.
+
+**So this is a boundary, not a backlog item.** The honest close is either an explicit opt-in — a
+person tells Demigod where they now work — or nothing. Do not close it by adding a scraper; that
+would trade the one property that makes an intro from Demigod worth taking.
 
 ## 3. Common Room — person-level resolution and stack-ranked signals 🔶
 
@@ -103,21 +113,28 @@ model. What transfers is **scoring the source, not the candidate**: which channe
 type, which intro path actually produced good outcomes. The DIE roadmap already asks to "learn which
 evidence/channels helped"; Paraform demonstrates the shape of that ledger.
 
-## 5. Metaview / BrightHire — a rating must carry the line that produced it 🔶
+## 5. Metaview / BrightHire — a rating must carry the line that produced it ✅ already built
 
 **What they do.** Join interviews, transcribe, and map answers to a competency rubric, so the
 scorecard traces back to what the candidate actually said — every rating shipping with the phrase and
 what it demonstrated. ([Metaview on scorecards](https://www.metaview.ai/resources/blog/create-effective-interview-scorecards),
 [interview intelligence platforms](https://www.socialtalent.com/blog/recruiting/top-12-interview-intelligence-platforms))
 
-**Adaptation.** This is DIE's own evidence discipline pointed at interviews, which makes it the most
-natural fit in the scan. `demigod-call-note.mjs` already stores human-written notes and deliberately
-refuses to score. The increment is not automation — it is *structure*: a note that cannot be saved
-as a judgment without the quoted line it rests on. Same rule the company packet already enforces on
-facts, applied to people.
+**Already built, and further than this scan first credited.** `assertNote` in
+`demigod-role-packet.mjs` enforces exactly the rule: every must-have on the packet needs a rating
+(`note_missing_rating`), the rating must be in a four-value enum, and **evidence under 8 characters
+is rejected per rating** (`note_evidence_short`). A rating for an unknown must-have is refused, and
+`evidenceIds` are bounded and validated. There is no path to a saved judgment without the line it
+rests on.
 
-**Boundary.** Recording and transcription are a consent and jurisdiction question. The structure
-works with hand-typed notes and no recorder at all, so build that first.
+It also carries something the vendors do not: a `rehearsal` block with `initialView`,
+`contraryEvidence`, `changeCondition` and `finalRationale`. That is a considered-the-opposite step —
+the reviewer records what would have changed their mind. Metaview and BrightHire structure the
+*capture*; this structures the *reasoning*, which is the harder half.
+
+**What is left is narrow.** Transcription and recording are a consent and jurisdiction question and
+are deliberately absent. The structure already works with hand-typed notes and no recorder, which
+was the recommendation before checking — the recommendation was already implemented.
 
 ## 6. Palantir Foundry — the ontology as the organizing idea ⬜
 
@@ -134,6 +151,23 @@ attached. Writing that down is cheap and would make the authority rules enforcea
 documented.
 
 ---
+
+## Correction: this scan over-claimed the gaps
+
+Two of the six were written up as partial and turned out to be built, and both corrections point the
+same way — DIE is further along than a read of the spec suggests, because the spec describes the
+target and the code quietly implements more of it.
+
+| Mechanism | First written as | Actually |
+|---|---|---|
+| 1 · Harmonic momentum | build it | built, on a better basis; my rebuild was deleted |
+| 5 · rating carries its quote | partial | built, plus a considered-the-opposite step |
+| 2 · job-change trigger | partial | ranking built; the trigger is a deliberate boundary |
+
+The practical lesson for anyone extending DIE: **grep before designing.** Both times, the module
+that already existed used a sounder input than the one I reached for — the role ledger rather than
+snapshot diffs, `assertNote` rather than a new note type. The registry (`bin/dg tools`, 166 entries)
+is the index, and CLAUDE.md's "reuse, don't rebuild" is not a style note.
 
 ## What this scan changes
 
