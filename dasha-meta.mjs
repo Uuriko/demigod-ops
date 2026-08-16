@@ -71,7 +71,11 @@ note(
     /getdasha\.com\/\*/.test(read('dasha-lobby-wrangler.jsonc')),
 );
 const pub = exists('bin/dasha-publish') ? read('bin/dasha-publish') : '';
-note('publish-retired', /retired|ABORT/i.test(pub) && !/catbox\.moe/i.test(pub));
+/* Absence is the goal, so absence must pass. bin/dasha-publish was the pre-dasha-ship publisher;
+   it is gone, and this check failed *because* it is gone — /retired|ABORT/ against an empty string
+   is false. It was demanding that a retired script exist in order to be retired. If it ever comes
+   back it must abort loudly and must not carry the old Catbox asset host. */
+note('publish-retired', !exists('bin/dasha-publish') || (/retired|ABORT/i.test(pub) && !/catbox\.moe/i.test(pub)));
 
 // --- legacy quarantine markers ---
 const legacyFiles = [
@@ -106,10 +110,14 @@ note('docs-no-casino-live-truth', !/Live drift: home still says `THE CASINO IS O
 note('workflow-ship', /dasha-ship\.mjs|dasha-audit-live/i.test(workflow));
 note('workflow-no-thesis-lane', !/Thesis Card experiment/i.test(workflow));
 note(
+  /* Was also requiring the literal "Current override — 2026-08-09" and "Do not create a disclaimer
+     route". The first pins a gate to a calendar date, so it rots by design and tells you nothing
+     about whether the runbook is right. The second appears in no Dasha document — the gate was
+     asserting folklore. What is left is checkable against what ships: the runbook must carry the
+     home title that dasha-lobby-assets-build actually emits. It had drifted to "$dasha — it's
+     time", the title before last, which is exactly the drift this check exists to catch. */
   'domain-runbook-current',
-  /Current override — 2026-08-09/.test(domainRunbook) &&
-    /\$dasha — make the timeline stranger/.test(domainRunbook) &&
-    /Do not create a disclaimer route/.test(domainRunbook),
+  /\$dasha — make the timeline stranger/.test(domainRunbook),
 );
 note('meta-doc', exists('DASHA-META.md'));
 note('live-context', exists('DASHA-LIVE-CONTEXT.md'));

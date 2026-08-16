@@ -113,16 +113,23 @@ The bounded map intentionally contains only Home, Studio and Desk, uses absolute
 
 | Field | Home | Studio | Desk |
 |---|---|---|---|
-| Title | `$dasha — it’s time` | `Dasha Meme Studio — make it yours` | `$dasha desk — verify, chart, buy` |
-| Description | `It’s time $dasha. Make something, check the mint, or buy through Jupiter. High risk.` | `Make and remix Dasha posts, stories and banners in your browser. No wallet, account or upload.` | `Verify the associated $dasha mint, inspect independent sources and open the single Jupiter buy route. High risk.` |
+| Title | `$dasha — make the timeline stranger` | `Dasha Meme Studio — make it yours` | `$dasha desk — verify, chart, buy` |
+| Description | `$dasha. Make something. Pass it on.` | `Make and remix Dasha posts, stories and banners in your browser. No wallet, account or upload.` | `Verify the associated $dasha mint, inspect independent sources and open the single Jupiter buy route. High risk.` |
 | OG image | `dasha-social-card.png` | `dasha-social-card.png` | `dasha-social-card.png` |
+
+> Home title and description corrected 2026-08-16. This table said `$dasha — it’s time` and the
+> longer "It's time $dasha…" description; both live and the `HOME_HTML` that
+> `dasha-lobby-assets-build.mjs` generates say `$dasha — make the timeline stranger` and
+> `$dasha. Make something. Pass it on.` The runbook was describing a homepage that had already been
+> replaced. Verify against the generated document, not this table, if they ever disagree again —
+> the build is what ships.
 
 Never restore retired product copy or its old OG asset. Do not place mutable price, market-cap, holder or return claims in metadata or share images.
 
 Home Open Graph checkpoint:
 
-- `og:title`: `$dasha — it’s time`
-- `og:description`: `It’s time $dasha. Make something, check the mint, or buy through Jupiter. High risk.`
+- `og:title`: `$dasha — make the timeline stranger`
+- `og:description`: `Make something. Pass it on.`
 - `og:type`: `website`
 - `og:url`: `https://www.getdasha.com/`
 - `og:image`: the Webflow asset URL produced by uploading `dasha-social-card.png`
