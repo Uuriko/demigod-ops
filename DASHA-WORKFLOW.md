@@ -12,6 +12,29 @@ Updated: 2026-08-07
 
 Dasha is the active project. A one-off action on another project does not switch the active project. Work continues on Dasha until the user explicitly names a different active project.
 
+## The ship path
+
+There is one, and it is [`dasha-ship.mjs`](dasha-ship.mjs):
+
+```
+node dasha-ship.mjs --prep --gate     # prepare embeds + fast gate, publishes nothing
+node dasha-ship.mjs --preflight       # auth / site / domain only
+node dasha-ship.mjs --ship            # prep → gate → push embeds → publish → verify
+```
+
+`--ship` ends in `verifyLive()`, which runs live marker checks, then
+[`dasha-audit-live.mjs`](dasha-audit-live.mjs) for the broad audit, then `site-hunt.mjs --site=dasha`
+for cross-brand contamination and dead links. Each of those fails the run.
+
+**Publishing any other way is how the Simp Board dies.** A Webflow Designer or MCP publish skips the
+SRI drift guard, so the homepage can end up pinning a hash the Worker no longer serves and the
+browser silently refuses the script. That happened on 2026-08-11 and again on 2026-08-16, and on the
+second occasion Designer nav edits also added links to `/simp`, `/graph` and `/bounties` — pages
+that exist in no tree. The lobby Worker half is `npm run dasha:lobby:deploy`, gated by
+[`dasha-deploy-guard.mjs`](dasha-deploy-guard.mjs), which refuses to bundle uncommitted work.
+
+Publishing requires explicit authorization in the current user request. A green gate is not a ship.
+
 ## Sources of truth
 
 | Concern | Canonical source | Generated or observed surfaces |

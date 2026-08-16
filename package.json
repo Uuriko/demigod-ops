@@ -176,7 +176,9 @@
     "dasha:funnel": "node dasha-funnel-delta.mjs",
     "dasha:funnel:save": "node dasha-funnel-delta.mjs --save",
     "dasha:stranger": "node dasha-stranger-loop.mjs",
-    "dasha:test:ritual": "node dasha-today-ritual.test.mjs"
+    "dasha:test:ritual": "node dasha-today-ritual.test.mjs",
+    "dasha:audit:live": "node dasha-audit-live.mjs",
+    "dasha:meta": "node dasha-meta.mjs"
   },
   "devDependencies": {
     "@axe-core/cli": "^4.12.1",

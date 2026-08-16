@@ -1,3 +1,12 @@
+/**
+ * LEGACY — quarantined 2026-08-16. Do not use for a release.
+ *
+ * These direct Webflow MCP callers predate dasha-ship.mjs and bypass its gate, its publish lock
+ * and the SRI drift guard. Publishing around dasha-ship is what killed the Simp Board on
+ * 2026-08-11 and again on 2026-08-16. Kept as reference for the MCP call shapes only.
+ *
+ * The supported path is DASHA-WORKFLOW.md -> node dasha-ship.mjs.
+ */
 import fs from 'fs';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';

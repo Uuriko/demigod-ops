@@ -94,7 +94,36 @@ already pins. One file, no merge, no money code moved, no DO migration change.
 |---|---|---|
 | 29 | 63 untracked source files | `DEMIGOD-ROADMAP.md`, `SITE-HUNT.md`, `dasha-lobby-github.mjs` + test, `demigod-bounty-auth.test.mjs`, `docs/die/research/*`, ~30 `docs/exchange/*` |
 | 30 | ~45 commits unpushed | Protected from `git clean`, not from disk loss |
-| 31 | `dasha-meta.mjs`: 14 pre-existing hard fails | landing-sitemap-link, ship-readback, publish-retired, legacy-headers, metadata-contract, docs-lobby-live, workflow-ship, domain-runbook-current, meta-doc, live-context, context-scripts, script-audit-* |
+| 31 | `dasha-meta.mjs`: **14 → 8** hard fails | Six fixed 2026-08-16. The eight left are triaged below — six of them are the gate asking for files nobody ever wrote. |
+
+**`dasha-meta` triage, 2026-08-16.** Fixed, because the thing being asked for existed and was
+simply unwired: `script-audit-live` and `script-meta` (npm aliases for tools already on disk),
+`docs-lobby-live` and `metadata-contract` (`DASHA-DOCS.md` now names the `lobby.getdasha.com` host
+and the `dasha-webflow-metadata.mjs` contract), `workflow-ship` (`DASHA-WORKFLOW.md` now documents
+the one ship path and why publishing around it kills the board), and `legacy-headers` (the five
+`dasha-call-webflow-*.mjs` direct publishers now carry quarantine headers — they bypass the gate,
+the publish lock and the SRI guard, which is exactly how the board died twice).
+
+Not fixed, deliberately — **the gate is asserting artefacts that do not exist**, and writing stubs
+to turn a check green is worse than the red:
+
+| Check | Wants | Reality |
+|---|---|---|
+| `ship-readback-test` | `dasha-ship-readback.test.mjs` | never written |
+| `domain-runbook-current` | `DASHA-DOMAIN-RUNBOOK.md` | never written |
+| `context-scripts` | `dasha-peer-ping.mjs` | never written |
+| `script-audit-tools` | `dasha:audit:tools` | no `dasha-audit-tools.mjs` to point it at |
+| `meta-doc` | `DASHA-META.md` | never written |
+| `publish-retired` | `bin/dasha-publish` | never written |
+
+Two are real gaps, not phantoms: `ship-readback` wants `readbackSurface` / `push:readback` in
+`dasha-ship.mjs` — a genuine unimplemented feature (read back what Webflow stored and compare to
+what was sent, which roadmap S3 also asks for), and `landing-sitemap-link` wants
+`dasha-landing.html` to reference `lobby.getdasha.com/sitemap.xml`, which may itself be stale now
+that www serves its own sitemap.
+
+Either build the six, or delete the six checks. A gate that has demanded six non-existent files
+long enough for everyone to learn to ignore it is not a gate.
 | 32 | `dasha-docs-links` failures in mirrors | `demigod-ops-23/` and `work/` stale copies |
 | 33 | Bus + truth receipts live in `/tmp` | 454 messages of coordination history, erased by a reboot |
 | 34 | 606 `.mjs` files, 165 registered tools | `/ponytail-audit` exists for exactly this |
