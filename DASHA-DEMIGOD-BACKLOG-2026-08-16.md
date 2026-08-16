@@ -23,7 +23,14 @@ Nothing in this file authorizes publishing, outbound messages, or money movement
 | 3 | `www.getdasha.com/bounties` + `/bounties.json` → 404 | Roadmap D5/D9/D13/D14 all assume it exists | Webflow page restore |
 | 4 | `lobby.getdasha.com/price` → 404 | Route exists in root's Worker source; deployed build lacks it | #11 |
 | 5 | `lobby.getdasha.com/forum` → 404 | Same | #11 |
-| 6 | Homepage links to 3 dead URLs | site-hunt P1: `/simp`, `/graph`, `/bounties` | #2, #3, and identify `/graph` |
+| 6 | Homepage links to 3 dead URLs | site-hunt P1: `/simp`, `/graph`, `/bounties`. **`/graph` exists nowhere** — not in root's `dasha-landing.html`, not in dasha-2's, and not as a route in either Worker. Live's nav (`simp · chess · graph · how-to-buy`) and footer both link it. It is a Webflow Designer edit pointing at a page that was never built. | Webflow nav edit |
+
+> **Live home is not any tree's landing page.** It carries root's board SRI pin (`3yeE9TB…`,
+> dasha-2's landing pins `knpSSXvq…`), so root's paste is underneath — but the nav and footer links
+> to `/simp`, `/graph` and `/bounties` appear in no tree's source. They were added in the Webflow
+> Designer on top of the paste. That is the hazard the "publish only through `dasha-ship.mjs`" rule
+> exists for: Designer edits do not go through the SRI drift guard, and they can add links to pages
+> that do not exist.
 
 **Smallest fix for 1, 4, 5:** the `dasha-2` worktree already has migrations Cloudflare accepts. If it
 copies root's `dasha-lobby-static-gen.mjs` and deploys, live serves the bytes the published homepage
