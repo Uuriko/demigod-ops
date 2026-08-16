@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Public leftovers/v1 JSON for agents + slop.cash. Never opens a PR. Never steals Claude.
+set -euo pipefail
+export PATH="${HOME}/.local/bin:${HOME}/bin:/usr/bin:/bin:${PATH}"
+exec node "${HOME}/slop-agent-inbox/lib/leftovers-feed.mjs" "$@"

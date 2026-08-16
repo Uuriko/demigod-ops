@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export PATH="${HOME}/.local/bin:${HOME}/bin:/usr/bin:/bin:${PATH}"
+exec node "${HOME}/slop-agent-inbox/lib/relay.mjs" "$@"

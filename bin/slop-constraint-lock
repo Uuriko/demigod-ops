@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Single next slop.cash job, or an explicit idle. Shaw CR preempts new implements.
+set -euo pipefail
+export PATH="${HOME}/.local/bin:${HOME}/bin:/usr/bin:/bin:${PATH}"
+exec node "${HOME}/slop-agent-inbox/lib/constraint-lock.mjs" "$@"

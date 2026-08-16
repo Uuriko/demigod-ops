@@ -1,0 +1,200 @@
+#!/usr/bin/env bash
+# slop-queue-claim — atomic-ish claim line in QUEUE.md via flock
+set -euo pipefail
+
+INBOX="${SLOP_INBOX:-/home/potter/slop-agent-inbox}"
+QUEUE="${SLOP_QUEUE:-$INBOX/QUEUE.md}"
+LOCK="${SLOP_QUEUE_LOCK:-$INBOX/.queue.lock}"
+
+AGENT=""
+ID=""
+FILES=""
+WORK=""
+NOTES=""
+RELEASE=0
+
+usage() {
+  cat <<USAGE
+Usage:
+  slop-queue-claim --agent <role> --id <claim-id> --files <paths> [--work <text>] [--notes <text>]
+  slop-queue-claim --release --agent <role> --id <claim-id>
+
+Uses flock on ${LOCK}. Refuses if claim id is held by another agent.
+Agents: grok-bot | grok-build | grok | claude | codex | …
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --agent) AGENT="${2:-}"; shift 2 ;;
+    --id) ID="${2:-}"; shift 2 ;;
+    --files) FILES="${2:-}"; shift 2 ;;
+    --work) WORK="${2:-}"; shift 2 ;;
+    --notes) NOTES="${2:-}"; shift 2 ;;
+    --release) RELEASE=1; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "unknown arg: $1" >&2; usage; exit 2 ;;
+  esac
+done
+
+[[ -n "$AGENT" && -n "$ID" ]] || { usage; exit 2; }
+[[ -f "$QUEUE" ]] || { echo "missing QUEUE: $QUEUE" >&2; exit 1; }
+[[ "$RELEASE" -eq 1 || -n "$FILES" || -n "$WORK" ]] || {
+  echo "need --files and/or --work for claim" >&2
+  exit 2
+}
+
+WORK="${WORK:-$FILES}"
+NOTES="${NOTES:-}"
+
+mkdir -p "$(dirname "$LOCK")"
+exec 9>"$LOCK"
+if ! flock -n 9; then
+  echo "ERROR: could not acquire $LOCK (another claim in progress)" >&2
+  exit 3
+fi
+
+# Parse active claims table rows: | **id** | **agent** | ...
+# Also tolerate unbolded cells.
+mapfile -t HOLDERS < <(python3 - "$QUEUE" "$ID" <<'PY'
+import re, sys
+queue, claim_id = sys.argv[1], sys.argv[2]
+text = open(queue, encoding="utf-8").read().splitlines()
+in_claims = False
+pat = re.compile(r"^\|\s*\*?\*?([^*|]+?)\*?\*?\s*\|\s*\*?\*?([^*|]*?)\*?\*?\s*\|")
+for line in text:
+    if line.strip().startswith("## Claims"):
+        in_claims = True
+        continue
+    if in_claims and line.startswith("## "):
+        break
+    if not in_claims:
+        continue
+    m = pat.match(line)
+    if not m:
+        continue
+    cid = m.group(1).strip()
+    agent = m.group(2).strip()
+    if cid in {"ID", "----", "---"} or cid.startswith("-"):
+        continue
+    if cid == claim_id or cid == claim_id.lstrip("#"):
+        # normalize agent cell: take first token-ish label
+        print(agent)
+PY
+)
+
+holder_raw="${HOLDERS[0]:-}"
+# Normalize holder: strip markdown bold already done; take primary agent token
+holder="$(printf '%s' "$holder_raw" | sed -E 's/\+.*//; s/[[:space:]].*//; s/^—$//; s/^-$//' | xargs || true)"
+
+if [[ "$RELEASE" -eq 1 ]]; then
+  if [[ -n "$holder" && "$holder" != "$AGENT" && "$holder" != *" $AGENT"* && "$holder" != *"+$AGENT"* && "$holder" != "$AGENT+"* ]]; then
+    echo "ERROR: claim '$ID' held by '$holder_raw' — $AGENT cannot release" >&2
+    exit 4
+  fi
+  python3 - "$QUEUE" "$ID" "$AGENT" <<'PY'
+import re, sys
+queue, claim_id, agent = sys.argv[1:4]
+lines = open(queue, encoding="utf-8").read().splitlines(True)
+out=[]
+in_claims=False
+pat=re.compile(r"^\|\s*\*?\*?([^*|]+?)\*?\*?\s*\|")
+removed=False
+for line in lines:
+    if line.strip().startswith("## Claims"):
+        in_claims=True
+        out.append(line)
+        continue
+    if in_claims and line.startswith("## "):
+        in_claims=False
+    if in_claims:
+        m=pat.match(line)
+        if m and m.group(1).strip() in {claim_id, claim_id.lstrip("#")}:
+            removed=True
+            continue
+    out.append(line)
+open(queue,"w",encoding="utf-8").writelines(out)
+print("released" if removed else "noop-not-found")
+PY
+  echo "OK: released claim $ID (agent=$AGENT)"
+  exit 0
+fi
+
+if [[ -n "$holder" && "$holder" != "$AGENT" ]]; then
+  # allow same agent already holding (update); allow compound claims containing agent
+  if [[ "$holder_raw" != *"$AGENT"* ]]; then
+    echo "ERROR: claim id '$ID' already held by '$holder_raw' (refusing steal)" >&2
+    exit 4
+  fi
+fi
+
+python3 - "$QUEUE" "$ID" "$AGENT" "$WORK" "$FILES" "$NOTES" <<'PY'
+import re, sys, datetime
+queue, claim_id, agent, work, files, notes = sys.argv[1:7]
+lines = open(queue, encoding="utf-8").read().splitlines(True)
+in_claims=False
+header_idx=None
+sep_idx=None
+row_idx=None
+pat=re.compile(r"^\|\s*\*?\*?([^*|]+?)\*?\*?\s*\|")
+for i, line in enumerate(lines):
+    if line.strip().startswith("## Claims"):
+        in_claims=True
+        continue
+    if in_claims and line.startswith("## "):
+        break
+    if not in_claims:
+        continue
+    if line.startswith("|") and "ID" in line and "Claim" in line:
+        header_idx=i
+        continue
+    if header_idx is not None and sep_idx is None and re.match(r"^\|\s*-+", line):
+        sep_idx=i
+        continue
+    m=pat.match(line)
+    if m and m.group(1).strip() in {claim_id, claim_id.lstrip("#")}:
+        row_idx=i
+        break
+
+note_bits=[]
+if files:
+    note_bits.append(files)
+if notes:
+    note_bits.append(notes)
+note_cell = "; ".join(note_bits) if note_bits else "claimed via slop-queue-claim"
+new_row = f"| **{claim_id}** | **{agent}** | {work} | {note_cell} |\n"
+
+if row_idx is not None:
+    lines[row_idx]=new_row
+else:
+    insert_at = (sep_idx+1) if sep_idx is not None else None
+    if insert_at is None:
+        # create a minimal claims table after Claims heading
+        for i, line in enumerate(lines):
+            if line.strip().startswith("## Claims"):
+                block=[
+                    "\n",
+                    "| ID | Claim | Work | Notes |\n",
+                    "|----|-------|------|-------|\n",
+                    new_row,
+                    "\n",
+                ]
+                lines[i+1:i+1]=block
+                break
+        else:
+            raise SystemExit("could not find ## Claims section")
+    else:
+        lines.insert(insert_at, new_row)
+
+# bump Updated line if present
+today=datetime.datetime.now().astimezone().strftime("%Y-%m-%d")
+for i,line in enumerate(lines[:20]):
+    if line.startswith("**Updated:**"):
+        lines[i]=f"**Updated:** {today} (claim {claim_id} by {agent})\n"
+        break
+
+open(queue,"w",encoding="utf-8").writelines(lines)
+print("updated" if row_idx is not None else "appended")
+PY
+
+echo "OK: claim $ID -> $AGENT (files=${FILES:-none})"

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Refuse to open or reply on a Uuriko PR without Shaw-bar evidence.
+set -euo pipefail
+export PATH="${HOME}/.local/bin:${HOME}/bin:/usr/bin:/bin:${PATH}"
+exec node "${HOME}/slop-agent-inbox/lib/shaw-packet.mjs" "$@"

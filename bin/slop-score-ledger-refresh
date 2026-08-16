@@ -1,0 +1,260 @@
+#!/usr/bin/env bash
+# slop-score-ledger-refresh — regenerate Uuriko monthly activity tables from gh
+set -euo pipefail
+
+YEAR_MONTH="${1:-$(date -u +%Y-%m)}"
+YEAR="${YEAR_MONTH%-*}"
+MONTH="${YEAR_MONTH#*-}"
+START="${YEAR_MONTH}-01"
+# next month day-1 for gh ranges (UTC)
+if [[ "$MONTH" == "12" ]]; then
+  END_EXCL="$((YEAR+1))-01-01"
+else
+  END_EXCL="$(printf '%04d-%02d-01' "$YEAR" "$((10#$MONTH+1))")"
+fi
+
+OUT="${SLOP_SCORE_LEDGER:-/home/potter/slop-agent-inbox/SCORE-LEDGER-${YEAR_MONTH}.md}"
+REPO="${SLOP_SCORE_REPO:-elizaOS/eliza}"
+AUTHOR="${SLOP_SCORE_AUTHOR:-Uuriko}"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+need() { command -v "$1" >/dev/null || { echo "missing: $1" >&2; exit 1; }; }
+need gh
+need jq
+need python3
+
+# Wallet marker from profile README (best-effort)
+WALLET_LINE=""
+WALLET_ADDR=""
+if README_B64=$(gh api "repos/${AUTHOR}/${AUTHOR}/readme" --jq .content 2>/dev/null); then
+  README_TXT=$(printf '%s' "$README_B64" | base64 -d 2>/dev/null || true)
+  WALLET_LINE=$(printf '%s\n' "$README_TXT" | sed -n 's/.*\(<!-- gitarmy-wallet:v1 {[^}]*} -->\).*/\1/p' | head -1)
+  WALLET_ADDR=$(printf '%s\n' "$WALLET_LINE" | sed -n 's/.*"address":"\([^"]*\)".*/\1/p')
+fi
+[[ -n "$WALLET_ADDR" ]] || WALLET_ADDR="(wallet marker not found — check ${AUTHOR}/${AUTHOR} README)"
+[[ -n "$WALLET_LINE" ]] || WALLET_LINE="<!-- gitarmy-wallet:v1 … missing … -->"
+
+# PRs authored this month
+gh pr list --repo "$REPO" --author "$AUTHOR" --state all --limit 100 \
+  --json number,title,createdAt,mergedAt,closedAt,state,url \
+  >"$TMP/prs.json"
+
+python3 - "$TMP/prs.json" "$START" "$END_EXCL" >"$TMP/pr_rows.md" <<'PY'
+import json, sys
+from datetime import datetime, timezone
+path, start, end = sys.argv[1], sys.argv[2], sys.argv[3]
+prs = json.load(open(path))
+def parse(s):
+    if not s: return None
+    return datetime.fromisoformat(s.replace("Z","+00:00"))
+start_dt = datetime.fromisoformat(start+"T00:00:00+00:00")
+end_dt = datetime.fromisoformat(end+"T00:00:00+00:00")
+rows=[]
+merges=[]
+for p in prs:
+    created = parse(p.get("createdAt"))
+    merged = parse(p.get("mergedAt"))
+    if created and start_dt <= created < end_dt:
+        kind = "PR-open"
+        date = created.strftime("%Y-%m-%d")
+        attr = "check PR body (run slop-attribution-check)"
+        notes = (p.get("title") or "").replace("|","/")
+        if p.get("state") == "MERGED" or merged:
+            # still list open event; merge listed separately
+            pass
+        if p.get("state") == "CLOSED" and not merged:
+            notes += "; closed unmerged"
+        rows.append((date, kind, f"#{p['number']}", attr, notes))
+    if merged and start_dt <= merged < end_dt:
+        merges.append((merged.strftime("%Y-%m-%d"), "merge", f"#{p['number']}", "check attribution on merge commit/PR", (p.get("title") or "").replace("|","/")))
+rows.sort()
+merges.sort()
+def emit(title, data, empty):
+    print(f"### {title}\n")
+    print("| date (UTC) | kind | number | attribution OK? | projected notes |")
+    print("|------------|------|--------|-----------------|-----------------|")
+    if not data:
+        print(f"| — | — | — | — | {empty} |")
+    else:
+        for r in data:
+            print(f"| {r[0]} | {r[1]} | {r[2]} | {r[3]} | {r[4]} |")
+    print()
+emit("PR-open events (created this month)", rows, "none")
+emit("Merges this month", merges, "**none** found via gh")
+print(f"COUNTS_PR_OPEN={len(rows)}")
+print(f"COUNTS_MERGES={len(merges)}")
+PY
+
+# Reviews via GraphQL search (formal states only)
+gh api graphql -f query="
+query {
+  search(query: \"repo:${REPO} reviewed-by:${AUTHOR} updated:${START}..${END_EXCL}\", type: ISSUE, first: 50) {
+    nodes {
+      ... on PullRequest {
+        number
+        title
+        reviews(last: 30) {
+          nodes { state submittedAt author { login } }
+        }
+      }
+    }
+  }
+}" >"$TMP/reviews.json"
+
+python3 - "$TMP/reviews.json" "$START" "$END_EXCL" "$AUTHOR" >"$TMP/review_rows.md" <<'PY'
+import json, sys
+from datetime import datetime
+path, start, end, author = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+data = json.load(open(path))
+nodes = (((data.get("data") or {}).get("search") or {}).get("nodes")) or []
+start_dt = datetime.fromisoformat(start+"T00:00:00+00:00")
+end_dt = datetime.fromisoformat(end+"T00:00:00+00:00")
+formal = {"APPROVED", "CHANGES_REQUESTED"}
+rows=[]
+seen=set()
+for n in nodes:
+    if not n: continue
+    num = n.get("number")
+    title = (n.get("title") or "").replace("|","/")
+    for r in ((n.get("reviews") or {}).get("nodes") or []):
+        if (r.get("author") or {}).get("login") != author:
+            continue
+        st = r.get("state")
+        when = r.get("submittedAt")
+        if not when: continue
+        dt = datetime.fromisoformat(when.replace("Z","+00:00"))
+        if not (start_dt <= dt < end_dt):
+            continue
+        if st not in formal:
+            continue
+        key=(num, st, when)
+        if key in seen: continue
+        seen.add(key)
+        rows.append((dt.strftime("%Y-%m-%d"), "review", f"#{num}", "review path (footer optional)", f"{st} — {title}"))
+rows.sort()
+print("| date (UTC) | kind | number | attribution OK? | projected notes |")
+print("|------------|------|--------|-----------------|-----------------|")
+if not rows:
+    print("| — | review | — | — | none formal APPROVED/CHANGES_REQUESTED this month |")
+else:
+    for r in rows:
+        print(f"| {r[0]} | {r[1]} | {r[2]} | {r[3]} | {r[4]} |")
+print()
+print(f"COUNTS_REVIEWS={len(rows)}")
+PY
+
+NOW_PT="$(TZ=America/Los_Angeles date '+%Y-%m-%d ~%H:%M PT')"
+
+# Enrich PR attribution cells when checker exists
+ATTR_CHECK="${SLOP_ATTR_CHECK:-/home/potter/slop-attribution-check.mjs}"
+if [[ -f "$ATTR_CHECK" ]] && command -v node >/dev/null; then
+  python3 - "$TMP/pr_rows.md" "$REPO" "$ATTR_CHECK" <<'PY2'
+import sys, subprocess, tempfile, os, re
+rows_path, repo, checker = sys.argv[1:4]
+text=open(rows_path,encoding="utf-8").read().splitlines(True)
+out=[]
+for line in text:
+    m=re.match(r"^\| (\d{4}-\d{2}-\d{2}) \| (?:PR-open|merge) \| #(\d+) \|", line)
+    if not m:
+        out.append(line); continue
+    num=m.group(2)
+    try:
+        body=subprocess.check_output(["gh","pr","view",num,"--repo",repo,"--json","body","-q",".body"], text=True)
+    except Exception:
+        out.append(line); continue
+    fd, path=tempfile.mkstemp(suffix=".md"); os.close(fd)
+    try:
+        open(path,"w",encoding="utf-8").write(body)
+        proc=subprocess.run(["node",checker,path], capture_output=True, text=True)
+        blob=proc.stdout+proc.stderr
+        if "WOULD SCORE ZERO" in blob or "FAIL" in blob:
+            verdict="NO"
+        elif "PASS" in blob or "OK TO POST" in blob:
+            verdict="YES"
+        else:
+            verdict="CHECK"
+    finally:
+        os.unlink(path)
+    parts=line.split("|")
+    if len(parts)>=6:
+        parts[4]=f" {verdict} (slop-attribution-check) "
+        line="|".join(parts)
+        if not line.endswith("\n"):
+            line+="\n"
+    out.append(line)
+open(rows_path,"w",encoding="utf-8").writelines(out)
+PY2
+fi
+
+PR_SECTION=$(grep -v '^COUNTS_' "$TMP/pr_rows.md")
+REV_SECTION=$(grep -v '^COUNTS_' "$TMP/review_rows.md")
+COUNT_PR=$(grep '^COUNTS_PR_OPEN=' "$TMP/pr_rows.md" | cut -d= -f2)
+COUNT_MERGE=$(grep '^COUNTS_MERGES=' "$TMP/pr_rows.md" | cut -d= -f2)
+COUNT_REV=$(grep '^COUNTS_REVIEWS=' "$TMP/review_rows.md" | cut -d= -f2)
+HEADROOM=$((5 - COUNT_MERGE))
+[[ "$HEADROOM" -lt 0 ]] && HEADROOM=0
+
+# Preserve Good week / Cap / Wallet narrative; rewrite auto tables
+BODY=$(cat <<MD
+# Score ledger — ${AUTHOR} / slop.cash — ${YEAR_MONTH}
+
+**Generated:** ${NOW_PT} · by **slop-score-ledger-refresh**  
+**Repo focus:** \`${REPO}\`  
+**Refresh:** \`/home/potter/bin/slop-score-ledger-refresh ${YEAR_MONTH}\`  
+**Not financial advice. Pledged ≠ paid.**
+
+## Wallet marker
+
+From \`${AUTHOR}/${AUTHOR}\` README (do not remove):
+
+\`\`\`text
+${WALLET_LINE}
+\`\`\`
+
+**Address:** \`${WALLET_ADDR}\`
+
+## Cap awareness
+
+- Protocol / standing rule: **max ~5 scored merges / month**.
+- Prefer small diffs + real tests + honest evidence + provenance.
+- Open-PR diet: see \`POLICIES.md\` (max 3 open Uuriko PRs; max 4 formal reviews/day).
+
+## Good week definition
+
+A **good week** for this swarm means:
+
+1. **≥1 measured, attribution-valid implement** merged or clearly merge-ready (receipt footer intact; CI green; maintainer path clear).
+2. **2–4 formal reviews with teeth** (APPROVED or CHANGES_REQUESTED), not rubber stamps; spread across authors/hours.
+3. **≤3 open Uuriko PRs** at any time; babysit/rebase instead of spam-opening.
+4. **Claims respected** via \`QUEUE.md\` + \`slop-queue-claim\`; no stolen 18730/18782 lanes.
+5. **Ledger honesty:** no invented merges/payments; pledged pool only; writebacks under \`results/\`.
+6. **Orchestration health:** grok-bot keeps LANE/QUEUE/ledger true; Codex/Claude mint receipts; research stays off the money path.
+
+## Activity table (${YEAR_MONTH}, live \`gh\` pull)
+
+${PR_SECTION}
+
+### Formal reviews (APPROVED | CHANGES_REQUESTED)
+
+${REV_SECTION}
+
+### Counts (month-to-date)
+
+| metric | count |
+|--------|------:|
+| Merges | ${COUNT_MERGE} |
+| PR-open events (created) | ${COUNT_PR} |
+| Formal reviews | ${COUNT_REV} |
+| Scored-merge headroom (cap 5) | ${HEADROOM} remaining |
+
+## Notes for agents
+
+- Implement score needs **merged** PR + valid attribution when required by evaluator.
+- Grok-authored PRs cannot honestly mint Codex/Claude receipts — rescue via approved client measured run that owns the work.
+- Re-run: \`slop-score-ledger-refresh ${YEAR_MONTH}\`
+MD
+)
+
+printf '%s\n' "$BODY" >"$OUT"
+echo "Wrote $OUT (merges=${COUNT_MERGE} prs=${COUNT_PR} reviews=${COUNT_REV})"

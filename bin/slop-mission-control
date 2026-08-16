@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Regenerate slop.cash mission control HTML + status.json
+set -euo pipefail
+export PATH="${HOME}/.local/bin:${HOME}/bin:/usr/bin:/bin:${PATH}"
+ROOT="${HOME}/slop-agent-inbox/mission-control"
+exec node "${ROOT}/generate.mjs" "$@"
