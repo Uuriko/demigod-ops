@@ -53,8 +53,14 @@ const canonicalMetadata = [
 /* Canonical route inventory. The four thin SEO traps are not in any canonical product doc and
    roadmap D8 wants retired paths on a branded 404 so crawlers drop them — they do not belong
    in the sitemap while they serve a heading and a Buy button. */
-const SITEMAP_REQUIRED = ['/', '/simp', '/chess', '/studio', '/dasha'];
-const SITEMAP_TRAPS = ['/faucet', '/airdrop', '/earn', '/claim'];
+/* `/simp` is a canonical surface per the direction call but 404s on live, so it is not required
+   here until the page is restored — a gate that demands a dead URL be advertised is worse than the
+   drift it is watching for. Add it back with the page. */
+const SITEMAP_REQUIRED = ['/', '/chess', '/studio', '/dasha'];
+/* `/faucet` was on this list until 2026-08-15. It is a real Worker-served tip page with its own
+   Durable Object and payout caps, not a trap — it was measured as thin before the Worker that
+   serves it was deployed. Keeping it here would have made a correct sitemap fail. */
+const SITEMAP_TRAPS = ['/airdrop', '/earn', '/claim'];
 const sitemapMissing = SITEMAP_REQUIRED.filter(path => !sitemap.text.includes(`<loc>${base}${path}</loc>`));
 const sitemapTraps = SITEMAP_TRAPS.filter(path => sitemap.text.includes(`<loc>${base}${path}</loc>`));
 const sitemapCurrent = sitemap.status === 200

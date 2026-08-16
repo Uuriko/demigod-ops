@@ -330,12 +330,8 @@ function fastGate(changed, receipt) {
   gate(receipt, 'growthTrust', 'node', ['dasha-growth.test.mjs'], 'required for every product release');
   // Disk love/identity radar (no network) — catches handoff/schema/mint drift before push.
   gate(receipt, 'loveRadar', 'node', ['dasha-radar.mjs'], 'identity + L1–L7 love-paths + handoff unit');
-  /* Roadmap S1: cross-brand contamination check, required on ship. Scoped to dasha so a Demigod
-     finding cannot block a Dasha release. One live HTTP sweep; set DASHA_SHIP_SKIP_SITEHUNT=1 to
-     skip it offline, the same escape hatch the browser gates use. */
-  const siteHunt = process.env.DASHA_SHIP_SKIP_SITEHUNT !== '1';
-  gate(receipt, 'siteHunt', 'node', ['site-hunt.mjs', '--site=dasha'],
-    siteHunt ? 'brand-mix + dead-link sweep across live surfaces' : 'offline skip', siteHunt);
+  /* site-hunt runs in verifyLive, not here: it reads live state, so pre-publish it would block the
+     publish that repairs live. See the note at its call site. */
   const browser = process.env.DASHA_SHIP_SKIP_BROWSER !== '1';
   const why = (surface) => !browser ? 'fixture-only browser skip' : changed.includes(surface) ? `${surface} artifact changed` : `${surface} hash unchanged`;
   // landing.test covers home+studio+desk invariants — do not skip when only studio/desk drifted
@@ -795,6 +791,17 @@ async function verifyLive() {
       throw new Error(`broad live audit failed: ${(report.hard || []).join(', ') || result.stderr?.trim() || 'unknown error'}`);
     }
     out.broad = { ok: true, soft: report.soft || [], worker: report.worker || null };
+    /* Roadmap S1 wants site-hunt required on ship, and this is the only place it can be. It reads
+       LIVE state, so running it before the push made a live defect block the very publish that
+       fixes it — on 2026-08-15 a half-shipped Worker 404'd /simp and /price, site-hunt failed the
+       gate, and the gate was standing between the site and its own repair. Post-publish it still
+       fails the run, which is what S1 asked for, without holding the fix hostage. */
+    const hunt = spawnSync(process.execPath, [join(LOBBY_ROOT, 'site-hunt.mjs'), '--site=dasha'], {
+      cwd: LOBBY_ROOT, encoding: 'utf8', timeout: 180_000, maxBuffer: 8 * 1024 * 1024,
+    });
+    log('verify:site-hunt', { ok: hunt.status === 0, out: (hunt.stderr || '').slice(-400) });
+    if (hunt.status !== 0) throw new Error(`site-hunt found blocking Dasha findings after publish: ${(hunt.stderr || '').slice(-300)}`);
+    out.siteHunt = { ok: true };
   } else {
     log('verify:broad:skip', { reason: only.length ? 'scoped --only= verification' : 'no publish' });
   }

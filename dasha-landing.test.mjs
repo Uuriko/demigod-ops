@@ -44,7 +44,7 @@ assert(!/\braid\b|buy pressure|buys\/hr|buy the dip|referral|telegram|t\.me/i.te
    sitemap entry that disagrees with a page's own canonical only asks a crawler to pick between them.
    The list stays exact rather than becoming a length check: the point is that adding or dropping a
    public route is a deliberate edit here, not something that happens quietly somewhere else. */
-assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]), ['https://www.getdasha.com/','https://www.getdasha.com/studio','https://www.getdasha.com/lobby','https://www.getdasha.com/dasha','https://www.getdasha.com/how-to-buy','https://lobby.getdasha.com/chess','https://lobby.getdasha.com/forum'], 'bounded sitemap must contain the intended canonical public routes');
+assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]), ['https://www.getdasha.com/','https://www.getdasha.com/studio','https://www.getdasha.com/lobby','https://www.getdasha.com/dasha','https://www.getdasha.com/how-to-buy','https://www.getdasha.com/chess','https://lobby.getdasha.com/forum'], 'bounded sitemap must contain the intended canonical public routes');
 assert(!/lastmod|thesis|receipt|forecast/i.test(sitemap), 'sitemap contains stale dates or retired routes');
 assert(!/<priority>|<changefreq>/.test(sitemap), 'sitemap restored crawler hints Google ignores');
 assert.equal([...html.matchAll(/class="poster-tile"/g)].length, 3, 'homepage must stay to three concise editable lines');

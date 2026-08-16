@@ -33,10 +33,18 @@ Surfaces in scope:
 | Desk `/dasha` | Mint desk on five tokens | Lavender glass, `/desk` as a second product |
 | Board `/bounties` | Native mount, `payTo` required, Solana Pay with `reference` | GitHub Pages iframe, empty-payTo Pay button |
 
-`/faucet`, `/airdrop`, `/earn` and `/claim` are **not** surfaces. They are live, indexed, and serve
-a heading plus a Buy button — four of the seven URLs Google has for this domain. Thin pages
-discount the whole domain's quality signal, not just themselves, so they are a tax on Home and
-`/simp` too. D8 governs them: branded 404 so crawlers drop them, and out of the sitemap.
+| Faucet `/faucet` | One free tip for a real human: link X, prove a wallet, receive a little $dasha | An airdrop farm; a surface that pays from an unwatched wallet |
+
+`/airdrop`, `/earn` and `/claim` are **not** surfaces — they 308 to the funnel as of 2026-08-15,
+which is correct. `/faucet` **is** one: a Worker-served tip page with its own Durable Object,
+`configured: true`, `signer: true`, `funded: false` (treasury `DwpCrg5q…`, `treasury_empty`), a
+100 $dasha payout, 30-day cooldown, 48/day and 12/hour caps, a 7-day minimum X account age, and
+auto-pause. It is deployed from `.grok/worktrees/potter/dasha-2`, not from this tree.
+
+> An earlier revision of this file listed `/faucet` with the three traps as "a heading plus a Buy
+> button". That was measured before the 2026-08-15 Worker deploys and is wrong: it is a real
+> product page. The claim survived into `dasha-live-verify`'s trap list too. Both are corrected.
+> The open question on it is not SEO, it is whether that treasury is meant to be funded.
 
 ---
 

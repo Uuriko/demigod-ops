@@ -11,9 +11,9 @@
   <url>
     <loc>https://www.getdasha.com/</loc>
   </url>
-  <url>
-    <loc>https://www.getdasha.com/simp</loc>
-  </url>
+  <!-- /simp belongs here — the 2026-08-15 direction call makes it a first-class surface — but it
+       returns 404 on live as of this ship, so listing it would hand a crawler a dead URL. It goes
+       back in the same change that restores the page, not before. -->
   <url>
     <loc>https://www.getdasha.com/studio</loc>
   </url>
