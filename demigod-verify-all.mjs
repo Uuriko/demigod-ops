@@ -71,6 +71,15 @@ if (ship || wizard) {
     ['demigod-accepted-role.mjs', ['--selftest']],
     ['demigod-accepted-role-poison.test.mjs'],
     ['demigod-accepted-role.test.mjs'],
+    // Role Mission: structured notes + case/lineage/scenario/private→mutual fail-closed projection.
+    ['demigod-role-packet.mjs', ['--selftest']],
+    // Action layer: the never tier must stay unlockable by no flag combination, and an unknown
+    // action must stay denied. Both are properties a future edit could quietly relax.
+    ['demigod-action-authority.mjs', ['--selftest']],
+    ['demigod-candidate-evidence.mjs', ['--selftest']],
+    ['demigod-structured-hiring.mjs', ['--selftest']],
+    ['demigod-dashboard-role-workspace.test.mjs'],
+    ['demigod-die-web.test.mjs'],
     ['demigod-company-research-benchmark.mjs', ['--selftest']],
     // DIE company intelligence: one supported CLI over exact identity, packet, table, dry-run
     // waterfall, private memo, and writeback preview. Existing focused checks remain authoritative.

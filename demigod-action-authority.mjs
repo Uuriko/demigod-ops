@@ -17,6 +17,25 @@
  * to honour the answer. That is deliberate: a module that could grant authority would be a way to
  * launder it.
  *
+ * WHERE EACH ACTION IS ACTUALLY ENFORCED TODAY. This table is the point of the module — it is an
+ * index of existing gates, not a replacement for them. The failure mode to avoid is this file
+ * becoming a second source of truth that drifts from the code that really decides. If you change a
+ * gate below, change the tier here; if they disagree, the gate is right and this file is stale.
+ *
+ *   claim.record / company.enrich   demigod-company-packet + evidence receipts (source + retrievedAt)
+ *   pair.propose                    demigod-role-packet assertNote — every must-have rated, and
+ *                                   evidence under 8 chars is refused per rating
+ *   pair.decide_hire                no code path exists, by design; a person decides
+ *   consent.record                  demigod-intro yes --i-observed-consent, with per-side evidence
+ *   intro.prepare                   demigod-intro packet — mutual-yes gate, prepares only, no send
+ *   intro.send / message.send       no automated path; current-request authorization required
+ *   site.publish                    bin/dg ship (Demigod) · dasha-ship.mjs (Dasha), plus the
+ *                                   PreToolUse guard at bin/dasha-publish-guard-hook
+ *   money.move                      no code path exists
+ *
+ * The two never-tier entries have no enforcement row because they have no implementation. That is
+ * the enforcement.
+ *
  *   node demigod-action-authority.mjs --list
  *   node demigod-action-authority.mjs check intro.send --consent=both --request-auth
  *   node demigod-action-authority.mjs --selftest
