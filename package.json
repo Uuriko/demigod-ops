@@ -179,7 +179,8 @@
     "dasha:stranger": "node dasha-stranger-loop.mjs",
     "dasha:test:ritual": "node dasha-today-ritual.test.mjs",
     "dasha:audit:live": "node dasha-audit-live.mjs",
-    "dasha:meta": "node dasha-meta.mjs"
+    "dasha:meta": "node dasha-meta.mjs",
+    "dasha:test:readback": "node dasha-ship-readback.test.mjs"
   },
   "devDependencies": {
     "@axe-core/cli": "^4.12.1",

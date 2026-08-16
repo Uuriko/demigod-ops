@@ -614,6 +614,34 @@ async function callTool(client, names, toolArgs) {
   throw last || new Error('all tool names failed');
 }
 
+/**
+ * What the readback means, as a pure function so it can be tested without Webflow.
+ *
+ * `hashMatch` is the only success. The two failures need opposite responses and must not be
+ * collapsed into one message: nothing read back after the deadline almost always means the write
+ * landed and Webflow is still catching up, so re-running finishes the ship — while a different
+ * `embedHash` means something wrote to this element after us, and re-running would paper over it.
+ * On 2026-08-16 that second case was real: live home carried Designer nav edits that exist in no
+ * tree.
+ *
+ * @returns {{ state: 'hashMatch'|'pending'|'mismatch', ok: boolean, diagnosis: string|null }}
+ */
+export function readbackVerdict(value, code, { waitedMs = 90_000 } = {}) {
+  if (value === code) return { state: 'hashMatch', ok: true, diagnosis: null };
+  if (value === undefined || value === null) {
+    return {
+      state: 'pending',
+      ok: false,
+      diagnosis: `read back nothing after ${Math.round(waitedMs / 1000)}s — the write usually landed and Webflow is lagging; re-run to confirm`,
+    };
+  }
+  return {
+    state: 'mismatch',
+    ok: false,
+    diagnosis: `read back ${value.length} bytes, expected ${code.length} — something else wrote to this element`,
+  };
+}
+
 async function pushEmbeds(client, pending, receipt) {
   log('push:start', { surfaces: pending });
   if (want.dry) {
@@ -677,10 +705,7 @@ async function pushEmbeds(client, pending, receipt) {
          nothing after a 90 s wait almost always means the write landed and Webflow is still catching
          up, so re-running finishes the ship. A readback of the wrong length means something else
          wrote after us, and re-running would paper over it. */
-      const diagnosis = value === undefined
-        ? 'read back nothing after 90s — the write usually landed and Webflow is lagging; re-run to confirm'
-        : `read back ${value.length} bytes, expected ${code.length} — something else wrote to this element`;
-      throw new Error(`${s.label} Webflow readback failed: ${diagnosis}`);
+      throw new Error(`${s.label} Webflow readback failed: ${readbackVerdict(value, code).diagnosis}`);
     }
     log('push:ok', { label: s.label, tool: name });
     receipt.stages.pushed[key] = true;

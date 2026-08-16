@@ -39,14 +39,25 @@ note(
     read('dasha-sitemap.xml').includes('/studio') &&
     read('dasha-sitemap.xml').includes('/dasha'),
 );
+/* Was: dasha-landing.html must contain 'lobby.getdasha.com/sitemap.xml'. Wrong file and wrong host.
+   dasha-landing.html is a body fragment with no <head>, so a <link rel="sitemap"> cannot live in it;
+   the link is emitted into HOME_HTML by dasha-lobby-assets-build, and it points at www, which is
+   correct now that www serves its own sitemap. Assert the generated document, which is what ships. */
 note(
   'landing-sitemap-link',
-  exists('dasha-landing.html') && read('dasha-landing.html').includes('lobby.getdasha.com/sitemap.xml'),
+  exists('dasha-lobby-static-gen.mjs')
+    && /rel=\\?"sitemap\\?"/.test(read('dasha-lobby-static-gen.mjs'))
+    && read('dasha-lobby-static-gen.mjs').includes('www.getdasha.com/sitemap.xml'),
 );
 
 // --- ship / publish truth ---
 const ship = exists('dasha-ship.mjs') ? read('dasha-ship.mjs') : '';
-note('ship-readback', /readbackSurface|push:readback/.test(ship));
+/* Was /readbackSurface|push:readback/ — two identifiers that appear nowhere in dasha-ship and never
+   have. The readback itself has existed for a long time (deadline-bounded, with backoff, telling a
+   lagging write apart from a competing one); the check was simply looking for the wrong names, so it
+   sat red while the behaviour it wanted was already shipped. Pin it to the function that decides the
+   verdict, which is the thing that must not disappear. */
+note('ship-readback', /readbackVerdict/.test(ship));
 note(
   'ship-readback-test',
   exists('dasha-ship-readback.test.mjs') && /embedHash|hashMatch/.test(read('dasha-ship-readback.test.mjs')),
