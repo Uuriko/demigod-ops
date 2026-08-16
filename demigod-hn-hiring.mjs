@@ -332,6 +332,21 @@ if (isMain && (process.env.DEMIGOD_HN_SELFTEST === '1' || process.argv.includes(
     ] }).map((row) => row.host).join(',') === 'boards.greenhouse.io/gammacorp',
     'directory delta recognizes both exact ATS identities and matching company websites',
   );
+  // The cache is a directory input on every rebuild, so a row dropped here is a company deleted
+  // from the public map. These four properties are what stops that recurring.
+  const oldRow = toCompanyRow({ host: 'old.io', name: 'Old Co', website: 'https://old.io/', threadDate: '2026-01-01T00:00:00Z' }, '2026-01-02');
+  const newRow = toCompanyRow({ host: 'new.io', name: 'New Co', website: 'https://new.io/', threadDate: '2026-08-01T00:00:00Z' }, '2026-08-16');
+  const carried = mergeHnCache([{ ...oldRow, hiring: 'yes' }], [newRow], '2026-08-16');
+  assert(carried.length === 2, 'a company outside the --months window keeps its row: ' + carried.length);
+  assert(carried.find((r) => r.id === 'hn:old.io')?.hiring === 'unknown', 'a carried hiring claim ages to unknown once its thread is stale');
+  assert(carried.find((r) => r.id === 'hn:new.io')?.hiring === 'yes', 'a current thread still claims hiring');
+  assert(carried.find((r) => r.id === 'hn:old.io')?.retrievedAt === '2026-01-02', 'carrying a row must not restamp when we retrieved it');
+  const restated = mergeHnCache(
+    [{ ...newRow, name: 'Stale Name' }],
+    [{ ...newRow, name: 'New Co' }],
+    '2026-08-16',
+  );
+  assert(restated.length === 1 && restated[0].name === 'New Co', 'same thread re-parsed: this run wins, no duplicate row');
   console.log(JSON.stringify({ ok: true, selftest: 'hn-hiring' }));
   process.exit(0);
 }
@@ -372,6 +387,33 @@ export function toCompanyRow(c, retrievedAt) {
   };
 }
 
+/**
+ * Union the cached rows with this run's rows. The cache is read on EVERY map rebuild
+ * (`buildHnPublicCompanies`), so a replace-write silently deletes every company whose thread has
+ * rolled out of the `--months` window — that is how 157 HN companies, 98 of them with live ATS
+ * open roles, left the directory between the 2026-08-06 and 2026-08-14 maps. `isFreshHnThread`
+ * already encodes the right answer: keep the company, age its hiring claim to 'unknown'.
+ * Newest thread evidence wins per id, and freshness is recomputed against `asOf` so a carried
+ * 'yes' cannot outlive its evidence. `retrievedAt` is left alone — we did not re-see those posts.
+ *
+ * ponytail: unbounded by design — an SF company we once observed stays observable, and identity
+ * guards are re-applied on read. Prune by `hiringEvidenceAt` only if the cache outgrows the map.
+ */
+export function mergeHnCache(cached = [], fresh = [], asOf = new Date()) {
+  const byId = new Map();
+  const evidence = (row) => String(row?.hiringEvidenceAt || '');
+  for (const row of [...(cached || []), ...(fresh || [])]) {
+    if (!row?.id) continue;
+    const prev = byId.get(row.id);
+    // >= so this run's parse wins a tie: same thread, but current name/website rules applied.
+    if (!prev || evidence(row) >= evidence(prev)) byId.set(row.id, row);
+  }
+  return [...byId.values()].map((row) => ({
+    ...row,
+    hiring: isFreshHnThread(row.hiringEvidenceAt, asOf) ? 'yes' : 'unknown',
+  }));
+}
+
 /** Exact-id/website delta only; ATS-only rows cannot be compared to website hosts alone. */
 export function newHnCompanies(hn, map) {
   const ids = new Set((map?.companies || []).map((row) => String(row?.id || '').toLowerCase()).filter(Boolean));
@@ -387,13 +429,21 @@ if (isMain) {
   const today = new Date().toISOString().slice(0, 10);
   const { companies: hn, commentFetch } = await collectHnCompanies({ months });
   const rows = hn.map((c) => toCompanyRow(c, today));
-  // cache the map-ready HN companies (map-data.mjs merges this; refresh monthly)
-  atomicWrite(outPath, JSON.stringify({ generatedAt: today, months, source: 'Hacker News Who is Hiring', companies: rows }, null, 2) + '\n', { mode: 0o644 });
+  // cache the map-ready HN companies (map-data.mjs merges this; refresh monthly).
+  // Accumulate: a company that rolled out of the --months window keeps its row and loses its
+  // hiring claim, it does not leave the directory. See mergeHnCache.
+  const cached = (() => {
+    try { return JSON.parse(fs.readFileSync(outPath, 'utf8')).companies || []; } catch { return []; }
+  })();
+  const companies = mergeHnCache(cached, rows, today);
+  atomicWrite(outPath, JSON.stringify({ generatedAt: today, months, source: 'Hacker News Who is Hiring', companies }, null, 2) + '\n', { mode: 0o644 });
   // report the delta vs the current directory (by website host)
   const map = JSON.parse(fs.readFileSync(MAP, 'utf8'));
   const novel = newHnCompanies(hn, map);
   console.log(JSON.stringify({
     ok: true, months, outPath, commentFetch, sfCompaniesFound: hn.length, alreadyInDirectory: hn.length - novel.length,
+    cacheRows: companies.length, carriedFromEarlierThreads: companies.length - rows.length,
+    stillClaimingHiring: companies.filter((c) => c.hiring === 'yes').length,
     discoveryCandidates: novel.length,
     candidatesWithDirectAtsLink: novel.filter((c) => c.atsUrl).length,
     note: 'discovery only; admission requires current identity, operating-status, and Bay evidence review',

@@ -483,6 +483,25 @@ tasks unless they appear here.
     seven pipeline stages pass; public feed is fresh (24 homepage roles, one-day
     observation window). Public-role CLI help/unknown arguments now fail closed
     before artifact writes, with a regression check.
+- [x] Stop the directory rebuild from silently deleting companies it once observed.
+  The HN cache is read on every map rebuild but was written with a full replace, so
+  each `--months` refresh dropped every company whose thread had rolled out of the
+  window. Between the 2026-08-06 and 2026-08-14 maps that removed 226 companies, 98
+  of them carrying 2,254 live ATS open roles, while the board count held at ~340
+  because new boards replaced them one-for-one — invisible to every count-based
+  check. `mergeHnCache` now unions the cache and lets the existing `isFreshHnThread`
+  age a stale claim to `hiring:'unknown'` instead of deleting the row, which is what
+  the module's own docstring always said should happen. Cache seeded from the prior
+  map's own HN rows (provenance intact, claims re-aged). After refresh: 2754 → 2917
+  companies, 340 → 387 boards, 8428 → 9260 open roles — above the pre-loss baseline.
+- [ ] Decide whether 21 companies on the live map belong in a directory that says
+  "San Francisco". They are the remainder after the HN recovery, all Wikidata/YC
+  rows, carrying 910 open roles: Palantir (Denver), Robinhood (Menlo Park), Nuro and
+  NewsBreak (Mountain View), Elastic (Amsterdam), Lightmatter (Boston) — but also
+  Mercury (57 roles) and Runway (41), which are SF. Publishing disk drops all of
+  them. `bin/dg truth` now names them under `siblingDrift.mapData.dropsSample`
+  instead of reporting "unexplained", so this is a scope decision, not a defect
+  hunt. Do not restore them wholesale; the non-SF ones were arguably wrong to list.
 - [ ] Keep the useful-work loop productive and bounded: repair proven failures,
   prune duplicate/stale work, and never auto-publish, auto-message, or manufacture
   business state. Current state: `bin/dg next` and `node demigod-work-find.mjs`.

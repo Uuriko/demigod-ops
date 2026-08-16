@@ -19,6 +19,7 @@ import { isFrozen } from './demigod-agent-tools-lib.mjs';
 import { beginRun, sealRun, addArtifact, refuseIfStale } from './demigod-evidence.mjs';
 import { appendFromTruth } from './demigod-version-ledger.mjs';
 import { cachedFetchText, writeJsonAuto } from './demigod-perf-cache.mjs';
+import { lostBoards } from './demigod-map-checkpoint.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = '/tmp/dg-busy';
@@ -435,24 +436,33 @@ export function classifySiblingAssetDrift({
   let liveCos = null;
   let diskHiring = null;
   let liveHiring = null;
+  let diskMap = null;
+  let liveMap = null;
   try {
-    const d = diskMapJson ? JSON.parse(diskMapJson) : null;
-    diskCos = Array.isArray(d?.companies) ? d.companies.length : null;
-    diskHiring = Array.isArray(d?.companies)
-      ? d.companies.filter((c) => c && c.hiring != null).length
+    diskMap = diskMapJson ? JSON.parse(diskMapJson) : null;
+    diskCos = Array.isArray(diskMap?.companies) ? diskMap.companies.length : null;
+    diskHiring = Array.isArray(diskMap?.companies)
+      ? diskMap.companies.filter((c) => c && c.hiring != null).length
       : null;
   } catch {
     /* ignore */
   }
   try {
-    const l = liveMapJson ? JSON.parse(liveMapJson) : null;
-    liveCos = Array.isArray(l?.companies) ? l.companies.length : null;
-    liveHiring = Array.isArray(l?.companies)
-      ? l.companies.filter((c) => c && c.hiring != null).length
+    liveMap = liveMapJson ? JSON.parse(liveMapJson) : null;
+    liveCos = Array.isArray(liveMap?.companies) ? liveMap.companies.length : null;
+    liveHiring = Array.isArray(liveMap?.companies)
+      ? liveMap.companies.filter((c) => c && c.hiring != null).length
       : null;
   } catch {
     /* ignore */
   }
+
+  // Which companies would a publish REMOVE from the live directory? Counting rows cannot answer
+  // that — the 2026-08-14 map dropped 98 live boards carrying 2,328 open roles while the board
+  // count held at ~340, because new boards replaced them. "unexplained" was true and useless; the
+  // next agent needs the names before deciding whether the drop was intended.
+  const dropped = diskMap && liveMap ? lostBoards(diskMap, liveMap) : [];
+  const droppedRoles = dropped.reduce((s, c) => s + c.openRoles, 0);
 
   const atlas = atlasMatch
     ? { status: 'matched' }
@@ -483,9 +493,14 @@ export function classifySiblingAssetDrift({
         liveCompanies: liveCos,
         diskHiringLabeled: diskHiring,
         liveHiringLabeled: liveHiring,
+        dropsLiveBoards: dropped.length,
+        dropsLiveRoles: droppedRoles,
+        dropsSample: dropped.sort((a, b) => b.openRoles - a.openRoles).slice(0, 10),
         note: mapExpanded
           ? `disk companies ${diskCos} (hiring-labeled ${diskHiring}) vs live ${liveCos}`
-          : 'map-data body differs without clear expansion signal',
+          : dropped.length
+            ? `publishing disk would remove ${dropped.length} live boards carrying ${droppedRoles} open roles`
+            : 'map-data body differs without clear expansion signal',
       };
 
   const intentional =

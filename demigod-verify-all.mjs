@@ -119,6 +119,8 @@ if (ship || wizard) {
     ['demigod-hn-hiring.mjs', ['--selftest']],
     // Stale HN cache must not re-admit banned hosts as company websites (deel/tally/youtu/grnh/…)
     ['demigod-hn-cache-badhost.test.mjs'],
+    // Last-good map: a rebuild that swaps out live boards one-for-one must not read as healthy
+    ['demigod-map-checkpoint.mjs', ['--selftest']],
     // Evidence freshness: null seal hash + source drift must fail closed (not vacuous green)
     ['demigod-evidence-fresh.test.mjs'],
     // Empty-scope seal trap: isFresh vacuous-green documented; producers must not seal scope:[]

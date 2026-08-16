@@ -13,6 +13,7 @@ import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
 import { refuseIfStale } from './demigod-evidence.mjs';
+import { META_PATH, SNAP_PATH, lostBoards, isBoardCoverageLoss } from './demigod-map-checkpoint.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || '/home/potter';
 const BUSY = process.env.DEMIGOD_BUSY || '/tmp/dg-busy';
@@ -440,20 +441,27 @@ function main() {
     // Map open-role board wipe (killed --with-jobs / thin rebuild). Restore last-good checkpoint; never invent roles.
     try {
       const mapPath = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
-      const metaPath = path.join(BUSY, 'map-last-good.json');
+      const metaPath = META_PATH;
       if (fs.existsSync(mapPath) && fs.existsSync(metaPath)) {
         const map = readJson(mapPath, null);
         const meta = readJson(metaPath, null);
         const cos = Array.isArray(map?.companies) ? map.companies : [];
         const boards = cos.filter((c) => Number(c?.openRoles) > 0).length;
         const checkpointBoards = Number(meta?.boards) || 0;
-        if (checkpointBoards >= 100 && boards < checkpointBoards * 0.8) {
+        // Board COUNT alone missed the 2026-08 loss (98 boards swapped out, count flat), so ask the
+        // checkpoint which boards actually disappeared too. Same predicates as `restore --if-worse`.
+        const lost = fs.existsSync(SNAP_PATH)
+          ? lostBoards(map, readJson(SNAP_PATH, null))
+          : [];
+        if ((checkpointBoards >= 100 && boards < checkpointBoards * 0.8) || isBoardCoverageLoss(lost, meta)) {
           pushWork(seen, found, {
             key: 'heal:map-boards-worse',
             kind: 'heal',
             pri: 0,
             always: true,
-            title: `Map boards ${boards} << checkpoint ${checkpointBoards} — restore last-good`,
+            title: lost.length
+              ? `Map dropped ${lost.length} live boards (${lost.reduce((s, c) => s + c.openRoles, 0)} open roles) — restore last-good`
+              : `Map boards ${boards} << checkpoint ${checkpointBoards} — restore last-good`,
             task: 'map-checkpoint-restore',
             detail: {
               boards,
@@ -461,6 +469,8 @@ function main() {
               checkpointBoards,
               checkpointCompanies: meta?.companies ?? null,
               checkpointAt: meta?.at ?? null,
+              lostBoards: lost.length,
+              lostSample: lost.sort((a, b) => b.openRoles - a.openRoles).slice(0, 5),
             },
             note: 'node demigod-map-checkpoint.mjs restore --if-worse',
             repeatable: true,
