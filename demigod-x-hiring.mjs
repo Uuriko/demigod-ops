@@ -172,8 +172,13 @@ const EXTRACT_FN = `(() => {
   }).filter((p) => p.url && p.handle);
 })()`;
 
-// ponytail: CDP client duplicated from demigod-conversion-audit.mjs (~30 lines). Promote to
-// demigod-agent-tools-lib.mjs if a third caller appears; not worth touching a tested file for two.
+// ponytail: CDP client duplicated from demigod-conversion-audit.mjs (~30 lines). The stated ceiling
+// was "a third caller"; measured 2026-08-17, it is passed — five files reach for a page target the
+// same way (webflow-lib, redirects, x-hiring, conversion-audit, user-test) and three of them also
+// PUT /json/new when only Designer tabs exist. Promoting it is now the right call and was NOT done
+// here on purpose: CDP Chrome was down, so a shared client could not be exercised against a real
+// target, and the callers include the path that pastes into Webflow. A refactor of the publish path
+// verified by nothing is worse than five copies. Do it with Chrome up (~/agent-dev.sh up).
 async function pickTarget() {
   const list = await (await fetch(CDP_URL + '/json/list')).json();
   const pages = (Array.isArray(list) ? list : []).filter((x) => x && x.type === 'page' && x.webSocketDebuggerUrl);
