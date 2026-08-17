@@ -1,5 +1,5 @@
 {
-  "at": "2026-08-17T05:05:05.505Z",
+  "at": "2026-08-17T14:30:10.730Z",
   "architecture": "head-minimal-css + foot-core-cdn",
   "checks": [
     {
@@ -385,7 +385,7 @@
     {
       "name": "footer:cdn-matches-manifest",
       "ok": true,
-      "detail": "footer=https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@7d7d0ebab1d8/foot-latest.js manifest=https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@7d7d0ebab1d8/foot-latest.js"
+      "detail": "footer=https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@7c7ac62a631e/foot-latest.js manifest=https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@7c7ac62a631e/foot-latest.js"
     },
     {
       "name": "footer:inline-scripts-parse",
@@ -780,17 +780,17 @@
     {
       "name": "privacy:no-committable-sor",
       "ok": true,
-      "detail": "tracked=1686; privacyRules=56; no committable SoR/PII"
+      "detail": "tracked=1691; privacyRules=56; no committable SoR/PII"
     },
     {
       "name": "sor:import-integrity",
       "ok": true,
-      "detail": "import-integrity OK edges=623 contracts=10 · gate-advisory untracked=1 missing=0"
+      "detail": "import-integrity OK edges=636 contracts=10 · gate-advisory untracked=2 missing=0"
     },
     {
       "name": "referrals:lifecycle",
       "ok": true,
-      "detail": "ℹ duration_ms 234.18145"
+      "detail": "ℹ duration_ms 231.441348"
     }
   ],
   "pass": true

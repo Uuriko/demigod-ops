@@ -1,6 +1,6 @@
 {
-  "at": "2026-08-17T14:21:14.613Z",
-  "url": "https://www.trydemigod.com/?v=verify-1786976473676",
+  "at": "2026-08-17T14:29:35.349Z",
+  "url": "https://www.trydemigod.com/?v=verify-1786976974357",
   "htmlScan": {
     "mcpScripts": [],
     "mcpScriptsGone": true,
@@ -85,6 +85,10 @@
       "canonical": false
     },
     {
+      "route": "/blog",
+      "canonical": false
+    },
+    {
       "route": "/apply",
       "canonical": false
     },
@@ -99,6 +103,65 @@
     {
       "route": "/about",
       "canonical": false
+    },
+    {
+      "route": "/startups",
+      "canonical": false
+    },
+    {
+      "route": "/hire",
+      "canonical": false
+    },
+    {
+      "route": "/talent",
+      "canonical": false
+    }
+  ],
+  "rawRouteMeta": [
+    {
+      "route": "/",
+      "canonical": false,
+      "ogUrl": "https://www.trydemigod.com/"
+    },
+    {
+      "route": "/blog",
+      "canonical": false,
+      "ogUrl": "https://www.trydemigod.com/"
+    },
+    {
+      "route": "/apply",
+      "canonical": false,
+      "ogUrl": "https://www.trydemigod.com/"
+    },
+    {
+      "route": "/companies",
+      "canonical": false,
+      "ogUrl": ""
+    },
+    {
+      "route": "/pricing",
+      "canonical": false,
+      "ogUrl": "https://www.trydemigod.com/"
+    },
+    {
+      "route": "/about",
+      "canonical": false,
+      "ogUrl": "https://www.trydemigod.com/"
+    },
+    {
+      "route": "/startups",
+      "canonical": false,
+      "ogUrl": "https://www.trydemigod.com/"
+    },
+    {
+      "route": "/hire",
+      "canonical": false,
+      "ogUrl": "https://www.trydemigod.com/"
+    },
+    {
+      "route": "/talent",
+      "canonical": false,
+      "ogUrl": "https://www.trydemigod.com/"
     }
   ],
   "pageScan": {
@@ -118,7 +181,15 @@
   "findings": [
     {
       "severity": "medium",
-      "issue": "No canonical in served HTML on 5 route(s): /, /apply, /companies, /pricing, /about — injected by JS only"
+      "issue": "No canonical in served HTML on 9 route(s): /, /blog, /apply, /companies, /pricing, /about, /startups, /hire, /talent — injected by JS only"
+    },
+    {
+      "severity": "medium",
+      "issue": "og:url points at the homepage on 7 route(s): /blog, /apply, /pricing, /about, /startups, /hire, /talent — every share of these unfurls as the front page"
+    },
+    {
+      "severity": "medium",
+      "issue": "No og:url at all on 1 route(s): /companies"
     }
   ],
   "pass": true

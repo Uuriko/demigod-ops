@@ -30,18 +30,43 @@ for (const [name, count] of Object.entries(metaCounts)) {
    Reported at medium: the durable fix is a per-page Webflow setting, which needs a publish, and a
    check that turns the whole suite red over something no local edit can clear would just get
    ignored. It stays visible on every run until a publish clears it. */
-const CANONICAL_ROUTES = ['/', '/apply', '/companies', '/pricing', '/about'];
+const CANONICAL_ROUTES = ['/', '/blog', '/apply', '/companies', '/pricing', '/about', '/startups', '/hire', '/talent'];
 const SITE = new URL(url).origin;
-const rawCanonicals = await Promise.all(CANONICAL_ROUTES.map(async (route) => {
+const rawRouteMeta = await Promise.all(CANONICAL_ROUTES.map(async (route) => {
   const page = await fetch(SITE + route).then((r) => (r.ok ? r.text() : ''), () => null);
   // null = we could not look; absence of evidence is not evidence of absence.
-  return { route, canonical: page === null ? null : /<link[^>]+rel=["']canonical["']/i.test(page) };
+  if (page === null) return { route, canonical: null, ogUrl: null };
+  return {
+    route,
+    canonical: /<link[^>]+rel=["']canonical["']/i.test(page),
+    ogUrl: /<meta[^>]+property=["']og:url["'][^>]+content=["']([^"']*)["']/i.exec(page)?.[1] ?? '',
+  };
 }));
-const missingCanonical = rawCanonicals.filter((row) => row.canonical === false).map((row) => row.route);
+const rawCanonicals = rawRouteMeta.map(({ route, canonical }) => ({ route, canonical }));
+const missingCanonical = rawRouteMeta.filter((row) => row.canonical === false).map((row) => row.route);
 if (missingCanonical.length) {
   findings.push({
     severity: 'medium',
     issue: `No canonical in served HTML on ${missingCanonical.length} route(s): ${missingCanonical.join(', ')} — injected by JS only`,
+  });
+}
+/* Every route served og:url = the homepage on 2026-08-17, so every link anyone shares — a blog
+   post, pricing, apply — unfurls in Slack, X and LinkedIn as the front page. Unfurlers do not run
+   JavaScript, so the client-side injection that fixes the canonical does nothing here: this one can
+   only be fixed in the page's own head. Separate from the canonical finding because it fails for a
+   different audience and would be fixed by a different edit. */
+const ogHome = rawRouteMeta.filter((row) => row.route !== '/' && row.ogUrl && new URL(row.ogUrl, SITE).pathname === '/');
+const ogMissing = rawRouteMeta.filter((row) => row.ogUrl === '');
+if (ogHome.length) {
+  findings.push({
+    severity: 'medium',
+    issue: `og:url points at the homepage on ${ogHome.length} route(s): ${ogHome.map((r) => r.route).join(', ')} — every share of these unfurls as the front page`,
+  });
+}
+if (ogMissing.length) {
+  findings.push({
+    severity: 'medium',
+    issue: `No og:url at all on ${ogMissing.length} route(s): ${ogMissing.map((r) => r.route).join(', ')}`,
   });
 }
 const pass = reportPass(findings);
@@ -52,6 +77,7 @@ const out = {
   htmlScan,
   metaCounts,
   rawCanonicals,
+  rawRouteMeta,
   pageScan,
   findings,
   pass,

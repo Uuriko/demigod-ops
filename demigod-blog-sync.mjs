@@ -96,7 +96,10 @@ function blogJsonLd(pub) {
     '@context': 'https://schema.org',
     '@type': 'Blog',
     name: 'Demigod Blog',
-    url: SITE + '/?p=blog',
+    // `/blog` is a real 200 route; `/?p=blog` is the legacy query form. Structured data naming the
+    // query form told every crawler the blog lives at a URL nobody links to, and left the path
+    // route it actually serves undeclared.
+    url: SITE + '/blog',
     inLanguage: 'en',
     publisher: {
       '@type': 'Organization',
@@ -116,10 +119,10 @@ function blogJsonLd(pub) {
         '@type': 'BlogPosting',
         headline: p.title,
         description: p.summary,
-        url: `${SITE}/?p=blog#note-${p.slug}`,
+        url: `${SITE}/blog#note-${p.slug}`,
         mainEntityOfPage: {
           '@type': 'WebPage',
-          '@id': `${SITE}/?p=blog#note-${p.slug}`,
+          '@id': `${SITE}/blog#note-${p.slug}`,
         },
         image: p.image,
         articleSection: p.category || 'Product',
