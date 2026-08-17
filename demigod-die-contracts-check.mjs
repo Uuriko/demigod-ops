@@ -1,0 +1,319 @@
+#!/usr/bin/env node
+/**
+ * demigod-die-contracts-check — make docs/die/CONTRACTS.md answerable instead of merely written.
+ *
+ * WHY
+ * CONTRACTS.md declares 29 contracts and, as of 2026-08-17, no .mjs file read it. That is the
+ * documented anti-pattern: a contract in a document drifts, a contract evaluated on every batch
+ * cannot. The evidence runs both ways in this repo and that is what makes the case. §5 Claim holds
+ * perfectly — 150 claims in the live benchmark, zero violations — because demigod-evidence.mjs
+ * independently implements it. Every bug found in the 2026-08-17 DIE audit was instead a rule that
+ * existed ONLY in prose or a docstring: hiring-shape's people-building had no share bound,
+ * candidate-touch never suppressed the opt_out it recorded, hiringVelocity counted a board's
+ * first-sight backlog as opens, assertNote let a duplicate rating carry an unevidenced judgment.
+ * The contracts with code twins hold. The prose-only ones are where the defects live.
+ *
+ * WHAT THIS IS NOT
+ * Not a markdown-to-code compiler, and not a second source of truth. Where a contract already has
+ * an executor, this CALLS that executor rather than reimplementing the rule from the document —
+ * a reimplementation would be a second thing to keep in sync and a tempting shortcut past the
+ * real one. This file's job is to answer, per section: is this enforced, and does it hold?
+ *
+ * THREE ANSWERS, AND `unwired` IS THE HONEST ONE
+ *   pass      an executor exists, was called, and the live artifact satisfies it
+ *   violation an executor exists and something failed — this is the only failing state
+ *   unwired   the section is prose with no executor. NOT a pass. Free prose must never fail
+ *             verify-all, but it must never be counted as verified either. The unwired count is
+ *             the backlog, and it is meant to be read.
+ *
+ * An absent artifact is a violation, never a pass. A checker that goes quiet when the file it
+ * checks is missing is the exact failure this repo keeps hitting: absence read as health.
+ *
+ * OWNERSHIP: docs/die/CONTRACTS.md belongs to grok (sections 19–29 active). This module only ever
+ * READS it, pins to headings and fenced blocks rather than a byte hash so the file can keep being
+ * edited, and adds no check-markup to it.
+ *
+ *   node demigod-die-contracts-check.mjs [--json]
+ *   node demigod-die-contracts-check.mjs --selftest
+ *
+ * Schema: demigod.die-contracts-check/1
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { safeResearchUrl } from './demigod-evidence.mjs';
+
+const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+const CONTRACTS = path.join(ROOT, 'docs', 'die', 'CONTRACTS.md');
+const BENCHMARK = path.join(ROOT, 'DEMIGOD-COMPANY-RESEARCH-BENCHMARK.json');
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+export const SCHEMA = 'demigod.die-contracts-check/1';
+
+/** PURE. `## 5. Claim` -> { n: 5, title: 'Claim' }. Pinned to headings, not byte offsets. */
+export function parseSections(markdown) {
+  const out = [];
+  for (const line of String(markdown || '').split('\n')) {
+    const m = /^##\s+(\d+)\.\s+(.+?)\s*$/.exec(line);
+    if (m) out.push({ n: Number(m[1]), title: m[2] });
+  }
+  return out;
+}
+
+const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
+
+/** Walk any nested structure and yield objects that look like a Claim (§5 shape). */
+function collectClaims(node, out = []) {
+  if (!node || typeof node !== 'object') return out;
+  if ('status' in node && 'value' in node) {
+    out.push(node);
+    return out;
+  }
+  for (const v of Object.values(node)) collectClaims(v, out);
+  return out;
+}
+
+/**
+ * §5 Claim. The rule lives in demigod-evidence.mjs; this asserts the live corpus satisfies the
+ * shape the document promises — non-empty value, safe https URL, exact quote, at most 20 words,
+ * and `unknown` carrying no payload at all.
+ */
+function checkClaim() {
+  if (!fs.existsSync(BENCHMARK)) {
+    return { status: 'violation', detail: `benchmark artifact missing: ${BENCHMARK}` };
+  }
+  const claims = collectClaims(readJson(BENCHMARK));
+  if (!claims.length) {
+    return { status: 'violation', detail: 'no claims found — a vacuous pass is not a pass' };
+  }
+  const bad = [];
+  for (const c of claims) {
+    if (c.status === 'unknown') {
+      if (c.value !== null || c.url || c.quote) bad.push('unknown carries a payload');
+      continue;
+    }
+    if (c.status !== 'supported' && c.status !== 'conflict') { bad.push(`status ${c.status}`); continue; }
+    if (!c.value) bad.push(`${c.status}: empty value`);
+    if (!c.url || !safeResearchUrl(c.url)) bad.push(`${c.status}: unsafe or missing url`);
+    if (!c.quote) bad.push(`${c.status}: missing quote`);
+    else if (String(c.quote).trim().split(/\s+/).length > 20) bad.push(`${c.status}: quote over 20 words`);
+  }
+  return bad.length
+    ? { status: 'violation', detail: `${bad.length} of ${claims.length} claims violate §5`, sample: bad.slice(0, 5) }
+    : { status: 'pass', detail: `${claims.length} live claims satisfy §5` };
+}
+
+/**
+ * §11 Safe URL. Calls safeResearchUrl — the executor — with one case per bullet the document
+ * lists. If the document and the function ever disagree, this fails and one of them is wrong.
+ */
+function checkSafeUrl() {
+  const accepted = ['http://example.com/a', 'https://example.com/a'];
+  const rejected = [
+    'http://localhost/a', 'http://foo.localhost/a', 'http://printer.local/a',
+    'http://127.0.0.1/a', 'http://10.0.0.1/a', 'http://192.168.1.1/a', 'http://172.16.0.1/a',
+    'http://169.254.1.1/a', 'http://[::1]/a', 'http://[fc00::1]/a', 'http://[fe80::1]/a',
+    'https://user:pass@example.com/a', 'file:///etc/passwd', 'javascript:alert(1)',
+  ];
+  const bad = [];
+  for (const u of accepted) if (!safeResearchUrl(u)) bad.push(`accepted URL refused: ${u}`);
+  for (const u of rejected) if (safeResearchUrl(u)) bad.push(`rejected URL allowed: ${u}`);
+  return bad.length
+    ? { status: 'violation', detail: `${bad.length} §11 mismatches between document and executor`, sample: bad.slice(0, 5) }
+    : { status: 'pass', detail: `${accepted.length + rejected.length} §11 cases match safeResearchUrl` };
+}
+
+/**
+ * §10 Hiring quarantine. The document lists exactly which fields go null when quarantined, which
+ * is a real trap: quarantine must null the count, never zero it. Calls the packet builder.
+ */
+async function checkQuarantine() {
+  const { buildCompanyPacket } = await import('./demigod-company-packet.mjs');
+  if (!fs.existsSync(BENCHMARK)) {
+    return { status: 'violation', detail: `benchmark artifact missing: ${BENCHMARK}` };
+  }
+  // Use the REAL benchmark: projectCompanyResearch grades it first and returns null on any error,
+  // so a hand-made stub silently disables the very projection under test — the check would have
+  // "passed" against a company that was never quarantined at all. Quarantine one real benchmark
+  // row against a synthetic map company carrying a full hiring block, so every field §10 names
+  // has something to null out.
+  const benchmark = readJson(BENCHMARK);
+  const companyId = (benchmark.companies || [])[0]?.id;
+  if (!companyId) return { status: 'violation', detail: 'benchmark has no rows to quarantine' };
+  const company = {
+    id: companyId, name: 'Q', website: 'https://q.example/', source: 'Y Combinator',
+    atsSource: 'Greenhouse', jobsUrl: 'https://boards.greenhouse.io/q',
+    openRoles: 7, openRolesAt: '2026-08-14', roleMix: { engineering: 7 }, hiring: 'yes',
+  };
+  const packet = buildCompanyPacket({
+    companyId,
+    map: { companies: [company] },
+    ledger: { roles: {} },
+    signals: {},
+    benchmark,
+    catalog: { version: 1, researchedAt: null, companies: [{ id: companyId, fields: {}, quarantineHiring: true }] },
+  });
+  const h = packet.hiring || {};
+  const bad = [];
+  if (h.status !== 'quarantined') bad.push(`status ${h.status} (expected quarantined)`);
+  for (const field of ['openRoles', 'atsSource', 'jobsUrl', 'roleMix']) {
+    if (h[field] !== null) bad.push(`${field} is ${JSON.stringify(h[field])}, contract says null`);
+  }
+  // The trap the contract exists to prevent: a quarantined company reported as hiring nobody.
+  if (h.openRoles === 0) bad.push('openRoles zeroed rather than nulled — that publishes "not hiring"');
+  return bad.length
+    ? { status: 'violation', detail: '§10 quarantine projection disagrees with the contract', sample: bad }
+    : { status: 'pass', detail: 'quarantine nulls the hiring block as written' };
+}
+
+/**
+ * Section number -> the executor that really decides it. Deliberately small: a section earns an
+ * entry only when a real executor exists to call. Everything else stays `unwired`, which is the
+ * honest answer and the visible backlog.
+ */
+/**
+ * §29 Role Mission kernel — the company-truth rules, pinned to the fenced block grok appended.
+ *
+ * This is the first section written to be machine-checkable on purpose: the fence text was agreed
+ * on the bus before it was written, so this reads the document's own rules and then asks the KERNEL
+ * whether it enforces them. It never reimplements a rule — every assertion below is `attachCompany`
+ * refusing (or accepting) input. If grok changes the kernel and forgets the fence, or edits the
+ * fence and forgets the kernel, the two disagree here and this goes red.
+ *
+ * Pinned to the fence block, never to a hash of the file: §19–29 are actively authored and must
+ * stay editable without turning this red for cosmetic reasons.
+ */
+async function checkMissionCompany() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.mission-company\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.mission-company/1 fence in §29 yet' };
+
+  const kernel = await import('./demigod-role-mission-kernel.mjs');
+  const { openRoleMission, attachCompany, projectNextAction, MISSION_COMPANY_SCHEMA } = kernel;
+  const { createPacket } = await import('./demigod-role-packet.mjs');
+  const packet = createPacket({ roleId: 'role-contract-check', title: 'Engineer', outcome90d: 'Ship billing to ten customers' });
+  const mission = openRoleMission({ packet, owner: 'founder-check', at: '2026-08-17T10:00:00.000Z' });
+  const base = {
+    schema: MISSION_COMPANY_SCHEMA,
+    companyId: 'yc:check',
+    identity: { name: 'Check', domain: 'check.example', website: 'https://check.example/' },
+    hiring: { status: 'board_observed', openRoles: 3, openRolesAt: '2026-08-14', lastAttempt: 'ok', lastAttemptAt: '2026-08-14T00:00:00.000Z' },
+    postings: { count: 3, oldestDays: 40, over180: 0, source: 'employer_declared', observedLifetimeUsable: false },
+    quarantineHiring: false,
+  };
+  const attach = (patch) => attachCompany(mission, { ...base, ...patch });
+  const refuses = (patch, why) => {
+    try { attach(patch); return `kernel ACCEPTED ${why}`; } catch { return null; }
+  };
+  const bad = [];
+  const before = projectNextAction(mission).kind;
+
+  // Each line of the fence, asked of the kernel.
+  if (/null-openRoles/.test(fence)) {
+    try { attach({ hiring: { ...base.hiring, openRoles: null, lastAttempt: null } }); }
+    catch (e) { bad.push(`kernel refused a null (unknown) count: ${e.message}`); }
+  }
+  if (/zero-openRoles/.test(fence)) {
+    bad.push(refuses({ hiring: { ...base.hiring, openRoles: 0, lastAttempt: null } }, 'openRoles 0 with lastAttempt null'));
+    bad.push(refuses({ hiring: { ...base.hiring, status: 'board_stale', openRoles: 0, lastAttempt: 'ok' } }, 'openRoles 0 while board_stale'));
+  }
+  if (/quarantined\s*=>\s*openRoles null/.test(fence)) {
+    bad.push(refuses({ quarantineHiring: true, hiring: { ...base.hiring, status: 'quarantined', openRoles: 4 } }, 'a quarantined company with a numeric count'));
+  }
+  if (/observedLifetimeUsable\s*=\s*false/.test(fence)) {
+    bad.push(refuses({ postings: { ...base.postings, observedLifetimeUsable: true } }, 'observedLifetimeUsable true'));
+  }
+  if (/next-action\s*=>\s*never blocked/.test(fence)) {
+    const stale = attach({ hiring: { ...base.hiring, status: 'board_stale', openRoles: 3, lastAttempt: 'rate_limited' } });
+    const after = projectNextAction(stale).kind;
+    if (after !== before) bad.push(`observation changed the next action (${before} -> ${after}) — the hire ladder must not depend on crawl health`);
+  }
+  const real = bad.filter(Boolean);
+  return real.length
+    ? { status: 'violation', detail: `§29 fence and kernel disagree on ${real.length} rule(s)`, sample: real.slice(0, 5) }
+    : { status: 'pass', detail: `kernel enforces all ${fence.trim().split('\n').length - 1} fenced company-truth rules` };
+}
+
+export const EXECUTORS = {
+  5: { name: 'demigod-evidence.mjs (claim shape)', run: checkClaim },
+  10: { name: 'demigod-company-packet.mjs (quarantine projection)', run: checkQuarantine },
+  11: { name: 'demigod-evidence.mjs safeResearchUrl', run: checkSafeUrl },
+  29: { name: 'demigod-role-mission-kernel.mjs attachCompany (grok)', run: checkMissionCompany },
+};
+
+export async function checkContracts({ file = CONTRACTS } = {}) {
+  if (!fs.existsSync(file)) {
+    // Absence is never health. This is the class of bug the whole exercise is about.
+    return { schema: SCHEMA, ok: false, error: `CONTRACTS.md missing at ${file}`, sections: [] };
+  }
+  const sections = parseSections(fs.readFileSync(file, 'utf8'));
+  if (!sections.length) {
+    return { schema: SCHEMA, ok: false, error: 'no numbered sections parsed — heading shape changed', sections: [] };
+  }
+  const results = [];
+  for (const s of sections) {
+    const wired = EXECUTORS[s.n];
+    if (!wired) {
+      results.push({ ...s, status: 'unwired', detail: 'prose only — no executor calls this' });
+      continue;
+    }
+    try {
+      results.push({ ...s, executor: wired.name, ...(await wired.run()) });
+    } catch (e) {
+      results.push({ ...s, executor: wired.name, status: 'violation', detail: String(e?.message || e) });
+    }
+  }
+  const violations = results.filter((r) => r.status === 'violation');
+  return {
+    schema: SCHEMA,
+    ok: violations.length === 0,
+    counts: {
+      sections: results.length,
+      pass: results.filter((r) => r.status === 'pass').length,
+      violation: violations.length,
+      unwired: results.filter((r) => r.status === 'unwired').length,
+    },
+    sections: results,
+  };
+}
+
+async function selftest() {
+  const assert = (c, m) => { if (!c) throw new Error(`die-contracts-check: ${m}`); };
+  const parsed = parseSections('## 1. Company identity\ntext\n## 11. Safe URL\n### 5. not a section\n## 29. Kernel');
+  assert(parsed.length === 3 && parsed[0].n === 1 && parsed[2].title === 'Kernel', 'headings parse, ### ignored');
+  assert(parseSections('').length === 0, 'empty markdown parses to nothing');
+
+  // unwired must never be counted as verified — that is the whole point of having the state.
+  const report = await checkContracts();
+  assert(report.ok, `live contracts violated: ${JSON.stringify(report.sections.filter((s) => s.status === 'violation'))}`);
+  assert(report.counts.sections > 20, `expected the full contract set, got ${report.counts.sections}`);
+  assert(report.counts.pass >= 3, 'the wired sections must actually run');
+  assert(report.counts.unwired > 0, 'prose-only sections must be reported, not silently passed');
+  assert(
+    report.sections.every((s) => ['pass', 'violation', 'unwired'].includes(s.status)),
+    'every section lands in exactly one of the three states',
+  );
+  // A missing contracts file is a violation, not a quiet pass.
+  const absent = await checkContracts({ file: path.join(ROOT, 'docs', 'die', 'NOT-A-FILE.md') });
+  assert(!absent.ok, 'a missing CONTRACTS.md must fail, never pass quietly');
+  console.log(JSON.stringify({ ok: true, selftest: 'die-contracts-check' }));
+}
+
+if (isMain) {
+  if (process.argv.includes('--selftest')) {
+    await selftest();
+    process.exit(0);
+  }
+  const report = await checkContracts();
+  if (process.argv.includes('--json')) {
+    console.log(JSON.stringify(report, null, 2));
+  } else {
+    const c = report.counts || {};
+    console.log(`die-contracts ${report.ok ? 'OK' : 'FAIL'} · ${c.pass} enforced · ${c.violation} violated · ${c.unwired} unwired of ${c.sections}`);
+    for (const s of report.sections.filter((r) => r.status !== 'unwired')) {
+      console.log(`  ${s.status === 'pass' ? '✓' : '✗'} §${s.n} ${s.title} — ${s.detail}`);
+    }
+    if (!report.ok && report.error) console.log(`  ${report.error}`);
+  }
+  process.exit(report.ok ? 0 : 1);
+}

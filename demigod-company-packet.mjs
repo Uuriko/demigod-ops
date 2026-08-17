@@ -26,6 +26,7 @@ import {
   signalCountsForCompany,
 } from './demigod-recruitai-seed-pack.mjs';
 import { findCompanyPeers } from './demigod-company-peers.mjs';
+import { hiringShape } from './demigod-hiring-shape.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = process.env.DEMIGOD_BUSY || process.env.DG_BUSY || '/tmp/dg-busy';
@@ -301,18 +302,29 @@ export function buildCompanyPacket({
     sourceUrl: company.sourceUrl || null,
   };
   const hiring = {
+    // `openRolesAt` alone used to mean "we watched this board". It no longer does: a count carried
+    // across an unreadable read keeps its ORIGINAL openRolesAt, which is honest as a date and
+    // dishonest as a status — the row would read as freshly observed. Grok caught this as the
+    // consumer-side half of the enrich carry fix. board_stale is additive; nothing switches
+    // exhaustively on this field, and CONTRACTS.md declares no enum for it.
     status: quarantined
       ? 'quarantined'
-      : company.openRolesAt
-        ? 'board_observed'
-        : company.hiring === 'yes'
-          ? 'company_reported'
-          : 'unknown',
+      : company.openRolesStale
+        ? 'board_stale'
+        : company.openRolesAt
+          ? 'board_observed'
+          : company.hiring === 'yes'
+            ? 'company_reported'
+            : 'unknown',
     openRoles,
     openRolesAt: quarantined ? null : (company.openRolesAt || null),
     atsSource: quarantined ? null : (company.atsSource || null),
     jobsUrl: quarantined ? null : (company.jobsUrl || null),
     roleMix: quarantined ? null : (isRecord(company.roleMix) ? company.roleMix : null),
+    // What that mix is for, as a label carrying the counts behind it. Quarantine hides it for
+    // the same reason it hides roleMix: the shape is derived from the hiring evidence, so it
+    // must not outlive the evidence's seal. Never a score — see demigod-hiring-shape.mjs.
+    shape: quarantined ? null : hiringShape(company),
   };
   const signalCounts = signalCountsForCompany(signals, companyId);
   const missingSignals = signalsMissing || signals == null;
@@ -623,6 +635,21 @@ function selftest() {
   assert(known.identity.website === 'https://www.acme.example/', 'website');
   assert(known.hiring.status === 'board_observed', 'hiring status');
   assert(known.hiring.openRoles === 2 && known.hiring.jobsUrl === company.jobsUrl, 'hiring join');
+  // A count carried across an unreadable ATS read keeps its original openRolesAt, so the date
+  // alone cannot mean "freshly observed" any more. The count is still the best evidence we have
+  // and stays on the packet — only its status changes, so a reader is not told it was just seen.
+  const staleCo = { ...company, openRolesStale: true };
+  const stalePacket = buildCompanyPacket({
+    companyId: 'yc:acme',
+    map: { ...map, companies: map.companies.map((c) => (c.id === 'yc:acme' ? staleCo : c)) },
+    ledger,
+    signals,
+    benchmark,
+    catalog: {},
+  });
+  assert(stalePacket.hiring.status === 'board_stale', 'a carried count reports stale, never freshly observed');
+  assert(stalePacket.hiring.openRoles === 2, 'the carried count itself survives — stale is not absent');
+  assert(stalePacket.hiring.openRolesAt === '2026-08-14', 'and keeps the date it was actually verified');
   assert(Array.isArray(known.roles) && known.roles.length === 2 && known.roles.length <= 25, 'roles bound');
   assert(
     known.roles[0].employerDepartment === 'Engineering'

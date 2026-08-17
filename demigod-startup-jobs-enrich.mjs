@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 import { websiteHostKey } from './demigod-startup-map-data.mjs';
 import {
@@ -34,7 +35,11 @@ if (isMain && cliMode == null) {
   console.error('usage: demigod-startup-jobs-enrich.mjs [--selftest | --repair-denied]');
   process.exit(1);
 }
-const CONCURRENCY = 12;
+// 12 parallel workers over ~2900 companies × 7 providers is enough to get rate-limited by a single
+// ATS: on 2026-08-16 it cost 90 Ashby boards in one run. Overridable so a recovery pass can go
+// gently without editing the file — the polite value is not knowable from here, it depends on the
+// providers' mood.
+const CONCURRENCY = Math.max(1, Number(process.env.DEMIGOD_ENRICH_CONCURRENCY) || 12);
 const TIMEOUT = 8000;
 
 /** @param {...unknown} parts */
@@ -219,17 +224,70 @@ export const slugs = (company) => {
       .replace(/^-+|-+$/g, '');
     if (s.replace(/-/g, '').length >= 3) out.add(s);
   };
+  // A board slug is often the WHOLE host, not the domain label — Ashby is full of them
+  // (ambient.ai, coram.ai). Only the label was ever offered, so `ambient` 404s while the real
+  // board sits at `ambient.ai` with ten open roles, and the company reads as not hiring. That is
+  // 109 companies carrying 1,752 roles as of 2026-08-17. Dots survive here; pushDomainLabel and
+  // pushAtsSlug both strip them, which is why neither could ever produce this candidate.
+  const pushHostSlug = (s) => {
+    s = String(s || '').toLowerCase().replace(/[^a-z0-9.-]/g, '').replace(/^[-.]+|[-.]+$/g, '');
+    if (s.replace(/[.-]/g, '').length >= 3) out.add(s);
+  };
   try {
     const host = new URL(company.website).hostname.replace(/^www\./, '').toLowerCase();
     const labels = host.split('.');
     const main = labels.length >= 2 ? labels[labels.length - 2] : labels[0];
     pushDomainLabel(main);
+    if (host !== main) pushHostSlug(host);
     for (const alias of DOMAIN_ATS_SLUGS[host] || []) pushAtsSlug(alias);
   } catch {
     /* no website → no board */
   }
-  return [...out].slice(0, 3);
+  // 4, not 3, so the host candidate cannot be squeezed out by aliases. `detect` returns on the
+  // first match, so only companies that currently find NOTHING pay for the extra probe — which is
+  // exactly the set this candidate exists to rescue.
+  return [...out].slice(0, 4);
 };
+
+/**
+ * "This board does not exist" and "I could not read this board" were the same answer — null — and
+ * the caller strips a company's job evidence on null. So one rate-limited request published a
+ * company as having no open roles.
+ *
+ * Measured 2026-08-16: a full refresh hammered Ashby hard enough to lose 90 of its boards, and 109
+ * companies carrying 1,752 roles went to zero on disk. Cursor's board still returned 114 jobs when
+ * asked directly a few minutes later; nothing had closed. Publishing that would have pushed the
+ * regression live.
+ *
+ * 404/410 is real evidence of absence — that slug is not on this provider, which is the normal
+ * result for six of the seven probes. 429, 5xx, a timeout or a socket error are evidence of
+ * nothing. AsyncLocalStorage keeps the distinction per detect() call without threading a context
+ * argument through all seven providers, and it is concurrency-safe under `pool`.
+ */
+const fetchCtx = new AsyncLocalStorage();
+
+/** How long a count may be carried across failed reads before we stop claiming it. */
+export const STALE_BOARD_MAX_DAYS = 14;
+
+/** PURE. May a previously verified count survive a failed read, given when it was last confirmed? */
+export function withinStaleWindow(openRolesAt, at, maxDays = STALE_BOARD_MAX_DAYS) {
+  const then = Date.parse(String(openRolesAt || ''));
+  const now = Date.parse(String(at || ''));
+  if (!Number.isFinite(then) || !Number.isFinite(now)) return false;
+  const days = (now - then) / 86400000;
+  return days >= 0 && days <= maxDays;
+}
+
+/** Note that a read failed for reasons that say nothing about whether the board has roles. */
+function markUnreachable() {
+  const store = fetchCtx.getStore();
+  if (store) store.unreachable = true;
+}
+
+/** True when the response proves the board is not there, rather than that we could not look. */
+function isDefinitiveAbsence(status) {
+  return status === 404 || status === 410;
+}
 
 async function tryFetch(url, parse) {
   try {
@@ -237,9 +295,13 @@ async function tryFetch(url, parse) {
       signal: AbortSignal.timeout(TIMEOUT),
       headers: { Accept: 'application/json' },
     });
-    if (!r.ok) return null;
+    if (!r.ok) {
+      if (!isDefinitiveAbsence(r.status)) markUnreachable();
+      return null;
+    }
     return parse(await r.json());
   } catch {
+    markUnreachable();
     return null;
   }
 }
@@ -250,8 +312,10 @@ async function tryFetchText(url) {
       signal: AbortSignal.timeout(TIMEOUT),
       headers: { Accept: 'text/html' },
     });
+    if (!response.ok && !isDefinitiveAbsence(response.status)) markUnreachable();
     return response.ok ? await response.text() : null;
   } catch {
+    markUnreachable();
     return null;
   }
 }
@@ -368,13 +432,13 @@ export function categorizeRole(title) {
   ) {
     return 'product';
   }
-  if (/\b(data scientist|machine learning|\bml\b|\bai\b|deep learning|\bnlp\b|computer vision|research scientist|data engineer|analytics engineer|data analyst|director of data|head of data)\b/.test(t)) return 'ai/data';
+  if (/\b(data scientist|machine learning|\bml\b|\bai\b|deep learning|\bnlp\b|computer vision|research scientist|data engineer|analytics engineer|data analyst|director of data|head of data|business intelligence)\b/.test(t)) return 'ai/data';
   // DevRel / tech writing / product marketing before eng bucket
   if (/\b(developer advocate|developer relations|\bdevrel\b|technical writer|docs engineer|documentation engineer|product market(?:er|ing))\b/.test(t)) {
     return 'marketing';
   }
   // Creative/design leadership before eng (avoids "design" false friends on non-design titles)
-  if (/\b(head of design|creative director|head of creative|associate creative director|product creative)\b/.test(t)) {
+  if (/\b(head of design|creative director|head of creative|associate creative director|product creative|art director)\b/.test(t)) {
     return 'design';
   }
   // Security product eng stays engineering; pure GRC/compliance (no eng title) → finance/legal
@@ -384,25 +448,25 @@ export function categorizeRole(title) {
     return 'engineering';
   }
   // engineering manager / architect / bare "engineering" (title noun) before residual people/sales
-  if (/\b(engineer|developer|\bswe\b|programmer|software|devops|\bsre\b|infrastructure|backend|frontend|full[\s-]?stack|mobile|\bios\b|android|platform|engineering|solutions architect|\barchitect\b|member of technical staff|systems administrator|\bit\b systems)\b/.test(t)) return 'engineering';
+  if (/\b(engineer|developer|\bswe\b|programmer|software|devops|\bsre\b|infrastructure|backend|frontend|full[\s-]?stack|mobile|\bios\b|android|platform|engineering|solutions architect|\barchitect\b|member of technical staff|systems administrator|\bit\b systems|tech(?:nical)? lead|eng (?:manager|lead))\b/.test(t)) return 'engineering';
   if (/\b(designer|\bux\b|\bui\b|product design|brand|graphic|design systems?)\b/.test(t)) return 'design';
   // Presales/PS consultants + sellers (not bare "consultant" — jewelry/store stays other)
   if (
-    /\b(sales|account executive|\bae\b|account manager|account management|account director|key accounts?|strategic account|account partner|business development|\bbdr\b|\bsdr\b|revenue|partnerships?|solutions engineer|sales engineer|customer engineer|founding gtm|gtm strategy|gtm planning|gtm presales|specialist seller|solutions? consultant|technical consultant|professional services consultant|partner development|partner manager|strategic partner|client partner|enterprise accounts?|renewals? manager)\b/.test(t) ||
+    /\b(sales|account executive|\bae\b|account manager|account management|account director|key accounts?|strategic account|account partner|business development|\bbdr\b|\bsdr\b|revenue|partnerships?|solutions engineer|sales engineer|customer engineer|founding gtm|gtm strategy|gtm planning|gtm presales|specialist seller|solutions? consultant|technical consultant|professional services consultant|partner development|partner manager|strategic partner|client partner|enterprise accounts?|renewals? manager|solutions? advisor|value consultant|channel manager)\b/.test(t) ||
     /\bregional director\b.*\benterprise\b|\benterprise\b.*\bregional director\b/.test(t)
   ) {
     return 'sales';
   }
-  if (/\b(marketing|growth|content|\bseo\b|demand gen(?:eration)?|community|social media|communications|\bmarketer\b|agency lead|customer advocacy)\b/.test(t)) return 'marketing';
+  if (/\b(marketing|growth|content|\bseo\b|demand gen(?:eration)?|community|social media|communications|\bmarketer\b|agency lead|customer advocacy|copywrit(?:er|ing)|video editor)\b/.test(t)) return 'marketing';
   if (
     /\b(?:recruit(?:er|ers|ing|ment)?|talent|people (?:ops|operations|partner)|human resources)\b|(?:^|[^/\w])hr(?:bp)?\b/.test(t) ||
-    /\b(?:director,? learning|workforce strategy)\b/.test(t)
+    /\b(?:director,? learning|workforce strategy|people relations|candidate experience)\b/.test(t)
   ) {
     return 'people';
   }
   // Split-ish finance/legal: same bucket key for export stability, broader title recall
   if (
-    /\b(finance|accounting|accountant|controller|fp&a|financial analyst|financial reporting|treasury|payroll|tax|accounts receivable|internal audit|credit underwriter|credit (?:&|and) collections|collections analyst|underwriting|credit risk|investor relations|corporate development|contracts manager|public policy)\b/.test(t) ||
+    /\b(finance|accounting|accountant|controller|fp&a|financial analyst|financial reporting|sec reporting|treasury|payroll|tax|accounts (?:receivable|payable)|internal audit(?:or)?|credit underwriter|credit (?:&|and) collections|collections analyst|underwriting|credit risk|investor relations|corporate development|contracts manager|public policy)\b/.test(t) ||
     /\b(legal|counsel|attorney|paralegal|compliance|privacy counsel|data privacy|grc|governance risk)\b/.test(t)
   ) {
     return 'finance/legal';
@@ -410,7 +474,7 @@ export function categorizeRole(title) {
   // Security IR / SIRT before residual ops
   if (/\b(?:\bsirt\b|security incident|incident response)\b/.test(t)) return 'engineering';
   if (
-    /\b(operations|\bops\b|support|customer success|client success|partner success|customer experience|\bcx\b|\bcsm\b|customer support|technical support|implementation|onboarding specialist|program manager|project manager|chief of staff|office manager|business operations|revops|sales ops|gtm ops|gtm enablement|executive assistant|executive business partner|scrum master|deployment strategist|\bbizops\b|business systems analyst|systems analyst|case management|deal desk|engagement manager|strategic projects|resolutions manager|resolutions lead)\b/.test(
+    /\b(operations|\bops\b|support|customer success|client success|partner success|customer experience|\bcx\b|\bcsm\b|customer support|technical support|implementation|onboarding specialist|program manager|project manager|chief of staff|office manager|business operations|revops|sales ops|gtm ops|gtm enablement|executive assistant|executive business partner|administrative business partner|founder(?:'s|’s|s)? (?:associate|office)|scrum master|deployment strategist|\bbizops\b|business systems analyst|systems analyst|case management|deal desk|engagement manager|strategic projects|resolutions manager|resolutions lead)\b/.test(
       t,
     )
   ) {
@@ -465,6 +529,9 @@ export function withoutJobEvidence(company) {
     jobsUrl,
     atsSource,
     openRolesAt,
+    // Stripped with the rest of the job evidence: a row that gets a fresh successful read must not
+    // keep the stale flag from the run before it, or a recovered board stays marked unreliable.
+    openRolesStale,
     jobsSource,
     roleMix,
     agingRoles,
@@ -508,7 +575,23 @@ export function updateJobsCoverage(map, at, collapsed = map?.coverage?.boardDupe
 }
 
 // count + role-mix over the US-posted jobs (null if none).
+/**
+ * PURE. A retired board is often left up with one "posting" that is really a forwarding note
+ * ("We have moved our Careers Page to: https://jobs.ashbyhq.com/anyscale"). Counting it claims an
+ * opening that does not exist and links a board page that 404s for every visitor.
+ * Both halves are required: "moved"/"relocated" alone would eat real titles (Relocation Manager),
+ * and a bare URL or the word "careers" is common in legitimate postings.
+ */
+export function isBoardMovedNotice(title) {
+  const t = String(title || '');
+  return /\b(?:moved|relocated|is now at|now live at)\b/i.test(t) &&
+    (/\b(?:careers?|jobs?|job board|hiring page)\b/i.test(t) || /https?:\/\//i.test(t));
+}
+
 function hit(usJobs, titleOf, jobsUrl, ats) {
+  // Drop forwarding notes before counting. An emptied board returns null, so `detect` falls through
+  // to the provider the company actually moved to — under-claiming, never inventing.
+  usJobs = usJobs.filter((job) => !isBoardMovedNotice(titleOf(job)));
   if (!usJobs.length) return null;
   const roleMix = {};
   for (const job of usJobs) { const c = categorizeRole(titleOf(job)); roleMix[c] = (roleMix[c] || 0) + 1; }
@@ -659,27 +742,31 @@ export async function fetchOwnedAtsBoard(company, slug, provider) {
 }
 
 async function detect(company) {
-  for (const slug of slugs(company)) {
-    for (const probe of [
-      greenhouse,
-      lever,
-      ashby,
-      workable,
-      personio,
-      recruitee,
-      smartrecruiters,
-    ]) {
-      const found = await probe(slug);
-      if (
-        found &&
-        !hasDeniedAtsBoard({ ...company, atsSource: found.ats, jobsUrl: found.jobsUrl }) &&
-        boardOwnerMatches(company, found)
-      ) {
-        return found;
+  return fetchCtx.run({ unreachable: false }, async () => {
+    for (const slug of slugs(company)) {
+      for (const probe of [
+        greenhouse,
+        lever,
+        ashby,
+        workable,
+        personio,
+        recruitee,
+        smartrecruiters,
+      ]) {
+        const found = await probe(slug);
+        if (
+          found &&
+          !hasDeniedAtsBoard({ ...company, atsSource: found.ats, jobsUrl: found.jobsUrl }) &&
+          boardOwnerMatches(company, found)
+        ) {
+          return found;
+        }
       }
     }
-  }
-  return null;
+    // Found nothing. Say whether that is a finding or a failure — the caller strips job evidence
+    // on a plain null, and stripping on a failed read is how a rate limit becomes "not hiring".
+    return fetchCtx.getStore()?.unreachable ? { unreachable: true } : null;
+  });
 }
 
 async function pool(items, worker) {
@@ -753,6 +840,14 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || cliMode === '
     atsSource: 'Lever',
     jobsUrl: 'https://jobs.lever.co/pivotal',
   }), 'real board owner is not denied');
+  // Board-relocation notices: the exact live string that made Anyscale read as "1 open role on
+  // Lever" while jobs.lever.co/anyscale 404s and their real board carries 16 roles.
+  assert(isBoardMovedNotice('We have moved our Careers Page to: https://jobs.ashbyhq.com/anyscale'), 'the live Anyscale forwarding note is not a job');
+  assert(isBoardMovedNotice('Our job board has moved to Ashby'), 'plain relocation note caught');
+  assert(!isBoardMovedNotice('Relocation Program Manager'), 'a real title about relocation is still a job');
+  assert(!isBoardMovedNotice('Head of Careers Content'), 'careers alone is not a relocation note');
+  assert(!isBoardMovedNotice('Staff Engineer, Jobs Platform'), 'jobs alone is not a relocation note');
+  assert(!isBoardMovedNotice('') && !isBoardMovedNotice(null), 'no title is not a relocation note');
   assert(hasDeniedAtsBoard({
     id: 'yc:assembly',
     website: 'https://asm.co/',
@@ -829,7 +924,8 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || cliMode === '
       if (target.endsWith('/owned/llms.txt') && ownerWebsite) {
         return { ok: true, text: async () => `- [Company website](${ownerWebsite}): owner` };
       }
-      return { ok: false };
+      // 404: this slug is not on this provider — real evidence of absence, not a failed read.
+      return { ok: false, status: 404 };
     };
     try {
       globalThis.fetch = mockWorkable('https://www.owned.example/about');
@@ -909,7 +1005,8 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || cliMode === '
           };
         }
       }
-      return { ok: false };
+      // 404: this slug is not on this provider — real evidence of absence, not a failed read.
+      return { ok: false, status: 404 };
     };
     try {
       globalThis.fetch = mockSecondary('Personio', 'https://www.owned.example/');
@@ -1053,6 +1150,30 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || cliMode === '
   assert(categorizeRole('Resolutions Manager') === 'operations', 'resolutions → operations');
   assert(categorizeRole('Senior Manager, SIRT') === 'engineering', 'SIRT → eng');
   assert(categorizeRole('Senior Analyst') === 'other', 'bare senior analyst stays other');
+  // AR-08: residual batch 3 (ledger-driven 2026-08-14)
+  assert(categorizeRole('Tech Lead, Agent Framework - Observability') === 'engineering', 'tech lead → engineering');
+  assert(categorizeRole('Hardware Systems Technical Lead') === 'engineering', 'technical lead → engineering');
+  assert(categorizeRole('Eng Manager') === 'engineering', 'eng manager (abbrev) → engineering');
+  assert(categorizeRole('Administrative Business Partner - Security') === 'operations', 'admin business partner → operations');
+  assert(categorizeRole("Founder's Associate") === 'operations', "founder's associate → operations");
+  assert(categorizeRole('Founders Associate') === 'operations', 'founders associate → operations');
+  assert(categorizeRole("Founder's Office") === 'operations', "founder's office → operations");
+  assert(categorizeRole('Senior Solution Advisor') === 'sales', 'solution advisor → sales');
+  assert(categorizeRole('Value Consultant') === 'sales', 'value consultant → sales');
+  assert(categorizeRole('Channel Manager, DACH [German Fluency]') === 'sales', 'channel manager → sales');
+  assert(categorizeRole('People Relations Specialist') === 'people', 'people relations → people');
+  assert(categorizeRole('Senior Candidate Experience Coordinator') === 'people', 'candidate experience → people');
+  assert(categorizeRole('Accounts Payable Manager') === 'finance/legal', 'accounts payable → finance');
+  assert(categorizeRole('IT Internal Auditor') === 'finance/legal', 'internal auditor → finance');
+  assert(categorizeRole('SEC Reporting Manager') === 'finance/legal', 'sec reporting → finance');
+  assert(categorizeRole('Business Intelligence Manager') === 'ai/data', 'business intelligence → ai/data');
+  assert(categorizeRole('Copywriter') === 'marketing', 'copywriter → marketing');
+  assert(categorizeRole('Copywriting Lead') === 'marketing', 'copywriting lead → marketing (not eng tech-lead)');
+  assert(categorizeRole('Video Editor') === 'marketing', 'video editor → marketing');
+  assert(categorizeRole('Art Director') === 'design', 'art director → design');
+  assert(categorizeRole('Maintenance Technician') === 'other', 'field technician stays other');
+  assert(categorizeRole('Plumber') === 'other', 'trade role stays other');
+  assert(categorizeRole('Don’t see what you’re looking for?') === 'other', 'catch-all posting stays other');
   assert(categorizeRole('') === 'other', 'empty → other');
   assert(
     jobsEnrichCliMode([]) === 'enrich' &&
@@ -1118,6 +1239,26 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || cliMode === '
   if (fs.existsSync(MAP)) {
     assert(fs.statSync(MAP).mtimeMs === beforeMtime, 'import must not rewrite MAP');
   }
+  // A failed read must never be recorded as an empty board. 404 means this slug is not on this
+  // provider (the normal answer for six of seven probes); 429/5xx/timeout mean we learned nothing.
+  // The whole host is a legitimate board slug and must survive intact — stripping the dot yields
+  // `ambientai`, which is nobody's board. Verified live: slug `ambient` 404s, `ambient.ai` returns
+  // ten open roles.
+  assert(slugs({ website: 'https://ambient.ai/' }).includes('ambient.ai'), 'full host is offered as a slug');
+  assert(slugs({ website: 'https://ambient.ai/' }).includes('ambient'), 'and the domain label still is');
+  assert(!slugs({ website: 'https://ambient.ai/' }).includes('ambientai'), 'a dot-stripped host is not a slug');
+  assert(slugs({ website: null }).length === 0, 'no website, no slugs');
+  assert(slugs({ website: 'https://x.io/' }).every((s) => s.length >= 3), 'slug floor holds');
+  assert(isDefinitiveAbsence(404) && isDefinitiveAbsence(410), 'a missing board is real evidence');
+  assert(!isDefinitiveAbsence(429) && !isDefinitiveAbsence(500) && !isDefinitiveAbsence(503),
+    'rate limits and server errors prove nothing about a board');
+  // The carry window: a count survives a failed read only while it is still recent, and a run
+  // that cannot read a board for two weeks stops claiming its roles rather than advertising forever.
+  assert(withinStaleWindow('2026-08-10', '2026-08-16'), 'a recent count survives an unreadable run');
+  assert(!withinStaleWindow('2026-07-01', '2026-08-16'), 'a count past the window is dropped, not carried');
+  assert(!withinStaleWindow(null, '2026-08-16') && !withinStaleWindow('2026-08-10', null),
+    'a count with no confirmed date is never carried');
+  assert(!withinStaleWindow('2026-08-20', '2026-08-16'), 'a future stamp is not evidence');
   console.log(JSON.stringify({ ok: true, selftest: 'location-gate + slug-honesty + import-safe' }));
   process.exit(0);
 }
@@ -1144,10 +1285,11 @@ if (isMain) {
     if (!c.website) return null;
     return detect(c);
   });
+  let carriedUnreachable = 0;
   map.companies = map.companies.map((c, idx) => {
     const board = results[idx];
     const rest = withoutJobEvidence(c);
-    if (board) {
+    if (board && !board.unreachable) {
       return {
         ...rest,
         jobsUrl: board.jobsUrl,
@@ -1156,6 +1298,17 @@ if (isMain) {
         roleMix: board.roleMix,
         openRolesAt: at,
       };
+    }
+    // Could not read the board this run. A previously verified count is still the best evidence we
+    // have, so keep it with its ORIGINAL openRolesAt — the row reads as stale, which is true, rather
+    // than as empty, which is not. Deliberately NOT restamped to `at`: that would launder an old
+    // count as fresh. Bounded by STALE_BOARD_MAX_DAYS so a board that really went away drains out
+    // instead of advertising roles forever; this codebase under-claims on purpose.
+    if (board?.unreachable && Number(c.openRoles) > 0 && c.atsSource &&
+        withinStaleWindow(c.openRolesAt, at)) {
+      carriedUnreachable++;
+      return { ...rest, jobsUrl: c.jobsUrl, openRoles: c.openRoles, atsSource: c.atsSource,
+        roleMix: c.roleMix, openRolesAt: c.openRolesAt, openRolesStale: true };
     }
     // No verified ATS board: link the YC jobs page for YC-self-reported hiring companies.
     const ycJobs = ycJobsUrl(rest);
@@ -1179,7 +1332,10 @@ if (isMain) {
   atomicWrite(MAP, `${JSON.stringify(map)}\n`);
   console.log(
     JSON.stringify(
-      { companies: map.companies.length, withJobs: hits, ycJobsLinks: ycLinks, totalOpenRoles: totalRoles, at, scope: 'us-posted' },
+      { companies: map.companies.length, withJobs: hits, ycJobsLinks: ycLinks, totalOpenRoles: totalRoles,
+        // Never silent: a run that could not read N boards says so, so an operator can retry
+        // instead of reading a quiet number as a market that cooled.
+        boardsUnreadableCarriedStale: carriedUnreachable, at, scope: 'us-posted' },
       null,
       2,
     ),

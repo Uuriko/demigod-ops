@@ -15,7 +15,7 @@ import { loadBoard, loadInbox, extractEmail, scrubPII, clip, startupRoleReadines
 import { readJson } from './demigod-agent-tools-lib.mjs';
 import { projectCompanyResearch, refuseIfStale } from './demigod-evidence.mjs';
 import { normalizeCompanyName } from './demigod-startup-atlas.mjs';
-import { boardsFromMap, observedOpenDays } from './demigod-role-ledger.mjs';
+import { boardsFromMap, observedOpenDays, projectEmployerAtsFields } from './demigod-role-ledger.mjs';
 import {
   assertCurrentPairEligibility,
   hasValidPairConsentReceipt,
@@ -113,16 +113,30 @@ export function resolveCompanyEvidence(
           row.provider === board.provider &&
           row.slug === board.slug &&
           exactTitle(row.title) === title)
-        .map((row) => ({
-          title: projectedText(row.title || role.title, 160),
-          location: projectedText(row.location || null, 160),
-          url: row.url || null,
-          provider: row.provider,
-          observedFrom: row.firstSeen || null,
-          observedThrough: row.lastSeen || null,
-          closedAt: row.closedAt || null,
-          observedDays: row.firstSeen ? observedOpenDays(row, row.closedAt || today) : null,
-        }))
+        .map((row) => {
+          const ats = projectEmployerAtsFields(row);
+          return {
+            title: projectedText(row.title || role.title, 160),
+            location: projectedText(row.location || null, 160),
+            url: row.url || null,
+            provider: row.provider,
+            observedFrom: row.firstSeen || null,
+            observedThrough: row.lastSeen || null,
+            closedAt: row.closedAt || null,
+            observedDays: row.firstSeen ? observedOpenDays(row, row.closedAt || today) : null,
+            employerDepartment: projectedText(ats.employerDepartment, 120),
+            employerOffice: projectedText(ats.employerOffice, 120),
+            workplaceType: projectedText(ats.workplaceType, 40),
+            employmentType: projectedText(ats.employmentType, 60),
+            nativeDeadline: ats.nativeDeadline,
+            nativePostedAt: ats.nativePostedAt,
+            nativeDateField: ats.nativeDateField,
+            nativeUpdatedAt: ats.nativeUpdatedAt,
+            postedAt: ats.postedAt,
+            firstObservedAt: ats.firstObservedAt,
+            postedVsEditedDays: ats.postedVsEditedDays,
+          };
+        })
     : [];
   const roleEvidenceStatus = hiringQuarantined
     ? 'board_quarantined'
@@ -168,13 +182,17 @@ export function resolveCompanyEvidence(
       mapGeneratedAt: map.generatedAt || null,
     },
     hiring: {
+      // A carried count keeps its original openRolesAt, so openRolesAt alone no longer proves a
+      // fresh observation. Say stale rather than observed; see demigod-startup-jobs-enrich.mjs.
       status: hiringQuarantined
         ? 'quarantined'
-        : company.openRolesAt
-          ? 'board_observed'
-          : company.hiring === 'yes'
-            ? 'company_reported'
-            : 'unknown',
+        : company.openRolesStale
+          ? 'board_stale'
+          : company.openRolesAt
+            ? 'board_observed'
+            : company.hiring === 'yes'
+              ? 'company_reported'
+              : 'unknown',
       openRoles: hiringQuarantined ? null : Number.isSafeInteger(company.openRoles) ? company.openRoles : null,
       atsSource: hiringQuarantined ? null : company.atsSource || null,
       jobsUrl: hiringQuarantined ? null : company.jobsUrl || null,
