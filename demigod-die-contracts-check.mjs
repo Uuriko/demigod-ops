@@ -19,6 +19,16 @@
  * a reimplementation would be a second thing to keep in sync and a tempting shortcut past the
  * real one. This file's job is to answer, per section: is this enforced, and does it hold?
  *
+ * WHAT `enforced` DOES NOT MEAN. It means an executor was called and the assertions written here
+ * passed. It does NOT mean the section is fully covered, and the count is not a quality score — a
+ * section resting on one weak assertion counts the same as §8's nine. The spec-driven-development
+ * literature names this failure directly: a spec can look authoritative while missing the edge
+ * cases that matter, and the practice drifts into ceremony once the document stops being the real
+ * contract and the truth quietly moves into the checker. That is why every executor here CALLS the
+ * module that really decides, why the per-section detail line reports how many rules were actually
+ * exercised rather than just "ok", and why the gate — never this file — is authoritative when they
+ * disagree. Read the detail, not the headline.
+ *
  * THREE ANSWERS, AND `unwired` IS THE HONEST ONE
  *   pass      an executor exists, was called, and the live artifact satisfies it
  *   violation an executor exists and something failed — this is the only failing state
@@ -407,6 +417,7 @@ if (isMain) {
   } else {
     const c = report.counts || {};
     console.log(`die-contracts ${report.ok ? 'OK' : 'FAIL'} · ${c.pass} enforced · ${c.violation} violated · ${c.unwired} unwired of ${c.sections}`);
+    console.log('  enforced = an executor ran and its assertions held; not a coverage or quality score — read the rules count per line');
     for (const s of report.sections.filter((r) => r.status !== 'unwired')) {
       console.log(`  ${s.status === 'pass' ? '✓' : '✗'} §${s.n} ${s.title} — ${s.detail}`);
     }
