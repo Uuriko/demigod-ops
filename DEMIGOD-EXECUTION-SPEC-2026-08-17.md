@@ -154,7 +154,13 @@ methodology built and staged (1,703) with every figure read from live artifacts 
 training crawlers blocked by name, every citation fetcher allowed. It needed no work, and it changes
 nothing: the allowed fetchers do not run JavaScript either.
 
-**Blocked on hosting.** `llms.txt` cannot be served — Webflow 404s arbitrary root files.
+**Closed, not blocked.** `llms.txt` was recorded as "blocked on hosting — Webflow 404s arbitrary
+root files". Research on 2026-08-17 says the hosting limit never mattered: SE Ranking measured
+10.13% adoption across 300,000 domains with 39.6% of those files being plugin stubs; GPTBot,
+ClaudeBot, PerplexityBot, OAI-SearchBot and Google-Extended overwhelmingly skip the file and crawl
+HTML directly; Google's Gary Illyes confirmed Google does not support it and does not plan to; and
+8 of 9 sites measured no traffic change after adding one. No major AI company has committed to
+reading it in production. **Do not build it.** Reopen only if a named crawler documents support.
 
 ## 7. Not agent work — these need the operator
 

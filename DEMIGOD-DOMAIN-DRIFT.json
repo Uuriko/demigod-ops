@@ -1,0 +1,1664 @@
+{
+ "schema": "demigod.domain-drift/1",
+ "checked": 134,
+ "scope": "companies still listed on http",
+ "counts": {
+  "unreachable": 53,
+  "moved": 54,
+  "blocked": 16,
+  "expired": 6,
+  "live": 5
+ },
+ "moved": [
+  {
+   "id": "wd:Q16975004",
+   "name": "AngelPad",
+   "website": "http://angelpad.org/",
+   "state": "moved",
+   "status": 200,
+   "from": "angelpad.org",
+   "to": "angelpad.com"
+  },
+  {
+   "id": "wd:Q28403794",
+   "name": "Apcera",
+   "website": "http://www.apcera.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "apcera.com",
+   "to": "arttechhouse.com"
+  },
+  {
+   "id": "wd:Q4780783",
+   "name": "AppDynamics",
+   "website": "http://www.appdynamics.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "appdynamics.com",
+   "to": "splunk.com"
+  },
+  {
+   "id": "wd:Q16826362",
+   "name": "Autonet Mobile",
+   "website": "http://www.autonetmobile.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "autonetmobile.com",
+   "to": "kedai69vvip.com"
+  },
+  {
+   "id": "wd:Q4959651",
+   "name": "Breakout Labs",
+   "website": "http://www.breakoutlabs.org/",
+   "state": "moved",
+   "status": 200,
+   "from": "breakoutlabs.org",
+   "to": "breakout.vc"
+  },
+  {
+   "id": "wd:Q4967361",
+   "name": "BrightRoll",
+   "website": "http://www.brightroll.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "brightroll.com",
+   "to": "yahooinc.com"
+  },
+  {
+   "id": "wd:Q30255591",
+   "name": "Carmot Therapeutics (United States)",
+   "website": "http://carmot.us/",
+   "state": "moved",
+   "status": 200,
+   "from": "carmot.us",
+   "to": "gene.com"
+  },
+  {
+   "id": "wd:Q5449570",
+   "name": "Certinia",
+   "website": "http://www.financialforce.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "financialforce.com",
+   "to": "certinia.com"
+  },
+  {
+   "id": "wd:Q16986843",
+   "name": "Chartboost",
+   "website": "http://www.chartboost.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "chartboost.com",
+   "to": "loopme.ai"
+  },
+  {
+   "id": "wd:Q5130509",
+   "name": "Clean Power Finance",
+   "website": "http://www.cleanpowerfinance.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "cleanpowerfinance.com",
+   "to": "sprucepower.com"
+  },
+  {
+   "id": "wd:Q28457436",
+   "name": "Clef",
+   "website": "http://getclef.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "getclef.com",
+   "to": "rublon.com"
+  },
+  {
+   "id": "wd:Q18206046",
+   "name": "CloudPassage",
+   "website": "http://www.cloudpassage.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "cloudpassage.com",
+   "to": "fidelissecurity.com"
+  },
+  {
+   "id": "wd:Q16247865",
+   "name": "Clustrix",
+   "website": "http://www.clustrix.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "clustrix.com",
+   "to": "mariadb.com"
+  },
+  {
+   "id": "wd:Q4036730",
+   "name": "Cryptography Research",
+   "website": "http://www.cryptography.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "cryptography.com",
+   "to": "rambus.com"
+  },
+  {
+   "id": "wd:Q18150164",
+   "name": "Earnest",
+   "website": "http://www.meetearnest.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "meetearnest.com",
+   "to": "earnest.com"
+  },
+  {
+   "id": "wd:Q16249797",
+   "name": "Engagor",
+   "website": "http://engagor.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "engagor.com",
+   "to": "qualtrics.com"
+  },
+  {
+   "id": "wd:Q30265325",
+   "name": "Epiphany Biosciences (United States)",
+   "website": "http://www.epiphanybio.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "epiphanybio.com",
+   "to": "blackpigcle.com"
+  },
+  {
+   "id": "wd:Q5419759",
+   "name": "Exec",
+   "website": "http://iamexec.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "iamexec.com",
+   "to": "handy.com"
+  },
+  {
+   "id": "wd:Q18150963",
+   "name": "ForgeRock",
+   "website": "http://www.forgerock.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "forgerock.com",
+   "to": "pingidentity.com"
+  },
+  {
+   "id": "wd:Q16840626",
+   "name": "GoodData",
+   "website": "http://www.gooddata.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "gooddata.com",
+   "to": "gooddata.ai"
+  },
+  {
+   "id": "wd:Q28405491",
+   "name": "Grand Rounds, Inc.",
+   "website": "http://www.grandrounds.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "grandrounds.com",
+   "to": "includedhealth.com"
+  },
+  {
+   "id": "wd:Q5609989",
+   "name": "Grockit",
+   "website": "http://www.grockit.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "grockit.com",
+   "to": "kaptest.com"
+  },
+  {
+   "id": "yc:hedgehog-2",
+   "name": "Hedgehog",
+   "website": "http://hedgehogfoods.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "hedgehogfoods.com",
+   "to": "hedgehogmushrooms.com"
+  },
+  {
+   "id": "wd:Q5970146",
+   "name": "IDoneThis",
+   "website": "http://www.idonethis.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "idonethis.com",
+   "to": "oz.anyreach.ai"
+  },
+  {
+   "id": "wd:Q18350954",
+   "name": "If(we)",
+   "website": "http://www.ifwe.co/",
+   "state": "moved",
+   "status": 200,
+   "from": "ifwe.co",
+   "to": "themeetgroup.com"
+  },
+  {
+   "id": "yc:immunity-project",
+   "name": "Immunity Project",
+   "website": "http://immunityproject.org/",
+   "state": "moved",
+   "status": 200,
+   "from": "immunityproject.org",
+   "to": "tech.blab.com"
+  },
+  {
+   "id": "wd:Q16997011",
+   "name": "InsideView",
+   "website": "http://www.insideview.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "insideview.com",
+   "to": "demandbase.com"
+  },
+  {
+   "id": "wd:Q6522340",
+   "name": "Lending Club",
+   "website": "http://www.lendingclub.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "lendingclub.com",
+   "to": "happen.com"
+  },
+  {
+   "id": "wd:Q7860966",
+   "name": "Lightbend Inc.",
+   "website": "http://lightbend.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "lightbend.com",
+   "to": "akka.io"
+  },
+  {
+   "id": "wd:Q95410344",
+   "name": "Marcato Capital Management",
+   "website": "http://www.marcatocapitalmanagement.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "marcatocapitalmanagement.com",
+   "to": "eastviewmanagement.com"
+  },
+  {
+   "id": "yc:mino-games",
+   "name": "Mino Games",
+   "website": "http://minomonsters.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "minomonsters.com",
+   "to": "minogamesonline.wordpress.com"
+  },
+  {
+   "id": "yc:modernloop",
+   "name": "ModernLoop",
+   "website": "http://modernloop.io/",
+   "state": "moved",
+   "status": 200,
+   "from": "modernloop.io",
+   "to": "modernloop.com"
+  },
+  {
+   "id": "wd:Q16960674",
+   "name": "Optimal, Inc.",
+   "website": "http://www.bn.co/",
+   "state": "moved",
+   "status": 200,
+   "from": "bn.co",
+   "to": "brandnetworks.com"
+  },
+  {
+   "id": "yc:oxygen",
+   "name": "Oxygen",
+   "website": "http://getoxygen.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "getoxygen.com",
+   "to": "oxygen.us"
+  },
+  {
+   "id": "wd:Q18158575",
+   "name": "PAX Labs",
+   "website": "http://www.paxvapor.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "paxvapor.com",
+   "to": "pax.com"
+  },
+  {
+   "id": "wd:Q7200860",
+   "name": "PlanGrid",
+   "website": "http://plangrid.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "plangrid.com",
+   "to": "construction.autodesk.com"
+  },
+  {
+   "id": "wd:Q30297270",
+   "name": "PresenceLearning (United States)",
+   "website": "http://www.presencelearning.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "presencelearning.com",
+   "to": "presence.com"
+  },
+  {
+   "id": "yc:realroots",
+   "name": "RealRoots",
+   "website": "http://www.realroots.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "realroots.com",
+   "to": "therealroots.com"
+  },
+  {
+   "id": "wd:Q18390481",
+   "name": "RiskIQ",
+   "website": "http://www.riskiq.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "riskiq.com",
+   "to": "microsoft.com"
+  },
+  {
+   "id": "wd:Q7388880",
+   "name": "SAY Media",
+   "website": "http://www.saymedia.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "saymedia.com",
+   "to": "thearenagroup.net"
+  },
+  {
+   "id": "wd:Q28404284",
+   "name": "SignEasy",
+   "website": "http://getsigneasy.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "getsigneasy.com",
+   "to": "signeasy.com"
+  },
+  {
+   "id": "wd:Q18359151",
+   "name": "SiteJabber",
+   "website": "http://www.sitejabber.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "sitejabber.com",
+   "to": "smartcustomer.com"
+  },
+  {
+   "id": "wd:Q18378670",
+   "name": "Smaato",
+   "website": "http://www.smaato.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "smaato.com",
+   "to": "verve.com"
+  },
+  {
+   "id": "yc:soteris",
+   "name": "Soteris",
+   "website": "http://www.soteris.co/",
+   "state": "moved",
+   "status": 200,
+   "from": "soteris.co",
+   "to": "soteris.ai"
+  },
+  {
+   "id": "wd:Q17089237",
+   "name": "Survata",
+   "website": "http://www.survata.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "survata.com",
+   "to": "upwave.com"
+  },
+  {
+   "id": "wd:Q103522257",
+   "name": "Treau",
+   "website": "http://treau.cool/",
+   "state": "moved",
+   "status": 200,
+   "from": "treau.cool",
+   "to": "gradientcomfort.com"
+  },
+  {
+   "id": "wd:Q7893726",
+   "name": "Unitus Impact",
+   "website": "http://www.unitusimpact.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "unitusimpact.com",
+   "to": "patamar.com"
+  },
+  {
+   "id": "yc:verge-genomics",
+   "name": "Verge Genomics",
+   "website": "http://vergegenomics.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "vergegenomics.com",
+   "to": "vergelabs.com"
+  },
+  {
+   "id": "wd:Q30598093",
+   "name": "Whistle",
+   "website": "http://www.whistle.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "whistle.com",
+   "to": "tractive.com"
+  },
+  {
+   "id": "wd:Q3073996",
+   "name": "Xamarin",
+   "website": "http://www.xamarin.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "xamarin.com",
+   "to": "dotnet.microsoft.com"
+  },
+  {
+   "id": "wd:Q7441963",
+   "name": "Yelp Reservations",
+   "website": "http://www.seatme.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "seatme.com",
+   "to": "business.yelp.com"
+  },
+  {
+   "id": "yc:yourchoice-therapeutics",
+   "name": "YourChoice Therapeutics",
+   "website": "http://ychoicetx.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "ychoicetx.com",
+   "to": "yourchoicetx.com"
+  },
+  {
+   "id": "yc:zendar",
+   "name": "Zendar",
+   "website": "http://www.zendar.io/",
+   "state": "moved",
+   "status": 200,
+   "from": "zendar.io",
+   "to": "zendar.ai"
+  },
+  {
+   "id": "wd:Q20155991",
+   "name": "Zenefits",
+   "website": "http://www.zenefits.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "zenefits.com",
+   "to": "trinet.com"
+  }
+ ],
+ "expired": [
+  {
+   "id": "wd:Q19865599",
+   "name": "Boundary",
+   "website": "http://www.boundary.com/",
+   "state": "expired",
+   "status": 200,
+   "from": "boundary.com",
+   "to": "domaineasy.com",
+   "reason": "the domain is listed for sale — the company did not move here"
+  },
+  {
+   "id": "wd:Q4035936",
+   "name": "Caustic Graphics",
+   "website": "http://www.caustic.com/",
+   "state": "expired",
+   "status": 200,
+   "from": "caustic.com",
+   "to": "en.wikipedia.org",
+   "reason": "the domain points at a reference page, not a company site"
+  },
+  {
+   "id": "wd:Q30267154",
+   "name": "CoMentis (United States)",
+   "website": "http://comentis.com/",
+   "state": "expired",
+   "status": 200,
+   "from": "comentis.com",
+   "to": "hugedomains.com",
+   "reason": "the domain is listed for sale — the company did not move here"
+  },
+  {
+   "id": "wd:Q11200911",
+   "name": "GCA",
+   "website": "http://www.gcasavvian.com/",
+   "state": "expired",
+   "status": 200,
+   "from": "gcasavvian.com",
+   "to": "hugedomains.com",
+   "reason": "the domain is listed for sale — the company did not move here"
+  },
+  {
+   "id": "wd:Q16254389",
+   "name": "Summon",
+   "website": "http://www.summon.com/",
+   "state": "expired",
+   "status": 200,
+   "from": "summon.com",
+   "to": "domaineasy.com",
+   "reason": "the domain is listed for sale — the company did not move here"
+  },
+  {
+   "id": "wd:Q7655178",
+   "name": "Sweet",
+   "website": "http://www.discoversweet.com/",
+   "state": "expired",
+   "status": 200,
+   "from": "discoversweet.com",
+   "to": "hugedomains.com",
+   "reason": "the domain is listed for sale — the company did not move here"
+  }
+ ],
+ "rows": [
+  {
+   "id": "wd:Q4549609",
+   "name": "140 Proof",
+   "website": "http://140proof.com/",
+   "state": "unreachable",
+   "reason": "The operation was aborted due to timeout"
+  },
+  {
+   "id": "wd:Q39060910",
+   "name": "3Scan",
+   "website": "http://www.3scan.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "wd:Q4688974",
+   "name": "Affinity Labs",
+   "website": "http://www.affinitylabs.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "wd:Q16242788",
+   "name": "Alpine Data Labs",
+   "website": "http://www.alpinenow.com/",
+   "state": "unreachable",
+   "reason": "The operation was aborted due to timeout"
+  },
+  {
+   "id": "wd:Q28127079",
+   "name": "AltSchool",
+   "website": "http://www.altschool.com/",
+   "state": "unreachable",
+   "reason": "The operation was aborted due to timeout"
+  },
+  {
+   "id": "wd:Q16975004",
+   "name": "AngelPad",
+   "website": "http://angelpad.org/",
+   "state": "moved",
+   "status": 200,
+   "from": "angelpad.org",
+   "to": "angelpad.com"
+  },
+  {
+   "id": "wd:Q28403794",
+   "name": "Apcera",
+   "website": "http://www.apcera.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "apcera.com",
+   "to": "arttechhouse.com"
+  },
+  {
+   "id": "wd:Q4780783",
+   "name": "AppDynamics",
+   "website": "http://www.appdynamics.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "appdynamics.com",
+   "to": "splunk.com"
+  },
+  {
+   "id": "wd:Q41568390",
+   "name": "Asilomar Bio (United States)",
+   "website": "http://www.asilomarbio.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "wd:Q16826362",
+   "name": "Autonet Mobile",
+   "website": "http://www.autonetmobile.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "autonetmobile.com",
+   "to": "kedai69vvip.com"
+  },
+  {
+   "id": "wd:Q4891676",
+   "name": "Bergine",
+   "website": "http://giltcity.com/",
+   "state": "blocked",
+   "status": 403,
+   "reason": "the site refused an unattended request — this is not evidence the company is gone"
+  },
+  {
+   "id": "wd:Q16984318",
+   "name": "Big Heart Pet Brands",
+   "website": "http://www.bigheartpet.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "yc:bitmovin",
+   "name": "Bitmovin",
+   "website": "http://bitmovin.com/",
+   "state": "blocked",
+   "status": 403,
+   "reason": "the site refused an unattended request — this is not evidence the company is gone"
+  },
+  {
+   "id": "wd:Q19865599",
+   "name": "Boundary",
+   "website": "http://www.boundary.com/",
+   "state": "expired",
+   "status": 200,
+   "from": "boundary.com",
+   "to": "domaineasy.com",
+   "reason": "the domain is listed for sale — the company did not move here"
+  },
+  {
+   "id": "wd:Q4959651",
+   "name": "Breakout Labs",
+   "website": "http://www.breakoutlabs.org/",
+   "state": "moved",
+   "status": 200,
+   "from": "breakoutlabs.org",
+   "to": "breakout.vc"
+  },
+  {
+   "id": "wd:Q22021898",
+   "name": "Breeze",
+   "website": "http://www.joinbreeze.com/",
+   "state": "unreachable",
+   "reason": "The operation was aborted due to timeout"
+  },
+  {
+   "id": "wd:Q60741065",
+   "name": "Brex",
+   "website": "http://brex.com/",
+   "state": "live",
+   "status": 200,
+   "host": "brex.com"
+  },
+  {
+   "id": "wd:Q19874016",
+   "name": "Bridge US",
+   "website": "http://www.bridge.us/",
+   "state": "blocked",
+   "status": 403,
+   "reason": "the site refused an unattended request — this is not evidence the company is gone"
+  },
+  {
+   "id": "wd:Q4967361",
+   "name": "BrightRoll",
+   "website": "http://www.brightroll.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "brightroll.com",
+   "to": "yahooinc.com"
+  },
+  {
+   "id": "wd:Q30255591",
+   "name": "Carmot Therapeutics (United States)",
+   "website": "http://carmot.us/",
+   "state": "moved",
+   "status": 200,
+   "from": "carmot.us",
+   "to": "gene.com"
+  },
+  {
+   "id": "wd:Q4035936",
+   "name": "Caustic Graphics",
+   "website": "http://www.caustic.com/",
+   "state": "expired",
+   "status": 200,
+   "from": "caustic.com",
+   "to": "en.wikipedia.org",
+   "reason": "the domain points at a reference page, not a company site"
+  },
+  {
+   "id": "wd:Q5449570",
+   "name": "Certinia",
+   "website": "http://www.financialforce.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "financialforce.com",
+   "to": "certinia.com"
+  },
+  {
+   "id": "wd:Q16986843",
+   "name": "Chartboost",
+   "website": "http://www.chartboost.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "chartboost.com",
+   "to": "loopme.ai"
+  },
+  {
+   "id": "wd:Q5130509",
+   "name": "Clean Power Finance",
+   "website": "http://www.cleanpowerfinance.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "cleanpowerfinance.com",
+   "to": "sprucepower.com"
+  },
+  {
+   "id": "wd:Q28457436",
+   "name": "Clef",
+   "website": "http://getclef.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "getclef.com",
+   "to": "rublon.com"
+  },
+  {
+   "id": "wd:Q18206046",
+   "name": "CloudPassage",
+   "website": "http://www.cloudpassage.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "cloudpassage.com",
+   "to": "fidelissecurity.com"
+  },
+  {
+   "id": "wd:Q16829789",
+   "name": "Cloudscaling",
+   "website": "http://www.cloudscaling.com/",
+   "state": "live",
+   "status": 200,
+   "host": "cloudscaling.com"
+  },
+  {
+   "id": "wd:Q16247865",
+   "name": "Clustrix",
+   "website": "http://www.clustrix.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "clustrix.com",
+   "to": "mariadb.com"
+  },
+  {
+   "id": "wd:Q16949869",
+   "name": "Coliloquy",
+   "website": "http://www.coliloquy.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "wd:Q5145786",
+   "name": "CollabRx",
+   "website": "http://www.collabrx.com/",
+   "state": "unreachable",
+   "status": 525,
+   "reason": "server error"
+  },
+  {
+   "id": "wd:Q30267154",
+   "name": "CoMentis (United States)",
+   "website": "http://comentis.com/",
+   "state": "expired",
+   "status": 200,
+   "from": "comentis.com",
+   "to": "hugedomains.com",
+   "reason": "the domain is listed for sale — the company did not move here"
+  },
+  {
+   "id": "wd:Q30279588",
+   "name": "CRE Group (United States)",
+   "website": "http://www.thecregroup.com/home.html",
+   "state": "unreachable",
+   "reason": "The operation was aborted due to timeout"
+  },
+  {
+   "id": "wd:Q15733465",
+   "name": "CrowdOptic, Inc.",
+   "website": "http://www.crowdoptic.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "wd:Q4036730",
+   "name": "Cryptography Research",
+   "website": "http://www.cryptography.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "cryptography.com",
+   "to": "rambus.com"
+  },
+  {
+   "id": "wd:Q15589464",
+   "name": "Dropbox Inc.",
+   "website": "http://www.dropbox.com/",
+   "state": "live",
+   "status": 200,
+   "host": "dropbox.com"
+  },
+  {
+   "id": "wd:Q18150164",
+   "name": "Earnest",
+   "website": "http://www.meetearnest.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "meetearnest.com",
+   "to": "earnest.com"
+  },
+  {
+   "id": "wd:Q16249797",
+   "name": "Engagor",
+   "website": "http://engagor.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "engagor.com",
+   "to": "qualtrics.com"
+  },
+  {
+   "id": "wd:Q5377734",
+   "name": "Engine Yard",
+   "website": "http://engineyard.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "wd:Q30265325",
+   "name": "Epiphany Biosciences (United States)",
+   "website": "http://www.epiphanybio.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "epiphanybio.com",
+   "to": "blackpigcle.com"
+  },
+  {
+   "id": "wd:Q5419759",
+   "name": "Exec",
+   "website": "http://iamexec.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "iamexec.com",
+   "to": "handy.com"
+  },
+  {
+   "id": "yc:filta",
+   "name": "Filta",
+   "website": "http://www.getfilta.com/",
+   "state": "unreachable",
+   "status": 404,
+   "reason": "http 404"
+  },
+  {
+   "id": "wd:Q5462981",
+   "name": "Flutter",
+   "website": "http://flutterapp.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "wd:Q5463898",
+   "name": "Focus.com",
+   "website": "http://www.focus.com/",
+   "state": "blocked",
+   "status": 403,
+   "reason": "the site refused an unattended request — this is not evidence the company is gone"
+  },
+  {
+   "id": "wd:Q18150963",
+   "name": "ForgeRock",
+   "website": "http://www.forgerock.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "forgerock.com",
+   "to": "pingidentity.com"
+  },
+  {
+   "id": "wd:Q11200911",
+   "name": "GCA",
+   "website": "http://www.gcasavvian.com/",
+   "state": "expired",
+   "status": 200,
+   "from": "gcasavvian.com",
+   "to": "hugedomains.com",
+   "reason": "the domain is listed for sale — the company did not move here"
+  },
+  {
+   "id": "wd:Q16840626",
+   "name": "GoodData",
+   "website": "http://www.gooddata.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "gooddata.com",
+   "to": "gooddata.ai"
+  },
+  {
+   "id": "wd:Q28405491",
+   "name": "Grand Rounds, Inc.",
+   "website": "http://www.grandrounds.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "grandrounds.com",
+   "to": "includedhealth.com"
+  },
+  {
+   "id": "wd:Q5609989",
+   "name": "Grockit",
+   "website": "http://www.grockit.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "grockit.com",
+   "to": "kaptest.com"
+  },
+  {
+   "id": "yc:hedgehog-2",
+   "name": "Hedgehog",
+   "website": "http://hedgehogfoods.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "hedgehogfoods.com",
+   "to": "hedgehogmushrooms.com"
+  },
+  {
+   "id": "wd:Q5763416",
+   "name": "Hills Brothers Coffee",
+   "website": "http://www.hillsbros.com/",
+   "state": "blocked",
+   "status": 403,
+   "reason": "the site refused an unattended request — this is not evidence the company is gone"
+  },
+  {
+   "id": "wd:Q5768118",
+   "name": "Hipmunk",
+   "website": "http://www.hipmunk.com/",
+   "state": "unreachable",
+   "reason": "The operation was aborted due to timeout"
+  },
+  {
+   "id": "wd:Q5970146",
+   "name": "IDoneThis",
+   "website": "http://www.idonethis.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "idonethis.com",
+   "to": "oz.anyreach.ai"
+  },
+  {
+   "id": "wd:Q18350954",
+   "name": "If(we)",
+   "website": "http://www.ifwe.co/",
+   "state": "moved",
+   "status": 200,
+   "from": "ifwe.co",
+   "to": "themeetgroup.com"
+  },
+  {
+   "id": "yc:immunity-project",
+   "name": "Immunity Project",
+   "website": "http://immunityproject.org/",
+   "state": "moved",
+   "status": 200,
+   "from": "immunityproject.org",
+   "to": "tech.blab.com"
+  },
+  {
+   "id": "wd:Q16997011",
+   "name": "InsideView",
+   "website": "http://www.insideview.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "insideview.com",
+   "to": "demandbase.com"
+  },
+  {
+   "id": "wd:Q19880663",
+   "name": "Jill Milan",
+   "website": "http://www.jillmilan.com/",
+   "state": "blocked",
+   "status": 403,
+   "reason": "the site refused an unattended request — this is not evidence the company is gone"
+  },
+  {
+   "id": "wd:Q17182935",
+   "name": "JustShareIt",
+   "website": "http://www.justshareit.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "wd:Q1352246",
+   "name": "Klout",
+   "website": "http://klout.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "wd:Q43895801",
+   "name": "Knox Medical Diagnostics (United States)",
+   "website": "http://www.knox.co/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "yc:lemonbox",
+   "name": "LemonBox",
+   "website": "http://www.lemonbox.com/",
+   "state": "live",
+   "status": 200,
+   "host": "lemonbox.com"
+  },
+  {
+   "id": "wd:Q6522340",
+   "name": "Lending Club",
+   "website": "http://www.lendingclub.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "lendingclub.com",
+   "to": "happen.com"
+  },
+  {
+   "id": "yc:lendtable",
+   "name": "Lendtable",
+   "website": "http://lendtable.com/",
+   "state": "unreachable",
+   "status": 402,
+   "reason": "http 402"
+  },
+  {
+   "id": "wd:Q28000367",
+   "name": "Lift Labs",
+   "website": "http://www.liftware.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "wd:Q7860966",
+   "name": "Lightbend Inc.",
+   "website": "http://lightbend.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "lightbend.com",
+   "to": "akka.io"
+  },
+  {
+   "id": "wd:Q6696906",
+   "name": "LucidWorks",
+   "website": "http://www.lucidworks.com/",
+   "state": "blocked",
+   "status": 403,
+   "reason": "the site refused an unattended request — this is not evidence the company is gone"
+  },
+  {
+   "id": "yc:lygos",
+   "name": "Lygos",
+   "website": "http://www.lygos.com/",
+   "state": "unreachable",
+   "status": 402,
+   "reason": "http 402"
+  },
+  {
+   "id": "yc:maple-materials",
+   "name": "Maple Materials",
+   "website": "http://maplematerials.com/",
+   "state": "unreachable",
+   "status": 404,
+   "reason": "http 404"
+  },
+  {
+   "id": "wd:Q95410344",
+   "name": "Marcato Capital Management",
+   "website": "http://www.marcatocapitalmanagement.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "marcatocapitalmanagement.com",
+   "to": "eastviewmanagement.com"
+  },
+  {
+   "id": "wd:Q6770863",
+   "name": "Marketcetera",
+   "website": "http://www.marketcetera.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "yc:markhor",
+   "name": "Markhor",
+   "website": "http://markhor.com/",
+   "state": "unreachable",
+   "status": 402,
+   "reason": "http 402"
+  },
+  {
+   "id": "yc:mbx",
+   "name": "MBX",
+   "website": "http://us.memebox.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "wd:Q17079868",
+   "name": "Menlo Logistics",
+   "website": "http://www.menlologistics.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "yc:mino-games",
+   "name": "Mino Games",
+   "website": "http://minomonsters.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "minomonsters.com",
+   "to": "minogamesonline.wordpress.com"
+  },
+  {
+   "id": "wd:Q6869591",
+   "name": "Minted",
+   "website": "http://www.minted.com/",
+   "state": "blocked",
+   "status": 403,
+   "reason": "the site refused an unattended request — this is not evidence the company is gone"
+  },
+  {
+   "id": "yc:mirror-ai",
+   "name": "Mirror AI",
+   "website": "http://mirror-ai.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "yc:modernloop",
+   "name": "ModernLoop",
+   "website": "http://modernloop.io/",
+   "state": "moved",
+   "status": 200,
+   "from": "modernloop.io",
+   "to": "modernloop.com"
+  },
+  {
+   "id": "wd:Q18154552",
+   "name": "MonkeyParking",
+   "website": "http://www.monkeyparking.co/",
+   "state": "unreachable",
+   "status": 404,
+   "reason": "http 404"
+  },
+  {
+   "id": "yc:mtailor",
+   "name": "MTailor",
+   "website": "http://mtailor.com/",
+   "state": "blocked",
+   "status": 403,
+   "reason": "the site refused an unattended request — this is not evidence the company is gone"
+  },
+  {
+   "id": "wd:Q43895803",
+   "name": "Nano Hydrophobics (United States)",
+   "website": "http://nanohydrophobics.com/",
+   "state": "unreachable",
+   "reason": "The operation was aborted due to timeout"
+  },
+  {
+   "id": "yc:nebullam-dba-clayton-farms",
+   "name": "Nebullam (DBA Clayton Farms)",
+   "website": "http://claytonfarms.com/",
+   "state": "blocked",
+   "status": 403,
+   "reason": "the site refused an unattended request — this is not evidence the company is gone"
+  },
+  {
+   "id": "wd:Q6987999",
+   "name": "NeighborCity",
+   "website": "http://www.neighborcity.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "wd:Q7020360",
+   "name": "Newton Software",
+   "website": "http://www.newtonsoftware.com/",
+   "state": "unreachable",
+   "status": 404,
+   "reason": "http 404"
+  },
+  {
+   "id": "wd:Q16258065",
+   "name": "Nomiku",
+   "website": "http://www.nomiku.com/",
+   "state": "unreachable",
+   "status": 530,
+   "reason": "server error"
+  },
+  {
+   "id": "wd:Q3353147",
+   "name": "Open Garden",
+   "website": "http://opengarden.com/",
+   "state": "unreachable",
+   "status": 404,
+   "reason": "http 404"
+  },
+  {
+   "id": "wd:Q20714611",
+   "name": "Open Listings",
+   "website": "http://www.openlistings.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "wd:Q16960674",
+   "name": "Optimal, Inc.",
+   "website": "http://www.bn.co/",
+   "state": "moved",
+   "status": 200,
+   "from": "bn.co",
+   "to": "brandnetworks.com"
+  },
+  {
+   "id": "wd:Q30338439",
+   "name": "Otsuka (United States)",
+   "website": "http://www.otsuka-us.com/Pages/Default.aspx",
+   "state": "unreachable",
+   "status": 404,
+   "reason": "http 404"
+  },
+  {
+   "id": "yc:oxygen",
+   "name": "Oxygen",
+   "website": "http://getoxygen.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "getoxygen.com",
+   "to": "oxygen.us"
+  },
+  {
+   "id": "wd:Q73157093",
+   "name": "parqyt",
+   "website": "http://www.parqyt.com/",
+   "state": "blocked",
+   "status": 403,
+   "reason": "the site refused an unattended request — this is not evidence the company is gone"
+  },
+  {
+   "id": "wd:Q18158575",
+   "name": "PAX Labs",
+   "website": "http://www.paxvapor.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "paxvapor.com",
+   "to": "pax.com"
+  },
+  {
+   "id": "wd:Q7197359",
+   "name": "Piperlime",
+   "website": "http://www.piperlime.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "wd:Q7200860",
+   "name": "PlanGrid",
+   "website": "http://plangrid.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "plangrid.com",
+   "to": "construction.autodesk.com"
+  },
+  {
+   "id": "yc:ponyrun",
+   "name": "Ponyrun",
+   "website": "http://www.ponyrun.ai/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "yc:poplarml",
+   "name": "PoplarML",
+   "website": "http://poplarml.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "wd:Q224599",
+   "name": "Powerset",
+   "website": "http://www.powerset.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "wd:Q30297260",
+   "name": "PR & Company (United States)",
+   "website": "http://prandcompany.com/",
+   "state": "blocked",
+   "status": 403,
+   "reason": "the site refused an unattended request — this is not evidence the company is gone"
+  },
+  {
+   "id": "wd:Q30297270",
+   "name": "PresenceLearning (United States)",
+   "website": "http://www.presencelearning.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "presencelearning.com",
+   "to": "presence.com"
+  },
+  {
+   "id": "wd:Q7281363",
+   "name": "RadiumOne",
+   "website": "http://radiumone.com/",
+   "state": "unreachable",
+   "reason": "The operation was aborted due to timeout"
+  },
+  {
+   "id": "yc:realroots",
+   "name": "RealRoots",
+   "website": "http://www.realroots.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "realroots.com",
+   "to": "therealroots.com"
+  },
+  {
+   "id": "wd:Q18390481",
+   "name": "RiskIQ",
+   "website": "http://www.riskiq.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "riskiq.com",
+   "to": "microsoft.com"
+  },
+  {
+   "id": "wd:Q7336849",
+   "name": "Ritual Coffee Roasters",
+   "website": "http://ritualroasters.com/",
+   "state": "unreachable",
+   "reason": "The operation was aborted due to timeout"
+  },
+  {
+   "id": "wd:Q7277601",
+   "name": "RPX Corporation",
+   "website": "http://www.rpxcorp.com/",
+   "state": "blocked",
+   "status": 403,
+   "reason": "the site refused an unattended request — this is not evidence the company is gone"
+  },
+  {
+   "id": "wd:Q41567714",
+   "name": "Rumi Scientific (United States)",
+   "website": "http://www.rumiscientific.com/the-rumi-team.php",
+   "state": "unreachable",
+   "status": 404,
+   "reason": "http 404"
+  },
+  {
+   "id": "wd:Q7388880",
+   "name": "SAY Media",
+   "website": "http://www.saymedia.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "saymedia.com",
+   "to": "thearenagroup.net"
+  },
+  {
+   "id": "wd:Q7432642",
+   "name": "Schoolbags for Kids",
+   "website": "http://www.bixbee.com/",
+   "state": "unreachable",
+   "status": 402,
+   "reason": "http 402"
+  },
+  {
+   "id": "yc:semiotic",
+   "name": "Semiotic",
+   "website": "http://semiotic.com/",
+   "state": "blocked",
+   "status": 429,
+   "reason": "the site refused an unattended request — this is not evidence the company is gone"
+  },
+  {
+   "id": "wd:Q7455899",
+   "name": "Servio",
+   "website": "http://www.serv.io/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "wd:Q28404284",
+   "name": "SignEasy",
+   "website": "http://getsigneasy.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "getsigneasy.com",
+   "to": "signeasy.com"
+  },
+  {
+   "id": "wd:Q30299274",
+   "name": "SillaJen (United States)",
+   "website": "http://www.sillajen.com/nhome/Unit/Home/Main/UTHomeMain.php",
+   "state": "unreachable",
+   "status": 404,
+   "reason": "http 404"
+  },
+  {
+   "id": "wd:Q18359151",
+   "name": "SiteJabber",
+   "website": "http://www.sitejabber.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "sitejabber.com",
+   "to": "smartcustomer.com"
+  },
+  {
+   "id": "wd:Q18378670",
+   "name": "Smaato",
+   "website": "http://www.smaato.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "smaato.com",
+   "to": "verve.com"
+  },
+  {
+   "id": "wd:Q17088573",
+   "name": "Soma",
+   "website": "http://www.drinksoma.com/",
+   "state": "unreachable",
+   "status": 404,
+   "reason": "http 404"
+  },
+  {
+   "id": "yc:soteris",
+   "name": "Soteris",
+   "website": "http://www.soteris.co/",
+   "state": "moved",
+   "status": 200,
+   "from": "soteris.co",
+   "to": "soteris.ai"
+  },
+  {
+   "id": "yc:sourceress",
+   "name": "Sourceress",
+   "website": "http://sourceress.com/",
+   "state": "unreachable",
+   "reason": "The operation was aborted due to timeout"
+  },
+  {
+   "id": "wd:Q16254389",
+   "name": "Summon",
+   "website": "http://www.summon.com/",
+   "state": "expired",
+   "status": 200,
+   "from": "summon.com",
+   "to": "domaineasy.com",
+   "reason": "the domain is listed for sale — the company did not move here"
+  },
+  {
+   "id": "wd:Q17089237",
+   "name": "Survata",
+   "website": "http://www.survata.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "survata.com",
+   "to": "upwave.com"
+  },
+  {
+   "id": "wd:Q7655178",
+   "name": "Sweet",
+   "website": "http://www.discoversweet.com/",
+   "state": "expired",
+   "status": 200,
+   "from": "discoversweet.com",
+   "to": "hugedomains.com",
+   "reason": "the domain is listed for sale — the company did not move here"
+  },
+  {
+   "id": "yc:synkrino-biotherapeutics",
+   "name": "Synkrino Biotherapeutics",
+   "website": "http://www.synkrino.bio/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "wd:Q18643780",
+   "name": "Theneeds",
+   "website": "http://www.theneeds.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "wd:Q105751519",
+   "name": "Thredup",
+   "website": "http://www.thredup.com/",
+   "state": "blocked",
+   "status": 403,
+   "reason": "the site refused an unattended request — this is not evidence the company is gone"
+  },
+  {
+   "id": "wd:Q103522257",
+   "name": "Treau",
+   "website": "http://treau.cool/",
+   "state": "moved",
+   "status": 200,
+   "from": "treau.cool",
+   "to": "gradientcomfort.com"
+  },
+  {
+   "id": "wd:Q19881573",
+   "name": "Twice",
+   "website": "http://www.liketwice.com/",
+   "state": "unreachable",
+   "reason": "The operation was aborted due to timeout"
+  },
+  {
+   "id": "wd:Q7893726",
+   "name": "Unitus Impact",
+   "website": "http://www.unitusimpact.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "unitusimpact.com",
+   "to": "patamar.com"
+  },
+  {
+   "id": "yc:verge-genomics",
+   "name": "Verge Genomics",
+   "website": "http://vergegenomics.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "vergegenomics.com",
+   "to": "vergelabs.com"
+  },
+  {
+   "id": "wd:Q7933955",
+   "name": "Virgin Limousines",
+   "website": "http://www.virginlimo.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  },
+  {
+   "id": "yc:wefunder",
+   "name": "Wefunder",
+   "website": "http://wefunder.com/",
+   "state": "blocked",
+   "status": 403,
+   "reason": "the site refused an unattended request — this is not evidence the company is gone"
+  },
+  {
+   "id": "wd:Q7993932",
+   "name": "Whisper Systems",
+   "website": "http://www.whispersys.com/",
+   "state": "live",
+   "status": 200,
+   "host": "whispersys.com"
+  },
+  {
+   "id": "wd:Q30598093",
+   "name": "Whistle",
+   "website": "http://www.whistle.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "whistle.com",
+   "to": "tractive.com"
+  },
+  {
+   "id": "wd:Q3073996",
+   "name": "Xamarin",
+   "website": "http://www.xamarin.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "xamarin.com",
+   "to": "dotnet.microsoft.com"
+  },
+  {
+   "id": "wd:Q7441963",
+   "name": "Yelp Reservations",
+   "website": "http://www.seatme.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "seatme.com",
+   "to": "business.yelp.com"
+  },
+  {
+   "id": "yc:yourchoice-therapeutics",
+   "name": "YourChoice Therapeutics",
+   "website": "http://ychoicetx.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "ychoicetx.com",
+   "to": "yourchoicetx.com"
+  },
+  {
+   "id": "yc:zendar",
+   "name": "Zendar",
+   "website": "http://www.zendar.io/",
+   "state": "moved",
+   "status": 200,
+   "from": "zendar.io",
+   "to": "zendar.ai"
+  },
+  {
+   "id": "wd:Q20155991",
+   "name": "Zenefits",
+   "website": "http://www.zenefits.com/",
+   "state": "moved",
+   "status": 200,
+   "from": "zenefits.com",
+   "to": "trinet.com"
+  },
+  {
+   "id": "wd:Q8072212",
+   "name": "Zimride",
+   "website": "http://www.zimride.com/",
+   "state": "unreachable",
+   "reason": "fetch failed"
+  }
+ ]
+}
