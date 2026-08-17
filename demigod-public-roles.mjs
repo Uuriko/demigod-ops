@@ -299,10 +299,31 @@ export function publicRolesFromFeed(feed, { limit = 24, profiles = {}, perCompan
     generatedAt: new Date().toISOString(),
     basis:
       'Recently first-observed open roles on public employer ATS boards (role-ledger). Prefers SF Bay, Los Angeles area, and NYC when those locations appear; other US/remote stay eligible. Optional employerDepartment/office/boardUpdatedAt/employmentType/workplaceType when present on public Greenhouse, Lever, or Ashby boards. Not Demigod matching inventory; not a fill-rate claim.',
-    coverage: 'sf-bay · los-angeles · nyc · us-remote',
+    /* Derived from the rows that are actually here, not declared as a constant. The fallback above
+       keeps every off-geo row when nothing in scope exists that day, so a fixed string would print
+       "sf-bay · los-angeles · nyc · us-remote" over a list containing none of them. A claim about
+       coverage should be readable off the payload it describes. */
+    coverage: publicRolesCoverage(roles),
     windowDays: feed.windowDays ?? null,
     roles,
   };
+}
+
+/**
+ * PURE. What this payload actually covers, in the order the product talks about it.
+ * `elsewhere` appears only when a row sits outside every named metro and the US.
+ */
+export function publicRolesCoverage(roles = []) {
+  const present = new Set();
+  for (const role of roles) {
+    if (role?.metro && ['sf-bay', 'la', 'nyc'].includes(role.metro)) present.add(role.metro);
+    else if (sfPublicRoleScore(role?.location) >= 2) present.add('us-remote');
+    else if (sfPublicRoleScore(role?.location) === 0) present.add('elsewhere');
+    else present.add('unspecified');
+  }
+  const order = ['sf-bay', 'la', 'nyc', 'us-remote', 'unspecified', 'elsewhere'];
+  const label = { 'sf-bay': 'sf-bay', la: 'los-angeles', nyc: 'nyc', 'us-remote': 'us-remote', unspecified: 'location-unspecified', elsewhere: 'elsewhere' };
+  return order.filter((key) => present.has(key)).map((key) => label[key]).join(' · ') || 'none';
 }
 
 export function embedScript(publicRoles) {
@@ -368,6 +389,12 @@ function selftest() {
   assert.equal(sfPublicRoleScore('Remote'), 1, 'a bare "Remote" is unknown, not American');
   assert.equal(sfPublicRoleScore('Remote - US'), 2, 'and a US remote role stays eligible whatever the separator');
   assert.equal(sfPublicRoleScore('Remote (US)'), 2, 'including parenthesised');
+  // Coverage is read off the payload. The fallback path keeps off-geo rows when nothing in scope
+  // exists that day, and a constant string would then claim four geographies over a list with none.
+  assert.equal(publicRolesCoverage([{ metro: 'sf-bay', location: 'San Francisco' }, { metro: null, location: 'Remote - US' }]), 'sf-bay · us-remote');
+  assert.equal(publicRolesCoverage([{ metro: null, location: 'London' }]), 'elsewhere', 'an all-London day says elsewhere, not sf-bay');
+  assert.equal(publicRolesCoverage([{ metro: 'nyc', location: 'New York, NY' }, { metro: null, location: 'Remote' }]), 'nyc · location-unspecified');
+  assert.equal(publicRolesCoverage([]), 'none', 'an empty payload covers nothing and says so');
   const multi = {
     schema: 'demigod.roles-feed/8',
     windowDays: 3,
