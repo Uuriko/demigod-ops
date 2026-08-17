@@ -556,6 +556,15 @@ legal conclusion. Newly appended assertions also carry `review.state: approved`,
 approval time, and the exact preview hash. Legacy fixture/corpus assertions without review metadata
 remain readable; the workbench writer never creates one.
 
+```text
+demigod.candidate-evidence/1
+  source-types            = candidate_submitted, public_work, and nothing else
+  span-in-artifact        => a span absent from the artifact fails closed
+  artifact-not-retained   => the artifact body is hashed; only the bounded span is kept
+  future-observation      => an observation later than `at` fails closed
+  retention               => every assertion carries a retention deadline
+```
+
 ## 25. Candidate evidence correction and withdrawal
 
 A correction is a new candidate-evidence assertion with `supersedes`; it never overwrites the old
@@ -594,6 +603,15 @@ candidate IDs, claims, spans, ratings, and reviewer text.
 source type, artifact text, and an exact source span contained in that artifact. It hashes the full
 artifact with SHA-256, derives provenance/use fields and a 90-day retention deadline, but retains
 only the bounded span. It is pure, `committable: false`, and grants no action authority.
+
+```text
+demigod.candidate-evidence-preview/1
+  committable             = false
+  authority               => approval human_required, externalAction none
+  hash-binding            => the preview carries the exact hash approval must bind to
+  pure                    => previewing writes nothing and mutates neither packet nor corpus
+  reject                  => the receipt is content-free and appends nothing
+```
 
 `approveCandidateEvidence(...)` binds a human reviewer to the exact preview hash, reloads and
 revalidates the latest corpus under one file lock, and atomically appends with mode `0600`.

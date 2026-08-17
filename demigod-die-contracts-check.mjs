@@ -1355,6 +1355,118 @@ async function checkEvidenceResolver() {
  * already covered by that module's own tests; wiring them here would need a fixture builder the
  * module does not export, and a checker that fakes one would be testing my fixture, not the rule.
  */
+/**
+ * §24 Candidate evidence assertion and §28 the workbench preview.
+ *
+ * These carry a real person's words about their own work, so the rules that matter are the ones
+ * about what is NOT kept: the artifact is hashed and thrown away, only the bounded span survives,
+ * and nothing is committable without a human binding to an exact hash. Every case runs against the
+ * real preview function with no store path involved — none of this may touch the corpus on disk.
+ */
+async function candidateEvidenceFixture() {
+  const ce = await import('./demigod-candidate-evidence.mjs');
+  const { createPacket } = await import('./demigod-role-packet.mjs');
+  const packet = createPacket({ roleId: 'r-contract', title: 'Engineer', outcome90d: 'Ship billing to ten customers' });
+  const artifactText = 'The candidate shipped a production billing migration for ten enterprise customers in 2025.';
+  const input = {
+    roleId: 'r-contract',
+    candId: 'cand-contract',
+    mustHaveId: (packet.mustHaves || [])[0]?.id,
+    claim: 'Shipped a production billing migration.',
+    sourceType: 'candidate_submitted',
+    artifactText,
+    sourceSpan: 'shipped a production billing migration',
+  };
+  const corpus = { schema: ce.CORPUS_SCHEMA, evidence: [], withdrawals: [] };
+  // Evidence may only be proposed against a role somebody actually accepted — a rule worth knowing
+  // about while writing the fixture, since without it every case here fails for the same reason.
+  const acceptedRole = { roleId: 'r-contract', company: 'Acme', roleTruthHash: 'abc' };
+  return { ce, packet, input, corpus, acceptedRole, artifactText, at: '2026-08-17T00:00:00.000Z' };
+}
+
+async function checkCandidateAssertion() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.candidate-evidence\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.candidate-evidence/1 fence in §24 yet' };
+
+  const { ce, packet, input, corpus, acceptedRole, artifactText, at } = await candidateEvidenceFixture();
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+  const preview = (patch) => ce.previewCandidateEvidence({ input: { ...input, ...patch }, packet, acceptedRole, corpus, at });
+  const refuses = (patch, why) => {
+    try { preview(patch); bad.push(`accepted ${why}`); } catch { /* refused, as required */ }
+  };
+
+  if (/source-types\s*=\s*candidate_submitted, public_work/.test(fence)) {
+    say(JSON.stringify(Object.keys(ce.SOURCE_POLICIES).sort()) === JSON.stringify(['candidate_submitted', 'public_work']),
+      `source policies are ${Object.keys(ce.SOURCE_POLICIES).join(', ')}`);
+    refuses({ sourceType: 'scraped_linkedin' }, 'an undeclared source type');
+  }
+  if (/span-in-artifact\s*=>\s*a span absent from the artifact fails closed/.test(fence)) {
+    refuses({ sourceSpan: 'a sentence that is nowhere in the artifact' }, 'a span absent from the artifact');
+  }
+  if (/artifact-not-retained\s*=>\s*the artifact body is hashed/.test(fence)) {
+    const record = preview({}).proposedEvidence;
+    const serialized = JSON.stringify(record);
+    say(!serialized.includes(artifactText), 'the full artifact body was retained in the assertion');
+    say(record?.source?.span?.text === input.sourceSpan, 'the bounded span was not kept');
+    say(/^[a-f0-9]{64}$/.test(String(record?.source?.contentSha256)), 'the artifact was not hashed with SHA-256');
+  }
+  if (/future-observation\s*=>\s*an observation later than/.test(fence)) {
+    refuses({ observedAt: '2026-09-01T00:00:00.000Z' }, 'an observation from the future');
+  }
+  if (/retention\s*=>\s*every assertion carries a retention deadline/.test(fence)) {
+    const record = preview({}).proposedEvidence;
+    say(Boolean(record?.use?.retainUntil) && Date.parse(record.use.retainUntil) > Date.parse(at),
+      'the assertion carries no retention deadline in the future');
+    say(record?.use?.policyVersion === ce.EVIDENCE_POLICY_VERSION, 'the assertion names no policy version');
+  }
+
+  return bad.length
+    ? { status: 'violation', detail: `§24 fence and previewCandidateEvidence disagree on ${bad.length} rule(s)`, sample: bad.slice(0, 5) }
+    : { status: 'pass', detail: 'two source types, span must be in the artifact, artifact hashed not retained, retention deadline present' };
+}
+
+async function checkEvidenceWorkbench() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.candidate-evidence-preview\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.candidate-evidence-preview/1 fence in §28 yet' };
+
+  const { ce, packet, input, corpus, acceptedRole, at } = await candidateEvidenceFixture();
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+
+  const before = JSON.stringify({ packet, corpus });
+  const preview = ce.previewCandidateEvidence({ input, packet, acceptedRole, corpus, at });
+  if (/committable\s*=\s*false/.test(fence)) {
+    say(preview?.committable === false, `preview committable is ${JSON.stringify(preview?.committable)}`);
+  }
+  if (/authority\s*=>\s*approval human_required, externalAction none/.test(fence)) {
+    say(preview?.authority?.approval === 'human_required', `approval authority is ${JSON.stringify(preview?.authority?.approval)}`);
+    say(preview?.authority?.externalAction === 'none', `externalAction is ${JSON.stringify(preview?.authority?.externalAction)}`);
+  }
+  if (/hash-binding\s*=>\s*the preview carries the exact hash/.test(fence)) {
+    say(/^[a-f0-9]{64}$/.test(String(preview?.previewHash)), 'the preview carries no binding hash');
+    // The hash must be OF the proposed record: change one character of the claim and it must move.
+    const other = ce.previewCandidateEvidence({ input: { ...input, claim: 'Shipped a production billing migration!' }, packet, acceptedRole, corpus, at });
+    say(other.previewHash !== preview.previewHash, 'two different proposals share a preview hash');
+  }
+  if (/pure\s*=>\s*previewing writes nothing/.test(fence)) {
+    say(JSON.stringify({ packet, corpus }) === before, 'previewing mutated the packet or the corpus');
+  }
+  if (/reject\s*=>\s*the receipt is content-free and appends nothing/.test(fence)) {
+    const receipt = ce.rejectCandidateEvidence({ previewHash: preview.previewHash, rejectedBy: 'operator', reason: 'not enough detail', at });
+    const serialized = JSON.stringify(receipt);
+    say(!serialized.includes(input.sourceSpan), 'the rejection receipt carried the evidence span');
+    say(!serialized.includes(input.claim), 'the rejection receipt carried the claim');
+    say(serialized.includes(preview.previewHash), 'the rejection receipt does not name what was rejected');
+  }
+
+  return bad.length
+    ? { status: 'violation', detail: `§28 fence and the workbench disagree on ${bad.length} rule(s)`, sample: bad.slice(0, 5) }
+    : { status: 'pass', detail: 'preview is pure and uncommittable, its hash binds to the exact proposal, rejection keeps no content' };
+}
+
 async function checkCandidateProjection() {
   const { projectCandidateEvidence, CORPUS_SCHEMA } = await import('./demigod-candidate-evidence.mjs');
   const { createPacket } = await import('./demigod-role-packet.mjs');
@@ -1466,11 +1578,13 @@ async function checkBoardPay() {
 }
 
 /** Sections with a working executor today. Raise it when you wire one; never lower it. */
-export const ENFORCED_FLOOR = 26;
+export const ENFORCED_FLOOR = 28;
 
 export const EXECUTORS = {
   5: { name: 'demigod-evidence.mjs (claim shape)', run: checkClaim },
+  24: { name: 'demigod-candidate-evidence.mjs assertion shape', run: checkCandidateAssertion },
   26: { name: 'demigod-candidate-evidence.mjs projectCandidateEvidence', run: checkCandidateProjection },
+  28: { name: 'demigod-candidate-evidence.mjs workbench preview', run: checkEvidenceWorkbench },
   8: { name: 'demigod-evidence.mjs projectCompanyResearch', run: checkProjector },
   9: { name: 'demigod-matching-engine.mjs resolveCompanyEvidence', run: checkEvidenceResolver },
   10: { name: 'demigod-company-packet.mjs (quarantine projection)', run: checkQuarantine },
