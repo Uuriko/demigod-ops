@@ -462,6 +462,15 @@ demigod.command-surface/1
 `consultedEvidence` IDs. Historical notes without it remain valid and project `missing`; partial
 rehearsals project `incomplete`. It is human-authored context, not a recommendation or score.
 
+```text
+demigod.review-note/1 rehearsal
+  absent                  => projects missing; a historical note stays valid
+  partial                 => projects incomplete, never complete
+  complete                => projects complete
+  consultedEvidence       <= 50 ids
+  no-score                => the decision trace carries a null global score and human-only authority
+```
+
 ## 20. Role Mission
 
 `composeRoleMission(workspace, notes)` returns `demigod.role-mission/1` as a pure projection over
@@ -477,12 +486,28 @@ the existing `demigod.role-workspace/1` and review notes. It contains:
 
 It creates no mission store and grants no external action.
 
+```text
+demigod.role-mission/1
+  parts                   = case, evidenceBill, decisionTrace, views.private, views.mutual, constitution
+  pure                    => composing a mission mutates neither workspace nor notes
+  constitution            => externalAction none, employmentDecision human
+  no-score                => no global score anywhere in the mission
+```
+
 ## 21. Evidence bill
 
 `buildEvidenceBill(workspace)` returns `demigod.evidence-bill/1`. Components name their kind,
 state, source, producing activity, trust zone, upstream dependencies, and affected mission question.
 The first implementation derives components from accepted-role, role-packet, company-packet,
 evidence-review, relationship, and conversation projections. It is an array, not a graph database.
+
+```text
+demigod.evidence-bill/1
+  components              = an array; every component names kind, state, source, activity, trustZone
+  affects                 => every component names at least one mission question it bears on
+  ids-unique              => no component id appears twice
+  no-score                => a component carries no rating, score or rank
+```
 
 ## 22. Mutual projection
 

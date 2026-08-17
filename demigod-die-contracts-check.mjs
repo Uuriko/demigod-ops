@@ -244,6 +244,153 @@ async function missionWorkspaceFixture() {
   return { workspace, SENTINELS };
 }
 
+/** §20 Role Mission — a pure projection with a constitution it must keep stating. */
+async function checkRoleMission() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.role-mission\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.role-mission/1 fence in §20 yet' };
+
+  const { composeRoleMission } = await import('./demigod-structured-hiring.mjs');
+  const { workspace } = await missionWorkspaceFixture();
+  const notes = workspace.notes || [];
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+
+  const before = JSON.stringify({ workspace, notes });
+  const mission = composeRoleMission(workspace, notes);
+  if (/pure\s*=>\s*composing a mission mutates neither/.test(fence)) {
+    say(JSON.stringify({ workspace, notes }) === before, 'composing a mission mutated its inputs');
+  }
+  if (/parts\s*=\s*case, evidenceBill, decisionTrace/.test(fence)) {
+    for (const part of ['case', 'evidenceBill', 'decisionTrace', 'constitution']) {
+      say(mission?.[part] != null, `the mission is missing ${part}`);
+    }
+    say(mission?.views?.private != null, 'the mission is missing views.private');
+    say(mission?.views?.mutual != null, 'the mission is missing views.mutual');
+  }
+  if (/constitution\s*=>\s*externalAction none, employmentDecision human/.test(fence)) {
+    say(mission?.constitution?.externalAction === 'none', `constitution externalAction is ${JSON.stringify(mission?.constitution?.externalAction)}`);
+    say(mission?.constitution?.employmentDecision === 'human', `constitution employmentDecision is ${JSON.stringify(mission?.constitution?.employmentDecision)}`);
+  }
+  if (/no-score\s*=>\s*no global score anywhere/.test(fence)) {
+    const serialized = JSON.stringify(mission);
+    say(!/"globalScore"\s*:\s*[^n]/.test(serialized), 'the mission carries a non-null global score');
+    say(!/"(fitScore|rank)"\s*:\s*\d/.test(serialized), 'the mission carries a numeric fit score or rank');
+  }
+
+  return bad.length
+    ? { status: 'violation', detail: `§20 fence and composeRoleMission disagree on ${bad.length} rule(s)`, sample: bad.slice(0, 5) }
+    : { status: 'pass', detail: 'six parts present, inputs unmutated, constitution states no external action and a human decision' };
+}
+
+/** §21 Evidence bill — a manifest, and every component has to say where it came from. */
+async function checkEvidenceBill() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.evidence-bill\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.evidence-bill/1 fence in §21 yet' };
+
+  const { buildEvidenceBill } = await import('./demigod-structured-hiring.mjs');
+  const { workspace } = await missionWorkspaceFixture();
+  const bill = buildEvidenceBill(workspace);
+  const components = bill?.components || [];
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+
+  if (/components\s*=\s*an array/.test(fence)) {
+    say(Array.isArray(components) && components.length > 0, 'the evidence bill has no components — a vacuous pass is not a pass');
+    for (const component of components) {
+      for (const key of ['kind', 'state', 'source', 'activity', 'trustZone']) {
+        say(Boolean(component?.[key]), `component ${component?.id || '?'} names no ${key}`);
+      }
+    }
+  }
+  if (/affects\s*=>\s*every component names at least one mission question/.test(fence)) {
+    for (const component of components) {
+      say(Array.isArray(component?.affects) && component.affects.length > 0,
+        `component ${component?.id || '?'} bears on no mission question`);
+    }
+  }
+  if (/ids-unique\s*=>\s*no component id appears twice/.test(fence)) {
+    const ids = components.map((component) => component?.id);
+    say(new Set(ids).size === ids.length, 'two components share an id');
+  }
+  if (/no-score\s*=>\s*a component carries no rating, score or rank/.test(fence)) {
+    say(!/"(score|fitScore|rating|rank)"\s*:/.test(JSON.stringify(components)), 'a component carries a score-shaped key');
+  }
+
+  return bad.length
+    ? { status: 'violation', detail: `§21 fence and buildEvidenceBill disagree on ${bad.length} rule(s)`, sample: bad.slice(0, 5) }
+    : { status: 'pass', detail: `${components.length} components, each naming kind, state, source, activity, trust zone and what it bears on` };
+}
+
+/** §19 Decision rehearsal — absence, partial and complete are three answers, not two. */
+async function checkDecisionRehearsal() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.review-note\/1 rehearsal[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.review-note/1 rehearsal fence in §19 yet' };
+
+  const { composeRoleMission } = await import('./demigod-structured-hiring.mjs');
+  const { workspace } = await missionWorkspaceFixture();
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+  // Notes are an argument to composeRoleMission, not a field on the workspace — the composer reads
+  // the array it is handed. Building them off `workspace.notes` produced an empty trace and three
+  // rules that all "failed" against a mission with nothing to review.
+  const baseNote = {
+    roleId: 'role-contract-check',
+    candId: 'cand-sentinel-9001',
+    reviewedAt: '2026-08-14T00:00:00.000Z',
+    reviewedBy: 'operator',
+    ratings: [{ mustHaveId: 'mh1', rating: 'yes', evidence: 'Shipped a production backend migration.', evidenceIds: ['ev-1'] }],
+  };
+  const rehearsalStatus = (rehearsal) => {
+    const notes = [{ ...baseNote, ...(rehearsal ? { rehearsal } : {}) }];
+    const trace = composeRoleMission(workspace, notes)?.decisionTrace;
+    return (trace?.reviews || [])[0]?.rehearsalState ?? null;
+  };
+  const full = {
+    initialView: 'The work sample appears relevant pending full review.',
+    contraryEvidence: 'The sample may not show comparable production scale.',
+    changeCondition: 'Verified ownership at similar scale would change the view.',
+    finalRationale: 'Keep the evidence question open for the structured interview.',
+    consultedEvidence: ['question:mh1'],
+  };
+
+  if (/absent\s*=>\s*projects missing/.test(fence)) {
+    say(rehearsalStatus(null) === 'missing', `a note with no rehearsal projected ${rehearsalStatus(null)}`);
+  }
+  if (/partial\s*=>\s*projects incomplete/.test(fence)) {
+    const partial = rehearsalStatus({ initialView: full.initialView });
+    say(partial === 'incomplete', `a partial rehearsal projected ${partial}`);
+  }
+  if (/complete\s*=>\s*projects complete/.test(fence)) {
+    say(rehearsalStatus(full) === 'complete', `a full rehearsal projected ${rehearsalStatus(full)}`);
+  }
+  if (/consultedEvidence\s*<=\s*50 ids/.test(fence)) {
+    // The bound lives in assertNote, where a note is created — not in the trace, which copies what
+    // the note carries. Checking the projector would have asserted the wrong module and passed
+    // whatever an unvalidated note smuggled in.
+    const { createNote } = await import('./demigod-role-packet.mjs');
+    const noteWith = (count) => createNote({
+      roleId: 'role-contract-check',
+      candId: 'cand-sentinel-9001',
+      ratings: [{ mustHaveId: 'mh1', rating: 'yes', evidence: 'Shipped a production backend migration.', evidenceIds: ['ev-1'] }],
+      rehearsal: { ...full, consultedEvidence: Array.from({ length: count }, (unused, index) => `question:mh${index}`) },
+    });
+    say(noteWith(51).rehearsal.consultedEvidence.length === 50, '51 consulted-evidence ids survived a 50-id bound');
+    say(noteWith(50).rehearsal.consultedEvidence.length === 50, '50 ids were truncated — the bound has become stricter than the contract');
+  }
+  if (/no-score\s*=>\s*the decision trace carries a null global score/.test(fence)) {
+    const trace = composeRoleMission(workspace, [baseNote])?.decisionTrace;
+    say(trace?.globalScore === null, `decision trace globalScore is ${JSON.stringify(trace?.globalScore)}`);
+    say(trace?.authority === 'human_only', `decision trace authority is ${JSON.stringify(trace?.authority)}`);
+  }
+
+  return bad.length
+    ? { status: 'violation', detail: `§19 fence and the decision trace disagree on ${bad.length} rule(s)`, sample: bad.slice(0, 5) }
+    : { status: 'pass', detail: 'missing, incomplete and complete are three distinct answers; the trace scores nothing' };
+}
+
 async function checkMutualProjection() {
   const md = fs.readFileSync(CONTRACTS, 'utf8');
   const fence = /```text\s*\n(demigod\.role-mission-mutual\/1[\s\S]*?)```/.exec(md)?.[1];
@@ -1319,7 +1466,7 @@ async function checkBoardPay() {
 }
 
 /** Sections with a working executor today. Raise it when you wire one; never lower it. */
-export const ENFORCED_FLOOR = 23;
+export const ENFORCED_FLOOR = 26;
 
 export const EXECUTORS = {
   5: { name: 'demigod-evidence.mjs (claim shape)', run: checkClaim },
@@ -1341,6 +1488,9 @@ export const EXECUTORS = {
   16: { name: 'demigod-company-memo.mjs renderCompanyMemo', run: checkPrivateMemo },
   17: { name: 'demigod-packet-writeback.mjs buildWritebackPlan', run: checkWriteback },
   18: { name: 'demigod-company-intelligence.mjs companyCommandPlan', run: checkCommandSurface },
+  19: { name: 'demigod-structured-hiring.mjs decision trace', run: checkDecisionRehearsal },
+  20: { name: 'demigod-structured-hiring.mjs composeRoleMission', run: checkRoleMission },
+  21: { name: 'demigod-structured-hiring.mjs buildEvidenceBill', run: checkEvidenceBill },
   22: { name: 'demigod-structured-hiring.mjs projectMutualMission', run: checkMutualProjection },
   23: { name: 'demigod-structured-hiring.mjs compareMissionScenario', run: checkMissionScenario },
   29: { name: 'demigod-role-mission-kernel.mjs attachCompany (grok)', run: checkMissionCompany },
