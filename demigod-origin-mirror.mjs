@@ -1,22 +1,22 @@
 #!/usr/bin/env node
 /**
- * demigod-origin-mirror — mirror the GitHub repos to Cursor's Origin, additively.
+ * demigod-origin-mirror — verify the Origin mirrors still match GitHub.
  *
- * WHY ADDITIVE
- * GitHub is not just where this code lives, it is part of how the product is delivered:
- * `cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@<sha>/foot-latest.js` serves the foot on every page,
- * and jsDelivr's /gh/ endpoint reads GitHub only. The CDN publish path also triggers a GitHub
- * Actions workflow. So Origin is a second home, never a move, and nothing here changes `origin`
- * (the GitHub remote) or touches the delivery path.
+ * WHAT CHANGED
+ * This was written to create repos and push them. It never needed to: claiming the Origin namespace
+ * mirrored all 14 GitHub repos automatically, in eleven seconds, before a single command ran. What
+ * is actually useful is the opposite job — checking that the mirrors have not drifted.
  *
- * WHY NOT `git push --mirror`
- * --mirror deletes remote refs that are absent locally and rewrites the remote to match this disk
- * exactly. Against a fresh repo that is harmless; run twice, or from a tree that has fallen behind,
- * and it removes work. This pushes `--all --tags` instead: additive, and a diverged branch fails
- * loudly rather than being erased.
+ * WHY IT CANNOT PUSH
+ * The mirrors are `inbound`: GitHub is the source and Origin pulls, measured at under ten seconds
+ * from push to appearance. Writing to both ends of a mirror is how mirroring breaks — the general
+ * practice warns of race conditions and of rewrites making sync fail — so the rule is: push to
+ * GitHub, let Origin follow. The local `cursor` remote has its push URL deliberately set to a
+ * non-repository string so an accidental `git push cursor` fails with a message saying so, while
+ * fetch keeps working for exactly this verification.
  *
- *   node demigod-origin-mirror.mjs            # dry run: preconditions + what would happen
- *   node demigod-origin-mirror.mjs --push     # actually create and push
+ *   node demigod-origin-mirror.mjs            # verify every repo against GitHub
+ *   node demigod-origin-mirror.mjs --json
  *
  * Schema: demigod.origin-mirror/1
  */
@@ -38,26 +38,22 @@ export const ORIGIN_HOST = 'https://origin.cursor.com';
  * demigod-ops-23 is deliberately absent: it is a stale checkout of demigod-ops, not a repo, and
  * mirroring a mirror creates a third thing to keep in sync.
  */
+export const NAMESPACE = process.env.CURSOR_ORIGIN_NAMESPACE || 'johnpotter';
+export const GITHUB_OWNER = 'Uuriko';
+
+/** Every repo mirrored on Origin. Forks included, because the question is drift, not worth. */
 export const REPOS = [
-  {
-    dir: '.',
-    name: 'demigod-ops',
-    private: true,
-    note: 'the operations repo — private on GitHub, so private on Origin or not at all',
-  },
-  {
-    dir: 'demigod-site-cdn',
-    name: 'demigod-site-cdn',
-    private: false,
-    note: 'MUST stay on GitHub: jsDelivr /gh/ serves the live foot and head CSS from it, pinned by commit',
-  },
-  {
-    dir: 'dasha-desk',
-    name: 'dasha-desk',
-    private: false,
-    note: 'public repo the site links to',
-  },
+  'asi', 'crispy-garbanzo', 'dasha-desk', 'dasha-utility', 'dasha-utility-full',
+  'demigod-ops', 'demigod-site-cdn', 'eat-the-sounds', 'eliza', 'firsttimersonly',
+  'oracle-hole', 'Projects', 'social-media-wg-secrets', 'Uuriko',
 ];
+
+/**
+ * demigod-site-cdn keeps GitHub as its home whatever Origin does: jsDelivr's /gh/ endpoint serves
+ * the live foot and head CSS from it, pinned by commit, and the publish path triggers a GitHub
+ * Actions workflow. Mirroring is additive and changes none of that.
+ */
+export const DELIVERY_PATH_REPO = 'demigod-site-cdn';
 
 function git(dir, args) {
   const result = spawnSync('git', args, { cwd: dir, encoding: 'utf8' });
@@ -76,142 +72,99 @@ export function originUrl(namespace, repo, { host = ORIGIN_HOST } = {}) {
   return `${host}/${namespace}/${repo}.git`;
 }
 
-/**
- * Preconditions, each reported separately so a failure names the step rather than the script.
- * Nothing here mutates anything.
- */
-export function inspect({ root = ROOT } = {}) {
-  const cli = spawnSync('origin', ['--version'], { encoding: 'utf8' });
-  const authed = cli.status === 0 ? spawnSync('origin', ['auth', 'status'], { encoding: 'utf8' }).status === 0 : false;
-  const repos = REPOS.map((repo) => {
-    const dir = repo.dir === '.' ? root : path.join(root, repo.dir);
-    if (!fs.existsSync(path.join(dir, '.git'))) return { ...repo, dir, present: false };
-    const branches = git(dir, ['branch', '--format=%(refname:short)']).out.split('\n').filter(Boolean);
-    const unpushed = git(dir, ['log', '--oneline', '@{u}..']).out.split('\n').filter(Boolean).length;
-    const hasRemote = git(dir, ['remote', 'get-url', ORIGIN_REMOTE]).ok;
-    return {
-      ...repo,
-      dir,
-      present: true,
-      branches: branches.length,
-      // Unpushed work means GitHub and this disk already disagree. Mirroring from here would give
-      // Origin a state GitHub has never seen, which is a confusing thing to discover later.
-      unpushedToGitHub: unpushed,
-      originRemoteConfigured: hasRemote,
-    };
-  });
+/** PURE. The two URLs a repo should be reachable at. */
+export function repoUrls(repo, { namespace = NAMESPACE, owner = GITHUB_OWNER } = {}) {
+  if (!validNamespace(namespace)) throw new Error(`origin-mirror: unusable namespace ${JSON.stringify(namespace)}`);
   return {
-    schema: 'demigod.origin-mirror/1',
-    cliInstalled: cli.status === 0,
-    cliVersion: cli.status === 0 ? (cli.stdout || '').trim() : null,
-    authenticated: authed,
-    repos,
+    origin: `${ORIGIN_HOST}/${namespace}/${repo}.git`,
+    github: `https://github.com/${owner}/${repo}.git`,
   };
 }
 
-/**
- * Create the repo on Origin if it is not there yet.
- *
- * `origin repo create-mirrored <owner/repo>` also exists and mirrors straight from GitHub without
- * touching this disk — the better choice when GitHub stays the source of truth. It is NOT used here
- * because the chosen order is Origin first: a server-side mirror would copy GitHub's history and
- * silently omit the commits that exist only on this machine.
- */
-function ensureRepo(repo, namespace) {
-  const view = spawnSync('origin', ['repo', 'view', `${namespace}/${repo.name}`], { encoding: 'utf8' });
-  if (view.status === 0) return { created: false, existed: true };
-  const created = spawnSync('origin', ['repo', 'create', `${namespace}/${repo.name}`], { encoding: 'utf8' });
-  if (created.status !== 0) {
-    return { created: false, existed: false, error: (created.stderr || created.stdout || '').trim().slice(0, 200) };
-  }
-  return { created: true, existed: false };
+function refsOf(url) {
+  const result = spawnSync('git', ['ls-remote', url], { encoding: 'utf8', timeout: 120000 });
+  if (result.status !== 0) return null;
+  return (result.stdout || '').trim().split('\n').filter(Boolean).sort();
 }
 
-function pushRepo(repo, namespace) {
-  const made = ensureRepo(repo, namespace);
-  if (made.error) return { repo: repo.name, ok: false, step: 'repo create', error: made.error };
-  const url = originUrl(namespace, repo.name);
-  const existing = git(repo.dir, ['remote', 'get-url', ORIGIN_REMOTE]);
-  if (!existing.ok) {
-    const added = git(repo.dir, ['remote', 'add', ORIGIN_REMOTE, url]);
-    if (!added.ok) return { repo: repo.name, ok: false, step: 'remote add', error: added.err };
-  } else if (existing.out !== url) {
-    const set = git(repo.dir, ['remote', 'set-url', ORIGIN_REMOTE, url]);
-    if (!set.ok) return { repo: repo.name, ok: false, step: 'remote set-url', error: set.err };
+/** PURE. Compare two ref listings and say precisely how they differ. */
+export function compareRefs(originRefs, githubRefs) {
+  if (originRefs === null || githubRefs === null) {
+    return { ok: null, reason: originRefs === null ? 'origin unreachable' : 'github unreachable' };
   }
-  // --all --tags, never --mirror: additive, and a diverged branch fails instead of being deleted.
-  const pushed = git(repo.dir, ['push', ORIGIN_REMOTE, '--all']);
-  const tagged = git(repo.dir, ['push', ORIGIN_REMOTE, '--tags']);
+  const o = new Set(originRefs);
+  const g = new Set(githubRefs);
+  const onlyOrigin = originRefs.filter((ref) => !g.has(ref));
+  const onlyGithub = githubRefs.filter((ref) => !o.has(ref));
   return {
-    repo: repo.name,
-    ok: pushed.ok && tagged.ok,
-    created: made.created,
-    url,
-    branches: pushed.ok ? 'pushed' : pushed.err.slice(0, 200),
-    tags: tagged.ok ? 'pushed' : tagged.err.slice(0, 200),
+    ok: onlyOrigin.length === 0 && onlyGithub.length === 0,
+    originRefs: originRefs.length,
+    githubRefs: githubRefs.length,
+    onlyOrigin: onlyOrigin.slice(0, 3),
+    onlyGithub: onlyGithub.slice(0, 3),
+  };
+}
+
+export function verifyAll({ repos = REPOS, namespace = NAMESPACE } = {}) {
+  const rows = repos.map((repo) => {
+    const urls = repoUrls(repo, { namespace });
+    const result = compareRefs(refsOf(urls.origin), refsOf(urls.github));
+    return { repo, ...result, deliveryPath: repo === DELIVERY_PATH_REPO || undefined };
+  });
+  return {
+    schema: 'demigod.origin-mirror/1',
+    namespace,
+    checked: rows.length,
+    identical: rows.filter((row) => row.ok === true).length,
+    drifted: rows.filter((row) => row.ok === false),
+    unreachable: rows.filter((row) => row.ok === null).map((row) => ({ repo: row.repo, reason: row.reason })),
+    rows,
   };
 }
 
 function selftest() {
   const assert = (cond, msg) => { if (!cond) throw new Error(`origin-mirror selftest: ${msg}`); };
-  assert(originUrl('acme', 'checkout') === 'https://origin.cursor.com/acme/checkout.git', 'documented URL shape');
+  assert(repoUrls('checkout', { namespace: 'acme' }).origin === 'https://origin.cursor.com/acme/checkout.git', 'documented URL shape');
   assert(validNamespace('uuriko') && !validNamespace('Uuriko'), 'namespaces are lower case');
   assert(!validNamespace('') && !validNamespace('has space') && !validNamespace('-leading'), 'obvious junk is refused');
-  for (const bad of ['../evil', 'a/b', 'x'.repeat(50)]) {
+  for (const bad of ['../evil', 'a/b', '']) {
     let threw = false;
-    try { originUrl('acme', bad); } catch { threw = true; }
-    assert(threw, `a repo name of ${JSON.stringify(bad)} must not reach a git remote`);
+    try { repoUrls('x', { namespace: bad }); } catch { threw = true; }
+    assert(threw, `a namespace of ${JSON.stringify(bad)} must not reach a git remote`);
   }
-  // The delivery-path repo must stay flagged, or someone eventually "tidies up" the GitHub remote.
-  const cdn = REPOS.find((repo) => repo.name === 'demigod-site-cdn');
-  assert(/jsDelivr/.test(cdn.note) && /MUST stay/.test(cdn.note), 'the CDN repo carries its warning');
-  assert(REPOS.every((repo) => repo.name !== 'demigod-ops-23'), 'a stale checkout is not a repo to mirror');
+  assert(REPOS.includes('demigod-ops') && REPOS.length === 14, `expected all 14 mirrored repos, got ${REPOS.length}`);
+  assert(DELIVERY_PATH_REPO === 'demigod-site-cdn', 'the repo jsDelivr serves must stay named, or someone tidies up its GitHub remote');
   assert(ORIGIN_REMOTE !== 'origin', 'the Origin remote must not take the name GitHub already uses here');
+  assert(repoUrls('demigod-ops').github === 'https://github.com/Uuriko/demigod-ops.git', 'github url shape');
+
+  // Drift detection has to be able to say drift, or a green run means nothing.
+  const same = compareRefs(['a\trefs/heads/main'], ['a\trefs/heads/main']);
+  assert(same.ok === true, 'identical listings compare equal');
+  const moved = compareRefs(['b\trefs/heads/main'], ['a\trefs/heads/main']);
+  assert(moved.ok === false && moved.onlyOrigin.length === 1 && moved.onlyGithub.length === 1, 'a moved ref is drift on both sides');
+  const extra = compareRefs(['a\trefs/heads/main', 'c\trefs/heads/x'], ['a\trefs/heads/main']);
+  assert(extra.ok === false && extra.onlyOrigin.length === 1, 'a ref only on Origin is drift');
+  assert(compareRefs(null, ['a']).ok === null, 'unreachable is not a verdict');
+  assert(compareRefs(['a'], null).ok === null, 'and neither is the other direction');
   console.log(JSON.stringify({ ok: true, selftest: 'origin-mirror' }));
 }
 
 if (isMain) {
   const args = process.argv.slice(2);
-  const flag = (name) => args.find((a) => a.startsWith(`--${name}=`))?.split('=')[1];
   if (args.includes('--selftest')) {
     selftest();
   } else {
-    const state = inspect();
-    const namespace = flag('namespace') || process.env.CURSOR_ORIGIN_NAMESPACE || null;
-    const wantPush = args.includes('--push');
-    const blockers = [];
-    const notes = [];
-    if (!state.cliInstalled) blockers.push('origin CLI not installed — curl -fsSL https://downloads.cursor.com/origin/install.sh | sh');
-    if (state.cliInstalled && !state.authenticated) blockers.push('not signed in — origin auth login (browser flow, needs a plan with Origin access)');
-    if (!namespace) blockers.push('no namespace — claim one at cursor.com/codebase, then pass --namespace=<name>');
-    for (const repo of state.repos) {
-      if (!repo.present) blockers.push(`${repo.name}: no git repo at ${repo.dir}`);
-      else if (repo.unpushedToGitHub) {
-        /* A note, not a blocker. Origin-first is the chosen order, so Origin simply receives the
-           complete local history and ends up ahead of GitHub — which is the intended state, not a
-           conflict. It is still worth saying out loud, because "the two hosts disagree" is
-           confusing to discover later without knowing it was deliberate. */
-        notes.push(`${repo.name}: ${repo.unpushedToGitHub} local commit(s) GitHub does not have — Origin will receive them, so Origin leads GitHub by that much`);
+    const report = verifyAll();
+    if (args.includes('--json')) {
+      console.log(JSON.stringify(report, null, 2));
+    } else {
+      console.log(`origin-mirror · ${report.identical}/${report.checked} identical to GitHub (namespace ${report.namespace})`);
+      for (const row of report.rows) {
+        const state = row.ok === true ? 'identical' : row.ok === false ? 'DRIFTED' : row.reason;
+        console.log(`  ${String(row.originRefs ?? '?').padStart(5)} refs  ${String(row.repo).padEnd(24)} ${state}`);
       }
+      if (report.drifted.length) console.log('  push to GitHub and let the mirror follow — never push to the Origin remote');
     }
-    if (!wantPush || blockers.length) {
-      console.log(JSON.stringify({
-        ...state,
-        namespace,
-        wouldPush: state.repos.filter((repo) => repo.present).map((repo) => ({
-          repo: repo.name,
-          branches: repo.branches,
-          url: namespace ? originUrl(namespace, repo.name) : null,
-          note: repo.note,
-        })),
-        blockers,
-        notes,
-        dryRun: !wantPush,
-      }, null, 2));
-      process.exit(blockers.length && wantPush ? 1 : 0);
-    }
-    const results = state.repos.filter((repo) => repo.present).map((repo) => pushRepo(repo, namespace));
-    console.log(JSON.stringify({ schema: 'demigod.origin-mirror/1', namespace, results }, null, 2));
-    process.exit(results.every((row) => row.ok) ? 0 : 1);
+    process.exit(report.drifted.length ? 1 : 0);
   }
 }
