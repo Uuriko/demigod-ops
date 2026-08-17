@@ -14,7 +14,7 @@ import test from 'node:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { checkContracts, parseSections, EXECUTORS, SCHEMA } from './demigod-die-contracts-check.mjs';
+import { checkContracts, hiringStatusComplaints, parseSections, EXECUTORS, SCHEMA } from './demigod-die-contracts-check.mjs';
 
 test('a missing CONTRACTS.md fails — absence is never health', async () => {
   const report = await checkContracts({ file: path.join(os.tmpdir(), 'dg-no-such-contracts.md') });
@@ -99,6 +99,22 @@ test('headings are parsed structurally, so the document stays editable', () => {
   assert.deepEqual(parsed.map((s) => s.n), [1, 29], 'only ## headings count');
   assert.equal(parsed[1].title, 'Role mission kernel');
   assert.deepEqual(parseSections('## not numbered\n'), []);
+});
+
+test('§29 board-observed goes red for a status function that trusts a date alone', async () => {
+  // The bug this rule exists for, reintroduced: `openRolesAt` present, no count, and the ladder
+  // still calls it observed. That is what live yc:10x said until 2026-08-17.
+  const dateAlone = (company = {}, { quarantined = false } = {}) => {
+    if (quarantined) return 'quarantined';
+    if (company.openRolesStale) return 'board_stale';
+    return company.openRolesAt ? 'board_observed' : 'unknown';
+  };
+  const complaints = hiringStatusComplaints(dateAlone);
+  assert.ok(complaints.length > 0, 'a date-only ladder must be reported, not accepted');
+  assert.match(complaints.join(' '), /not company_reported/);
+
+  const { hiringStatusOf } = await import('./demigod-role-mission-kernel.mjs');
+  assert.deepEqual(hiringStatusComplaints(hiringStatusOf), [], 'and the real kernel must have nothing to answer for');
 });
 
 test('the live contract set is green and genuinely exercised', async () => {

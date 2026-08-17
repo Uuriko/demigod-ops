@@ -82,6 +82,12 @@ if (ship || wizard) {
     // states understates pay transparency by 28 points and blames companies for a
     // vendor's API. The withheld/unsupported split is the assertion worth guarding.
     ['demigod-board-pay.mjs', ['--selftest']],
+    // The company-truth rules: an unread board must never present as a company with no open
+    // roles, and a missing role mix must not read as a counted zero. Both are one careless
+    // default away from lying, and on 2026-08-17 the kernel test was the only thing that caught
+    // a real regression -- while being run by no gate at all.
+    ['demigod-role-mission-kernel.test.mjs'],
+    ['demigod-hiring-shape.mjs', ['--selftest']],
     ['demigod-structured-hiring.mjs', ['--selftest']],
     ['demigod-dashboard-role-workspace.test.mjs'],
     ['demigod-die-web.test.mjs'],
@@ -130,6 +136,11 @@ if (ship || wizard) {
     ['demigod-selftest-guard.test.mjs'],
     // CONTRACTS.md answers for itself: enforced sections are called, prose-only ones report unwired
     ['demigod-die-contracts-check.mjs', ['--selftest']],
+    // ...and the checker can still go red. The green run above only means something because these
+    // feed it a broken document, a throwing executor, and a status ladder that trusts a date alone.
+    ['demigod-die-contracts-check.poison.test.mjs'],
+    // The activity list every DIE surface projects through — shape only, never a score.
+    ['demigod-die-activity-shape.test.mjs'],
     // Public brief: founder compensation stays a required, reviewable wizard step
     ['demigod-startup-comp-step.test.mjs'],
     // Evidence freshness: null seal hash + source drift must fail closed (not vacuous green)
@@ -172,12 +183,24 @@ if (ship || wizard) {
   ];
   if (browser) steps.push(['demigod-playtest-review.mjs']);
 
+  /* A suite that runs nothing reports `failed: 0`, which reads exactly like a clean run. verify-source
+     already refuses to pass on an empty check list; this is the same guard for the same reason. The
+     floor is a volume floor, not a target: a bad merge or a truncated array drops entries silently,
+     and 95 steps becoming 12 is the failure mode worth catching. Raise it deliberately when steps
+     are added; never lower it to make a run green. */
+  const MIN_STEPS = 90;
+
   let failed = 0;
+  let ran = 0;
   for (const [script, args = []] of steps) {
     const code = await run(script, args);
+    ran++;
     if (code !== 0) failed++;
   }
 
-  console.log(JSON.stringify({ pass: failed === 0, failed, browser }));
-  process.exit(failed ? 1 : 0);
+  const tooFew = ran < MIN_STEPS;
+  if (tooFew) console.error(`verify-all ran ${ran} steps, below the ${MIN_STEPS} floor — the suite was truncated, not clean`);
+  const pass = failed === 0 && !tooFew;
+  console.log(JSON.stringify({ pass, failed, ran, floor: MIN_STEPS, browser }));
+  process.exit(pass ? 0 : 1);
 }

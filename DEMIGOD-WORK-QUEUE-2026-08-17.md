@@ -1,0 +1,277 @@
+---
+status: working
+generated_by: claude
+generated_at: 2026-08-17
+---
+
+# Demigod standing work queue — written by me, for me
+
+This is my own prompt. I wrote it so that a session that gets compacted, interrupted, or handed to
+another agent can resume without re-deriving anything. Read the protocol, take the first task whose
+gate is not already green, and do it. Do not ask which one. Do not re-plan.
+
+**Goal in force:** never stop working on trydemigod.com, Demigod the startup, and DIE — fix bugs,
+add features, improve, research online where research actually decides something.
+
+---
+
+## Operating protocol
+
+1. **One task at a time, top of the first unfinished wave.** Waves are ordered by what makes the
+   next wave possible, not by how interesting the work is.
+2. **Every task names its gate.** A task is not done until its gate is green *and* the gate would
+   have been red before the change. If the gate could not have failed, the task was not finished —
+   go back and make the check real.
+3. **Root cause, not symptom.** Before editing a function, grep every caller. Two copies of a rule
+   is the bug; one shared function is the fix. The `hiringStatusOf` extraction on 2026-08-17 is the
+   pattern: two surfaces had to be told the same truth separately, and one of them was never told.
+4. **Ponytail.** YAGNI → reuse → stdlib → native → one line → minimum that works. Mark deliberate
+   ceilings with a `ponytail:` comment naming the upgrade path.
+5. **Never publish, send, post, or move money** without explicit authorization in the *current* user
+   request. Preparing and verifying is always allowed. `bin/dg ship prepare` is allowed; the publish
+   step is not.
+6. **Commit each finished task** with the repo's message style: a title that states the finding, a
+   body that says what was measured and why the fix is shaped that way, and the Co-Authored-By
+   trailer. Never bundle unrelated work into one commit.
+7. **Update this file** as tasks close: strike the line, add what was learned. This file is the
+   handoff. If it disagrees with a gate, the gate is right.
+8. **Re-verify before trusting anything here.** Other agents write this tree. Paths, counts, and
+   states in this document were true at 2026-08-17T08:00Z and are snapshots, not truth.
+
+**Truth commands.** `bin/dg truth` · `bin/dg session` · `npm run demigod:verify:source` ·
+`node demigod-verify-all.mjs` · `node demigod-die-contracts-check.mjs`.
+
+---
+
+## Wave 1 — make the checker able to fail (in flight)
+
+- [ ] **W1-1 Poison the §29 board-observed rule.** `demigod-die-contracts-check.poison.test.mjs`
+  proves the checker's red path is reachable. The new `board-observed` fence line has no poison
+  case, so nothing proves it can fail.
+  *Do:* add a test that stubs a kernel whose `hiringStatusOf` returns `board_observed` for a date
+  with no count, and asserts §29 reports a violation.
+  *Done when:* the poison suite fails if the executor's new branch is deleted.
+  *Gate:* `node --test demigod-die-contracts-check.poison.test.mjs`
+
+- [ ] **W1-2 Wire the poison suite into `demigod-verify-all.mjs`.** It is referenced by no runner.
+  A poison suite nobody runs proves nothing.
+  *Gate:* `node demigod-verify-all.mjs` names it in the run list.
+
+- [ ] **W1-3 Full `verify-all` run after the kernel/packet/enrich changes.** The two new entries
+  (`demigod-role-mission-kernel.test.mjs`, `demigod-hiring-shape.mjs --selftest`) have never run
+  inside it.
+  *Done when:* the whole suite is green, or every failure is triaged into a task below.
+
+- [ ] **W1-4 Gate-integrity check for `verify-all`.** `verify-source` asserts its checks actually
+  ran (`checks.length > 0`); `verify-all` does not. A suite that silently runs zero entries reports
+  success.
+  *Gate:* deleting the run list makes `verify-all` fail, not pass.
+
+---
+
+## Wave 2 — the map producer tells the truth about its own reads
+
+The 2026-08-17 finding: `openRolesAt` was stamped on rows nobody read a board for, and the packet
+called them `board_observed`. Producer and consumer are both fixed; the *data* is not.
+
+- [ ] **W2-1 Count the damage in the live map.** How many rows in `DEMIGOD-STARTUP-MAP.json` carry
+  `openRolesAt` with no integer `openRoles`? How many carry no `lastAttempt`?
+  *Do:* a one-shot read-only script or `node -e`; write the numbers into this file. No repair yet.
+  *Done when:* the two counts are recorded here with the map's `generatedAt`.
+
+- [ ] **W2-2 Repair mode for the bad stamps.** `--repair-denied` is the precedent: a surgical pass
+  that fixes rows without hammering 2,754 ATS boards.
+  *Do:* `--repair-stamps` that drops `openRolesAt` from any row with no integer count, leaves every
+  other field alone, and reports what it touched.
+  *Done when:* rerunning it is a no-op, and the selftest covers both the touched and untouched row.
+  *Gate:* `node demigod-startup-jobs-enrich.mjs --selftest`
+
+- [ ] **W2-3 Backfill `lastAttempt` where it is recoverable.** A row with a count and a date had a
+  successful read; that is `ok` with `lastAttemptAt = openRolesAt`. A row with neither had no read
+  at all and must stay null — never invent `ok`.
+  *Done when:* the packet's inference path (`projectLastAttempt`) becomes dead weight for live rows
+  because the producer records it, and the inference is documented as legacy-only.
+
+- [ ] **W2-4 Assert the invariant at the map level.** Add to `demigod-startup-map-data.mjs --selftest`
+  (or the map integrity gate): no row may carry `openRolesAt` without an integer `openRoles`.
+  *Done when:* injecting one such row fails the gate.
+
+- [ ] **W2-5 Re-run the enrich for real and diff the coverage numbers.** Expect
+  `companiesWithOpenRoles` to be unchanged and the YC-link rows to lose their dates. Any other
+  movement is a second bug — find it before publishing anything.
+
+---
+
+## Wave 3 — the 22 unwired DIE contracts
+
+`node demigod-die-contracts-check.mjs` reports 8 enforced, 22 unwired of 30. Unwired means the
+section is prose no executor answers for. Wire them in dependency order; each one is its own task
+and its own commit. A section whose rules cannot be expressed as a fence gets its prose rewritten
+until they can — that rewrite is the work, not a detour.
+
+- [ ] **W3-1 §13 Company packet** — the packet is the most-read artifact in DIE and has the most
+  recent bugs. Fence: quarantine nulls, `board_observed` needs a count, roles bound to 25, journal
+  window 14 days, `shape` never a score.
+- [ ] **W3-2 §4 Company row** — the map row shape every producer writes and every consumer reads.
+- [ ] **W3-3 §1 Company identity** — one identity per company; the 10-of-14 wrong-pair finding from
+  2026-08-16 belongs here as enforced rules.
+- [ ] **W3-4 §14 Company table** · **W3-5 §15 Company waterfall** · **W3-6 §17 Writeback preview** —
+  the three surfaces that turn a packet into something a human acts on.
+- [ ] **W3-7 §12 Research projection entry point** · **W3-8 §16 Private memo** — private evidence
+  must not leak into a shared surface; that is a fail-closed rule, so it is checkable.
+- [ ] **W3-9 §20 Role Mission** · **W3-10 §21 Evidence bill** · **W3-11 §22 Mutual projection** ·
+  **W3-12 §23 Mission scenario**.
+- [ ] **W3-13 §24 / §25 / §27 / §28 candidate evidence** — assertion, correction and withdrawal,
+  review-note references, workbench. Withdrawal is the one with a real-world cost if it is wrong.
+- [ ] **W3-14 §2 Benchmark document** · **W3-15 §3 Operational catalog** · **W3-16 §6 Frozen fields**
+  · **W3-17 §7 Accepted-field policy** · **W3-18 §18 Supported command surface** ·
+  **W3-19 §19 Decision rehearsal**.
+- [ ] **W3-20 Make the unwired count a gate.** Today it can grow silently. Pin the current number as
+  a floor that may only go down; a new prose-only section fails until it is wired or the floor is
+  deliberately raised in the same commit.
+
+---
+
+## Wave 4 — hiring data quality (the product's actual substance)
+
+- [ ] **W4-1 Audit every ATS parser for HTML entities.** Greenhouse hid half a pay range behind
+  `&mdash;` and recorded the floor as the whole band. Check Lever, Ashby, Workable, Personio,
+  Recruitee, SmartRecruiters for the same class of bug: entity-encoded bodies, escaped JSON, and
+  currency symbols outside USD.
+  *Done when:* each provider has one fixture proving a decoded read, or is documented as unable to
+  carry the field at all.
+- [ ] **W4-2 Per-ATS capability matrix.** 166 of 471 boards are structurally silent about pay. That
+  number is currently prose in a commit message. Emit it as data: provider → can carry pay, can
+  carry location, can carry posting date, can carry department, with the count of live boards.
+  *Done when:* one command prints the matrix and the board-pay module reads its capabilities from
+  it instead of hardcoding them.
+- [ ] **W4-3 Posting-age honesty.** `observedLifetimeUsable` is false everywhere. Say why, once,
+  where a reader sees it — a posting we first observed 40 days ago may be 400 days old.
+- [ ] **W4-4 Board read failures are not market cooling.** `boardsUnreadableCarriedStale` is printed
+  per run and stored nowhere. Persist a small run history so a drop in open roles can be checked
+  against read failures before anyone reads it as a signal.
+- [ ] **W4-5 Surface `insufficient-signal` in the directory.** A company with no classified role mix
+  now abstains instead of reading as a counted zero. The UI still shows nothing where it should say
+  "we have not classified this board".
+- [ ] **W4-6 Dedupe survivorship.** `dedupeByBoard` takes `Math.max` of the group's counts. Two
+  companies sharing a board is either an identity bug or a real shared ATS tenant — measure which,
+  because max-of-group silently inflates one of them.
+- [ ] **W4-7 Geocode the directory.** 2,754 companies at `locationPrecision:"city"` with zero
+  coordinates. This blocks neighborhood pages and any map surface. Research the licensing before the
+  code: which geocoder's terms allow storing coordinates for a public directory.
+
+---
+
+## Wave 5 — trydemigod.com defects that are live right now
+
+Every one of these needs `bin/dg ship prepare` and an authorized publish to reach live. Prepare
+them, verify them, and stop at the publish line.
+
+- [ ] **W5-1 No canonical tag on any route.** `/`, `/apply`, `/companies`, `/pricing`, `/about`.
+  Canonicals are injected by `openPage()`, so they exist only after JS — crawlers on the first pass
+  see none. Durable fix is per-page canonical in Webflow page settings, which is a Designer edit.
+  Prepare the exact values and the verification command; do not publish.
+- [ ] **W5-2 3–4 conflicting `og:description` per page.** Disk dedupe landed and needs a foot
+  publish. Verify the disk state actually dedupes before queuing it.
+- [ ] **W5-3 Two of three homepage mailto links 404** via `/cdn-cgi/l/email-protection` with no hash
+  payload. This currently fails `bin/dg ship prepare` through site-hunt, so it blocks the queue.
+- [ ] **W5-4 CDN assets load without `integrity=`.** `foot-latest.js` (432KB) and `head-latest.css`.
+  Dasha already pins and drift-checks its client; port the pattern, including the drift gate, not
+  just the attribute.
+- [ ] **W5-5 Zero analytics on the domain.** No measurement of any kind. Decide the smallest honest
+  thing: server-side counts of route hits, not a third-party script that needs a consent banner.
+  Research what a privacy-preserving first-party count costs on this stack.
+- [ ] **W5-6 Publish lag.** Disk v1103 vs live v1101, 64h and growing, with `sibling asset drift
+  NEEDS REVIEW: atlas, mapData`. Resolve the drift review so the queue is publishable the moment
+  authorization exists.
+- [ ] **W5-7 The Lighthouse mobile budget.** Last controlled run was 87; the enforced budget is 80.
+  One run, no score-shopping, and never on a busy host — the harness refuses above 2× load per CPU
+  for a reason.
+
+---
+
+## Wave 6 — the startup, not the site
+
+- [ ] **W6-1 Posting-age index needs a host page.** `demigod-posting-age-index.mjs` emits a fragment
+  nothing renders. `/startups` already ranks and carries the dataset. Decide named vs aggregate
+  first — naming companies with day counts is a different product and invites disputes.
+- [ ] **W6-2 Essay pipeline.** Four essays, no RSS, no JSON-LD, no OG per essay. Original data tables
+  and quarterly-refreshed pages are the two formats that actually get cited; this is the cheapest
+  distribution the company has.
+- [ ] **W6-3 A real submit endpoint.** WIZ answers go to the Webflow mailer and get re-parsed out of
+  Gmail dumps by `demigod-gmail-forms.mjs`. That is a data pipeline held together by an inbox.
+- [ ] **W6-4 Consent receipt issuer.** `demigod-taste-prior.mjs` consumes an opt-in receipt that
+  nothing issues. Either issue it or delete the consumer.
+- [ ] **W6-5 Demand queue triage.** 1 warm lead overdue by 4 days, 2 quarantined,
+  `drafts.hygiene=unknown`. Make hygiene report a real value; triage the three without sending
+  anything.
+- [ ] **W6-6 Research: what does an SF hiring-signal directory compete with in 2026?** Not a survey —
+  the question that decides work is which of our observations nobody else publishes. Write the
+  finding as evidence with sources, and let it kill or confirm W6-1.
+- [ ] **W6-7 Research: ATS API terms.** We read seven public board APIs. Confirm for each that
+  storing and republishing counts is permitted, and write the citation next to the reader. A
+  directory built on a terms violation is not a directory.
+
+---
+
+## Wave 7 — the test estate
+
+- [ ] **W7-1 The 112 unreferenced tests.** 112 of 221 `*.test.mjs` are run by no main runner. Go file
+  by file, in alphabetical order, and for each: wire it, or delete it, or record why it is
+  deliberately manual. A test nobody runs is a comment that costs CI nothing and proves nothing.
+- [ ] **W7-2 Kill duplicate coverage as you go.** Some of the 112 will duplicate a selftest already
+  in `verify-all`. Deleting those is the point of the pass, not a failure of it.
+- [ ] **W7-3 Runtime budget.** If `verify-all` crosses a few minutes, split it into `fast` and
+  `full` rather than letting people stop running it. Measure before splitting.
+
+---
+
+## Wave 8 — ponytail debt (118 markers, ~30 unique)
+
+Each of these was a deliberate shortcut with a named ceiling. Take them only when the ceiling is
+actually reached — that is what the marker is for. Check the ceiling before doing the work.
+
+- [ ] **W8-1** `demigod-x-hiring.mjs` — CDP client duplicated ~30 lines from
+  `demigod-conversion-audit.mjs`. Two copies is already the ceiling.
+- [ ] **W8-2** `demigod-startup-jobs-enrich.mjs` — naive registrable-label parsing. Ceiling is a
+  multi-label public suffix (`.co.uk`); check whether any live board host has one before acting.
+- [ ] **W8-3** `demigod-ats-providers.mjs` — Personio XML by regex. Ceiling is a nested or
+  CDATA-wrapped field.
+- [ ] **W8-4** `demigod-lead-collect.mjs` — hand-maintained denylist, whack-a-mole by construction.
+- [ ] **W8-5** `demigod-evidence.mjs` — unsigned chain capped at 1,000. Ceiling is 10k; measure the
+  current length before writing checkpoint code.
+- [ ] **W8-6** `demigod-directory-static.mjs` — 50KB Webflow footer ceiling. Measure the current
+  payload against it.
+- [ ] **W8-7** `demigod-matching-engine.mjs` — linear scan at 13.6k rows. Ceiling is visible review
+  latency; measure before indexing.
+- [ ] **W8-8** `demigod-events-app.mjs` — flat private-store list. Ceiling is submission volume.
+- [ ] **W8-9** `demigod-submissions-lib.mjs` — regex PII scrub, not NER. Ceiling is a real free-text
+  leak; this one is worth checking proactively because the cost of being wrong is a person's data.
+
+---
+
+## Wave 9 — repo and machine hygiene (do between the hard tasks)
+
+- [ ] **W9-1** `src/` is 45 GB untracked in `$HOME`. Never `git clean -xfd` here — that wiped this
+  machine on 2026-08-02. Decide keep/move/delete deliberately.
+- [ ] **W9-2** `demigod-ops-23/` 111 MB and `demigod-ops-255/` — stale mirrors of this repo.
+- [ ] **W9-3** `demigod-site-cdn/` — 305 files, 105 MB of historical `foot-vNNN.js`. Keep a window.
+- [ ] **W9-4** `DEMIGOD-ROLE-LEDGER.json` — 12.8 MB, mode 0600, untracked, one `rm` from gone.
+- [ ] **W9-5** Bus and truth receipts live in `/tmp` and die at reboot.
+- [ ] **W9-6** Commit the four `systemd-user/demigod-die-*.service` units, or delete them.
+- [ ] **W9-7** Untracked shipping code: `demigod-company-liveness.mjs`, `demigod-corpus-defects.mjs`,
+  `demigod-die-web.mjs` + test + UI, `demigod-die-mission-store.mjs`.
+- [ ] **W9-8** Push. Commits survive `git clean`; they do not survive disk loss.
+
+---
+
+## Learned (append, never rewrite)
+
+- **2026-08-17** `openRolesAt` was doing double duty as a date and as a claim. Any field that is
+  both a value and an implied status will eventually be written by a path that earned only one of
+  them. The fix that stuck was making the status a function of two fields, not one.
+- **2026-08-17** Two copies of the same ladder (packet, matching engine) meant one of them was
+  always behind. The shared function is `hiringStatusOf` in the kernel, which already owned the
+  enum — put the derivation where the vocabulary lives.
+- **2026-08-17** A check that lives inside `if (isMain)` is unreachable by tests, and that is where
+  the bug was hiding. Extracting `projectJobRow` was the whole fix; the assertion was five lines.
