@@ -36,10 +36,24 @@ const rawRouteMeta = await Promise.all(CANONICAL_ROUTES.map(async (route) => {
   const page = await fetch(SITE + route).then((r) => (r.ok ? r.text() : ''), () => null);
   // null = we could not look; absence of evidence is not evidence of absence.
   if (page === null) return { route, canonical: null, ogUrl: null };
+  /* Attribute order is not stable in what Webflow serves — this site emits
+     `content=… name="description"` and `property="og:title" content=…` in the same head — so a
+     regex that assumes property-then-content silently reports "no og:url" the day the order flips.
+     Match the tag, then read its attributes. */
+  const metaContent = (property) => {
+    for (const tag of page.match(/<meta\b[^>]*>/gi) || []) {
+      const attributes = {};
+      for (const [, name, value] of tag.matchAll(/([a-zA-Z:_-]+)\s*=\s*["']([^"']*)["']/g)) {
+        attributes[name.toLowerCase()] = value;
+      }
+      if ((attributes.property || attributes.name || '').toLowerCase() === property) return attributes.content ?? '';
+    }
+    return '';
+  };
   return {
     route,
-    canonical: /<link[^>]+rel=["']canonical["']/i.test(page),
-    ogUrl: /<meta[^>]+property=["']og:url["'][^>]+content=["']([^"']*)["']/i.exec(page)?.[1] ?? '',
+    canonical: /<link\b[^>]*rel=["']canonical["']/i.test(page),
+    ogUrl: metaContent('og:url'),
   };
 }));
 const rawCanonicals = rawRouteMeta.map(({ route, canonical }) => ({ route, canonical }));
