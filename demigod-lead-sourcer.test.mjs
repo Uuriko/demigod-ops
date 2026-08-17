@@ -1064,3 +1064,21 @@ test('a non-exportable research field is stripped, not fatal to the whole export
   // status must describe what SURVIVED the filter, or projection and validator disagree again.
   assert.equal(research.status, 'verified', 'status must match the remaining fields');
 });
+
+// A missing committed export is the ordinary state after a reboot — BUSY defaults under /tmp, so
+// the generations root disappears. The path checks are all fail-closed with one message, but they
+// are raw fs calls: on a MISSING path lstatSync threw ENOENT before any check could run, so the
+// deliberate refusal was unreachable exactly when it was needed and `--type=partners` died with a
+// stack trace. Refuse, do not crash.
+test('absent committed export refuses cleanly instead of throwing ENOENT', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-lead-sourcer-absent-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const run = spawnSync(process.execPath, ['demigod-lead-sourcer.mjs', '--type=partners', '--limit=5'], {
+    encoding: 'utf8',
+    env: partnerChildEnv(dir),
+  });
+  const err = `${run.stderr}${run.stdout}`;
+  assert.doesNotMatch(err, /ENOENT|lstat|SyntaxError/, `raw fs error leaked: ${err}`);
+  assert.match(err, /invalid committed RecruitAI export/, `expected the deliberate refusal, got: ${err}`);
+  assert.notEqual(run.status, 0, 'a refusal must not exit 0');
+});

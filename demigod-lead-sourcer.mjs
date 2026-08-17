@@ -53,6 +53,8 @@ const STARTUP_MAP = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
 const COMPANY_RESEARCH = path.join(ROOT, 'DEMIGOD-COMPANY-RESEARCH.json');
 const USAGE =
   'usage: node demigod-lead-sourcer.mjs [--type=talent|partners] [--limit=1..100] [--offset=0..10000]';
+/** One refusal for every way the committed export can be absent, unlinked, or tampered with. */
+export const EXPORT_REFUSED = 'invalid committed RecruitAI export';
 const UNSAFE_PARTNER_CONTROL =
   new RegExp('[\\u0000-\\u001f' + UNSAFE_INVISIBLE_CLASS + ']');
 
@@ -212,23 +214,32 @@ export function loadRecruitaiExport({ committedOnly = false, withFiles = false }
   }
   const pointer = path.dirname(exportPath);
   const configuredGenerationsRoot = path.join(BUSY, 'recruitai-export-generations');
-  if (!fs.lstatSync(configuredGenerationsRoot).isDirectory()) {
-    throw new Error('invalid committed RecruitAI export');
-  }
-  const generationsRoot = fs.realpathSync(configuredGenerationsRoot);
-  const generation = fs.realpathSync(pointer);
   const files = ['commit.json', 'latest.json', 'latest.csv'];
-  if (
-    !fs.lstatSync(pointer).isSymbolicLink() ||
-    path.dirname(generation) !== generationsRoot ||
-    !fs.lstatSync(generation).isDirectory() ||
-    (fs.statSync(generationsRoot).mode & 0o777) !== 0o700 ||
-    (fs.statSync(generation).mode & 0o777) !== 0o700 ||
-    files.some((file) => {
-      const stat = fs.lstatSync(path.join(generation, file));
-      return !stat.isFile() || (stat.mode & 0o777) !== 0o600;
-    })
-  ) throw new Error('invalid committed RecruitAI export');
+  // Every check here is fail-closed and reports one deliberate message. They are raw fs calls
+  // though, and a MISSING path throws ENOENT before any check can run — so that message was
+  // unreachable in the most common case. BUSY defaults under /tmp, so any reboot removes the
+  // generations root, and `demigod-lead-sourcer.mjs --type=partners` (listed in `bin/dg tools`)
+  // died with a stack trace instead of saying the export was not there. Absent and malformed are
+  // the same answer to the caller — refuse — so they get the same error, not a crash.
+  let generation;
+  try {
+    const generationsRoot = fs.realpathSync(configuredGenerationsRoot);
+    generation = fs.realpathSync(pointer);
+    if (
+      !fs.lstatSync(configuredGenerationsRoot).isDirectory() ||
+      !fs.lstatSync(pointer).isSymbolicLink() ||
+      path.dirname(generation) !== generationsRoot ||
+      !fs.lstatSync(generation).isDirectory() ||
+      (fs.statSync(generationsRoot).mode & 0o777) !== 0o700 ||
+      (fs.statSync(generation).mode & 0o777) !== 0o700 ||
+      files.some((file) => {
+        const stat = fs.lstatSync(path.join(generation, file));
+        return !stat.isFile() || (stat.mode & 0o777) !== 0o600;
+      })
+    ) throw new Error(EXPORT_REFUSED);
+  } catch {
+    throw new Error(EXPORT_REFUSED);
+  }
   const buffers = Object.fromEntries(
     files.map((file) => [file, fs.readFileSync(path.join(generation, file))]),
   );
@@ -243,13 +254,13 @@ export function loadRecruitaiExport({ committedOnly = false, withFiles = false }
       !/^[0-9a-f]{64}$/.test(commit.files[file]) ||
       createHash('sha256').update(buffers[file]).digest('hex') !== commit.files[file]
     )
-  ) throw new Error('invalid committed RecruitAI export');
+  ) throw new Error(EXPORT_REFUSED);
   const artifact = JSON.parse(buffers['latest.json']);
   if (
     !Array.isArray(artifact?.rows) ||
     commit.rows !== artifact.rows.length ||
     commit.rowLimit !== artifact.rowLimit
-  ) throw new Error('invalid committed RecruitAI export');
+  ) throw new Error(EXPORT_REFUSED);
   assertExportValid(artifact);
   return withFiles ? { artifact, commit, generation, files: buffers } : artifact;
 }
@@ -536,8 +547,16 @@ if (
   try {
     main();
   } catch (error) {
-    if (error.message !== USAGE) throw error;
-    console.error(USAGE);
-    process.exitCode = 2;
+    if (error.message === EXPORT_REFUSED) {
+      // Refusing is correct; crashing is not. No export yet is an ordinary state after a reboot,
+      // since BUSY defaults under /tmp — say so and exit non-zero rather than printing a stack.
+      console.error(JSON.stringify({ ok: false, error: EXPORT_REFUSED, hint: 'node demigod-recruitai-export.mjs' }));
+      process.exitCode = 1;
+    } else if (error.message === USAGE) {
+      console.error(USAGE);
+      process.exitCode = 2;
+    } else {
+      throw error;
+    }
   }
 }

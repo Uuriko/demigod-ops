@@ -502,6 +502,18 @@ tasks unless they appear here.
   them. `bin/dg truth` now names them under `siblingDrift.mapData.dropsSample`
   instead of reporting "unexplained", so this is a scope decision, not a defect
   hunt. Do not restore them wholesale; the non-SF ones were arguably wrong to list.
+- [ ] Decide whether the public roles embed should still carry employer metadata.
+  `demigod-clay-website.test.mjs` asserts `demigod-foot-core.js` contains
+  `employerDepartment` and `boardUpdatedAt`. Both were present at `543bd46` and have
+  been absent since; `demigod-startup-atlas-web.js` still carries them, so the atlas
+  and the foot embed disagree. Either restore them in foot-core (needs the foot lock)
+  or retire those two assertions — do not leave them contradicting each other.
+- [ ] Wire the passing orphan tests into `demigod-verify-all.mjs`. Of nine
+  DIE-relevant `*.test.mjs` files referenced by neither `demigod-verify-all.mjs` nor
+  `package.json`, eight pass and one (`clay-website`) is red — which is how the
+  foot-core drift above went unnoticed. Wiring the eight is cheap; the red one waits
+  on that decision. Measure before generalizing: most of the 166 test files are fine,
+  this is a specific hole rather than a systemic one.
 - [ ] Keep the useful-work loop productive and bounded: repair proven failures,
   prune duplicate/stale work, and never auto-publish, auto-message, or manufacture
   business state. Current state: `bin/dg next` and `node demigod-work-find.mjs`.
