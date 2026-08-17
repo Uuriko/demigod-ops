@@ -174,6 +174,12 @@ intro authority = none
 public-claim authority = none
 ```
 
+```text
+demigod.frozen-fields/1
+  fields                  = exactly the five named above, in this order
+  authority               => no score, pair-state, consent, intro or public-claim key is projected
+```
+
 ## 7. Accepted-field policy
 
 ```text
@@ -182,19 +188,19 @@ acceptedFields := gradeResearchBenchmark(benchmark).acceptedFields
 
 The operational catalog cannot add an accepted field.
 
-Current accepted fields:
+The accepted set is **derived, not declared**: it is whatever the grader returns for the current
+benchmark, so it changes as the benchmark does and no list here is normative. As of 2026-08-17 all
+five frozen fields are accepted — `pricingStatus` graduated at 27 supported, 3 unknown, every one
+evidenced, which is a usable coverage of exactly 0.90 against a 0.90 threshold. It sits on the line:
+one more unknown row drops it back under and it is withheld again. That is the intended behaviour,
+not a fragility to paper over, and it is why this document records the derivation rather than the
+answer.
 
 ```text
-canonicalCompany
-productSummary
-productCategory
-likelyBuyer
-```
-
-Current withheld field:
-
-```text
-pricingStatus
+demigod.accepted-fields/1
+  source                  = gradeResearchBenchmark(benchmark).acceptedFields, never a hand list
+  subset                  => accepted fields are always a subset of the frozen fields
+  catalog-cannot-add      => a catalog claim for an unaccepted field is never projected
 ```
 
 ## 8. Projector

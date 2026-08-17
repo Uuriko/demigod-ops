@@ -174,6 +174,88 @@ function checkSafeUrl() {
  * second contract nobody was verifying, which is the shape a divergence hides in. So the check is
  * about the module's surface, not its behaviour: nothing else may look like a research projector.
  */
+/**
+ * §6 Frozen fields and §7 Accepted-field policy.
+ *
+ * §7 is the one that was already drifting when this executor was written: the document listed four
+ * accepted fields and a withheld `pricingStatus`, and the grader had been returning all five since
+ * the benchmark improved. A hand-maintained list of a derived value is a fact with an expiry date,
+ * so the check asserts the derivation — accepted comes from the grader and is a subset of the
+ * frozen set — and the document now records how it is derived rather than what it was.
+ */
+async function checkFrozenFields() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.frozen-fields\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.frozen-fields/1 fence in §6 yet' };
+
+  const { COMPANY_RESEARCH_FIELDS } = await import('./demigod-evidence.mjs');
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+
+  if (/fields\s*=\s*exactly the five named above/.test(fence)) {
+    // Read the field names out of §6's own table, so the document and the constant cannot drift.
+    const table = /## 6\. Frozen fields([\s\S]*?)\n## /.exec(md)?.[1] || '';
+    const documented = [...table.matchAll(/^\|\s*`(\w+)`\s*\|/gm)].map(([, name]) => name);
+    say(documented.length === 5, `§6's table lists ${documented.length} fields, expected five`);
+    say(JSON.stringify(documented) === JSON.stringify([...COMPANY_RESEARCH_FIELDS]),
+      `§6's table and COMPANY_RESEARCH_FIELDS disagree: ${JSON.stringify(documented)} vs ${JSON.stringify(COMPANY_RESEARCH_FIELDS)}`);
+  }
+  if (/authority\s*=>\s*no score, pair-state, consent, intro or public-claim/.test(fence)) {
+    const { packet } = await packetFixture();
+    say(!/"(score|fitScore|rank|pairState|consent|intro|publicClaim)"\s*:/.test(JSON.stringify(packet)),
+      'a frozen field carried an authority-shaped key into the packet');
+  }
+
+  return bad.length
+    ? { status: 'violation', detail: `§6 fence and COMPANY_RESEARCH_FIELDS disagree on ${bad.length} rule(s)`, sample: bad }
+    : { status: 'pass', detail: `§6's own table and COMPANY_RESEARCH_FIELDS name the same five fields, in order` };
+}
+
+async function checkAcceptedFields() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.accepted-fields\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.accepted-fields/1 fence in §7 yet' };
+  if (!fs.existsSync(BENCHMARK)) return { status: 'violation', detail: `benchmark artifact missing: ${BENCHMARK}` };
+
+  const { COMPANY_RESEARCH_FIELDS, gradeResearchBenchmark, projectCompanyResearch } = await import('./demigod-evidence.mjs');
+  const benchmark = readJson(BENCHMARK);
+  const graded = gradeResearchBenchmark(benchmark);
+  const accepted = graded?.acceptedFields || [];
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+
+  if (/source\s*=\s*gradeResearchBenchmark/.test(fence)) {
+    say(Array.isArray(accepted) && accepted.length > 0, 'the grader returned no accepted fields — a vacuous pass is not a pass');
+  }
+  if (/subset\s*=>\s*accepted fields are always a subset/.test(fence)) {
+    const stray = accepted.filter((name) => !COMPANY_RESEARCH_FIELDS.includes(name));
+    say(stray.length === 0, `accepted fields outside the frozen set: ${stray.join(', ')}`);
+  }
+  if (/catalog-cannot-add\s*=>\s*a catalog claim for an unaccepted field/.test(fence)) {
+    const id = (benchmark.companies || [])[0]?.id;
+    const projected = projectCompanyResearch({
+      companyId: id,
+      benchmark,
+      catalog: {
+        version: 1,
+        researchedAt: null,
+        companies: [{
+          id,
+          fields: {
+            inventedField: { value: 'anything', status: 'supported', url: 'https://example.com/', quote: 'Exact source text.' },
+          },
+        }],
+      },
+    });
+    say(!Object.keys(projected?.fields || {}).includes('inventedField'),
+      'a catalog row added a field the benchmark never accepted');
+  }
+
+  return bad.length
+    ? { status: 'violation', detail: `§7 fence and gradeResearchBenchmark disagree on ${bad.length} rule(s)`, sample: bad }
+    : { status: 'pass', detail: `accepted fields are derived from the grader (${accepted.length} of ${COMPANY_RESEARCH_FIELDS.length} frozen) and the catalog cannot add one` };
+}
+
 async function checkResearchEntry() {
   const md = fs.readFileSync(CONTRACTS, 'utf8');
   const fence = /```text\s*\n(demigod\.research-entry\/1[\s\S]*?)```/.exec(md)?.[1];
@@ -933,7 +1015,7 @@ async function checkBoardPay() {
 }
 
 /** Sections with a working executor today. Raise it when you wire one; never lower it. */
-export const ENFORCED_FLOOR = 16;
+export const ENFORCED_FLOOR = 18;
 
 export const EXECUTORS = {
   5: { name: 'demigod-evidence.mjs (claim shape)', run: checkClaim },
@@ -944,6 +1026,8 @@ export const EXECUTORS = {
   11: { name: 'demigod-evidence.mjs safeResearchUrl', run: checkSafeUrl },
   1: { name: 'demigod-company-identity.mjs resolveEntities', run: checkCompanyIdentity },
   4: { name: 'demigod-evidence.mjs company-row projection', run: checkCompanyRow },
+  6: { name: 'demigod-evidence.mjs COMPANY_RESEARCH_FIELDS', run: checkFrozenFields },
+  7: { name: 'demigod-evidence.mjs gradeResearchBenchmark', run: checkAcceptedFields },
   12: { name: 'demigod-evidence.mjs export surface', run: checkResearchEntry },
   13: { name: 'demigod-company-packet.mjs buildCompanyPacket', run: checkCompanyPacket },
   14: { name: 'demigod-company-table.mjs listCompanyRows', run: checkCompanyTable },
