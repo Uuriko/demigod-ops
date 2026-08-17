@@ -303,10 +303,15 @@ export function buildCompanyPacket({
   const board = quarantined ? null : (boardsFromMap({ companies: [company] })[0] || null);
   const roleRows = quarantined ? [] : rolesForBoard(ledger, board);
   const journal = quarantined ? [] : journalForBoard(ledger, board, asOfToday);
-  const openFromLedger = board && isRecord(ledger?.roles)
-    ? Object.values(ledger.roles).filter((row) =>
-      row && row.provider === board.provider && row.slug === board.slug && !row.closedAt).length
-    : null;
+  // The ledger has an opinion about this board only if it has ever recorded a row for it. Counting
+  // open rows straight off an empty result turns "never crawled" into a confident zero, and that
+  // zero then outranks the map's own count — the packet would report 0 open roles for a company
+  // whose board we counted 2 on. A board whose rows are all closed still reports 0, because that
+  // is a real observation rather than a silence.
+  const ledgerRows = board && isRecord(ledger?.roles)
+    ? Object.values(ledger.roles).filter((row) => row && row.provider === board.provider && row.slug === board.slug)
+    : [];
+  const openFromLedger = ledgerRows.length ? ledgerRows.filter((row) => !row.closedAt).length : null;
   const openRoles = quarantined
     ? null
     : (openFromLedger != null
@@ -686,6 +691,28 @@ function selftest() {
     catalog: {},
   });
   assert(readEmpty.hiring.status === 'board_observed', 'a board we read and found empty stays observed — 0 is a count');
+  // A board the role ledger has never recorded a row for must not report a confident zero: the
+  // ledger's silence is not an observation, and the map's own count is better evidence.
+  const uncrawled = buildCompanyPacket({
+    companyId: 'yc:uncrawled',
+    map: withRow({ id: 'yc:uncrawled', name: 'Uncrawled', website: 'https://uncrawled.example/', openRoles: 2, atsSource: 'Lever', jobsUrl: 'https://jobs.lever.co/uncrawled', openRolesAt: '2026-08-14' }),
+    ledger: { schema: 'demigod.role-ledger/1', updatedAt: '2026-08-14', roles: {} },
+    catalog: {},
+  });
+  assert(uncrawled.hiring.openRoles === 2, `an uncrawled board keeps the map count, got ${uncrawled.hiring.openRoles}`);
+  const allClosed = buildCompanyPacket({
+    companyId: 'yc:uncrawled',
+    map: withRow({ id: 'yc:uncrawled', name: 'Uncrawled', website: 'https://uncrawled.example/', openRoles: 2, atsSource: 'Lever', jobsUrl: 'https://jobs.lever.co/uncrawled', openRolesAt: '2026-08-14' }),
+    ledger: {
+      schema: 'demigod.role-ledger/1',
+      updatedAt: '2026-08-14',
+      roles: {
+        'Lever|uncrawled|1': { provider: 'Lever', slug: 'uncrawled', jobId: '1', title: 'Gone', url: 'https://jobs.lever.co/uncrawled/1', firstSeen: '2026-07-01', lastSeen: '2026-08-10', closedAt: '2026-08-10' },
+      },
+    },
+    catalog: {},
+  });
+  assert(allClosed.hiring.openRoles === 0, 'a board whose rows are all closed still reports a real zero');
   assert(Array.isArray(known.roles) && known.roles.length === 2 && known.roles.length <= 25, 'roles bound');
   assert(
     known.roles[0].employerDepartment === 'Engineering'
