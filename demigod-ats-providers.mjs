@@ -3,6 +3,10 @@
 // Recruitee, Personio) — beyond the original Greenhouse/Lever/Ashby. Each is public + no-auth.
 // One home so the role-ledger and the jobs-enrich can't drift on provider logic.
 //
+// What these vendors publish about being read -- purpose, auth, rate limits, and the fact that none
+// of them authorizes third-party aggregation -- is cited in docs/die/ATS-SOURCE-TERMS.md. Read it
+// before adding a provider, and read that provider's terms before its first live board, not after.
+//
 // Each adapter: async (slug) => { ok, roles: [{ jobId, title, location, url, nativePostedAt,
 // nativeDateField }] }. ok:true ONLY on a valid parsed job array (mirrors the ledger's honesty rule:
 // a failed/garbled fetch must never look like an empty board, or it would false-close every role).
