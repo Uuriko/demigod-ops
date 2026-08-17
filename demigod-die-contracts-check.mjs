@@ -137,6 +137,95 @@ function checkSafeUrl() {
  * §10 Hiring quarantine. The document lists exactly which fields go null when quarantined, which
  * is a real trap: quarantine must null the count, never zero it. Calls the packet builder.
  */
+/**
+ * §13 Company packet. The most-read artifact in DIE, and until now the section with the most
+ * recent bugs and no executor at all.
+ *
+ * The contact rule is checked by putting an email and a phone on the map row and searching the
+ * whole serialized packet for them — not by listing the keys the packet is known to copy. A leak
+ * that mattered would arrive through a field nobody thought to enumerate, so the assertion has to
+ * be "these bytes do not appear", at any depth.
+ */
+async function checkCompanyPacket() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.company-packet\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.company-packet/1 fence in §13 yet' };
+
+  const { buildCompanyPacket } = await import('./demigod-company-packet.mjs');
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+  const EMAIL = 'founder-leak@example.com';
+  const PHONE = '+14155550123';
+  const company = {
+    id: 'yc:packet-check',
+    name: 'PacketCheck',
+    website: 'https://packetcheck.example/',
+    hiring: 'yes',
+    atsSource: 'Lever',
+    jobsUrl: 'https://jobs.lever.co/packetcheck',
+    openRoles: 4,
+    openRolesAt: '2026-08-14',
+    roleMix: { engineering: 4 },
+    // The leak bait: a real map row can carry whatever a source put on it.
+    email: EMAIL,
+    contactEmail: EMAIL,
+    phone: PHONE,
+    people: [{ name: 'A Founder', email: EMAIL }],
+  };
+  // 30 roles on one board — more than the bound, so the bound has something to cut.
+  const roles = {};
+  for (let i = 0; i < 30; i += 1) {
+    roles[`Lever|packetcheck|${i}`] = {
+      provider: 'Lever',
+      slug: 'packetcheck',
+      jobId: String(i),
+      company: 'PacketCheck',
+      title: `Engineer ${i}`,
+      location: 'San Francisco, CA',
+      url: `https://jobs.lever.co/packetcheck/${i}`,
+      firstSeen: '2026-08-01',
+      lastSeen: '2026-08-14',
+      closedAt: null,
+    };
+  }
+  const map = { generatedAt: '2026-08-14T00:00:00.000Z', companies: [company] };
+  const ledger = { schema: 'demigod.role-ledger/1', updatedAt: '2026-08-14', roles };
+  const build = (companyId, override = {}) => buildCompanyPacket({ companyId, map, ledger, catalog: {}, ...override });
+
+  if (/absent-id\s*=>\s*status unknown/.test(fence)) {
+    const missing = build('yc:no-such-company');
+    say(missing?.status === 'unknown', 'an absent id must project status unknown, not a partial packet');
+    say(!missing?.hiring, 'and must not carry a hiring block it has no company for');
+  }
+  if (/duplicate-id\s*=>\s*throws duplicate_company_id/.test(fence)) {
+    let code = null;
+    try {
+      buildCompanyPacket({ companyId: company.id, map: { ...map, companies: [company, { ...company }] }, ledger, catalog: {} });
+    } catch (error) { code = error?.code || String(error?.message); }
+    say(code === 'duplicate_company_id', `two rows with one id must fail closed, got ${code}`);
+  }
+
+  const packet = build(company.id);
+  const serialized = JSON.stringify(packet);
+  if (/contact-fields\s*=>\s*never present/.test(fence)) {
+    say(!serialized.includes(EMAIL), 'an email on the map row reached the packet');
+    say(!serialized.includes(PHONE), 'a phone on the map row reached the packet');
+    say(!/"(email|phone|contactEmail|people)"\s*:/.test(serialized), 'the packet carries a contact-shaped key');
+  }
+  if (/authority-fields\s*=>\s*never present/.test(fence)) {
+    say(!/"(score|fitScore|rank|match|consent|intro|writeback)"\s*:/.test(serialized),
+      'the packet carries an authority-shaped key it must not grant');
+  }
+  if (/roles\s*<=\s*25/.test(fence)) {
+    say(Array.isArray(packet.roles) && packet.roles.length === 25,
+      `a 30-role board must project 25 roles, got ${packet.roles?.length}`);
+  }
+
+  return bad.length
+    ? { status: 'violation', detail: `§13 fence and buildCompanyPacket disagree on ${bad.length} rule(s)`, sample: bad.slice(0, 5) }
+    : { status: 'pass', detail: `packet honours all ${fence.trim().split('\n').length - 1} fenced rules; no contact or authority field survives the boundary` };
+}
+
 async function checkQuarantine() {
   const { buildCompanyPacket } = await import('./demigod-company-packet.mjs');
   if (!fs.existsSync(BENCHMARK)) {
@@ -492,6 +581,7 @@ export const EXECUTORS = {
   9: { name: 'demigod-matching-engine.mjs resolveCompanyEvidence', run: checkEvidenceResolver },
   10: { name: 'demigod-company-packet.mjs (quarantine projection)', run: checkQuarantine },
   11: { name: 'demigod-evidence.mjs safeResearchUrl', run: checkSafeUrl },
+  13: { name: 'demigod-company-packet.mjs buildCompanyPacket', run: checkCompanyPacket },
   29: { name: 'demigod-role-mission-kernel.mjs attachCompany (grok)', run: checkMissionCompany },
   30: { name: 'demigod-board-pay.mjs rolePayVisibility', run: checkBoardPay },
 };

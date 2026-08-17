@@ -297,6 +297,20 @@ The packet may contain identity, hiring, accepted research, evidence, unknowns, 
 signals, and peers. It contains no people/contact fields and grants no score, match, consent,
 intro, writeback, or public-claim authority.
 
+Contact fields are refused at the packet boundary rather than hidden downstream: a map row that
+carries an email or a phone must not have it appear anywhere in the packet, including nested inside
+research or journal entries. Roles are bounded so a 300-role board cannot turn one company's packet
+into the whole ledger.
+
+```text
+demigod.company-packet/1
+  absent-id               => status unknown, never a guess
+  duplicate-id            => throws duplicate_company_id, never picks a winner
+  contact-fields          => never present, at any depth
+  authority-fields        => never present (score, match, consent, intro, writeback, public claim)
+  roles                   <= 25
+```
+
 ## 14. Company table
 
 `listCompanyRows(inputs, { limit })` returns `demigod.company-table/1` in map order. Every row is a
