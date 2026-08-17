@@ -401,11 +401,12 @@ async function checkBoardPay() {
   // An unreadable provider can never produce a company-level verdict.
   rule(
     'unsupported',
-    ['Greenhouse', 'Lever', 'Workable', ''].every(
+    ['Lever', 'Workable', 'Personio', ''].every(
       (ats) => rolePayVisibility({ shouldDisplayCompensationOnJobPostings: false }, ats).state === 'unsupported',
     ),
   );
-  // A failed read is our problem, and the scanner must not launder it into a company choice.
+  // A failed read is our problem, and neither it nor an empty board may be laundered into a
+  // company choice. A board with no postings has nothing to state pay in.
   rule('unread', !['withheld', 'published'].includes(rollUpBoardPay([], 'Greenhouse').state));
   // Capable reader, nothing displayed and nothing in the body.
   rule(
@@ -440,6 +441,13 @@ async function checkBoardPay() {
       'Ashby',
     ).quote === null,
   );
+  // The entity trap: a surviving &mdash; turns a band into its own floor, and the record then
+  // understates the role by the whole width of the range.
+  const banded = rolePayVisibility({ content: '<p>Pay Range $76,000 &mdash; $114,000 USD</p>' }, 'Greenhouse');
+  rule('entities', banded.state === 'published' && /114,000/.test(String(banded.quote)));
+  // A currency we cannot parse is still a company that stated its range.
+  const gbp = rolePayVisibility({ content: 'Pay Range £51,000 &mdash; £67,000 GBP' }, 'Greenhouse');
+  rule('unparsed-currency', gbp.state === 'published' && gbp.currency === 'unparsed');
   // The coverage-bias guard: unreadable boards must not enter any denominator.
   const rows = [
     { pay: { state: 'published' } },
@@ -451,7 +459,7 @@ async function checkBoardPay() {
 
   return bad.length
     ? { status: 'violation', detail: `${bad.length} §30 rules the executor does not enforce`, sample: bad.slice(0, 5) }
-    : { status: 'pass', detail: 'all 6 fenced board-pay rules hold; unreadable never becomes withheld' };
+    : { status: 'pass', detail: 'all 8 fenced board-pay rules hold; unreadable never becomes withheld' };
 }
 
 export const EXECUTORS = {

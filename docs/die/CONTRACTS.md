@@ -526,11 +526,19 @@ since stopped displaying, so a stale string never republishes pay that was taken
 after that body text is checked. Numeric `min`/`max` are never returned — numeric keys are how a
 "sort by pay" grows, and such a sort would imply a completeness this data does not have.
 
-Measured 2026-08-17: Ashby is the only pay-capable reader; Greenhouse's board list API and Lever's
-postings API carry no pay field. 166 of 471 mapped boards are structurally silent. Any share,
-ranking or comparison runs over `comparablePayCompanies()` only — the naive denominator reports
-52.4% against an honest 81.0%, a 28.5-point penalty applied to companies for their vendor's API.
-A failed fetch is `unread`, never `withheld`.
+Escaped markup is decoded before extraction, never after. A band written `$76,000 &mdash; $114,000`
+whose entity survives into the matcher truncates to `$76,000`, publishing the floor of a band as
+though it were the pay. A stated range in a currency the shared extractor cannot parse is still a
+stated range: presence is detected independently of parsing, the quote is carried verbatim, and
+`currency` records that it is unparsed. A range we cannot read is never a company stating nothing.
+
+Measured 2026-08-17 over all 471 mapped boards: 358 published, 69 withheld, 44 unsupported, 0
+unread. Ashby carries structured pay behind `?includeCompensation=true`; Greenhouse carries none but
+states a range in the `?content=true` body on 111 of its 122 boards; Lever's postings API carries no
+pay in any form, and its 44 boards are the only structurally silent ones. Any share, ranking or
+comparison runs over `comparablePayCompanies()` only — before Greenhouse was read, the naive
+denominator reported 52.4% against an honest 81.0%, a 28.5-point penalty applied to companies for
+their vendor's API. A failed fetch is `unread`, never `withheld`.
 
 ```text
 demigod.board-pay/1
@@ -539,5 +547,7 @@ demigod.board-pay/1
   withheld        = pay-capable read, no tier and no range in body
   published       = exact quote, structured tier or description
   stale-tier      => flag off suppresses the string
+  entities        => decode before extraction, a band never truncates to its floor
+  unparsed-currency => a stated range in any currency is published, never withheld
   comparison      => comparable denominator only, never all boards
 ```

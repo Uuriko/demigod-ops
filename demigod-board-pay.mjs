@@ -7,17 +7,19 @@
  * from are not the same fact, and collapsing them invents a company property out of
  * an ATS limitation.
  *
- * Measured on 40 live Ashby boards / 510 roles (2026-08-17):
- *   - Ashby is the only pay-capable reader we have. `compensationTierSummary` exists
- *     ONLY when the request carries `?includeCompensation=true`; without the param the
- *     key is absent entirely, so a naive read records OUR omission as THEIR silence.
+ * Measured on live boards (2026-08-17), and every rule below is a measurement, not a guess:
+ *   - Ashby's `compensationTierSummary` exists ONLY when the request carries
+ *     `?includeCompensation=true`; without the param the key is absent entirely, so a naive
+ *     read records OUR omission as THEIR silence.
  *   - 72.4% of Ashby roles carry a pay string. `shouldDisplayCompensationOnJobPostings`
  *     tracks it near-exactly (373 opt-in vs 369 strings) — hence intersect, not either alone.
  *   - 21.2% of roles WITHOUT the opt-in flag publish a range in the description anyway.
- *     That is why `withheld` requires checking the description too: trusting the flag
- *     alone would brand 29 of 137 roles as withholding pay while they publish it.
- *   - Greenhouse's board list API and Lever's postings API return no pay field at all.
- *     Of 471 mapped boards, 166 (35%) are structurally silent — about the ATS, not the company.
+ *     That is why `withheld` requires checking the body too: trusting the flag alone would
+ *     brand 29 of 137 roles as withholding pay while they publish it.
+ *   - Greenhouse has no pay field and no opt-in flag, but `?content=true` carries the posting
+ *     body, and 111 of its 122 boards state a range there. Lever's postings API carries no
+ *     pay in any form: its 44 boards are the only ones left structurally silent.
+ *   - Full scan: 358 published / 69 withheld / 44 unsupported / 0 unread of 471 boards.
  *
  * California SB 1162 is why the distinction has teeth: employers with 15+ employees must
  * state a pay scale in the posting itself. So `withheld` on a CA role is a real signal,
@@ -43,15 +45,71 @@ const OUT = path.join(HOME, 'DEMIGOD-BOARD-PAY.json');
  * returned a real pay field. Everything absent from this set yields `unsupported`,
  * which is a statement about our reach and must never be read as a company choice.
  */
-export const PAY_CAPABLE_ATS = new Set(['Ashby']);
+export const PAY_CAPABLE_ATS = new Set(['Ashby', 'Greenhouse']);
 
 /** Ashby only returns compensation when explicitly asked; the param IS the capability. */
 export function ashbyBoardUrl(slug) {
   return `https://api.ashbyhq.com/posting-api/job-board/${encodeURIComponent(slug)}?includeCompensation=true`;
 }
 
+/** Greenhouse has no pay field and no opt-in flag; pay lives in the posting body, behind ?content=true. */
+export function greenhouseBoardUrl(slug) {
+  return `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(slug)}/jobs?content=true`;
+}
+
 export function payCapability(ats) {
   return PAY_CAPABLE_ATS.has(String(ats || '')) ? 'structured' : 'none';
+}
+
+/**
+ * Greenhouse serves the posting as escaped HTML, and the escaping is not cosmetic: a band written
+ * "$76,000 &mdash; $114,000" leaves the separator as a literal entity, the range regex stops at the
+ * first number, and the record ends up claiming the FLOOR of a band as the pay — understating that
+ * one role by $38,000. Decode fully before any extraction, never after.
+ */
+export function decodeEntities(html) {
+  return String(html || '')
+    .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(Number(d)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/&(mdash|ndash|hyphen|minus);/g, '—')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Any stated pay range, in any currency. The shared extractor parses USD and returns a rich band,
+ * which is what we want when it fires — but it returns NOTHING for "£51,000 — £67,000 GBP", and a
+ * range we cannot parse must never be recorded as a company that states no range. That is the same
+ * absence-vs-observation error this module exists to prevent, so presence is detected separately
+ * from parsing: the fallback proves a range was stated and quotes it verbatim.
+ */
+const ANY_CURRENCY_RANGE =
+  /(?:[$£€¥]|CA\$|A\$|US\$|CHF|SEK|INR|₹)\s?\d{1,3}(?:[.,]\d{3})*(?:\.\d+)?\s?[kKmM]?\s*(?:-|–|—|to|and)\s*(?:[$£€¥]|CA\$|A\$|US\$|CHF|SEK|INR|₹)?\s?\d{1,3}(?:[.,]\d{3})*(?:\.\d+)?\s?[kKmM]?/;
+
+export function statedPayQuote(text) {
+  const src = decodeEntities(text);
+  if (!src) return null;
+  const parsed = extractPublicCompQuotes(src)[0];
+  // Prefer the parsed quote only when it actually spans a range; a single-sided parse is exactly
+  // the truncation bug above and the raw match is the more honest string.
+  if (parsed?.quote && /(?:-|–|—|to)\s*[$£€¥]?\s?\d/.test(parsed.quote)) {
+    return { quote: parsed.quote, currency: 'usd-parsed' };
+  }
+  const raw = src.match(ANY_CURRENCY_RANGE);
+  if (raw) return { quote: raw[0].trim(), currency: 'unparsed' };
+  return parsed?.quote ? { quote: parsed.quote, currency: 'usd-parsed' } : null;
+}
+
+/** Where each provider puts the posting body. */
+function postingText(job) {
+  return job?.descriptionPlain || job?.content || job?.descriptionHtml || '';
 }
 
 /**
@@ -72,12 +130,15 @@ export function rolePayVisibility(job, ats) {
   const tier = String(comp.compensationTierSummary || comp.scrapeableCompensationSalarySummary || '').trim();
   const optIn = job?.shouldDisplayCompensationOnJobPostings === true;
   // Intersect: the flag alone can be on with nothing behind it, and a string alone can
-  // survive from a tier the company since stopped displaying.
+  // survive from a tier the company since stopped displaying. Greenhouse exposes no such flag
+  // at all, so there the posting body is the only evidence and this branch never fires.
   if (tier && optIn) return { state: 'published', quote: tier, source: 'structured' };
-  // The 21.2% case — no flag, but the range is written into the posting body.
-  const text = String(job?.descriptionPlain || job?.descriptionHtml || '');
-  const found = extractPublicCompQuotes(text)[0];
-  if (found?.quote) return { state: 'published', quote: found.quote, source: 'description' };
+  // The measured 21.2% case — no flag, but the range is written into the posting body. On
+  // Greenhouse this is the ONLY path, which is what makes the entity decoding load-bearing.
+  const found = statedPayQuote(postingText(job));
+  if (found?.quote) {
+    return { state: 'published', quote: found.quote, source: 'description', currency: found.currency };
+  }
   // A tier string with the flag off: the company took it down. Report it as withheld,
   // but keep the stale string out of the record rather than publishing what they hid.
   return { state: 'withheld', quote: null, source: null };
@@ -92,6 +153,10 @@ export function rollUpBoardPay(roles = [], ats) {
   if (payCapability(ats) !== 'structured') {
     return { state: 'unsupported', roles: roles.length, published: 0, withheld: 0, quotes: [] };
   }
+  // A board with no postings is not a company withholding pay — there is nothing for it to
+  // state pay in. Same discipline as everywhere else: zero observations is not an observation
+  // of zero, and this state must stay out of every denominator.
+  if (!roles.length) return { state: 'no-roles', roles: 0, published: 0, withheld: 0, quotes: [] };
   const seen = roles.map((job) => rolePayVisibility(job, ats));
   const published = seen.filter((r) => r.state === 'published');
   return {
@@ -99,7 +164,7 @@ export function rollUpBoardPay(roles = [], ats) {
     roles: roles.length,
     published: published.length,
     withheld: seen.filter((r) => r.state === 'withheld').length,
-    quotes: published.slice(0, 5).map((r) => ({ quote: r.quote, source: r.source })),
+    quotes: published.slice(0, 5).map((r) => ({ quote: r.quote, source: r.source, currency: r.currency || null })),
   };
 }
 
@@ -128,9 +193,19 @@ export function payPublishRate(rows = []) {
   };
 }
 
-function slugFromJobsUrl(url) {
-  const m = String(url || '').match(/ashbyhq\.com\/([^/?#]+)/i);
+function slugFromJobsUrl(url, ats) {
+  const pattern = ats === 'Greenhouse' ? /greenhouse\.io\/([^/?#]+)/i : /ashbyhq\.com\/([^/?#]+)/i;
+  const m = String(url || '').match(pattern);
   return m ? m[1] : null;
+}
+
+/** Per-provider read. Both return a role array; only the URL and the payload path differ. */
+async function readBoard(slug, ats) {
+  const url = ats === 'Greenhouse' ? greenhouseBoardUrl(slug) : ashbyBoardUrl(slug);
+  const res = await fetch(url, { headers: { 'user-agent': 'demigod-board-pay' } });
+  if (!res.ok) return { ok: false, status: res.status };
+  const body = await res.json();
+  return { ok: true, jobs: body.jobs || [] };
 }
 
 async function scan({ limit = 0, out = OUT } = {}) {
@@ -144,7 +219,7 @@ async function scan({ limit = 0, out = OUT } = {}) {
       rows.push({ name: c.name, ats: c.atsSource, jobsUrl: c.jobsUrl, pay: rollUpBoardPay([], c.atsSource) });
       continue;
     }
-    const slug = slugFromJobsUrl(c.jobsUrl);
+    const slug = slugFromJobsUrl(c.jobsUrl, c.atsSource);
     if (slug) capable.push({ c, slug });
   }
   const queue = limit ? capable.slice(0, limit) : capable;
@@ -154,11 +229,11 @@ async function scan({ limit = 0, out = OUT } = {}) {
       const { c, slug } = queue.shift();
       let pay;
       try {
-        const res = await fetch(ashbyBoardUrl(slug), { headers: { 'user-agent': 'demigod-board-pay' } });
+        const read = await readBoard(slug, c.atsSource);
         // A failed read is NOT a company that withholds pay. Same rule as everywhere else.
-        pay = res.ok
-          ? rollUpBoardPay((await res.json()).jobs || [], c.atsSource)
-          : { state: 'unread', roles: 0, published: 0, withheld: 0, quotes: [], httpStatus: res.status };
+        pay = read.ok
+          ? rollUpBoardPay(read.jobs, c.atsSource)
+          : { state: 'unread', roles: 0, published: 0, withheld: 0, quotes: [], httpStatus: read.status };
       } catch (err) {
         pay = { state: 'unread', roles: 0, published: 0, withheld: 0, quotes: [], error: String(err.message || err) };
       }
@@ -185,7 +260,9 @@ async function scan({ limit = 0, out = OUT } = {}) {
 }
 
 function selftest() {
+  let n = 0;
   const assert = (cond, msg) => {
+    n += 1;
     if (!cond) throw new Error(`FAIL: ${msg}`);
   };
   const ashby = 'Ashby';
@@ -217,8 +294,33 @@ function selftest() {
   );
   assert(c.state === 'withheld' && c.quote === null, 'no flag and no stated range is withheld, with no quote');
 
+  // Greenhouse: no opt-in flag exists, the escaped body is the only evidence, and the em-dash
+  // entity is what silently turned a band into its own floor. $76,000 is NOT the pay here.
+  const gh = rolePayVisibility(
+    { content: '<p>On-Target Earnings Pay Range $76,000 &mdash; $114,000 USD</p>' },
+    'Greenhouse',
+  );
+  assert(gh.state === 'published', 'greenhouse pay comes out of the escaped posting body');
+  assert(/114,000/.test(gh.quote), `range must survive &mdash; decoding, got "${gh.quote}"`);
+
+  // A currency we cannot parse must never read as a company stating nothing.
+  const gbp = rolePayVisibility({ content: 'Pay Range £51,000 &mdash; £67,000 GBP' }, 'Greenhouse');
+  assert(gbp.state === 'published', 'a GBP range is a stated range, not a withholding company');
+  assert(gbp.currency === 'unparsed', 'unparsed currency is labelled, not silently dropped');
+  const cad = rolePayVisibility(
+    { shouldDisplayCompensationOnJobPostings: false, compensation: {}, descriptionPlain: 'CA$101K – CA$110K' },
+    'Ashby',
+  );
+  assert(cad.state === 'published', 'CAD range on Ashby is published, not withheld');
+
+  // Greenhouse with a genuinely silent posting still reaches withheld.
+  assert(
+    rolePayVisibility({ content: '<p>We are hiring. Great team.</p>' }, 'Greenhouse').state === 'withheld',
+    'a greenhouse posting with no range is withheld',
+  );
+
   // The core rule: an unreadable ATS is never a company that withholds.
-  for (const ats of ['Greenhouse', 'Lever', 'Workable', '', null]) {
+  for (const ats of ['Lever', 'Workable', '', null]) {
     const r = rolePayVisibility({ shouldDisplayCompensationOnJobPostings: false }, ats);
     assert(r.state === 'unsupported', `${ats || 'blank'} yields unsupported, never withheld`);
   }
@@ -239,7 +341,9 @@ function selftest() {
     ashby,
   );
   assert(board.state === 'published' && board.published === 1 && board.withheld === 1, 'board rollup counts both states');
-  assert(rollUpBoardPay([{}], 'Greenhouse').state === 'unsupported', 'greenhouse board rolls up unsupported');
+  assert(rollUpBoardPay([{}], 'Lever').state === 'unsupported', 'a lever board rolls up unsupported');
+  assert(rollUpBoardPay([], 'Ashby').state === 'no-roles', 'an empty board is no-roles, never withheld');
+  assert(comparablePayCompanies([{ pay: { state: 'no-roles' } }]).length === 0, 'no-roles stays out of the denominator');
 
   // The coverage-bias guard: unreadable boards must not dilute the rate.
   const rows = [
@@ -254,7 +358,7 @@ function selftest() {
   assert(stats.excludedUnreadable === 2, 'unsupported and unread are both excluded and counted');
   assert(payPublishRate([{ pay: { state: 'unsupported' } }]).rate === null, 'no comparable boards yields null, never 0');
 
-  console.log('demigod-board-pay selftest OK · 16 assertions');
+  console.log(`demigod-board-pay selftest OK · ${n} assertions`);
 }
 
 if (isMain) {
