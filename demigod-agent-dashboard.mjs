@@ -10,6 +10,7 @@
  * Control: /api/control · Orient: /api/orient · Unify: /api/unify · Truth: /api/truth
  * Ponytail: /api/ponytail · jobs ponytail|ponytail-check
  * Startup atlas: /api/startup-atlas · Maps: /api/maps · /api/maps/:id · Priority: /api/priority · Dogfood: /api/dogfood · Orca: /api/orca · Craft: /api/craft
+ * Company table: /companies · /companies/:id  (private, 127.0.0.1, demigod-company-table.mjs)
  * Structured hiring: /api/structured-hiring · /api/structured-hiring?role=ID · Control board: /api/control-board
  *
  * Sections in this file:
@@ -3892,6 +3893,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     /* ==== SECTION: HTTP API routes (agent-first JSON) ==== */
+    if (url.pathname === '/companies' || url.pathname.startsWith('/companies/')) {
+      const { handleCompanyTableRequest, loadPacketInputs } = await import('./demigod-company-table.mjs');
+      handleCompanyTableRequest(req, res, { inputs: loadPacketInputs(), url });
+      return;
+    }
     /* truth · unify · ledger · evidence · status · next · orient · events · presence · graph
      * jobs · ship-checklist · roadmap · inbox · matches · doctor · orca · control · webflow
      * review · delta · handoff · brief · actions · cockpit · smoke · tools · job/start · UI */

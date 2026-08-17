@@ -520,13 +520,13 @@ document.addEventListener('DOMContentLoaded',function(){
         if(!root)return;
         var links=root.querySelectorAll('a');
         // Must match foot COPY.ctaFounder / ctaEngineer (verify head:cta-fallback)
-        ['Hire talent','Share privately'].forEach(function(label,i){
+        ['Hire talent','Sign up to Demigod'].forEach(function(label,i){
           var link=links[i]; if(!link)return;
           var text=link.querySelector('.btn-label,.button_label')||link;
           text.textContent=label;
           link.setAttribute('data-dg-cta',i===0?'hire':'talent');
           link.setAttribute('href',i===0?'/?wiz=startup':'/?wiz=engineer');
-          link.setAttribute('aria-label',i===0?'Hire talent — open startup hiring brief':'Share privately — open private candidate form');
+          link.setAttribute('aria-label',i===0?'Hire talent — open startup hiring brief':'Sign up to Demigod — open private candidate form');
         });
       }
       labelPair(document.querySelector('.hero-actions'));

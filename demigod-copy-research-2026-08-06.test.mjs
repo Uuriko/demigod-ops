@@ -17,13 +17,13 @@ function extractCopyField(src, key) {
   return m ? m[2] : null;
 }
 
-test('talent CTA is action-named Share privately (not vague board language)', () => {
+test('talent CTA is action-named Sign up to Demigod (not vague board language)', () => {
   const cta = extractCopyField(foot, 'ctaEngineer');
-  assert.equal(cta, 'Share privately');
+  assert.equal(cta, 'Sign up to Demigod');
   assert.doesNotMatch(cta, /looking|job board|network/i);
   // Head fail-open must ship the same label (verify also derives this).
-  assert.match(head, /Share privately/);
-  assert.match(head, /\['Hire talent','Share privately'\]|Share privately — open private candidate form/);
+  assert.match(head, /\['Hire talent','Sign up to Demigod'\]/);
+  assert.match(head, /Sign up to Demigod — open private candidate form/);
 });
 
 test('post-submit copy names human read, contact channel, and no blast sequence', () => {

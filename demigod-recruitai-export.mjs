@@ -15,7 +15,7 @@ import fs from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { boardFromCompany, postedDaysAgo } from './demigod-role-ledger.mjs';
+import { boardFromCompany, postedDaysAgo, projectEmployerAtsFields } from './demigod-role-ledger.mjs';
 import { UNSAFE_INVISIBLE_CLASS, atomicWrite, withFileLock } from './demigod-agent-tools-lib.mjs';
 import {
   COMPANY_RESEARCH_FIELDS,
@@ -79,6 +79,9 @@ const RELATIONSHIP_NODE_KEYS = {
   open_role: [
     'id', 'type', 'title', 'location', 'url', 'usPosted',
     'firstSeen', 'lastSeen', 'agencyPolicyEvidence',
+    'employerDepartment', 'employerOffice', 'workplaceType', 'employmentType',
+    'nativeDeadline', 'nativePostedAt', 'nativeDateField', 'nativeUpdatedAt',
+    'postedAt', 'firstObservedAt', 'postedVsEditedDays',
   ],
   company_claim: [
     'id', 'type', 'field', 'value', 'status', 'quote',
@@ -709,6 +712,7 @@ export function buildRelationshipProjection(rows, ledger, today = todayUtc()) {
     for (const role of roles.slice(0, ROLE_LIMIT_PER_BOARD)) {
       const jobId = String(role.jobId).trim();
       const roleId = `role:${role.provider}|${role.slug}|${jobId}`;
+      const ats = projectEmployerAtsFields(role);
       addNode({
         id: roleId,
         type: 'open_role',
@@ -728,6 +732,17 @@ export function buildRelationshipProjection(rows, ledger, today = todayUtc()) {
               url: role.agencyPolicyEvidence.url,
             }
           : null,
+        employerDepartment: privateText(ats.employerDepartment),
+        employerOffice: privateText(ats.employerOffice),
+        workplaceType: privateText(ats.workplaceType),
+        employmentType: privateText(ats.employmentType),
+        nativeDeadline: ats.nativeDeadline,
+        nativePostedAt: ats.nativePostedAt,
+        nativeDateField: ats.nativeDateField,
+        nativeUpdatedAt: ats.nativeUpdatedAt,
+        postedAt: ats.postedAt,
+        firstObservedAt: ats.firstObservedAt,
+        postedVsEditedDays: ats.postedVsEditedDays,
       });
       addEdge({
         id: `${boardId}|has_open_role|${roleId}`,
@@ -1612,6 +1627,21 @@ export function assertExportValid(doc) {
         !isDay(node.firstSeen) ||
         !isDay(node.lastSeen) ||
         node.firstSeen > node.lastSeen ||
+        (node.employerDepartment !== null && (typeof node.employerDepartment !== 'string' || !node.employerDepartment.trim())) ||
+        (node.employerOffice !== null && (typeof node.employerOffice !== 'string' || !node.employerOffice.trim())) ||
+        (node.workplaceType !== null && (typeof node.workplaceType !== 'string' || !node.workplaceType.trim())) ||
+        (node.employmentType !== null && (typeof node.employmentType !== 'string' || !node.employmentType.trim())) ||
+        (node.nativeDeadline !== null && !isDay(node.nativeDeadline)) ||
+        (node.nativePostedAt !== null && !isDay(node.nativePostedAt)) ||
+        (node.postedAt !== null && !isDay(node.postedAt)) ||
+        (node.nativeUpdatedAt !== null && !isDay(node.nativeUpdatedAt)) ||
+        !isDay(node.firstObservedAt) ||
+        node.firstObservedAt !== node.firstSeen ||
+        node.postedAt !== node.nativePostedAt ||
+        (node.nativeDateField !== null && typeof node.nativeDateField !== 'string') ||
+        (node.postedAt != null && node.nativeDateField !== 'first_published') ||
+        (node.nativeDateField !== 'first_published' && (node.postedAt != null || node.nativePostedAt != null)) ||
+        (node.postedVsEditedDays !== null && !Number.isSafeInteger(node.postedVsEditedDays)) ||
         (evidence !== null &&
           (!evidence ||
             typeof evidence !== 'object' ||
@@ -1863,6 +1893,9 @@ function selftest() {
         closedAt: null,
         nativePostedAt: '2026-04-01',
         nativeDateField: 'first_published',
+        nativeUpdatedAt: '2026-07-01',
+        employerDepartment: 'Engineering',
+        employerOffice: 'San Francisco',
         agencyPolicyEvidence: {
           value: 'no_unsolicited_agency_submissions',
           status: 'supported',
@@ -1919,6 +1952,9 @@ function selftest() {
         closedAt: null,
         nativePostedAt: '2026-01-01',
         nativeDateField: 'createdAt', // must NOT become "posted" claim
+        employerDepartment: 'People',
+        workplaceType: 'Remote',
+        employmentType: 'Full Time',
       },
     },
   };
@@ -2368,6 +2404,31 @@ function selftest() {
     throw new Error('role graph nodes');
   }
   if (doc.relationships.counts.edgeTypes.has_open_role !== 3) throw new Error('role graph edges');
+  {
+    const gh = doc.relationships.nodes.find((n) => n.id === 'role:Greenhouse|acme|1');
+    const lev = doc.relationships.nodes.find((n) => n.id === 'role:Lever|beta|x');
+    if (!gh || gh.employerDepartment !== 'Engineering' || gh.employerOffice !== 'San Francisco') {
+      throw new Error('employer department/office missing on greenhouse open_role');
+    }
+    if (gh.postedAt !== '2026-04-01' || gh.nativePostedAt !== '2026-04-01' || gh.nativeDateField !== 'first_published') {
+      throw new Error('greenhouse first_published must populate postedAt');
+    }
+    if (gh.firstObservedAt !== gh.firstSeen || gh.firstObservedAt !== '2026-05-01' || gh.postedAt === gh.firstObservedAt) {
+      throw new Error('dual clock: firstObservedAt must not become postedAt');
+    }
+    if (gh.nativeUpdatedAt !== '2026-07-01' || gh.postedVsEditedDays !== 91) {
+      throw new Error('maintained-stale first_published vs updated_at');
+    }
+    if (!lev || lev.employerDepartment !== 'People' || lev.workplaceType !== 'Remote') {
+      throw new Error('lever employer fields missing');
+    }
+    if (lev.postedAt !== null || lev.nativePostedAt !== null || lev.nativeDateField !== 'createdAt') {
+      throw new Error('lever without first_published must leave postedAt null');
+    }
+    if (lev.firstObservedAt !== '2026-06-01') {
+      throw new Error('lever firstObservedAt is observer clock');
+    }
+  }
   if (
     doc.relationships.counts.nodeTypes.company_claim !== 4 ||
     doc.relationships.counts.nodeTypes.research_source !== 1 ||
@@ -2540,6 +2601,23 @@ function selftest() {
         '2026-07-30';
     },
     'open-role firstSeen after lastSeen',
+  );
+  expectInvalid(
+    (poison) => {
+      const role = poison.relationships.nodes.find(
+        (node) => node.type === 'open_role' && node.nativeDateField !== 'first_published',
+      );
+      role.postedAt = role.firstObservedAt;
+      role.nativePostedAt = role.firstObservedAt;
+    },
+    'observer clock copied onto employer postedAt',
+  );
+  expectInvalid(
+    (poison) => {
+      poison.relationships.nodes.find((node) => node.type === 'open_role').firstObservedAt =
+        '1999-01-01';
+    },
+    'firstObservedAt diverges from firstSeen',
   );
   expectInvalid(
     (poison) => {

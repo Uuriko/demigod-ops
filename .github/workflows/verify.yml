@@ -52,6 +52,32 @@ jobs:
           demigod-events-public-invite.test.mjs           needs local events fixtures
           demigod-events-online-config.test.mjs           needs local tunnel/heal config
           demigod-role-ledger-timer.test.mjs              needs installed user systemd units
+          dasha-brand.test.mjs                            needs dasha-desk/src (not in this checkout)
+          dasha-buy-path.test.mjs                         needs local CDP Chrome :9223
+          dasha-chess-local.test.mjs                      needs local CDP Chrome :9223
+          dasha-contrast.test.mjs                         needs local CDP Chrome :9223
+          dasha-desk.test.mjs                             needs dasha-desk/index.html (not in this checkout)
+          dasha-discovery.test.mjs                        needs live getdasha.com
+          dasha-docs-links.test.mjs                       needs dasha-desk/src (not in this checkout)
+          dasha-gif.test.mjs                              needs local CDP Chrome :9223
+          dasha-growth.test.mjs                           needs dasha-desk/src (not in this checkout)
+          dasha-landing.test.mjs                          needs local CDP Chrome :9223
+          dasha-live.test.mjs                             needs local CDP Chrome :9223
+          dasha-lobby-page.test.mjs                       needs local CDP Chrome :9223
+          dasha-loop.test.mjs                             needs local CDP Chrome :9223
+          dasha-mark.test.mjs                             needs local CDP Chrome :9223
+          dasha-meme-studio.test.mjs                      needs local CDP Chrome :9223
+          dasha-product-coherence.test.mjs                needs .grok/worktrees/potter/dasha
+          dasha-relay-lab.test.mjs                        needs local CDP Chrome :9223
+          dasha-remix-pack.test.mjs                       needs local CDP Chrome :9223
+          dasha-ship-readback.test.mjs                    needs .grok/worktrees/potter/dasha
+          dasha-ship.test.mjs                             needs local desk files / CDP
+          dasha-simp-board.test.mjs                       needs .grok/worktrees/potter/dasha
+          dasha-simp-score.test.mjs                       needs local score fixtures
+          dasha-studio-embed.test.mjs                     needs local CDP Chrome :9223
+          dasha-studio-static.test.mjs                    needs embed-build.mjs (not tracked here)
+          dasha-surfaces.test.mjs                         needs live getdasha.com
+          dasha-time-to-export.test.mjs                   needs local CDP Chrome :9223
           EOF
           all=$(git ls-files '*.test.mjs')
           excluded=$(awk '{print $1}' /tmp/ci-exclude)

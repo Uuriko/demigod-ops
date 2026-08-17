@@ -12,7 +12,13 @@ test('P0 hiring forms collect only match-critical evidence', () => {
   assert.doesNotMatch(startupConfig, /team-size|why-this-role|role-jd|timeline/);
   assert.doesNotMatch(talentConfig, /\['linkedin-url'\]|phone|why-startups/);
   assert.doesNotMatch(talentConfig, /\['links'\]/);
-  assert.match(foot, /Where and how can this person work\?/);
+  assert.match(foot, /Where and how can they work\?/);
+  assert.match(foot, /\['stack-needs'\],\['90day-outcome'\],\['work-location'\]/);
+  assert.match(foot, /What role are you hiring\?/);
+  assert.match(foot, /When could you start\?/);
+  // Talent modal intro must not borrow the hire brief (LinkedIn shell used to match "startups").
+  assert.match(foot, /var inTalent=!!\(el\.closest&&el\.closest\('#jobseeker-modal'\)\)/);
+  assert.match(foot, /el\.textContent=COPY\.engineerBody/);
   assert.match(foot, /Resume or work link\? \(optional\)/);
   assert.match(foot, /nativeResume&&!en\.querySelector\('\[name=resume-url\]'\)/);
   assert.match(foot, /Upload a file, paste one shareable HTTPS link, or skip/);

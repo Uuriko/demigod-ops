@@ -44,6 +44,11 @@ import { listAcceptedRoles } from './demigod-accepted-role.mjs';
 import { buildCompanyPacket, loadPacketInputs } from './demigod-company-packet.mjs';
 import { listPairs } from './demigod-pairs-lib.mjs';
 import { loadReferrals } from './demigod-referrals.mjs';
+import {
+  CORPUS_SCHEMA,
+  loadCandidateEvidenceCorpus,
+  projectCandidateEvidence,
+} from './demigod-candidate-evidence.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = process.env.DEMIGOD_BUSY || process.env.DG_BUSY || '/tmp/dg-busy';
@@ -73,8 +78,8 @@ function batchActiveCount(b) {
   return (b?.candidates || []).filter((c) => !c.state || c.state === 'active').length;
 }
 
-/** Compile founder-authored criteria into inspectable questions; only human notes can answer them. */
-export function compileEvidenceReview(packet = null, notes = []) {
+/** Compile founder-authored criteria into inspectable questions; only humans make decisions. */
+export function compileEvidenceReview(packet = null, notes = [], candidateEvidenceCorpus = null, at = new Date().toISOString()) {
   if (!packet) {
     return {
       schema: 'demigod.evidence-review/1',
@@ -84,7 +89,15 @@ export function compileEvidenceReview(packet = null, notes = []) {
       globalScore: null,
     };
   }
+  const evidenceProjection = projectCandidateEvidence({
+    roleId: packet.roleId,
+    packet,
+    corpus: candidateEvidenceCorpus || { schema: CORPUS_SCHEMA, evidence: [], withdrawals: [] },
+    at,
+  });
+  const evidenceById = new Map(evidenceProjection.items.map((row) => [row.evidenceId, row]));
   const packetAt = Date.parse(packet.updatedAt || packet.createdAt || '');
+  const viewAt = Date.parse(at);
   const roleNotes = (Array.isArray(notes) ? notes : []).filter((note) => note?.roleId === packet.roleId);
   const questions = (packet.mustHaves || []).map((mustHave) => {
     const responses = [];
@@ -93,13 +106,28 @@ export function compileEvidenceReview(packet = null, notes = []) {
       if (!rating) continue;
       const reviewedAt = note.reviewedAt || null;
       const reviewedMs = Date.parse(reviewedAt || '');
+      const evidenceIds = Array.isArray(rating.evidenceIds) ? rating.evidenceIds : [];
+      const cited = evidenceIds.map((id) => evidenceById.get(id));
+      let state = Number.isFinite(reviewedMs) && reviewedMs > viewAt
+        ? 'future'
+        : Number.isFinite(packetAt) && (!Number.isFinite(reviewedMs) || reviewedMs < packetAt)
+          ? 'stale'
+          : 'answered';
+      if (state !== 'future') {
+        if (cited.some((row) => !row)) state = 'missing_citation';
+        else if (cited.some((row) => row.mustHaveId !== mustHave.id || row.candId !== note.candId)) state = 'invalid_citation';
+        else if (cited.some((row) => row.state === 'conflict')) state = 'conflict';
+        else if (cited.some((row) => row.state === 'withdrawn')) state = 'withdrawn';
+        else if (cited.some((row) => row.state === 'expired')) state = 'expired';
+        else if (cited.some((row) => row.state === 'future')) state = 'future';
+        else if (cited.some((row) => ['stale', 'corrected'].includes(row.state))) state = 'stale';
+      }
       responses.push({
         candId: note.candId,
-        state: Number.isFinite(packetAt) && (!Number.isFinite(reviewedMs) || reviewedMs < packetAt)
-          ? 'stale'
-          : 'answered',
+        state,
         rating: rating.rating,
-        evidence: scrubPII(String(rating.evidence || '')).slice(0, 500),
+        evidence: state === 'future' ? null : scrubPII(String(rating.evidence || '')).slice(0, 500),
+        evidenceIds,
         citation: {
           source: 'human_review_note',
           reviewedAt,
@@ -107,22 +135,44 @@ export function compileEvidenceReview(packet = null, notes = []) {
         },
       });
     }
+    for (const item of evidenceProjection.items.filter((row) => row.mustHaveId === mustHave.id)) {
+      responses.push({
+        candId: item.candId,
+        state: item.state === 'active' ? 'answered' : item.state,
+        rating: null,
+        evidence: item.claim == null ? null : scrubPII(item.claim).slice(0, 500),
+        evidenceIds: [item.evidenceId],
+        citation: {
+          source: item.source.type,
+          sourceRef: item.source.ref,
+          sourceUrl: item.source.url || null,
+          sourceSpan: item.source.span || null,
+          contentSha256: item.source.contentSha256,
+          observedAt: item.source.observedAt || null,
+          use: item.use,
+          approvedBy: item.review?.by || null,
+          approvedAt: item.review?.at || null,
+          previewHash: item.review?.previewHash || null,
+        },
+      });
+    }
     for (const response of responses) {
-      if (responses.some((other) => other.candId === response.candId && other.rating !== response.rating)) {
+      if (response.rating && responses.some((other) =>
+        other.rating && other.candId === response.candId && other.rating !== response.rating)) {
         response.state = 'conflict';
       }
     }
+    let questionState = 'unknown';
+    if (responses.some((row) => row.state === 'conflict')) questionState = 'conflict';
+    else if (responses.some((row) => row.state === 'answered')) questionState = 'answered';
+    else if (responses.some((row) => row.state === 'withdrawn')) questionState = 'withdrawn';
+    else if (responses.some((row) => row.state === 'expired')) questionState = 'expired';
+    else if (responses.some((row) => ['stale', 'corrected'].includes(row.state))) questionState = 'stale';
     return {
       mustHaveId: mustHave.id,
       label: mustHave.label,
       question: `What specific, permitted evidence shows ${mustHave.label}?`,
-      state: !responses.length
-        ? 'unknown'
-        : responses.some((row) => row.state === 'conflict')
-          ? 'conflict'
-          : responses.every((row) => row.state === 'stale')
-            ? 'stale'
-            : 'answered',
+      state: questionState,
       responses,
     };
   });
@@ -132,7 +182,7 @@ export function compileEvidenceReview(packet = null, notes = []) {
       ? 'needs_resolution'
       : questions.some((row) => row.state === 'unknown')
         ? 'needs_evidence'
-        : questions.some((row) => row.state === 'stale')
+        : questions.some((row) => ['stale', 'withdrawn', 'expired'].includes(row.state))
           ? 'needs_refresh'
           : 'reviewable',
     hardFilters: [
@@ -148,6 +198,7 @@ export function compileEvidenceReview(packet = null, notes = []) {
       })),
     ],
     questions,
+    candidateEvidence: evidenceProjection,
     globalScore: null,
     policy: 'No protected traits, inferred personality, or global fit verdict. Unknown remains unknown.',
   };
@@ -169,6 +220,7 @@ export function composeRoleWorkspace({
   candidateChannelErrors = [],
   introPaths = { warm: [], recent: [] },
   callNotes = [],
+  candidateEvidenceCorpus = null,
   at = new Date().toISOString(),
 } = {}) {
   const id = String(roleId || '').trim();
@@ -252,7 +304,7 @@ export function composeRoleWorkspace({
         }
       : { status: 'missing' },
     company: companyPacket,
-    evidenceReview: compileEvidenceReview(packet, roleNotes),
+    evidenceReview: compileEvidenceReview(packet, roleNotes, candidateEvidenceCorpus, at),
     candidateChannels: {
       inbound: {
         count: Array.isArray(inboundCandidates) ? inboundCandidates.length : 0,
@@ -352,6 +404,327 @@ export function composeRoleWorkspace({
       consent: 'existing_pair_receipts_only',
       intro: 'existing_mutual_consent_gate_only',
       externalAction: 'none',
+    },
+  };
+}
+
+/** Derive a common operating picture from the current workspace; no new mission truth. */
+export function buildMissionCase(workspace) {
+  if (workspace?.schema !== 'demigod.role-workspace/1') throw new Error('role_workspace_required');
+  const failed = (workspace.checkpoints || []).filter((row) => !row.ok);
+  const evidenceState = workspace.evidenceReview?.state || 'missing';
+  const channelErrors = workspace.candidateChannels?.errors || [];
+  const waitingOn = failed.some((row) => row.id === 'accepted_role')
+    ? 'role_acceptance'
+    : failed.some((row) => row.id === 'calibrated_packet')
+      ? 'role_calibration'
+      : failed.some((row) => row.id === 'company_context')
+        ? 'company_research'
+        : evidenceState === 'needs_resolution'
+          ? 'human_evidence_resolution'
+          : ['needs_evidence', 'needs_refresh'].includes(evidenceState)
+            ? 'evidence_research'
+            : channelErrors.length
+              ? 'operator_recovery'
+              : workspace.calibration?.stage === 'mutual_pending'
+                ? 'mutual_consent'
+                : workspace.calibration?.stage === 'intro'
+                  ? 'observed_outcome'
+                  : 'human_review';
+  const unresolved = [
+    ...failed.map((row) => ({ kind: 'checkpoint', id: row.id, reason: row.reason })),
+    ...(workspace.evidenceReview?.questions || [])
+      .filter((row) => row.state !== 'answered')
+      .map((row) => ({ kind: 'evidence_question', id: row.mustHaveId, reason: row.state })),
+    ...channelErrors.map((reason, index) => ({ kind: 'channel_error', id: `channel-${index + 1}`, reason })),
+  ];
+  return {
+    schema: 'demigod.role-mission-case/1',
+    roleId: workspace.roleId,
+    at: workspace.at,
+    owner: 'human_operator',
+    objective: workspace.calibration?.outcome90d || null,
+    state: unresolved.length ? 'attention_needed' : 'review_active',
+    waitingOn,
+    unresolved,
+    nextSafeAction: {
+      kind: waitingOn,
+      externalAction: false,
+      note: 'Resolve inside the private role workspace; this projection grants no send, consent, intro, or employment-decision authority.',
+    },
+    closureConditions: ['role_filled', 'role_closed', 'role_paused', 'role_changed', 'outcome_recorded'],
+    urgency: null,
+  };
+}
+
+/** Compact provenance/impact manifest derived from the role workspace. */
+export function buildEvidenceBill(workspace) {
+  if (workspace?.schema !== 'demigod.role-workspace/1') throw new Error('role_workspace_required');
+  const components = [];
+  components.push({
+    id: 'role-acceptance',
+    kind: 'receipt',
+    state: workspace.roleAcceptance?.accepted ? 'supported' : 'unknown',
+    source: 'accepted_role_receipt',
+    activity: 'accepted_role_projection',
+    trustZone: 'private_operations',
+    affects: ['mission_readiness'],
+  });
+  components.push({
+    id: 'role-calibration',
+    kind: 'packet',
+    state: workspace.calibration?.status === 'ready' ? 'human_authored' : workspace.calibration?.status || 'unknown',
+    source: 'founder_role_packet',
+    activity: 'role_packet_projection',
+    trustZone: 'private_operations',
+    affects: (workspace.calibration?.mustHaves || []).map((row) => `question:${row.id}`),
+  });
+  components.push({
+    id: 'company-context',
+    kind: 'packet',
+    state: workspace.company?.status === 'error'
+      ? 'error'
+      : workspace.company?.status === 'unknown'
+        ? 'unknown'
+      : workspace.company
+        ? 'supported'
+        : 'unknown',
+    source: 'company_packet',
+    activity: 'company_packet_projection',
+    trustZone: 'public_company_evidence',
+    affects: ['mission_company_context'],
+  });
+  for (const question of workspace.evidenceReview?.questions || []) {
+    const questionId = `question:${question.mustHaveId}`;
+    components.push({
+      id: questionId,
+      kind: 'derived_question',
+      state: question.state,
+      source: 'founder_role_packet',
+      activity: 'compile_evidence_review',
+      trustZone: 'private_operations',
+      upstream: ['role-calibration'],
+      affects: [question.mustHaveId],
+    });
+    for (const [index, response] of (question.responses || []).entries()) {
+      const candidateEvidence = response.citation?.source !== 'human_review_note';
+      components.push({
+        id: response.evidenceIds?.[0] || `review:${question.mustHaveId}:${index + 1}`,
+        kind: candidateEvidence ? 'candidate_evidence' : 'human_review',
+        state: response.state,
+        source: response.citation?.source || 'human_review_note',
+        sourceAt: response.citation?.reviewedAt || response.citation?.observedAt || null,
+        responsibleAgent: response.citation?.reviewedBy || null,
+        subject: response.candId || null,
+        activity: candidateEvidence ? 'evidence_capture' : 'human_review',
+        trustZone: 'candidate_private',
+        upstream: [questionId],
+        affects: [questionId],
+      });
+    }
+  }
+  components.push({
+    id: 'relationship-context',
+    kind: 'derived_projection',
+    state: 'human_authored',
+    source: 'owned_relationship_records',
+    activity: 'relationship_projection',
+    trustZone: 'relationship_private',
+    count: (workspace.relationshipContext?.warmIntroPaths || []).length
+      + (workspace.relationshipContext?.recentIntroPaths || []).length,
+    affects: ['introduction_route'],
+  });
+  components.push({
+    id: 'conversation-context',
+    kind: 'derived_projection',
+    state: 'human_authored',
+    source: 'private_call_notes',
+    activity: 'conversation_projection',
+    trustZone: 'conversation_private',
+    count: (workspace.relationshipContext?.callNotes || []).length,
+    affects: ['review_questions'],
+  });
+  const byState = {};
+  for (const component of components) byState[component.state] = (byState[component.state] || 0) + 1;
+  return {
+    schema: 'demigod.evidence-bill/1',
+    roleId: workspace.roleId,
+    at: workspace.at,
+    components,
+    summary: { total: components.length, byState },
+    policy: 'Lineage only. Components grant no score, decision, consent, intro, or external-action authority.',
+  };
+}
+
+/** Preserve human reasoning around evidence without manufacturing a verdict. */
+export function buildDecisionTrace(workspace, notes = []) {
+  if (workspace?.schema !== 'demigod.role-workspace/1') throw new Error('role_workspace_required');
+  const fields = ['initialView', 'contraryEvidence', 'changeCondition', 'finalRationale'];
+  const reviews = (Array.isArray(notes) ? notes : [])
+    .filter((note) => note?.roleId === workspace.roleId)
+    .map((note) => {
+      const rehearsal = note.rehearsal || null;
+      const completed = fields.filter((field) => String(rehearsal?.[field] || '').trim()).length;
+      return {
+        candId: note.candId,
+        pairId: note.pairId || null,
+        reviewedAt: note.reviewedAt || null,
+        reviewedBy: note.reviewedBy || null,
+        decisionAid: note.decisionAid || 'none',
+        rehearsalState: !rehearsal ? 'missing' : completed === fields.length ? 'complete' : 'incomplete',
+        rehearsal,
+        ratingCount: (note.ratings || []).length,
+        consultedEvidence: rehearsal?.consultedEvidence || note.companyContextUsed || [],
+        finalHumanDecision: null,
+      };
+    });
+  return {
+    schema: 'demigod.decision-trace/1',
+    roleId: workspace.roleId,
+    at: workspace.at,
+    reviews,
+    counts: {
+      reviews: reviews.length,
+      completeRehearsals: reviews.filter((row) => row.rehearsalState === 'complete').length,
+      missingRehearsals: reviews.filter((row) => row.rehearsalState === 'missing').length,
+    },
+    globalScore: null,
+    authority: 'human_only',
+  };
+}
+
+/** Strict allowlist for founder/candidate mutual context. */
+export function projectMutualMission(workspace) {
+  if (workspace?.schema !== 'demigod.role-workspace/1') throw new Error('role_workspace_required');
+  const identity = workspace.company?.identity || {};
+  return {
+    schema: 'demigod.role-mission-mutual/1',
+    at: workspace.at,
+    role: {
+      title: workspace.calibration?.title || null,
+      outcome90d: workspace.calibration?.outcome90d || null,
+      mustHaves: workspace.calibration?.mustHaves || [],
+      compBand: workspace.calibration?.compBand?.source === 'public_job_post'
+        ? workspace.calibration.compBand
+        : null,
+      interviewPlan: workspace.calibration?.interviewPlan || [],
+      withheld: [
+        'dealBreakers',
+        ...(workspace.calibration?.compBand && workspace.calibration.compBand.source !== 'public_job_post'
+          ? ['founder_stated_compBand']
+          : []),
+      ],
+    },
+    company: workspace.company
+      ? {
+          name: identity.name || workspace.company.name || null,
+          domain: identity.domain || null,
+          website: identity.website || null,
+          status: workspace.company.status || 'available',
+        }
+      : null,
+    process: {
+      stage: workspace.calibration?.stage || null,
+      missionState: workspace.state,
+      questions: (workspace.evidenceReview?.questions || []).map((row) => ({
+        mustHaveId: row.mustHaveId,
+        label: row.label,
+        question: row.question,
+      })),
+    },
+    consent: { state: 'pair_scope_required' },
+    introduction: { state: 'mutual_consent_required' },
+    authority: { employmentDecision: 'human', externalAction: 'none' },
+  };
+}
+
+/** Immutable what-if comparison. It cannot commit or predict an outcome. */
+export function compareMissionScenario(workspace, changes = {}) {
+  if (workspace?.schema !== 'demigod.role-workspace/1') throw new Error('role_workspace_required');
+  if (!changes || typeof changes !== 'object' || Array.isArray(changes)) throw new Error('scenario_changes_object');
+  const allowed = ['title', 'outcome90d', 'mustHaves', 'dealBreakers', 'compBand', 'interviewPlan'];
+  const keys = Object.keys(changes);
+  const unknown = keys.filter((key) => !allowed.includes(key));
+  if (unknown.length) throw new Error(`scenario_unknown_fields:${unknown.join(',')}`);
+  if (!keys.length) throw new Error('scenario_changes_required');
+  if (!workspace.calibration || workspace.calibration.status === 'missing') throw new Error('scenario_calibration_required');
+  for (const key of ['mustHaves', 'dealBreakers', 'interviewPlan']) {
+    if (key in changes && !Array.isArray(changes[key])) throw new Error(`scenario_${key}_array`);
+  }
+  const base = structuredClone(workspace.calibration || {});
+  const proposed = { ...structuredClone(base), ...structuredClone(changes) };
+  if (!String(proposed.title || '').trim() || String(proposed.title).length > 200) throw new Error('scenario_title');
+  if (String(proposed.outcome90d || '').trim().length < 20 || String(proposed.outcome90d).length > 2000) {
+    throw new Error('scenario_outcome90d');
+  }
+  if (!Array.isArray(proposed.mustHaves) || proposed.mustHaves.length < 3 || proposed.mustHaves.length > 7) {
+    throw new Error('scenario_mustHaves_count');
+  }
+  const mustIds = new Set();
+  for (const row of proposed.mustHaves) {
+    if (!String(row?.id || '').trim() || !String(row?.label || '').trim()) throw new Error('scenario_mustHave_shape');
+    if (mustIds.has(row.id)) throw new Error('scenario_mustHave_duplicate');
+    mustIds.add(row.id);
+  }
+  if (!Array.isArray(proposed.dealBreakers) || proposed.dealBreakers.length > 10) throw new Error('scenario_dealBreakers');
+  for (const row of proposed.dealBreakers) {
+    if (!String(row?.id || '').trim() || !String(row?.label || '').trim()) throw new Error('scenario_dealBreaker_shape');
+  }
+  if (!Array.isArray(proposed.interviewPlan)) throw new Error('scenario_interviewPlan');
+  for (const row of proposed.interviewPlan) {
+    if (!mustIds.has(row?.mustHaveId)) throw new Error('scenario_interviewPlan_mustHave');
+  }
+  if (proposed.compBand != null && typeof proposed.compBand !== 'object') throw new Error('scenario_compBand');
+  const changedFields = allowed.filter((key) => JSON.stringify(base[key] ?? null) !== JSON.stringify(proposed[key] ?? null));
+  if (!changedFields.length) throw new Error('scenario_no_material_change');
+  const baseMusts = new Map((base.mustHaves || []).map((row) => [row.id, row]));
+  const proposedMusts = new Map((proposed.mustHaves || []).map((row) => [row.id, row]));
+  const requirementIds = [...new Set([...baseMusts.keys(), ...proposedMusts.keys()])];
+  let affectedRequirements = requirementIds.filter((id) =>
+    JSON.stringify(baseMusts.get(id) || null) !== JSON.stringify(proposedMusts.get(id) || null));
+  if (changedFields.includes('title') || changedFields.includes('outcome90d')) affectedRequirements = requirementIds;
+  return {
+    schema: 'demigod.role-mission-scenario/1',
+    roleId: workspace.roleId,
+    baseRoleTruthHash: workspace.roleAcceptance?.receipt?.roleTruthHash || null,
+    changedFields,
+    changes: structuredClone(changes),
+    impact: {
+      requirements: affectedRequirements,
+      evidenceQuestions: affectedRequirements.map((id) => `question:${id}`),
+      candidateFilters: changedFields.some((key) => ['mustHaves', 'dealBreakers'].includes(key)),
+      interviewPlan: changedFields.includes('interviewPlan') || affectedRequirements.length > 0,
+      offerContext: changedFields.includes('compBand'),
+      roleTruthInvalidated: changedFields.length > 0,
+    },
+    unchangedFields: allowed.filter((key) => !changedFields.includes(key)),
+    proposedCalibration: proposed,
+    committable: false,
+    predictedOutcome: null,
+    authority: { externalAction: 'none' },
+  };
+}
+
+export function composeRoleMission(workspace, notes = []) {
+  return {
+    schema: 'demigod.role-mission/1',
+    roleId: workspace.roleId,
+    at: workspace.at,
+    state: workspace.state,
+    case: buildMissionCase(workspace),
+    evidenceBill: buildEvidenceBill(workspace),
+    decisionTrace: buildDecisionTrace(workspace, notes),
+    views: {
+      private: workspace,
+      mutual: projectMutualMission(workspace),
+    },
+    constitution: {
+      review: 'human',
+      employmentDecision: 'human',
+      consent: 'existing_pair_receipts_only',
+      intro: 'existing_mutual_consent_gate_only',
+      externalAction: 'none',
+      policyEngine: 'explicit_code_and_tests',
     },
   };
 }
@@ -493,7 +866,7 @@ Inspired by Ashby / Underdog / Gem / Affinity / Metaview / Levels (thin) — Dem
 }
 
 /** Full desk for one role: packet + notes + batch + rediscover filtered. */
-export function buildDesk(roleId) {
+export function buildDesk(roleId, { at = new Date().toISOString() } = {}) {
   const id = String(roleId || '').trim();
   if (!id) throw new Error('roleId required');
   const packet = loadPackets().packets[id] || null;
@@ -524,6 +897,14 @@ export function buildDesk(roleId) {
     acceptedRoleError = `acceptance_gate_error:${String(error?.message || error)}`;
   }
   const candidateChannelErrors = [];
+  let candidateEvidenceCorpus = { schema: CORPUS_SCHEMA, evidence: [], withdrawals: [] };
+  try {
+    candidateEvidenceCorpus = loadCandidateEvidenceCorpus();
+    if (packet) projectCandidateEvidence({ roleId: id, packet, corpus: candidateEvidenceCorpus });
+  } catch (error) {
+    candidateChannelErrors.push(`candidate_evidence_error:${String(error?.message || error)}`);
+    candidateEvidenceCorpus = { schema: CORPUS_SCHEMA, evidence: [], withdrawals: [] };
+  }
   let inboundCandidates = [];
   try {
     inboundCandidates = currentCandidateSubmissions(inbox?.items || [])
@@ -599,10 +980,13 @@ export function buildDesk(roleId) {
     candidateChannelErrors,
     introPaths: { warm: introWarm, recent: introRecent },
     callNotes: calls,
+    candidateEvidenceCorpus,
+    at,
   });
+  const mission = composeRoleMission(workspace, notes);
   return {
     schema: 'demigod.structured-hiring-desk/1',
-    at: new Date().toISOString(),
+    at,
     roleId: id,
     packet,
     batch: batch
@@ -618,6 +1002,7 @@ export function buildDesk(roleId) {
     callNotes: calls,
     debrief: packet ? debriefRoundup(packet, notes) : null,
     workspace,
+    mission,
     next: !packet
       ? `node demigod-role-packet.mjs init --role=${id} --title=… --outcome="…(≥20 chars)…"`
       : !batch
@@ -810,6 +1195,93 @@ function selftest() {
   assert(Array.isArray(st.warmPaths), 'warmPaths');
   assert(typeof st.counts.introPaths === 'number', 'introPaths count');
   assert(!('score' in st) && st.policy.includes('No fit score'), 'no score');
+  const fixtureCandidateEvidenceCorpus = {
+    schema: CORPUS_SCHEMA,
+    evidence: [
+      {
+        schema: 'demigod.candidate-evidence/1',
+        evidenceId: 'ev-fixture-1',
+        candId: 'cand-1',
+        roleId: 'role-fixture',
+        mustHaveId: 'mh1',
+        criterionLabel: 'Backend craft',
+        claim: 'private-candidate-claim-sentinel shows a production migration.',
+        source: {
+          type: 'candidate_submitted',
+          ref: 'submission:fixture-1',
+          contentSha256: 'a'.repeat(64),
+          span: { text: 'private-source-span-sentinel from the submitted work sample.' },
+          observedAt: '2026-08-01T00:00:00.000Z',
+        },
+        use: {
+          purpose: 'role_evidence_review',
+          basis: 'candidate_submission',
+          policyVersion: 'candidate-evidence-policy/1',
+          retainUntil: '2026-09-01T00:00:00.000Z',
+        },
+        review: {
+          state: 'approved',
+          by: 'operator',
+          at: '2026-08-10T00:00:00.000Z',
+          previewHash: 'd'.repeat(64),
+        },
+      },
+      {
+        schema: 'demigod.candidate-evidence/1',
+        evidenceId: 'ev-fixture-2',
+        candId: 'cand-2',
+        roleId: 'role-fixture',
+        mustHaveId: 'mh2',
+        criterionLabel: 'Product judgment',
+        claim: 'Public design note explains a product tradeoff and user outcome.',
+        source: {
+          type: 'public_work',
+          ref: 'public:fixture-2',
+          url: 'https://example.com/work',
+          contentSha256: 'b'.repeat(64),
+          span: { text: 'The design note compares alternatives and reports the observed outcome.' },
+          observedAt: '2026-08-02T00:00:00.000Z',
+        },
+        use: {
+          purpose: 'role_evidence_review',
+          basis: 'public_professional_context',
+          policyVersion: 'candidate-evidence-policy/1',
+          retainUntil: '2026-09-01T00:00:00.000Z',
+        },
+      },
+      {
+        schema: 'demigod.candidate-evidence/1',
+        evidenceId: 'ev-fixture-3',
+        candId: 'cand-3',
+        roleId: 'role-fixture',
+        mustHaveId: 'mh3',
+        criterionLabel: 'Clear communication',
+        claim: 'Submitted explanation was once available for structured review.',
+        source: {
+          type: 'candidate_submitted',
+          ref: 'submission:fixture-3',
+          contentSha256: 'c'.repeat(64),
+          span: { text: 'This raw evidence must disappear from the active projection.' },
+          observedAt: '2026-08-03T00:00:00.000Z',
+        },
+        use: {
+          purpose: 'role_evidence_review',
+          basis: 'candidate_submission',
+          policyVersion: 'candidate-evidence-policy/1',
+          retainUntil: '2026-09-01T00:00:00.000Z',
+        },
+      },
+    ],
+    withdrawals: [{
+      schema: 'demigod.candidate-evidence-withdrawal/1',
+      withdrawalId: 'wd-fixture-1',
+      candId: 'cand-3',
+      roleId: 'role-fixture',
+      evidenceIds: ['ev-fixture-3'],
+      at: '2026-08-14T00:00:00.000Z',
+      reason: 'Candidate withdrew the submitted evidence from this role review.',
+    }],
+  };
   const fixtureWorkspace = composeRoleWorkspace({
     roleId: 'role-fixture',
     acceptedRole: { roleId: 'role-fixture', company: 'Acme', roleTruthHash: 'abc' },
@@ -823,6 +1295,8 @@ function selftest() {
         { id: 'mh2', label: 'Product judgment' },
         { id: 'mh3', label: 'Clear communication' },
       ],
+      dealBreakers: [{ id: 'db-private', label: 'private-deal-breaker-sentinel' }],
+      compBand: { text: 'private-comp-sentinel', source: 'founder_stated' },
       stage: 'brief_ready',
     },
     companyPacket: { schema: 'demigod.company-packet/1', companyId: 'yc:acme', identity: { name: 'Acme' } },
@@ -832,7 +1306,14 @@ function selftest() {
       candId: 'cand-1',
       reviewedAt: '2026-08-14T00:00:00.000Z',
       reviewedBy: 'operator',
-      ratings: [{ mustHaveId: 'mh1', rating: 'yes', evidence: 'Shipped a production backend migration.' }],
+      rehearsal: {
+        initialView: 'The work sample appears relevant pending full review.',
+        contraryEvidence: 'The sample may not show comparable production scale.',
+        changeCondition: 'Verified ownership at similar scale would change the view.',
+        finalRationale: 'Keep the evidence question open for the structured interview.',
+        consultedEvidence: ['question:mh1'],
+      },
+      ratings: [{ mustHaveId: 'mh1', rating: 'yes', evidence: 'Shipped a production backend migration.', evidenceIds: ['ev-fixture-1'] }],
     }],
     inboundCandidates: [{
       candId: 'cand-3',
@@ -858,6 +1339,7 @@ function selftest() {
       lastOutcome: 'opt_out',
       fitScore: null,
     }],
+    candidateEvidenceCorpus: fixtureCandidateEvidenceCorpus,
     at: '2026-08-15T00:00:00.000Z',
   });
   assert(fixtureWorkspace.schema === 'demigod.role-workspace/1', 'workspace schema');
@@ -867,7 +1349,27 @@ function selftest() {
   assert(fixtureWorkspace.candidateChannels.inbound.count === 1, 'workspace inbound');
   assert(fixtureWorkspace.candidateChannels.referrals.count === 1, 'workspace referrals');
   assert(fixtureWorkspace.evidenceReview.questions[0].state === 'answered', 'workspace cited evidence');
-  assert(fixtureWorkspace.evidenceReview.questions[1].state === 'unknown', 'workspace preserves unknown evidence');
+  assert(fixtureWorkspace.evidenceReview.questions[0].responses[0].evidenceIds[0] === 'ev-fixture-1', 'workspace preserves review evidence ID');
+  const historicalReview = compileEvidenceReview(
+    { ...fixtureWorkspace.calibration, roleId: 'role-fixture' },
+    fixtureWorkspace.evidenceReview.questions[0].responses.length ? [{
+      roleId: 'role-fixture',
+      candId: 'cand-1',
+      reviewedAt: '2026-08-14T00:00:00.000Z',
+      ratings: [{ mustHaveId: 'mh1', rating: 'yes', evidence: 'Future private review text.', evidenceIds: ['ev-fixture-1'] }],
+    }] : [],
+    fixtureCandidateEvidenceCorpus,
+    '2026-08-05T00:00:00.000Z',
+  );
+  const futureReview = historicalReview.questions[0].responses.find((row) => row.rating === 'yes');
+  assert(futureReview.state === 'future' && futureReview.evidence === null, 'historical view withholds future review note');
+  assert(historicalReview.questions[0].state === 'unknown', 'future evidence cannot answer historical question');
+  assert(fixtureWorkspace.evidenceReview.questions[1].state === 'answered', 'workspace public work evidence');
+  assert(fixtureWorkspace.evidenceReview.questions[2].state === 'withdrawn', 'workspace propagates withdrawal');
+  assert(
+    fixtureWorkspace.evidenceReview.candidateEvidence.items.find((row) => row.evidenceId === 'ev-fixture-3').claim === null,
+    'workspace withholds withdrawn raw evidence',
+  );
   assert(fixtureWorkspace.evidenceReview.globalScore === null, 'workspace evidence has no global score');
   const staleReview = compileEvidenceReview(
     { ...fixtureWorkspace.calibration, roleId: 'role-fixture', updatedAt: '2026-08-15T00:00:00.000Z' },
@@ -898,6 +1400,51 @@ function selftest() {
   );
   assert(!JSON.stringify(fixtureWorkspace).includes('fitScore'), 'workspace omits fit score');
   assert(fixtureWorkspace.authority.externalAction === 'none', 'workspace grants no action');
+  const fixtureNotes = [{
+    roleId: 'role-fixture',
+    candId: 'cand-private-sentinel',
+    reviewedAt: '2026-08-14T00:00:00.000Z',
+    reviewedBy: 'private-reviewer-sentinel',
+    decisionAid: 'missing_question',
+    companyContextUsed: ['company:productSummary'],
+    ratings: fixtureWorkspace.calibration.mustHaves.map((row) => ({
+      mustHaveId: row.id,
+      rating: 'yes',
+      evidence: 'private-evidence-sentinel',
+    })),
+    rehearsal: {
+      initialView: 'private-initial-sentinel',
+      contraryEvidence: 'private-contrary-sentinel',
+      changeCondition: 'private-change-sentinel',
+      finalRationale: 'private-rationale-sentinel',
+      consultedEvidence: ['question:mh1'],
+    },
+  }];
+  const mission = composeRoleMission(fixtureWorkspace, fixtureNotes);
+  assert(mission.schema === 'demigod.role-mission/1', 'mission schema');
+  assert(mission.case.waitingOn === 'evidence_research', 'mission case waiting state');
+  assert(mission.evidenceBill.components.some((row) => row.id === 'question:mh1'), 'evidence bill question');
+  assert(mission.evidenceBill.components.some((row) => row.id === 'ev-fixture-2'), 'evidence bill candidate evidence');
+  assert(mission.decisionTrace.reviews[0].rehearsalState === 'complete', 'decision rehearsal complete');
+  const mutualJson = JSON.stringify(mission.views.mutual);
+  for (const forbidden of ['cand-private-sentinel', 'private-reviewer-sentinel', 'private-evidence-sentinel', 'private-rationale-sentinel', 'private-deal-breaker-sentinel', 'private-comp-sentinel', 'private-candidate-claim-sentinel', 'private-source-span-sentinel', 'suppression', 'rating']) {
+    assert(!mutualJson.includes(forbidden), `mutual view excludes ${forbidden}`);
+  }
+  const baseBeforeScenario = JSON.stringify(fixtureWorkspace);
+  const changedMustHaves = fixtureWorkspace.calibration.mustHaves.map((row) =>
+    row.id === 'mh1' ? { ...row, label: 'Backend craft at production scale' } : row);
+  const scenario = compareMissionScenario(fixtureWorkspace, { mustHaves: changedMustHaves });
+  assert(scenario.impact.requirements.includes('mh1'), 'scenario requirement impact');
+  assert(scenario.impact.roleTruthInvalidated, 'scenario invalidates role truth');
+  assert(scenario.committable === false && scenario.authority.externalAction === 'none', 'scenario cannot act');
+  assert(JSON.stringify(fixtureWorkspace) === baseBeforeScenario, 'scenario does not mutate base');
+  let scenarioRefused = false;
+  try {
+    compareMissionScenario(fixtureWorkspace, { automaticDecision: true });
+  } catch {
+    scenarioRefused = true;
+  }
+  assert(scenarioRefused, 'scenario rejects unknown authority field');
   const missingWorkspace = composeRoleWorkspace({ roleId: 'role-missing', at: '2026-08-15T00:00:00.000Z' });
   assert(missingWorkspace.state === 'needs_calibration', 'missing workspace not ready');
   assert(missingWorkspace.checkpoints.every((row) => row.ok === false), 'missing checkpoints fail closed');
@@ -932,8 +1479,10 @@ function main() {
     return;
   }
   if (args.includes('--help') || args.includes('-h')) {
-    console.log(`usage: node demigod-structured-hiring.mjs status|desk|workspace|shortlist|pack|audit|doctor [--role=] [--cand=] [--why=] [--json]
+    console.log(`usage: node demigod-structured-hiring.mjs status|desk|workspace|mission|scenario|shortlist|pack|audit|doctor [--role=] [--cand=] [--why=] [--changes=JSON] [--at=ISO] [--json]
   workspace  role acceptance + calibration + company context + candidate channels + checkpoints
+  mission    workspace + case + evidence bill + decision trace + private/mutual projections
+  scenario   immutable comparison; requires --role and --changes JSON; never commits
   shortlist  add cand to role batch (requires packet); logs touch; hard-caps active=3
   pack       write /tmp/dg-busy/structured-hiring-handoff/
   audit      validate all SH stores (no fit score; batch caps; assert shapes)
@@ -945,6 +1494,8 @@ function main() {
   let role = null;
   let cand = null;
   let why = null;
+  let changes = null;
+  let at = null;
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--role' && args[i + 1]) role = args[++i];
     else if (args[i].startsWith('--role=')) role = args[i].slice(7);
@@ -952,6 +1503,10 @@ function main() {
     else if (args[i].startsWith('--cand=')) cand = args[i].slice(7);
     else if (args[i] === '--why' && args[i + 1]) why = args[++i];
     else if (args[i].startsWith('--why=')) why = args[i].slice(6);
+    else if (args[i] === '--changes' && args[i + 1]) changes = args[++i];
+    else if (args[i].startsWith('--changes=')) changes = args[i].slice(10);
+    else if (args[i] === '--at' && args[i + 1]) at = args[++i];
+    else if (args[i].startsWith('--at=')) at = args[i].slice(5);
   }
 
   if (cmd === 'shortlist') {
@@ -1032,16 +1587,24 @@ function main() {
     process.exit(out.ok ? 0 : 1);
   }
 
-  if (cmd === 'desk' || cmd === 'workspace') {
+  if (cmd === 'desk' || cmd === 'workspace' || cmd === 'mission' || cmd === 'scenario') {
     if (!role) {
       console.error(JSON.stringify({ ok: false, error: '--role required' }));
       process.exit(1);
     }
-    const desk = buildDesk(role);
-    const output = cmd === 'workspace' ? desk.workspace : desk;
+    const desk = buildDesk(role, { at: at || new Date().toISOString() });
+    let output = cmd === 'workspace' ? desk.workspace : cmd === 'mission' ? desk.mission : desk;
+    if (cmd === 'scenario') {
+      try {
+        output = compareMissionScenario(desk.workspace, JSON.parse(changes || 'null'));
+      } catch (error) {
+        console.error(JSON.stringify({ ok: false, error: String(error?.message || error) }));
+        process.exit(1);
+      }
+    }
     if (json) console.log(JSON.stringify(output, null, 2));
     else {
-      console.log(`# ${cmd === 'workspace' ? 'role workspace' : 'structured-hiring desk'} · ${desk.roleId}`);
+      console.log(`# ${cmd === 'workspace' ? 'role workspace' : cmd === 'mission' ? 'role mission' : cmd === 'scenario' ? 'mission scenario' : 'structured-hiring desk'} · ${desk.roleId}`);
       console.log(`  packet: ${desk.packet ? desk.packet.title : 'NONE'}`);
       console.log(
         `  batch: ${desk.batch ? `${desk.batch.active}/${desk.batch.max} active` : 'NONE'}`,
@@ -1050,6 +1613,8 @@ function main() {
       console.log(
         `  workspace: ${desk.workspace.state} · ${desk.workspace.checkpoints.map((row) => `${row.id}=${row.ok ? 'yes' : 'no'}`).join(' · ')}`,
       );
+      if (cmd === 'mission') console.log(`  case: waiting=${desk.mission.case.waitingOn} · evidence=${desk.mission.evidenceBill.summary.total} components · rehearsals=${desk.mission.decisionTrace.counts.completeRehearsals}/${desk.mission.decisionTrace.counts.reviews}`);
+      if (cmd === 'scenario') console.log(`  changed: ${output.changedFields.join(',')} · affected=${output.impact.requirements.join(',') || 'none'} · committable=no`);
       console.log(`  next: ${desk.next}`);
     }
     return;
