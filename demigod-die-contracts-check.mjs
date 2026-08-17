@@ -167,6 +167,83 @@ function checkSafeUrl() {
  * One executor each, but they share a fixture: a real packet built by the real builder, because a
  * hand-made packet would let a projection quietly stop projecting and still look right.
  */
+/**
+ * §12 Research projection entry point. One export, no second door.
+ *
+ * The rule exists because a wrapper once sat beside the projector with no caller and no test — a
+ * second contract nobody was verifying, which is the shape a divergence hides in. So the check is
+ * about the module's surface, not its behaviour: nothing else may look like a research projector.
+ */
+async function checkResearchEntry() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.research-entry\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.research-entry/1 fence in §12 yet' };
+
+  const evidence = await import('./demigod-evidence.mjs');
+  const names = Object.keys(evidence);
+  const bad = [];
+  if (/single-entry\s*=\s*projectCompanyResearch is the only/.test(fence)) {
+    if (typeof evidence.projectCompanyResearch !== 'function') bad.push('projectCompanyResearch is not exported as a function');
+  }
+  if (/no-wrapper\s*=>\s*no alias or wrapper export/.test(fence)) {
+    // Functions only: COMPANY_RESEARCH_FIELDS is a constant, not a second door.
+    const projectors = names.filter((name) => typeof evidence[name] === 'function'
+      && /research/i.test(name) && /^(project|company|get|resolve|build)/i.test(name));
+    const extra = projectors.filter((name) => name !== 'projectCompanyResearch');
+    if (extra.length) bad.push(`a second research projector is exported: ${extra.join(', ')}`);
+  }
+  return bad.length
+    ? { status: 'violation', detail: `§12 fence and demigod-evidence exports disagree on ${bad.length} rule(s)`, sample: bad }
+    : { status: 'pass', detail: `projectCompanyResearch is the only research projector among ${names.length} exports` };
+}
+
+/**
+ * §16 Private memo. A memo is the artifact most likely to be pasted somewhere, so every rule here
+ * is about what must not survive rendering.
+ */
+async function checkPrivateMemo() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.company-memo\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.company-memo/1 fence in §16 yet' };
+
+  const { renderCompanyMemo } = await import('./demigod-company-memo.mjs');
+  const { packet } = await packetFixture();
+  const memo = renderCompanyMemo(packet);
+  const markdown = String(memo?.markdown || '');
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+
+  if (/share\s*=\s*private, always/.test(fence)) {
+    say(memo?.share === 'private', `memo share is ${memo?.share}`);
+  }
+  if (/no-contact\s*=>\s*contact-shaped data never reaches/.test(fence)) {
+    say(!markdown.includes('leak@example.com'), 'an email on the map row reached the rendered memo');
+    say(!/\b[\w.+-]+@[\w-]+\.[a-z]{2,}\b/i.test(markdown), 'the memo rendered something email-shaped');
+  }
+  if (/no-score\s*=>\s*no score, rank or recommendation/.test(fence)) {
+    say(!/\b(score|ranked|rank:|we recommend|recommended)\b/i.test(markdown), 'the memo rendered a score or a recommendation');
+  }
+  if (/says-so\s*=>\s*the memo states it is not a recommendation/.test(fence)) {
+    say(/not a recommendation/i.test(markdown), 'the memo does not say it is not a recommendation');
+  }
+  if (/safe-links\s*=>\s*every rendered link passes safeResearchUrl/.test(fence)) {
+    for (const [, href] of markdown.matchAll(/\]\((https?:[^)\s]+)\)/g)) {
+      say(Boolean(safeResearchUrl(href)), `the memo rendered an unsafe link: ${href}`);
+    }
+    for (const [, bare] of markdown.matchAll(/(?:^|\s)(https?:\/\/\S+)/g)) {
+      say(Boolean(safeResearchUrl(bare.replace(/[.,)]+$/, ''))), `the memo rendered an unsafe bare link: ${bare}`);
+    }
+  }
+  if (/bounded\s*=>\s*no rendered line exceeds/.test(fence)) {
+    const longest = markdown.split('\n').reduce((n, line) => Math.max(n, line.length), 0);
+    say(longest <= 260, `a rendered line ran to ${longest} characters`);
+  }
+
+  return bad.length
+    ? { status: 'violation', detail: `§16 fence and renderCompanyMemo disagree on ${bad.length} rule(s)`, sample: bad.slice(0, 5) }
+    : { status: 'pass', detail: `all ${fence.trim().split('\n').length - 1} memo rules hold; nothing contact-shaped survives rendering` };
+}
+
 async function packetFixture() {
   const { buildCompanyPacket } = await import('./demigod-company-packet.mjs');
   const company = {
@@ -856,7 +933,7 @@ async function checkBoardPay() {
 }
 
 /** Sections with a working executor today. Raise it when you wire one; never lower it. */
-export const ENFORCED_FLOOR = 14;
+export const ENFORCED_FLOOR = 16;
 
 export const EXECUTORS = {
   5: { name: 'demigod-evidence.mjs (claim shape)', run: checkClaim },
@@ -867,9 +944,11 @@ export const EXECUTORS = {
   11: { name: 'demigod-evidence.mjs safeResearchUrl', run: checkSafeUrl },
   1: { name: 'demigod-company-identity.mjs resolveEntities', run: checkCompanyIdentity },
   4: { name: 'demigod-evidence.mjs company-row projection', run: checkCompanyRow },
+  12: { name: 'demigod-evidence.mjs export surface', run: checkResearchEntry },
   13: { name: 'demigod-company-packet.mjs buildCompanyPacket', run: checkCompanyPacket },
   14: { name: 'demigod-company-table.mjs listCompanyRows', run: checkCompanyTable },
   15: { name: 'demigod-company-waterfall.mjs runCompanyWaterfall', run: checkWaterfall },
+  16: { name: 'demigod-company-memo.mjs renderCompanyMemo', run: checkPrivateMemo },
   17: { name: 'demigod-packet-writeback.mjs buildWritebackPlan', run: checkWriteback },
   29: { name: 'demigod-role-mission-kernel.mjs attachCompany (grok)', run: checkMissionCompany },
   30: { name: 'demigod-board-pay.mjs rolePayVisibility', run: checkBoardPay },

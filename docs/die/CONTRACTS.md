@@ -315,6 +315,12 @@ Rejected:
 alongside it with no live caller and no test exercising it; it was deleted rather than
 deprecated, since an unused, unexercised export is a second contract nobody is verifying.
 
+```text
+demigod.research-entry/1
+  single-entry            = projectCompanyResearch is the only research projector exported
+  no-wrapper              => no alias or wrapper export projects research alongside it
+```
+
 ## 13. Company packet
 
 `buildCompanyPacket({ companyId, ...inputs })` returns `demigod.company-packet/1` from an exact map
@@ -380,6 +386,16 @@ demigod.company-waterfall/1
 `renderCompanyMemo(packet)` returns `demigod.company-memo/1`. The memo is private, bounded,
 citation-preserving, and explicitly not a recommendation. Contact-shaped data, scores, and unsafe
 links are omitted. `--out` may write only the rendered local memo requested by the operator.
+
+```text
+demigod.company-memo/1
+  share                   = private, always, with no other value reachable
+  no-contact              => contact-shaped data never reaches the rendered memo
+  no-score                => no score, rank or recommendation
+  says-so                 => the memo states it is not a recommendation
+  safe-links              => every rendered link passes safeResearchUrl
+  bounded                 => no rendered line exceeds the line bound
+```
 
 ## 17. Writeback preview
 
