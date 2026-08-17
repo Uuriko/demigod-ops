@@ -353,13 +353,28 @@ export function mergeNamedCompanies(primary = [], secondary = []) {
 // Q4733679 Almanac Beer Company — a brewery (almanacbeer.com), not a tech startup.
 const NON_TECH_BROAD_QIDS = new Set(['Q4733679']);
 
+/**
+ * Wikidata labels carry a disambiguator when the entity shares a name with another: 33 companies in
+ * the live map are stored as "GigaGen (United States)", "Ayar Labs (United States)" and so on, and
+ * the public directory renders that qualifier as if it were the company's name.
+ *
+ * Deliberately narrow. Every one of those 33 is exactly `(United States)`, so that is the only thing
+ * stripped, and a leading space is required — `If(we)` (wd:Q18350954) is a real company whose name
+ * contains a parenthesis, and a general "drop the trailing parenthetical" rule renames it to "If".
+ * YC labels are not touched here or anywhere: their parentheticals carry information a reader needs
+ * ("(fka Hex Security)", "(formerly Pollinate)", "(DBA Clayton Farms)").
+ */
+export function wikidataDisplayName(label) {
+  return String(label || '').replace(/\s\(United States\)$/, '').trim();
+}
+
 export function buildWikidataCompanies(groups = [], retrievedAt = new Date().toISOString()) {
   const companies = new Map();
   for (const { body, tag } of groups) {
     const rows = Array.isArray(body?.results?.bindings) ? body.results.bindings : [];
     for (const row of rows) {
       const qid = /^http:\/\/www\.wikidata\.org\/entity\/(Q[1-9]\d*)$/.exec(String(row?.company?.value || ''))?.[1];
-      const name = String(row?.companyLabel?.value || '').trim().slice(0, 160);
+      const name = wikidataDisplayName(String(row?.companyLabel?.value || '').trim()).slice(0, 160);
       if (!qid || !name || name === qid) continue;
       if (tag === 'wikidata-sf-tech' && NON_TECH_BROAD_QIDS.has(qid)) continue;
       const current = companies.get(qid) || {
@@ -687,6 +702,20 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       if (!stampThrew) throw new Error('stamp guard did not fire on a dated row with no count');
       // If disk already carries ATS enrich, enforce live board volume too.
       if (jobsEnriched) assertMapFloors(real, { withJobs: true });
+
+      // Wikidata disambiguators are not company names, and the narrowness of the rule is the point.
+      const nameCases = [
+        ['GigaGen (United States)', 'GigaGen', 'the country qualifier goes'],
+        ['If(we)', 'If(we)', 'a parenthesis inside a real name survives'],
+        ['Parameter (fka Hex Security)', 'Parameter (fka Hex Security)', 'a former name is information, not a qualifier'],
+        ['Acme (United States) Inc', 'Acme (United States) Inc', 'only at the end, where a disambiguator lives'],
+        ['', '', 'no label, no name'],
+        [null, '', 'a missing label is empty, not "null"'],
+      ];
+      for (const [input, want, why] of nameCases) {
+        const got = wikidataDisplayName(input);
+        if (got !== want) throw new Error(`wikidataDisplayName(${JSON.stringify(input)}) = ${JSON.stringify(got)}, want ${JSON.stringify(want)} — ${why}`);
+      }
 
       // CI-15: id namespaces stable; YC slug → yc:slug deterministic; no name-minted ids
       const ycA = buildYcPublicCompanies([{ name: 'Acme', slug: 'acme-co', status: 'Active', all_locations: 'San Francisco, CA', isHiring: true }]);
