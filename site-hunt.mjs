@@ -478,7 +478,13 @@ async function huntSite(name, cfg) {
 
   const home = bodies[cfg.origin + '/'] || await fetchOne(cfg.origin + '/');
   if (home.body) {
-    const links = extractLinks(home.body, cfg.origin + '/').filter((u) => u.startsWith(cfg.origin));
+    // /cdn-cgi/ is Cloudflare's reserved namespace, never a link anyone wrote. Email Address
+    // Obfuscation rewrites every mailto: into /cdn-cgi/l/email-protection#<encoded>, which is
+    // decoded client-side by Cloudflare's own script — the bare path without its fragment is
+    // MEANT to 404, so fetching it and calling the result a dead link is a false positive.
+    // It blocked `bin/dg ship prepare` on 2026-08-17 with a P1 on a working homepage.
+    const links = extractLinks(home.body, cfg.origin + '/')
+      .filter((u) => u.startsWith(cfg.origin) && !/\/cdn-cgi\//.test(u));
     for (const u of links.slice(0, 40)) {
       if (bodies[u]) {
         const r = bodies[u];
