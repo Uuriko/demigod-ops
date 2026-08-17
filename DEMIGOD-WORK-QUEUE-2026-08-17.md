@@ -543,6 +543,23 @@ The rule is to check the ceiling before doing the work. Three checked, one acted
   whole-corpus totals honest, and asserts all of that in its selftest. Pagination is the upgrade
   when the listing must be complete; nothing to fix today.
 
+## Two live rows list a jobs page where the directory promises a company
+
+`careers.chime.com` and `careers.snowflake.com` are stored as company websites. Wrong for a reader,
+and wrong for identity: §1 keys on the registrable domain, so `chime.com` is Chime and
+`careers.chime.com` is a room inside it. If a YC or Wikidata row for chime.com ever arrives the two
+stay split — correctly, since they are different domains — and the directory lists one company twice.
+
+**Admission is fixed** (`companyWebsiteFromHiringHost`): careers/jobs/apply/hiring subdomains
+normalise to the parent at HN admission, path dropped. Deliberately only those four prefixes —
+`app.`, `www.` and product subdomains are untouched, because guessing which subdomain is "the real
+site" is how a normaliser starts inventing identities. `app.acme.io` staying put is in the test.
+
+**The two existing rows are not repaired, and that is an operator decision.** Their ids encode the
+bad host (`hn:careers.chime.com`), so fixing them changes an identity key for a live directory row
+carrying 57 open roles. That is a migration, not a cleanup, and it should be chosen rather than
+slipped in. The next map rebuild will admit them correctly; the old rows need a deliberate call.
+
 ## The robots policy is deliberate, and it does not save us
 
 Measured 2026-08-17, correcting a looser statement I made earlier in the day. `robots.txt` is not a

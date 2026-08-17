@@ -274,10 +274,41 @@ export function buildYcPublicCompanies(rows = [], retrievedAt = new Date().toISO
   return companies.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
 }
 
+/**
+ * PURE. A careers subdomain is a hiring page, not a company's website.
+ *
+ * `careers.chime.com` and `careers.snowflake.com` are both stored as company websites today, which
+ * is wrong twice over. It is wrong for a reader — the directory offers a jobs page where it promises
+ * the company. And it is wrong for identity, which §1 keys on the registrable domain: `chime.com` is
+ * Chime, `careers.chime.com` is a room inside it. If a YC or Wikidata row for chime.com ever
+ * arrives, the two stay split — correctly, since they are different domains — and the directory
+ * lists one company twice.
+ *
+ * Same principle as the ATS-host rule that already exists: a place a company posts jobs is not the
+ * company. Only the four unambiguous hiring prefixes are stripped; `app.`, `www.` and product
+ * subdomains are left alone, because guessing which subdomain is "the real site" is how a
+ * normaliser starts inventing identities.
+ */
+export function companyWebsiteFromHiringHost(url) {
+  const value = String(url || '');
+  if (!value) return value;
+  try {
+    const parsed = new URL(value);
+    if (!/^(careers|jobs|apply|hiring)\./i.test(parsed.hostname)) return value;
+    parsed.hostname = parsed.hostname.replace(/^(careers|jobs|apply|hiring)\./i, '');
+    parsed.pathname = '/';
+    parsed.search = '';
+    parsed.hash = '';
+    return parsed.href;
+  } catch {
+    return value;
+  }
+}
+
 export function buildHnPublicCompanies(rows = []) {
   return (Array.isArray(rows) ? rows : [])
     .filter((row) => isPlausibleHnCompanyName(row.name) && isCompanyWebsiteHost(row.website))
-    .map((row) => ({ ...row, website: safeUrl(row.website) }));
+    .map((row) => ({ ...row, website: safeUrl(companyWebsiteFromHiringHost(row.website)) }));
 }
 
 /**
@@ -702,6 +733,24 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       if (!stampThrew) throw new Error('stamp guard did not fire on a dated row with no count');
       // If disk already carries ATS enrich, enforce live board volume too.
       if (jobsEnriched) assertMapFloors(real, { withJobs: true });
+
+      // A careers subdomain is a hiring page, not a company. Two live rows store one as the company
+      // website today (careers.chime.com, careers.snowflake.com), which offers a reader a jobs page
+      // where the directory promises the company, and keys identity on a room instead of the house.
+      const hostCases = [
+        ['https://careers.chime.com/', 'https://chime.com/', 'a careers subdomain resolves to the company'],
+        ['https://jobs.acme.io/openings', 'https://acme.io/', 'and the path goes with it'],
+        ['https://apply.acme.io/', 'https://acme.io/', 'apply. too'],
+        ['https://hiring.acme.io/', 'https://acme.io/', 'and hiring.'],
+        ['https://app.acme.io/', 'https://app.acme.io/', 'but a product subdomain is left alone'],
+        ['https://www.acme.io/pricing', 'https://www.acme.io/pricing', 'and so is everything else'],
+        ['not a url', 'not a url', 'an unparseable value is returned untouched'],
+        ['', '', 'nothing in, nothing out'],
+      ];
+      for (const [input, want, why] of hostCases) {
+        const got = companyWebsiteFromHiringHost(input);
+        if (got !== want) throw new Error(`companyWebsiteFromHiringHost(${JSON.stringify(input)}) = ${JSON.stringify(got)}, want ${JSON.stringify(want)} — ${why}`);
+      }
 
       // Wikidata disambiguators are not company names, and the narrowness of the rule is the point.
       const nameCases = [
