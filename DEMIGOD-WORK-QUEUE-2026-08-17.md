@@ -338,6 +338,23 @@ false` this morning, now reads `wd:Q16153666 board_observed lastAttempt ok curre
 - **W4-6** — 0 boards shared by more than one company in the live map; the dedupe survivorship
   question does not arise today.
 
+## The one published essay is invisible without JavaScript
+
+Measured on live `/blog`: the title and the one-line summary appear in the served HTML (they ride in
+the JSON-LD), and **none of the 4,448 characters of body do** — zero occurrences of any phrase from
+it. The blog is entirely foot-rendered: posts live in `demigod-blog-posts.json`, fan out into
+`demigod-foot-core.js` as `DG_BLOG_POSTS`, and there is no CMS page per post. A crawler that does not
+run scripts sees a headline and a sentence.
+
+Deliberately not fixed by building a second static-fragment generator. The pattern that solves it
+already exists — `demigod-directory-static.mjs` pre-renders a bounded, crawlable fragment for
+`/startups` with a byte ceiling and a truncation disclosure — and pointing it at the blog is
+mechanical. But it is a new module's worth of machinery for **one** published post, and it cannot
+take effect without a publish either way.
+
+Build it when there is more than one essay to make readable. The other three are drafts; see the
+RSS note above, which reaches the same conclusion from the other direction.
+
 ## The enrich strips aging, and only one other command puts it back
 
 Running `demigod-startup-jobs-enrich.mjs` on its own left the map with **zero** companies carrying
