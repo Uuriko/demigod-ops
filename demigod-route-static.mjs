@@ -410,6 +410,7 @@ if (isMain) {
     const built = [
       { key: 'posting-age', html: run('demigod-posting-age-index.mjs', []) },
       { key: 'pay-transparency', html: run('demigod-board-pay.mjs', ['--fragment']) },
+      { key: 'method', html: run('demigod-method-page.mjs', []) },
     ];
     const staged = built.map(({ key, html }) => stageRoutePastePackage({
       key,
