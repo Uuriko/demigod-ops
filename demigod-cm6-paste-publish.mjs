@@ -74,6 +74,16 @@ function readReleaseLease() {
 const args = new Set(process.argv.slice(2));
 const NO_PUBLISH = args.has('--no-publish');
 const PUBLISH_ONLY = args.has('--publish-only');
+// Webflow publishes the SAME staged content to whichever domains you name, so naming only the
+// staging host lets you look at the real published result before trydemigod.com moves. That is the
+// only guard against the standing landmine: if an older version is staged over a newer live one,
+// a both-domains publish rolls production back and you find out from the live site.
+// --stage-only → staging alone; --prod-only → apex alone; default stays both (unchanged behavior).
+const PUBLISH_TARGETS = args.has('--stage-only')
+  ? ['talentlink-sf.webflow.io']
+  : args.has('--prod-only')
+    ? ['www.trydemigod.com']
+    : ['talentlink-sf.webflow.io', 'www.trydemigod.com'];
 const CHECK_ONLY = args.has('--check');
 const SELFTEST = args.has('--selftest');
 // --check-only: agent alias for structural (not full release-ready --check)
@@ -955,7 +965,7 @@ async function main() {
           },
           body: JSON.stringify({
             origin: 'dashboard',
-            publishTarget: ['talentlink-sf.webflow.io', 'www.trydemigod.com'],
+            publishTarget: ${JSON.stringify(PUBLISH_TARGETS)},
           }),
         });
         const text = await res.text();

@@ -379,6 +379,81 @@ async function checkCandidateProjection() {
     : { status: 'pass', detail: 'globalScore null, authority present, malformed corpus and missing packet refused' };
 }
 
+/**
+ * §30 Board pay visibility. The trap here is the one the whole document exists for: an ATS that
+ * cannot carry pay is not a company that withholds it. The fence declares four states plus two
+ * suppression rules, and every one of them is a property a later edit could quietly collapse back
+ * into a boolean. Calls the real classifier — a stub would pass while the projection lies.
+ */
+async function checkBoardPay() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.board-pay\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.board-pay/1 fence in §30 yet' };
+
+  const { rolePayVisibility, rollUpBoardPay, comparablePayCompanies, payPublishRate } =
+    await import('./demigod-board-pay.mjs');
+  const bad = [];
+  const rule = (name, cond) => {
+    if (!fence.includes(name)) bad.push(`fence lost the ${name} rule`);
+    else if (!cond) bad.push(`${name} declared but the executor disagrees`);
+  };
+
+  // An unreadable provider can never produce a company-level verdict.
+  rule(
+    'unsupported',
+    ['Greenhouse', 'Lever', 'Workable', ''].every(
+      (ats) => rolePayVisibility({ shouldDisplayCompensationOnJobPostings: false }, ats).state === 'unsupported',
+    ),
+  );
+  // A failed read is our problem, and the scanner must not launder it into a company choice.
+  rule('unread', !['withheld', 'published'].includes(rollUpBoardPay([], 'Greenhouse').state));
+  // Capable reader, nothing displayed and nothing in the body.
+  rule(
+    'withheld',
+    rolePayVisibility(
+      { shouldDisplayCompensationOnJobPostings: false, compensation: {}, descriptionPlain: 'no pay here' },
+      'Ashby',
+    ).state === 'withheld',
+  );
+  // Published must carry a quote that is a real substring of the posting, both sources.
+  const structured = rolePayVisibility(
+    { shouldDisplayCompensationOnJobPostings: true, compensation: { compensationTierSummary: '$196K – $235K' } },
+    'Ashby',
+  );
+  const body = 'The salary range for this role is $150,000 - $210,000 USD.';
+  const described = rolePayVisibility(
+    { shouldDisplayCompensationOnJobPostings: false, compensation: {}, descriptionPlain: body },
+    'Ashby',
+  );
+  rule(
+    'published',
+    structured.state === 'published' &&
+      structured.quote === '$196K – $235K' &&
+      described.state === 'published' &&
+      body.includes(described.quote),
+  );
+  // The flag going off must take the string with it, or we republish pay a company pulled.
+  rule(
+    'stale-tier',
+    rolePayVisibility(
+      { shouldDisplayCompensationOnJobPostings: false, compensation: { compensationTierSummary: '$200K – $250K' }, descriptionPlain: 'x' },
+      'Ashby',
+    ).quote === null,
+  );
+  // The coverage-bias guard: unreadable boards must not enter any denominator.
+  const rows = [
+    { pay: { state: 'published' } },
+    { pay: { state: 'withheld' } },
+    { pay: { state: 'unsupported' } },
+    { pay: { state: 'unread' } },
+  ];
+  rule('comparison', comparablePayCompanies(rows).length === 2 && payPublishRate(rows).rate === 0.5);
+
+  return bad.length
+    ? { status: 'violation', detail: `${bad.length} §30 rules the executor does not enforce`, sample: bad.slice(0, 5) }
+    : { status: 'pass', detail: 'all 6 fenced board-pay rules hold; unreadable never becomes withheld' };
+}
+
 export const EXECUTORS = {
   5: { name: 'demigod-evidence.mjs (claim shape)', run: checkClaim },
   26: { name: 'demigod-candidate-evidence.mjs projectCandidateEvidence', run: checkCandidateProjection },
@@ -387,6 +462,7 @@ export const EXECUTORS = {
   10: { name: 'demigod-company-packet.mjs (quarantine projection)', run: checkQuarantine },
   11: { name: 'demigod-evidence.mjs safeResearchUrl', run: checkSafeUrl },
   29: { name: 'demigod-role-mission-kernel.mjs attachCompany (grok)', run: checkMissionCompany },
+  30: { name: 'demigod-board-pay.mjs rolePayVisibility', run: checkBoardPay },
 };
 
 export async function checkContracts({ file = CONTRACTS } = {}) {

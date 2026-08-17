@@ -77,6 +77,11 @@ if (ship || wizard) {
     // action must stay denied. Both are properties a future edit could quietly relax.
     ['demigod-action-authority.mjs', ['--selftest']],
     ['demigod-candidate-evidence.mjs', ['--selftest']],
+    // Board pay: an ATS we cannot read pay from must never classify as a company that
+    // withholds it. 166 of 471 boards are structurally silent, so collapsing the two
+    // states understates pay transparency by 28 points and blames companies for a
+    // vendor's API. The withheld/unsupported split is the assertion worth guarding.
+    ['demigod-board-pay.mjs', ['--selftest']],
     ['demigod-structured-hiring.mjs', ['--selftest']],
     ['demigod-dashboard-role-workspace.test.mjs'],
     ['demigod-die-web.test.mjs'],
