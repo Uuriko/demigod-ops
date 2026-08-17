@@ -75,13 +75,32 @@ function siteHost(company) {
  */
 export function lostBoards(currentMap, checkpointMap) {
   const currentCos = Array.isArray(currentMap?.companies) ? currentMap.companies : [];
-  const ids = new Set(currentCos.map((c) => String(c?.id || '')).filter(Boolean));
-  const hosts = new Set(currentCos.map(siteHost).filter(Boolean));
+  const byId = new Map(currentCos.map((c) => [String(c?.id || ''), c]).filter(([k]) => k));
+  const byHost = new Map(currentCos.map((c) => [siteHost(c), c]).filter(([k]) => k));
   const was = Array.isArray(checkpointMap?.companies) ? checkpointMap.companies : [];
-  return was
-    .filter((c) => Number(c?.openRoles) > 0)
-    .filter((c) => !ids.has(String(c?.id || '')) && !hosts.has(siteHost(c)))
-    .map((c) => ({ id: c.id, name: c.name, openRoles: Number(c.openRoles) }));
+  const out = [];
+  for (const c of was) {
+    if (!(Number(c?.openRoles) > 0)) continue;
+    const now = byId.get(String(c?.id || '')) || byHost.get(siteHost(c));
+    // Two ways to stop serving a board, and the first version of this only caught one of them.
+    // A company can VANISH from the map, or it can stay in the map and lose its board evidence —
+    // and to a visitor those are identical, because either way the company stops showing open
+    // roles. On 2026-08-17 the second kind hit 108 companies carrying 1,742 roles while this
+    // check reported 21, so the gate I wrote that morning would not have caught the regression
+    // it was written for. Reason is recorded because the remedies differ: absent is a scope or
+    // identity question, stripped is a coverage failure in the enrich.
+    if (!now) out.push({ id: c.id, name: c.name, openRoles: Number(c.openRoles), reason: 'absent' });
+    else if (!(Number(now.openRoles) > 0)) out.push({ id: c.id, name: c.name, openRoles: Number(c.openRoles), reason: 'stripped' });
+  }
+  return out;
+}
+
+/** Split a lostBoards result by reason, for callers that report the two causes separately. */
+export function lostBoardsByReason(lost = []) {
+  const absent = lost.filter((c) => c.reason === 'absent');
+  const stripped = lost.filter((c) => c.reason === 'stripped');
+  const roles = (rows) => rows.reduce((n, c) => n + (Number(c.openRoles) || 0), 0);
+  return { absent, stripped, absentRoles: roles(absent), strippedRoles: roles(stripped) };
 }
 
 /**
@@ -191,6 +210,21 @@ function selftest() {
   assert.equal(isMateriallyWorse(mapStats(after), { boards: 2 }), false, 'net board count hides the loss');
   const lost = lostBoards(after, before);
   assert.deepEqual(lost.map((c) => c.id), ['hn:palantir.com'], 'the dropped board is named');
+  assert.equal(lost[0].reason, 'absent', 'a company gone from the map is absent');
+
+  // The kind that was missed: still in the map, no longer serving a board. Identical to a visitor.
+  const stripped = { companies: [
+    { id: 'hn:palantir.com', name: 'Palantir', website: 'https://www.palantir.com/' },
+    { id: 'yc:keeper', name: 'Keeper', website: 'https://keeper.com/', openRoles: 5 },
+  ] };
+  const lost2 = lostBoards(stripped, before);
+  assert.deepEqual(lost2.map((c) => c.reason), ['stripped'], 'a company that kept its row but lost its board still counts as lost');
+  assert.equal(lost2[0].openRoles, 230, 'and reports what it was serving before');
+  const split = lostBoardsByReason([...lost, ...lost2]);
+  assert.equal(split.absent.length, 1, 'split separates absent');
+  assert.equal(split.stripped.length, 1, 'split separates stripped');
+  assert.equal(split.strippedRoles, 230, 'and totals roles per reason');
+  assert.equal(lostBoards(before, before).length, 0, 'a map compared with itself has lost nothing');
   assert.equal(isBoardCoverageLoss(lost, { boards: 339 }), false, 'one lost board out of 339 is churn, not a regression');
   assert.equal(isBoardCoverageLoss(Array(98).fill({ openRoles: 1 }), { boards: 339 }), true, 'the real incident (98/339) is a regression');
   // A re-keyed or dedupe-merged row keeps its website host and is not a loss.

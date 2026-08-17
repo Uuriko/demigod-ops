@@ -19,7 +19,7 @@ import { isFrozen } from './demigod-agent-tools-lib.mjs';
 import { beginRun, sealRun, addArtifact, refuseIfStale } from './demigod-evidence.mjs';
 import { appendFromTruth } from './demigod-version-ledger.mjs';
 import { cachedFetchText, writeJsonAuto } from './demigod-perf-cache.mjs';
-import { lostBoards } from './demigod-map-checkpoint.mjs';
+import { lostBoards, lostBoardsByReason } from './demigod-map-checkpoint.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = '/tmp/dg-busy';
@@ -463,6 +463,7 @@ export function classifySiblingAssetDrift({
   // next agent needs the names before deciding whether the drop was intended.
   const dropped = diskMap && liveMap ? lostBoards(diskMap, liveMap) : [];
   const droppedRoles = dropped.reduce((s, c) => s + c.openRoles, 0);
+  const split = lostBoardsByReason(dropped);
 
   const atlas = atlasMatch
     ? { status: 'matched' }
@@ -495,11 +496,20 @@ export function classifySiblingAssetDrift({
         liveHiringLabeled: liveHiring,
         dropsLiveBoards: dropped.length,
         dropsLiveRoles: droppedRoles,
+        // Split because the two causes need different answers: a company absent from disk is a
+        // scope or identity question, while a company still on disk that lost its board evidence
+        // is a coverage failure in the enrich. Reporting one number hid 108 of the second kind
+        // behind 21 of the first on 2026-08-17.
+        dropsAbsent: split.absent.length,
+        dropsAbsentRoles: split.absentRoles,
+        dropsStripped: split.stripped.length,
+        dropsStrippedRoles: split.strippedRoles,
         dropsSample: dropped.sort((a, b) => b.openRoles - a.openRoles).slice(0, 10),
         note: mapExpanded
           ? `disk companies ${diskCos} (hiring-labeled ${diskHiring}) vs live ${liveCos}`
           : dropped.length
-            ? `publishing disk would remove ${dropped.length} live boards carrying ${droppedRoles} open roles`
+            ? `publishing disk would stop serving ${dropped.length} live boards carrying ${droppedRoles} open roles `
+              + `(${split.absent.length} companies absent, ${split.stripped.length} present but stripped of their board)`
             : 'map-data body differs without clear expansion signal',
       };
 
