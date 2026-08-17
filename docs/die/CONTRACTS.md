@@ -346,6 +346,14 @@ projection of the corresponding company packet. Duplicate IDs and vanished map I
 The HTTP table binds only to `127.0.0.1`, accepts read-only `GET`, and exposes no people/contact
 fields or score. A successful loopback selftest requires an environment that permits local binds.
 
+```text
+demigod.company-table/1
+  bind                    = 127.0.0.1 only; any other host is refused
+  map-order               => rows follow map order, never a ranking
+  vanished-id             => fails closed, never a blank row
+  no-contact-or-score     => never present in any row
+```
+
 ## 15. Company waterfall
 
 `runCompanyWaterfall` returns `demigod.company-waterfall/1` and evaluates sources in this order:
@@ -358,6 +366,15 @@ The first confident value wins per field. Empty or uncertain later values cannot
 evidence. Every fill retains its public source URL and retrieval time. The supported path is always
 dry-run and never writes the map.
 
+```text
+demigod.company-waterfall/1
+  order                   = first_party, yc, wikidata, ats_json
+  first-confident-wins    => an earlier source's fill is not overwritten by a later one
+  empty-never-clobbers    => a verified value survives an empty or incomplete later source
+  provenance              => every fill retains its source URL and retrieval time
+  dry-run                 => the supported path mutates neither the map nor its inputs
+```
+
 ## 16. Private memo
 
 `renderCompanyMemo(packet)` returns `demigod.company-memo/1`. The memo is private, bounded,
@@ -369,6 +386,14 @@ links are omitted. `--out` may write only the rendered local memo requested by t
 `buildWritebackPlan(packets)` returns `demigod.packet-writeback/1` with `mode: "dry-run"`.
 Evidence sidecars are private read-only context; rows reuse the existing RecruitAI import shape.
 There is no apply command and no database, score, consent, match, intro, or external-write authority.
+
+```text
+demigod.packet-writeback/1
+  mode                    = dry-run, always, with no other value reachable
+  unknown-packet          => skipped and counted, never planned
+  no-authority-fields     => no score, consent, match or intro in any planned row
+  pure                    => building a plan writes nothing and mutates no packet
+```
 
 ## 18. Supported command surface
 

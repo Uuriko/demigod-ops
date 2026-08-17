@@ -159,6 +159,175 @@ function checkSafeUrl() {
  * so the check builds the exact input a merge would be tempting on — same display name, different
  * domains — and asserts two clusters survive.
  */
+/**
+ * §14 Company table, §15 Company waterfall, §17 Writeback preview — the three surfaces that turn a
+ * packet into something a human acts on, and therefore the three places where an accidental
+ * authority would be most useful and most dangerous.
+ *
+ * One executor each, but they share a fixture: a real packet built by the real builder, because a
+ * hand-made packet would let a projection quietly stop projecting and still look right.
+ */
+async function packetFixture() {
+  const { buildCompanyPacket } = await import('./demigod-company-packet.mjs');
+  const company = {
+    id: 'yc:surface-check',
+    name: 'SurfaceCheck',
+    website: 'https://surfacecheck.example/',
+    hiring: 'yes',
+    atsSource: 'Lever',
+    jobsUrl: 'https://jobs.lever.co/surfacecheck',
+    openRoles: 2,
+    openRolesAt: '2026-08-14',
+    roleMix: { engineering: 2 },
+    email: 'leak@example.com',
+  };
+  const map = { generatedAt: '2026-08-14T00:00:00.000Z', companies: [company] };
+  const ledger = { schema: 'demigod.role-ledger/1', updatedAt: '2026-08-14', roles: {} };
+  return { company, map, ledger, packet: buildCompanyPacket({ companyId: company.id, map, ledger, catalog: {} }) };
+}
+
+async function checkCompanyTable() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.company-table\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.company-table/1 fence in §14 yet' };
+
+  const { assertLoopbackBind, listCompanyRows } = await import('./demigod-company-table.mjs');
+  const { map, ledger, company } = await packetFixture();
+  const second = { ...company, id: 'yc:surface-check-2', name: 'SecondCheck', website: 'https://second.example/' };
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+
+  if (/bind\s*=\s*127\.0\.0\.1 only/.test(fence)) {
+    // The one that matters: a table of company intelligence must not be reachable off-box.
+    for (const host of ['0.0.0.0', '::', '192.168.1.10', 'localhost.evil.example']) {
+      let refused = false;
+      try { assertLoopbackBind(host); } catch { refused = true; }
+      say(refused, `bind to ${host} was accepted — the table must be loopback only`);
+    }
+    let loopback = true;
+    try { assertLoopbackBind('127.0.0.1'); } catch { loopback = false; }
+    say(loopback, '127.0.0.1 was refused — the check has become unusable rather than strict');
+  }
+
+  const table = listCompanyRows({ map: { ...map, companies: [company, second] }, ledger, catalog: {} }, { limit: 50 });
+  const rows = table?.rows || [];
+  if (/map-order\s*=>\s*rows follow map order/.test(fence)) {
+    say(rows.length === 2 && rows[0]?.id === company.id && rows[1]?.id === second.id,
+      'rows did not follow map order — a table that reorders is a ranking nobody declared');
+  }
+  if (/vanished-id\s*=>\s*fails closed/.test(fence)) {
+    const empty = listCompanyRows({ map: { ...map, companies: [] }, ledger, catalog: {} }, { limit: 50 });
+    say((empty?.rows || []).length === 0, 'a map with no companies produced rows out of nothing');
+  }
+  if (/no-contact-or-score\s*=>\s*never present/.test(fence)) {
+    const serialized = JSON.stringify(table);
+    say(!serialized.includes('leak@example.com'), 'an email on the map row reached the table');
+    say(!/"(score|fitScore|rank|email|phone)"\s*:/.test(serialized), 'the table carries a contact- or score-shaped key');
+  }
+
+  return bad.length
+    ? { status: 'violation', detail: `§14 fence and listCompanyRows disagree on ${bad.length} rule(s)`, sample: bad.slice(0, 5) }
+    : { status: 'pass', detail: `all ${fence.trim().split('\n').length - 1} table rules hold; loopback-only bind refused 4 off-box hosts` };
+}
+
+async function checkWaterfall() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.company-waterfall\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.company-waterfall/1 fence in §15 yet' };
+
+  const { SOURCE_ORDER, runCompanyWaterfall } = await import('./demigod-company-waterfall.mjs');
+  const retrievedAt = '2026-08-14T12:00:00.000Z';
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+
+  if (/order\s*=\s*first_party, yc, wikidata, ats_json/.test(fence)) {
+    say(JSON.stringify(SOURCE_ORDER) === JSON.stringify(['first_party', 'yc', 'wikidata', 'ats_json']),
+      `the document's source order and SOURCE_ORDER disagree: ${JSON.stringify(SOURCE_ORDER)}`);
+  }
+  if (/empty-never-clobbers\s*=>\s*a verified value survives/.test(fence)) {
+    // An incomplete board read must never zero a verified count. This is the waterfall's half of the
+    // same rule the enricher and the packet enforce: an unread board is not an empty one.
+    const kept = runCompanyWaterfall({
+      companyId: 'yc:acme',
+      existing: { openRoles: 4, openRolesAt: '2026-08-01' },
+      sources: { ats: { provider: 'Greenhouse', slug: 'acme', complete: false, boardUrl: 'https://boards.greenhouse.io/acme', json: { jobs: [] } } },
+      retrievedAt,
+    });
+    say(kept?.fields?.openRoles?.status === 'kept' && kept?.fields?.openRoles?.value === 4,
+      'an incomplete ATS read overwrote a verified count');
+    say(kept?.fields?.openRolesAt?.status === 'kept', 'an incomplete ATS read restamped the observation date');
+  }
+  if (/dry-run\s*=>\s*the supported path mutates neither/.test(fence)) {
+    const existing = { openRoles: 4, openRolesAt: '2026-08-01' };
+    const before = JSON.stringify(existing);
+    runCompanyWaterfall({ companyId: 'yc:acme', existing, sources: {}, retrievedAt });
+    say(JSON.stringify(existing) === before, 'the waterfall mutated its existing-evidence input');
+  }
+  if (/provenance\s*=>\s*every fill retains its source URL/.test(fence)) {
+    const filled = runCompanyWaterfall({
+      companyId: 'yc:acme',
+      existing: {},
+      sources: {
+        ats: {
+          provider: 'Greenhouse',
+          slug: 'acme',
+          complete: true,
+          boardUrl: 'https://boards.greenhouse.io/acme',
+          json: { jobs: [{ id: 1, title: 'Backend Engineer', absolute_url: 'https://boards.greenhouse.io/acme/jobs/1' }] },
+        },
+      },
+      retrievedAt,
+    });
+    const fills = Object.entries(filled?.fields || {}).filter(([, f]) => f?.status === 'filled');
+    say(fills.length > 0, 'nothing filled — the provenance rule had nothing to check');
+    for (const [name, field] of fills) {
+      say(Boolean(field.url) && Boolean(field.retrievedAt), `${name} filled with no source URL or retrieval time`);
+    }
+  }
+
+  return bad.length
+    ? { status: 'violation', detail: `§15 fence and runCompanyWaterfall disagree on ${bad.length} rule(s)`, sample: bad.slice(0, 5) }
+    : { status: 'pass', detail: `all ${fence.trim().split('\n').length - 1} waterfall rules hold; an incomplete read never clobbers a verified count` };
+}
+
+async function checkWriteback() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.packet-writeback\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.packet-writeback/1 fence in §17 yet' };
+
+  const writeback = await import('./demigod-packet-writeback.mjs');
+  const { packet } = await packetFixture();
+  const unknown = { schema: 'demigod.company-packet/1', status: 'unknown', companyId: 'yc:ghost', unknowns: [] };
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+
+  const plan = writeback.buildWritebackPlan([packet, unknown], { at: '2026-08-17' });
+  if (/mode\s*=\s*dry-run, always/.test(fence)) {
+    say(plan.mode === 'dry-run', `plan mode is ${plan.mode}`);
+    // No exported function may take a mode: the constant is the whole safety property.
+    say(!Object.keys(writeback).some((name) => /^apply/i.test(name)),
+      `an apply-shaped export exists: ${Object.keys(writeback).filter((n) => /^apply/i.test(n)).join(', ')}`);
+  }
+  if (/unknown-packet\s*=>\s*skipped and counted/.test(fence)) {
+    say(plan.counts?.skippedUnknown === 1, `an unknown packet must be skipped and counted, got ${plan.counts?.skippedUnknown}`);
+    say(!JSON.stringify(plan.rows).includes('yc:ghost'), 'an unknown packet reached the planned rows');
+  }
+  if (/no-authority-fields\s*=>\s*no score, consent, match or intro/.test(fence)) {
+    say(!/"(score|fitScore|rank|consent|match|intro)"\s*:/.test(JSON.stringify(plan.rows)),
+      'a planned row carries an authority-shaped key');
+    say(!JSON.stringify(plan).includes('leak@example.com'), 'a contact field reached the writeback plan');
+  }
+  if (/pure\s*=>\s*building a plan writes nothing/.test(fence)) {
+    const before = JSON.stringify(packet);
+    writeback.buildWritebackPlan([packet], { at: '2026-08-17' });
+    say(JSON.stringify(packet) === before, 'building a plan mutated the packet it read');
+  }
+
+  return bad.length
+    ? { status: 'violation', detail: `§17 fence and buildWritebackPlan disagree on ${bad.length} rule(s)`, sample: bad.slice(0, 5) }
+    : { status: 'pass', detail: `all ${fence.trim().split('\n').length - 1} writeback rules hold; dry-run is the only reachable mode` };
+}
+
 async function checkCompanyIdentity() {
   const md = fs.readFileSync(CONTRACTS, 'utf8');
   const fence = /```text\s*\n(demigod\.company-identity\/1[\s\S]*?)```/.exec(md)?.[1];
@@ -687,7 +856,7 @@ async function checkBoardPay() {
 }
 
 /** Sections with a working executor today. Raise it when you wire one; never lower it. */
-export const ENFORCED_FLOOR = 11;
+export const ENFORCED_FLOOR = 14;
 
 export const EXECUTORS = {
   5: { name: 'demigod-evidence.mjs (claim shape)', run: checkClaim },
@@ -699,6 +868,9 @@ export const EXECUTORS = {
   1: { name: 'demigod-company-identity.mjs resolveEntities', run: checkCompanyIdentity },
   4: { name: 'demigod-evidence.mjs company-row projection', run: checkCompanyRow },
   13: { name: 'demigod-company-packet.mjs buildCompanyPacket', run: checkCompanyPacket },
+  14: { name: 'demigod-company-table.mjs listCompanyRows', run: checkCompanyTable },
+  15: { name: 'demigod-company-waterfall.mjs runCompanyWaterfall', run: checkWaterfall },
+  17: { name: 'demigod-packet-writeback.mjs buildWritebackPlan', run: checkWriteback },
   29: { name: 'demigod-role-mission-kernel.mjs attachCompany (grok)', run: checkMissionCompany },
   30: { name: 'demigod-board-pay.mjs rolePayVisibility', run: checkBoardPay },
 };
