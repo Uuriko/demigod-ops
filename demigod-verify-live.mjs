@@ -22,6 +22,28 @@ const metaCounts = {
 for (const [name, count] of Object.entries(metaCounts)) {
   if (count !== 1) findings.push({ severity: 'medium', issue: `Raw HTML ${name} meta count is ${count}, expected 1` });
 }
+
+/* Canonicals are injected by openPage(), so they exist only after JS runs. A crawler that does not
+   execute scripts — and every first-pass fetch, preview unfurl and LLM retrieval that matters —
+   sees a page with no canonical at all. Measured on all five routes rather than the homepage,
+   because the homepage is the one route where a missing canonical hurts least.
+   Reported at medium: the durable fix is a per-page Webflow setting, which needs a publish, and a
+   check that turns the whole suite red over something no local edit can clear would just get
+   ignored. It stays visible on every run until a publish clears it. */
+const CANONICAL_ROUTES = ['/', '/apply', '/companies', '/pricing', '/about'];
+const SITE = new URL(url).origin;
+const rawCanonicals = await Promise.all(CANONICAL_ROUTES.map(async (route) => {
+  const page = await fetch(SITE + route).then((r) => (r.ok ? r.text() : ''), () => null);
+  // null = we could not look; absence of evidence is not evidence of absence.
+  return { route, canonical: page === null ? null : /<link[^>]+rel=["']canonical["']/i.test(page) };
+}));
+const missingCanonical = rawCanonicals.filter((row) => row.canonical === false).map((row) => row.route);
+if (missingCanonical.length) {
+  findings.push({
+    severity: 'medium',
+    issue: `No canonical in served HTML on ${missingCanonical.length} route(s): ${missingCanonical.join(', ')} — injected by JS only`,
+  });
+}
 const pass = reportPass(findings);
 
 const out = {
@@ -29,6 +51,7 @@ const out = {
   url,
   htmlScan,
   metaCounts,
+  rawCanonicals,
   pageScan,
   findings,
   pass,

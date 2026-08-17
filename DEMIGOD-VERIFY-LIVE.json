@@ -1,6 +1,6 @@
 {
-  "at": "2026-08-17T05:05:06.357Z",
-  "url": "https://www.trydemigod.com/?v=verify-1786943105543",
+  "at": "2026-08-17T14:21:14.613Z",
+  "url": "https://www.trydemigod.com/?v=verify-1786976473676",
   "htmlScan": {
     "mcpScripts": [],
     "mcpScriptsGone": true,
@@ -79,6 +79,28 @@
     "description": 1,
     "ogTitle": 1
   },
+  "rawCanonicals": [
+    {
+      "route": "/",
+      "canonical": false
+    },
+    {
+      "route": "/apply",
+      "canonical": false
+    },
+    {
+      "route": "/companies",
+      "canonical": false
+    },
+    {
+      "route": "/pricing",
+      "canonical": false
+    },
+    {
+      "route": "/about",
+      "canonical": false
+    }
+  ],
   "pageScan": {
     "postJob": false,
     "hireTalent": 3,
@@ -93,6 +115,11 @@
     "edtech": false,
     "webflowBadge": true
   },
-  "findings": [],
+  "findings": [
+    {
+      "severity": "medium",
+      "issue": "No canonical in served HTML on 5 route(s): /, /apply, /companies, /pricing, /about — injected by JS only"
+    }
+  ],
   "pass": true
 }
