@@ -326,6 +326,24 @@ actually reached — that is what the marker is for. Check the ceiling before do
 - **W4-6** — 0 boards shared by more than one company in the live map; the dedupe survivorship
   question does not arise today.
 
+## Live findings from site-health, 2026-08-17
+
+`demigod-site-health.mjs` was wired by selftest only, so its actual audit ran by hand or never. Two
+real things it was reporting to nobody:
+
+- **`/startups` over-claims by 30 companies.** Live says *"Browse 501 companies with verified open
+  roles in this 2026-08-14 snapshot"* and lists 322. The sealed artifact on disk says *"Browse 471
+  companies with public ATS open roles in this 2026-08-16 snapshot"* and lists 365. The live page is
+  three days stale and claims 30 companies the current data cannot support. This is publish lag with
+  a user-visible cost, and it clears the moment an authorized publish happens — the corrected count
+  and the corrected wording are both already on disk.
+- **24 routes serve identical crawlable text** — /about, /apply, /blog, /candidates, /careers,
+  /compare, /engineers, /faq, /fees, /founders, /how, /how-it-works, /jobs, /legal, /method,
+  /network, /notes, /partnership, /partnerships, /pilot, /press, /refer, /sample, /security, /status
+  all serve the same 576 characters to a crawler that does not run JavaScript. That is not a code
+  defect; it needs page copy, which is a human writing task. It pairs with the canonical and og:url
+  findings: to a non-JS reader this site is largely one page.
+
 ## Two more measured 2026-08-17
 
 - **W4-3 posting-age honesty** — already done on the public surface. The static directory says in

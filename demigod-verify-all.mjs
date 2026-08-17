@@ -170,6 +170,11 @@ if (ship || wizard) {
     // pretty-path map with no published page behind it.
     ['demigod-route-audit.mjs'],
     ['demigod-site-health.mjs', ['--selftest']],
+    // The audit as well as its selftest. It reports and exits 0 by design -- the things it finds
+    // (stale published fragment, duplicate crawlable copy) need a publish or new page copy, and a
+    // gate that goes red over work no local edit can do is a gate people learn to skip. Wired so
+    // the findings are printed on every full run instead of only when somebody remembers.
+    ['demigod-site-health.mjs'],
     // Abstention ledger — measures what research REFUSED to answer. Only not_applicable may leave
     // the coverage denominator; a not_found must never launder a coverage miss into a category error.
     ['demigod-abstention-ledger.test.mjs'],
@@ -307,7 +312,7 @@ if (ship || wizard) {
      floor is a volume floor, not a target: a bad merge or a truncated array drops entries silently,
      and 95 steps becoming 12 is the failure mode worth catching. Raise it deliberately when steps
      are added; never lower it to make a run green. */
-  const MIN_STEPS = 193;
+  const MIN_STEPS = 194;
 
   let failed = 0;
   let ran = 0;
