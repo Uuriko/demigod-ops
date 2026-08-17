@@ -5169,7 +5169,11 @@ var DG_PAGE_PATHS = {
   '/privacy': 'legal',
   '/bounties': 'bounties',
   '/tryouts': 'bounties',
-  '/tryout': 'bounties',
+  // '/tryout' (singular) was declared here and is not a published Webflow page, so it served a 404
+  // to anyone who followed it while route-audit counted it as a route we offer. A declared route
+  // that does not resolve is worse than no alias: it is a promise the site cannot keep. The
+  // `#tryout` hash below still works, because that one never depended on a page existing.
+
   '/terms': 'legal',
   '/cookies': 'legal',
   '/refer': 'refer',

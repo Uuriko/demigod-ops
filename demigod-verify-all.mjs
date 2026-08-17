@@ -165,6 +165,10 @@ if (ship || wizard) {
     ['demigod-live-honesty-audit.mjs'],
     // Declared routes: 404 = broken; 301→/?p= = stub (not silent "all resolve")
     ['demigod-route-audit.mjs', ['--selftest']],
+    // ...and the audit itself, not only its selftest. Only the selftest was wired, so the real
+    // check ran by hand or not at all -- and it was red: `/tryout` was declared in foot-core's
+    // pretty-path map with no published page behind it.
+    ['demigod-route-audit.mjs'],
     ['demigod-site-health.mjs', ['--selftest']],
     // Abstention ledger — measures what research REFUSED to answer. Only not_applicable may leave
     // the coverage denominator; a not_found must never launder a coverage miss into a category error.
@@ -303,7 +307,7 @@ if (ship || wizard) {
      floor is a volume floor, not a target: a bad merge or a truncated array drops entries silently,
      and 95 steps becoming 12 is the failure mode worth catching. Raise it deliberately when steps
      are added; never lower it to make a run green. */
-  const MIN_STEPS = 192;
+  const MIN_STEPS = 193;
 
   let failed = 0;
   let ran = 0;
