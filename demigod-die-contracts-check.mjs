@@ -234,8 +234,105 @@ async function checkMissionCompany() {
     : { status: 'pass', detail: `kernel enforces all ${fence.trim().split('\n').length - 1} fenced company-truth rules` };
 }
 
+/**
+ * §8 Projector. The document writes the selection rule as an explicit decision table, which makes
+ * it checkable line by line — so check it line by line, against the real `projectCompanyResearch`.
+ *
+ * The trap this guards is the one that bit me while writing §10's check: an invalid benchmark makes
+ * the projector return null, which silently disables whatever you were testing downstream and can
+ * look like a pass. Here that branch is the FIRST assertion rather than an accident.
+ */
+async function checkProjector() {
+  if (!fs.existsSync(BENCHMARK)) return { status: 'violation', detail: `benchmark artifact missing: ${BENCHMARK}` };
+  const { projectCompanyResearch } = await import('./demigod-evidence.mjs');
+  const benchmark = readJson(BENCHMARK);
+  const id = (benchmark.companies || [])[0]?.id;
+  if (!id) return { status: 'violation', detail: 'benchmark has no rows to project' };
+  const row = (fields) => ({ id, fields });
+  const cat = (companies) => ({ version: 1, researchedAt: null, companies });
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+
+  // if benchmark grade invalid -> null
+  say(projectCompanyResearch({ companyId: id, benchmark: {}, catalog: {} }) === null,
+    'an invalid benchmark must project null, not a partial answer');
+  // if >1 catalog rows for id -> null
+  say(projectCompanyResearch({ companyId: id, benchmark, catalog: cat([row({}), row({})]) }) === null,
+    'duplicate catalog rows for one id must fail closed');
+  // exactly 1 catalog row -> catalog wins over benchmark
+  say(projectCompanyResearch({ companyId: id, benchmark, catalog: cat([row({})]) })?.source === 'catalog',
+    'a single catalog row is selected over the benchmark');
+  // else exactly 1 benchmark row -> benchmark
+  say(projectCompanyResearch({ companyId: id, benchmark, catalog: cat([]) })?.source === 'benchmark',
+    'with no catalog row the benchmark row is selected');
+  // else -> null
+  say(projectCompanyResearch({ companyId: 'yc:not-a-real-company-xyz', benchmark, catalog: cat([]) }) === null,
+    'an id in neither document projects null');
+  // quarantine only on literal true
+  say(projectCompanyResearch({ companyId: id, benchmark, catalog: cat([{ ...row({}), quarantineHiring: 'true' }]) })?.quarantineHiring === false,
+    'quarantine activates only on literal true, never a truthy string');
+  say(projectCompanyResearch({ companyId: id, benchmark, catalog: cat([{ ...row({}), quarantineHiring: true }]) })?.quarantineHiring === true,
+    'and does activate on literal true');
+  // status: no projected field -> unknown
+  say(projectCompanyResearch({ companyId: id, benchmark, catalog: cat([row({})]) })?.status === 'unknown',
+    'a row projecting no field is unknown, not verified');
+  // unknown claims are omitted rather than projected as values
+  const withUnknown = projectCompanyResearch({
+    companyId: id, benchmark,
+    catalog: cat([row({ canonicalCompany: { value: null, status: 'unknown', url: null, quote: null } })]),
+  });
+  say(withUnknown?.status === 'unknown' && !('canonicalCompany' in (withUnknown?.fields || {})),
+    'an unknown claim is omitted from fields, never carried as a value');
+
+  return bad.length
+    ? { status: 'violation', detail: `§8 projector disagrees with its own decision table on ${bad.length} rule(s)`, sample: bad.slice(0, 5) }
+    : { status: 'pass', detail: '9 selection, quarantine and status rules match projectCompanyResearch' };
+}
+
+/**
+ * §9 Company evidence resolver. Two checkable promises: the status is one of three values, and it
+ * "must not mutate any input or canonical store".
+ *
+ * Purity is the half worth automating. A resolver that quietly writes into the map or ledger it was
+ * handed corrupts a shared object mid-run and the damage surfaces somewhere else entirely, which is
+ * the hardest kind of bug to trace back. Cheap to assert: snapshot the inputs, call it, compare.
+ */
+async function checkEvidenceResolver() {
+  const { resolveCompanyEvidence } = await import('./demigod-matching-engine.mjs');
+  const map = {
+    generatedAt: '2026-08-17T00:00:00.000Z',
+    companies: [{
+      id: 'yc:res', name: 'Res', website: 'https://res.example/', source: 'Y Combinator',
+      atsSource: 'Greenhouse', jobsUrl: 'https://boards.greenhouse.io/res',
+      openRoles: 2, openRolesAt: '2026-08-14', roleMix: { engineering: 2 }, hiring: 'yes',
+    }],
+  };
+  const ledger = { schema: 'demigod.role-ledger/1', roles: {} };
+  const role = { company: 'Res', title: 'Engineer' };
+  const benchmark = fs.existsSync(BENCHMARK) ? readJson(BENCHMARK) : {};
+  const before = {
+    map: JSON.stringify(map), ledger: JSON.stringify(ledger),
+    role: JSON.stringify(role), benchmark: JSON.stringify(benchmark),
+  };
+  const out = resolveCompanyEvidence(role, map, ledger, '2026-08-17', benchmark, {});
+  const bad = [];
+  if (JSON.stringify(map) !== before.map) bad.push('the map was mutated by the resolver');
+  if (JSON.stringify(ledger) !== before.ledger) bad.push('the ledger was mutated by the resolver');
+  if (JSON.stringify(role) !== before.role) bad.push('the role was mutated by the resolver');
+  if (JSON.stringify(benchmark) !== before.benchmark) bad.push('the benchmark was mutated by the resolver');
+  const status = out?.status ?? out?.state ?? null;
+  if (status != null && !['unknown', 'ambiguous', 'matched'].includes(status)) {
+    bad.push(`status ${JSON.stringify(status)} is outside the declared enum`);
+  }
+  return bad.length
+    ? { status: 'violation', detail: '§9 resolver broke a declared promise', sample: bad }
+    : { status: 'pass', detail: 'resolver mutates none of its four inputs; status within enum' };
+}
+
 export const EXECUTORS = {
   5: { name: 'demigod-evidence.mjs (claim shape)', run: checkClaim },
+  8: { name: 'demigod-evidence.mjs projectCompanyResearch', run: checkProjector },
+  9: { name: 'demigod-matching-engine.mjs resolveCompanyEvidence', run: checkEvidenceResolver },
   10: { name: 'demigod-company-packet.mjs (quarantine projection)', run: checkQuarantine },
   11: { name: 'demigod-evidence.mjs safeResearchUrl', run: checkSafeUrl },
   29: { name: 'demigod-role-mission-kernel.mjs attachCompany (grok)', run: checkMissionCompany },

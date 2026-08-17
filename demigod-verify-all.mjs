@@ -123,6 +123,8 @@ if (ship || wizard) {
     ['demigod-map-checkpoint.mjs', ['--selftest']],
     // Gate integrity: a module whose selftest fires on import hands its importer a silent exit(0)
     ['demigod-selftest-guard.test.mjs'],
+    // CONTRACTS.md answers for itself: enforced sections are called, prose-only ones report unwired
+    ['demigod-die-contracts-check.mjs', ['--selftest']],
     // Public brief: founder compensation stays a required, reviewable wizard step
     ['demigod-startup-comp-step.test.mjs'],
     // Evidence freshness: null seal hash + source drift must fail closed (not vacuous green)
