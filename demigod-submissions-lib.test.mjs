@@ -718,3 +718,20 @@ test('scrubPII redacts street addresses (fail-capable)', () => {
   assert.ok(!card.includes('94103') && !card.includes('Main St') && !card.includes('Oak Avenue'), 'street must not reach public card');
   assert.ok(card.includes('React') || card.includes('GTM'));
 });
+
+// A URL carrying a phone-shaped number was scrubbed twice: the NANP rule turned
+// wa.me/14155550123 into wa.me/[phone removed], then the link rule matched "wa.me/[phone" and
+// published "[link removed] removed]" on the card. Nothing leaked — removal is maximal either
+// way — but a public card showing a mangled marker reads as broken. Placeholders are not URL body.
+test('a scrubbed URL does not swallow an earlier placeholder', () => {
+  for (const raw of ['wa.me/14155550123', 'https://t.me/+14155550123', 'signal.me/#p/+14155550123']) {
+    const out = scrubPII(raw);
+    assert.ok(!/\]\s*removed\]/.test(out), `mangled placeholder in ${JSON.stringify(out)}`);
+    assert.ok(!/4155550123|555-0123/.test(out), `number survived in ${JSON.stringify(out)}`);
+  }
+  // and ordinary links still go, whole
+  assert.equal(scrubPII('linkedin.com/in/founder'), '[link removed]');
+  assert.equal(scrubPII('see https://example.com/a?b=1 now'), 'see [link removed] now');
+  // the local part of an email must never survive as a bare word next to a link marker
+  assert.equal(scrubPII('ceo@secret.com'), '[contact removed]');
+});

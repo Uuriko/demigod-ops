@@ -715,7 +715,14 @@ export function scrubPII(text = '') {
     // Any free-text link can de-anonymize a person or carry a signed-file secret. Keep the useful
     // surrounding words, never the URL; structured private links never belong on a public card.
     // TLDs include shortener-heavy endings (in/ly/to/cc/gg/tv/link) so lnkd.in/bit.ly cannot bypass.
-    .replace(/\b(?:(?:https?:\/\/|www\.)[^\s<>"'`]+|(?:[a-z0-9-]+\.)+(?:com|net|org|io|dev|ai|co|me|app|xyz|tech|in|ly|to|cc|gg|gl|tv|link)(?:[/?#][^\s<>"'`]*)?)/gi, (url) => {
+    // `[` is excluded from the URL body so a URL that already had its digits scrubbed cannot
+    // swallow the marker: wa.me/14155550123 became "[link removed] removed]" on a public card,
+    // because the NANP rule turned it into wa.me/[phone removed] and this rule then matched
+    // "wa.me/[phone". Real URLs percent-encode a bracket. Link-first would fix the order but is
+    // strictly worse — `secret.com` inside ceo@secret.com would match, yielding "ceo@[link
+    // removed]" and publishing the local part. Removal stays maximal either way; this only keeps
+    // the replacement from garbling itself.
+    .replace(/\b(?:(?:https?:\/\/|www\.)[^\s<>"'`[]+|(?:[a-z0-9-]+\.)+(?:com|net|org|io|dev|ai|co|me|app|xyz|tech|in|ly|to|cc|gg|gl|tv|link)(?:[/?#][^\s<>"'`[]*)?)/gi, (url) => {
       const punctuation = (url.match(/[),.;:!?]+$/) || [''])[0];
       return `[link removed]${punctuation}`;
     })
