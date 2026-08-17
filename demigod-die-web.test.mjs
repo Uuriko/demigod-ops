@@ -452,6 +452,33 @@ if (port !== null) {
     assert.equal((await gateRequest('/healthz', {
       headers: { Host: 'evil.example' },
     })).status, 403);
+
+    /* The one mutating route, asked the authorization question in gated mode. canMutate() allows a
+       write when the request is authenticated, so in this mode a cookie is the whole difference
+       between reading and writing, and nothing was asserting that. The cookie is SameSite=Lax, which
+       is what stops a cross-site form POST from carrying it — that is the CSRF defence, and it is
+       only a defence if the cookie-less request is actually refused. */
+    const mutate = (headers) => gateRequest('/api/v1/roles/role-live/mission/actions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify({ action: 'apply', candId: 'cand-gate' }),
+    });
+    /* The gate refuses before canMutate is reached, so this is a 401 rather than a 403. Assert the
+       property — the write does not happen — not the number, or the test pins a mechanism instead
+       of a guarantee. */
+    const refused = (res) => res.status === 401 || res.status === 403;
+    assert.ok(refused(await mutate({})), 'no cookie, no write');
+    assert.match((await mutate({})).body, /mutation_forbidden|login_required/);
+    assert.ok(refused(await mutate({ Cookie: 'die_gate=forged-value' })), 'a forged cookie is not a session');
+    const withSession = await gateRequest('/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Origin: 'https://die-test.trycloudflare.com' },
+      body: `password=${gateSecret}`,
+    });
+    const liveCookie = String(withSession.headers['set-cookie'] || '').split(';')[0];
+    assert.match(String(withSession.headers['set-cookie'] || ''), /SameSite=Lax/,
+      'the gate cookie must stay SameSite=Lax — it is what refuses a cross-site write');
+    assert.notEqual((await mutate({ Cookie: liveCookie })).status, 403, 'a real session may write');
   } finally {
     gateChild.kill('SIGTERM');
   }
