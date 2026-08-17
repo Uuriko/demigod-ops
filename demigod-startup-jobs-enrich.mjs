@@ -304,6 +304,36 @@ function markUnreachable() {
   if (store) store.unreachable = true;
 }
 
+/**
+ * Record WHY a read ended the way it did, so the map can say what happened rather than only that
+ * something did. The kernel's `demigod.mission-company/1` contract distinguishes ok / rate_limited
+ * / error / missing, and treats a null attempt as "we do not know" — never as success — so a
+ * default of `ok` would quietly launder every unrecorded read into a verified one.
+ */
+function markAttempt(kind) {
+  const store = fetchCtx.getStore();
+  if (store) (store.attempts ||= []).push(kind);
+}
+
+/** Worst news wins: a rate limit is more informative than a 404 among the same company's probes. */
+function worstAttempt(attempts = []) {
+  for (const kind of ['rate_limited', 'error', 'missing']) {
+    if (attempts.includes(kind)) return kind;
+  }
+  return attempts.includes('ok') ? 'ok' : null;
+}
+
+/**
+ * A board we READ that had no US-posted roles. Recorded rather than merely skipped, because
+ * "we read it and it was empty" and "we never found a board" are different facts and the map
+ * could previously express only the second. Attribution still has to be earned: only a board
+ * whose slug we had already verified may claim an empty count — see the guard in detect().
+ */
+function markEmptyBoard(jobsUrl, ats) {
+  const store = fetchCtx.getStore();
+  if (store && !store.emptyBoard) store.emptyBoard = { jobsUrl, ats };
+}
+
 /** True when the response proves the board is not there, rather than that we could not look. */
 function isDefinitiveAbsence(status) {
   return status === 404 || status === 410;
@@ -316,12 +346,15 @@ async function tryFetch(url, parse) {
       headers: { Accept: 'application/json' },
     });
     if (!r.ok) {
-      if (!isDefinitiveAbsence(r.status)) markUnreachable();
+      if (isDefinitiveAbsence(r.status)) markAttempt('missing');
+      else { markUnreachable(); markAttempt(r.status === 429 ? 'rate_limited' : 'error'); }
       return null;
     }
+    markAttempt('ok');
     return parse(await r.json());
   } catch {
     markUnreachable();
+    markAttempt('error');
     return null;
   }
 }
@@ -612,7 +645,13 @@ function hit(usJobs, titleOf, jobsUrl, ats) {
   // Drop forwarding notes before counting. An emptied board returns null, so `detect` falls through
   // to the provider the company actually moved to — under-claiming, never inventing.
   usJobs = usJobs.filter((job) => !isBoardMovedNotice(titleOf(job)));
-  if (!usJobs.length) return null;
+  if (!usJobs.length) {
+    // Read successfully, nothing US-posted on it. Note it and still return null so `detect` keeps
+    // falling through to the provider a company may have moved to — the fall-through is unchanged,
+    // only what we can say afterwards is.
+    markEmptyBoard(jobsUrl, ats);
+    return null;
+  }
   const roleMix = {};
   for (const job of usJobs) { const c = categorizeRole(titleOf(job)); roleMix[c] = (roleMix[c] || 0) + 1; }
   return { count: usJobs.length, jobsUrl, ats, roleMix };
@@ -833,7 +872,19 @@ async function detect(company) {
     }
     // Found nothing. Say whether that is a finding or a failure — the caller strips job evidence
     // on a plain null, and stripping on a failed read is how a rate limit becomes "not hiring".
-    return fetchCtx.getStore()?.unreachable ? { unreachable: true } : null;
+    const store = fetchCtx.getStore() || {};
+    const lastAttempt = worstAttempt(store.attempts);
+    if (store.unreachable) return { unreachable: true, lastAttempt };
+    // Verified empty: every probe was READ, and the board we already knew about had no US-posted
+    // roles. Only the previously verified board may claim this — an empty board discovered by slug
+    // guessing has never had its owner checked, and AR-28 exists because inferred ATS attribution
+    // audits around 52% accurate. Claiming "this company is hiring nobody" on an unverified board
+    // would be a confident wrong answer about a real business.
+    const empty = store.emptyBoard;
+    if (empty && known && knownBoardSlug({ jobsUrl: empty.jobsUrl }) === known) {
+      return { verifiedEmpty: true, jobsUrl: empty.jobsUrl, ats: empty.ats, lastAttempt: 'ok' };
+    }
+    return lastAttempt ? { lastAttempt } : null;
   });
 }
 
@@ -1000,9 +1051,9 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || cliMode === '
       const owned = await detect({ website: 'https://owned.example/' });
       assert(owned?.ats === 'Workable' && owned.count === 1, 'owned Workable board accepted');
       globalThis.fetch = mockWorkable(null);
-      assert(await detect({ website: 'https://owned.example/' }) === null, 'Workable without owner evidence rejected');
+      assert(!(await detect({ website: 'https://owned.example/' }))?.count, 'Workable without owner evidence rejected');
       globalThis.fetch = mockWorkable('https://other.example/');
-      assert(await detect({ website: 'https://owned.example/' }) === null, 'mismatched Workable owner rejected');
+      assert(!(await detect({ website: 'https://owned.example/' }))?.count, 'mismatched Workable owner rejected');
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -1081,21 +1132,21 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || cliMode === '
       let found = await detect({ website: 'https://owned.example/' });
       assert(found?.ats === 'Personio' && found.count === 1, 'owned Personio board accepted');
       globalThis.fetch = mockSecondary('Personio', null);
-      assert(await detect({ website: 'https://owned.example/' }) === null, 'Personio without owner rejected');
+      assert(!(await detect({ website: 'https://owned.example/' }))?.count, 'Personio without owner rejected');
       globalThis.fetch = mockSecondary('Personio', 'https://other.example/');
-      assert(await detect({ website: 'https://owned.example/' }) === null, 'Personio owner mismatch rejected');
+      assert(!(await detect({ website: 'https://owned.example/' }))?.count, 'Personio owner mismatch rejected');
 
       globalThis.fetch = mockSecondary('Recruitee', 'https://www.owned.example/jobs');
       found = await detect({ website: 'https://owned.example/' });
       assert(found?.ats === 'Recruitee' && found.count === 1, 'owned Recruitee board accepted');
       globalThis.fetch = mockSecondary('Recruitee', null);
-      assert(await detect({ website: 'https://owned.example/' }) === null, 'Recruitee without owner rejected');
+      assert(!(await detect({ website: 'https://owned.example/' }))?.count, 'Recruitee without owner rejected');
 
       globalThis.fetch = mockSecondary('SmartRecruiters', 'https://owned.example/');
       found = await detect({ website: 'https://owned.example/' });
       assert(found?.ats === 'SmartRecruiters' && found.count === 1, 'owned SmartRecruiters board accepted');
       globalThis.fetch = mockSecondary('SmartRecruiters', null);
-      assert(await detect({ website: 'https://owned.example/' }) === null, 'SmartRecruiters without owner rejected');
+      assert(!(await detect({ website: 'https://owned.example/' }))?.count, 'SmartRecruiters without owner rejected');
       void usRole;
     } finally {
       globalThis.fetch = originalFetch;
@@ -1325,6 +1376,13 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || cliMode === '
   assert(knownBoardSlug({ jobsUrl: 'https://jobs.ashbyhq.com/cursor' }) === 'cursor', 'known Ashby board slug is recovered');
   // A row whose id IS the board: the identity and the attribution are one fact, so owner evidence
   // has nothing to adjudicate. Exact host and path only.
+  // PR3: what happened on a read, and the difference between empty and unknown.
+  assert(worstAttempt(['ok']) === 'ok', 'a clean read is ok');
+  assert(worstAttempt(['missing','ok']) === 'missing', 'a definitive 404 outranks a success on another provider');
+  assert(worstAttempt(['missing','rate_limited']) === 'rate_limited', 'a rate limit is the most informative outcome');
+  assert(worstAttempt(['missing','error']) === 'error', 'a server error outranks a missing board');
+  assert(worstAttempt([]) === null, 'no attempt recorded is null, never ok — the kernel reads null as unknown');
+  assert(worstAttempt(['error','rate_limited']) === 'rate_limited', 'severity order is stable regardless of arrival order');
   assert(idIsThisBoard({ id: 'hn:jobs.ashbyhq.com/baseten' }, { jobsUrl: 'https://jobs.ashbyhq.com/baseten' }), 'a board-derived id vouches for its own board');
   assert(!idIsThisBoard({ id: 'hn:jobs.ashbyhq.com/baseten' }, { jobsUrl: 'https://jobs.ashbyhq.com/someoneelse' }), 'and not for a different board on the same provider');
   assert(!idIsThisBoard({ id: 'yc:acme', website: 'https://acme.com/' }, { jobsUrl: 'https://jobs.ashbyhq.com/acme' }), 'a YC row still has to satisfy the owner rule');
@@ -1378,18 +1436,33 @@ if (isMain) {
     return detect(c);
   });
   let carriedUnreachable = 0;
+  let verifiedEmpty = 0;
+  const attemptAt = new Date().toISOString();
+  // `ok` is never a default. A row we did not probe this run keeps whatever it already carried, and
+  // a row we probed but could not read says so. The kernel reads a null attempt as unknown.
+  const stamp = (row, lastAttempt) => (lastAttempt
+    ? { ...row, lastAttempt, lastAttemptAt: attemptAt }
+    : row);
   map.companies = map.companies.map((c, idx) => {
     const board = results[idx];
     const rest = withoutJobEvidence(c);
-    if (board && !board.unreachable) {
-      return {
+    if (board?.count != null && !board.unreachable) {
+      return stamp({
         ...rest,
         jobsUrl: board.jobsUrl,
         openRoles: board.count,
         atsSource: board.ats,
         roleMix: board.roleMix,
         openRolesAt: at,
-      };
+      }, 'ok');
+    }
+    // Read the board we had already verified, and it genuinely had no US-posted roles. Zero is a
+    // FACT here, not an absence — and it is the only path that may write one. Everything else
+    // leaves the count off entirely, because null means "we do not know".
+    if (board?.verifiedEmpty) {
+      verifiedEmpty++;
+      return stamp({ ...rest, jobsUrl: board.jobsUrl, openRoles: 0, atsSource: board.ats,
+        roleMix: {}, openRolesAt: at }, 'ok');
     }
     // Could not read the board this run. A previously verified count is still the best evidence we
     // have, so keep it with its ORIGINAL openRolesAt — the row reads as stale, which is true, rather
@@ -1399,15 +1472,15 @@ if (isMain) {
     if (board?.unreachable && Number(c.openRoles) > 0 && c.atsSource &&
         withinStaleWindow(c.openRolesAt, at)) {
       carriedUnreachable++;
-      return { ...rest, jobsUrl: c.jobsUrl, openRoles: c.openRoles, atsSource: c.atsSource,
-        roleMix: c.roleMix, openRolesAt: c.openRolesAt, openRolesStale: true };
+      return stamp({ ...rest, jobsUrl: c.jobsUrl, openRoles: c.openRoles, atsSource: c.atsSource,
+        roleMix: c.roleMix, openRolesAt: c.openRolesAt, openRolesStale: true }, board.lastAttempt);
     }
     // No verified ATS board: link the YC jobs page for YC-self-reported hiring companies.
     const ycJobs = ycJobsUrl(rest);
     if (ycJobs) {
-      return { ...rest, jobsUrl: ycJobs, jobsSource: 'YC', openRolesAt: at };
+      return stamp({ ...rest, jobsUrl: ycJobs, jobsSource: 'YC', openRolesAt: at }, board?.lastAttempt);
     }
-    return rest; // strip any stale job fields when no board and not YC-hiring
+    return stamp(rest, board?.lastAttempt); // no board and not YC-hiring — but say why we know that
   });
   // Collapse same-board duplicates BEFORE tallying, so totals never double-count (Wikidata multi-QID).
   const beforeDedup = map.companies.length;
@@ -1427,7 +1500,11 @@ if (isMain) {
       { companies: map.companies.length, withJobs: hits, ycJobsLinks: ycLinks, totalOpenRoles: totalRoles,
         // Never silent: a run that could not read N boards says so, so an operator can retry
         // instead of reading a quiet number as a market that cooled.
-        boardsUnreadableCarriedStale: carriedUnreachable, at, scope: 'us-posted' },
+        boardsUnreadableCarriedStale: carriedUnreachable,
+        // Boards we READ that had no US-posted roles. Distinct from "no board found" — this is the
+        // only path that writes openRoles: 0, and the count makes it visible rather than implied.
+        boardsVerifiedEmpty: verifiedEmpty,
+        at, scope: 'us-posted' },
       null,
       2,
     ),
