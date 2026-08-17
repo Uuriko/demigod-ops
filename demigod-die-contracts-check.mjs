@@ -1384,6 +1384,164 @@ async function candidateEvidenceFixture() {
   return { ce, packet, input, corpus, acceptedRole, artifactText, at: '2026-08-17T00:00:00.000Z' };
 }
 
+/**
+ * §25 Correction and withdrawal. Nothing is ever rewritten: a correction is a new assertion that
+ * points back, and a withdrawal is a stop event. Every failure mode has its own error name, which
+ * is what makes them checkable individually rather than as one "it threw" — a check that only
+ * asserts a throw passes when the wrong rule fires.
+ */
+async function checkEvidenceCorrection() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.candidate-evidence-withdrawal\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.candidate-evidence-withdrawal/1 fence in §25 yet' };
+
+  const { ce, packet, input, acceptedRole, at } = await candidateEvidenceFixture();
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+  // An approved predecessor, observed before it was reviewed: a corpus whose clocks disagree is
+  // refused outright, and every case below would then fail for that reason instead of its own.
+  const seed = { ...input, observedAt: '2026-08-10T00:00:00.000Z' };
+  const empty = { schema: ce.CORPUS_SCHEMA, evidence: [], withdrawals: [] };
+  const firstPreview = ce.previewCandidateEvidence({ input: seed, packet, acceptedRole, corpus: empty, at });
+  const predecessor = {
+    ...firstPreview.proposedEvidence,
+    review: { state: 'approved', by: 'operator', at: '2026-08-12T00:00:00.000Z', previewHash: firstPreview.previewHash },
+  };
+  const corpus = { schema: ce.CORPUS_SCHEMA, evidence: [predecessor], withdrawals: [] };
+  const corpusBefore = JSON.stringify(corpus);
+  const propose = (patch) => ce.previewCandidateEvidence({ input: { ...seed, ...patch }, packet, acceptedRole, corpus, at });
+  const failsWith = (patch, expected, why) => {
+    try { propose(patch); bad.push(`accepted ${why}`); }
+    catch (error) {
+      if (!String(error?.message).includes(expected)) bad.push(`${why} failed as ${error?.message}, expected ${expected}`);
+    }
+  };
+  const correction = {
+    claim: 'Shipped a billing migration for ten enterprise customers.',
+    observedAt: '2026-08-15T00:00:00.000Z',
+    supersedes: predecessor.evidenceId,
+  };
+
+  if (/correction\s*=>\s*a new assertion carrying supersedes/.test(fence)) {
+    const corrected = propose(correction).proposedEvidence;
+    say(corrected.supersedes === predecessor.evidenceId, 'the correction does not point at its predecessor');
+    say(corrected.evidenceId !== predecessor.evidenceId, 'the correction reused the predecessor id — that is an overwrite');
+    say(JSON.stringify(corpus) === corpusBefore, 'proposing a correction mutated the corpus');
+  }
+  if (/predecessor-must-exist\s*=>\s*superseding an unknown assertion fails closed/.test(fence)) {
+    failsWith({ ...correction, supersedes: 'ev-does-not-exist' }, 'missing_superseded', 'a correction to an unknown assertion');
+  }
+  if (/same-scope\s*=>\s*a correction across candidate, role or must-have/.test(fence)) {
+    failsWith({ ...correction, candId: 'cand-someone-else' }, 'cross_candidate', 'a correction across candidates');
+  }
+  if (/suppression-not-erasure\s*=>\s*the event says what it is/.test(fence)) {
+    // The shape rules for a stop event, checked without touching the corpus on disk.
+    for (const event of [null, {}, { schema: ce.WITHDRAWAL_SCHEMA }, { schema: 'wrong', withdrawalId: 'w-1' }]) {
+      let refused = false;
+      try { ce.assertEvidenceWithdrawal(event); } catch { refused = true; }
+      say(refused, `a malformed stop event was accepted: ${JSON.stringify(event)}`);
+    }
+  }
+  // The clock rule is not in the fence but is the reason corrections cannot be back-dated.
+  failsWith({ ...correction, observedAt: '2026-08-01T00:00:00.000Z' }, 'supersedes_clock', 'a back-dated correction');
+  failsWith({}, 'duplicate', 'an assertion identical to one already in the corpus');
+
+  return bad.length
+    ? { status: 'violation', detail: `§25 fence and the correction path disagree on ${bad.length} rule(s)`, sample: bad.slice(0, 5) }
+    : { status: 'pass', detail: 'a correction is a new assertion pointing back; unknown, cross-candidate, back-dated and duplicate all fail with their own names' };
+}
+
+/** §27 Review-note evidence references — bounded, private, and never silently dropped. */
+async function checkReviewNoteEvidence() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.review-note\/1 evidenceIds[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.review-note/1 evidenceIds fence in §27 yet' };
+
+  const { createNote } = await import('./demigod-role-packet.mjs');
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+
+  if (/bound\s*<=\s*20 ids per rating/.test(fence)) {
+    const withIds = (count) => createNote({
+      roleId: 'role-contract-check',
+      candId: 'cand-sentinel-9001',
+      ratings: [{
+        mustHaveId: 'mh1',
+        rating: 'yes',
+        evidence: 'Shipped a production backend migration.',
+        evidenceIds: Array.from({ length: count }, (unused, index) => `ev-${index}`),
+      }],
+    });
+    say(withIds(20).ratings[0].evidenceIds.length === 20, '20 ids were truncated — stricter than the contract');
+    let refused = false;
+    try { withIds(21); } catch { refused = true; }
+    if (!refused) say(withIds(21).ratings[0].evidenceIds.length <= 20, '21 ids survived a 20-id bound');
+  }
+  if (/private-only\s*=>\s*claims and spans reach the private workspace/.test(fence)) {
+    // The mutual projection already refuses the sentinels in §22; here the rule is the other half —
+    // the private workspace is where candidate evidence is allowed to live.
+    const { composeRoleWorkspace, projectMutualMission } = await import('./demigod-structured-hiring.mjs');
+    const { ce } = await candidateEvidenceFixture();
+    const SPAN = 'PRIVATE-SPAN-SENTINEL-for-review-note';
+    const corpus = {
+      schema: ce.CORPUS_SCHEMA,
+      evidence: [{
+        schema: 'demigod.candidate-evidence/1',
+        evidenceId: 'ev-fixture-27',
+        candId: 'cand-sentinel-9001',
+        roleId: 'role-contract-check',
+        mustHaveId: 'mh1',
+        criterionLabel: 'Backend craft',
+        claim: 'PRIVATE-CLAIM-SENTINEL-for-review-note',
+        source: {
+          type: 'candidate_submitted',
+          ref: 'submission:fixture-27',
+          contentSha256: 'a'.repeat(64),
+          span: { text: SPAN },
+          observedAt: '2026-08-01T00:00:00.000Z',
+        },
+        use: { purpose: 'role_evidence_review', basis: 'candidate_submission', policyVersion: ce.EVIDENCE_POLICY_VERSION, retainUntil: '2026-11-01T00:00:00.000Z' },
+        review: { state: 'approved', by: 'operator', at: '2026-08-10T00:00:00.000Z', previewHash: 'd'.repeat(64) },
+      }],
+      withdrawals: [],
+    };
+    const workspace = composeRoleWorkspace({
+      roleId: 'role-contract-check',
+      acceptedRole: { roleId: 'role-contract-check', company: 'Acme', roleTruthHash: 'abc' },
+      packet: {
+        roleId: 'role-contract-check',
+        companyId: 'yc:acme',
+        title: 'Founding Engineer',
+        outcome90d: 'Ship the first reliable customer-facing product.',
+        mustHaves: [{ id: 'mh1', label: 'Backend craft' }, { id: 'mh2', label: 'Product judgment' }, { id: 'mh3', label: 'Clear communication' }],
+        dealBreakers: [{ id: 'db1', label: 'No production ownership' }],
+        compBand: { text: 'private', source: 'founder_stated' },
+        stage: 'brief_ready',
+      },
+      companyPacket: { schema: 'demigod.company-packet/1', companyId: 'yc:acme', identity: { name: 'Acme' } },
+      batch: { max: 3, candidates: [{ candId: 'cand-sentinel-9001', why: 'Relevant shipped work', state: 'active' }] },
+      notes: [],
+      candidateEvidenceCorpus: corpus,
+      at: '2026-08-15T00:00:00.000Z',
+    });
+    say(JSON.stringify(workspace).includes(SPAN), 'the private workspace lost the evidence span it is supposed to carry');
+    say(!JSON.stringify(projectMutualMission(workspace)).includes(SPAN), 'an evidence span reached the mutual projection');
+  }
+  if (/no-silent-answer\s*=>\s*an unresolvable citation is reported/.test(fence)) {
+    const note = createNote({
+      roleId: 'role-contract-check',
+      candId: 'cand-sentinel-9001',
+      ratings: [{ mustHaveId: 'mh1', rating: 'yes', evidence: 'Shipped a production backend migration.', evidenceIds: ['ev-nowhere'] }],
+    });
+    say((note.ratings[0].evidenceIds || []).includes('ev-nowhere'),
+      'an unresolvable citation was dropped at note creation — it must survive to be reported as unresolvable');
+  }
+
+  return bad.length
+    ? { status: 'violation', detail: `§27 fence and the review-note path disagree on ${bad.length} rule(s)`, sample: bad.slice(0, 5) }
+    : { status: 'pass', detail: 'citations bounded at 20, spans live in the private workspace only, an unresolvable id is kept to be reported' };
+}
+
 async function checkCandidateAssertion() {
   const md = fs.readFileSync(CONTRACTS, 'utf8');
   const fence = /```text\s*\n(demigod\.candidate-evidence\/1[\s\S]*?)```/.exec(md)?.[1];
@@ -1578,12 +1736,14 @@ async function checkBoardPay() {
 }
 
 /** Sections with a working executor today. Raise it when you wire one; never lower it. */
-export const ENFORCED_FLOOR = 28;
+export const ENFORCED_FLOOR = 30;
 
 export const EXECUTORS = {
   5: { name: 'demigod-evidence.mjs (claim shape)', run: checkClaim },
   24: { name: 'demigod-candidate-evidence.mjs assertion shape', run: checkCandidateAssertion },
+  25: { name: 'demigod-candidate-evidence.mjs correction + withdrawal', run: checkEvidenceCorrection },
   26: { name: 'demigod-candidate-evidence.mjs projectCandidateEvidence', run: checkCandidateProjection },
+  27: { name: 'demigod-role-packet.mjs review-note citations', run: checkReviewNoteEvidence },
   28: { name: 'demigod-candidate-evidence.mjs workbench preview', run: checkEvidenceWorkbench },
   8: { name: 'demigod-evidence.mjs projectCompanyResearch', run: checkProjector },
   9: { name: 'demigod-matching-engine.mjs resolveCompanyEvidence', run: checkEvidenceResolver },
@@ -1665,11 +1825,18 @@ async function selftest() {
   assert(parseSections('').length === 0, 'empty markdown parses to nothing');
 
   // unwired must never be counted as verified — that is the whole point of having the state.
+  // This used to assert `unwired > 0`, because an unwired backlog existed and hiding it was the
+  // failure worth guarding. On 2026-08-17 the backlog reached zero, so that assertion started
+  // failing for the good reason. The property it protected is now proven where it can be observed:
+  // the poison suite feeds this checker a prose-only document and asserts it reports unwired.
   const report = await checkContracts();
   assert(report.ok, `live contracts violated: ${JSON.stringify(report.sections.filter((s) => s.status === 'violation'))}`);
   assert(report.counts.sections > 20, `expected the full contract set, got ${report.counts.sections}`);
   assert(report.counts.pass >= 3, 'the wired sections must actually run');
-  assert(report.counts.unwired > 0, 'prose-only sections must be reported, not silently passed');
+  assert(
+    report.counts.pass + report.counts.violation + report.counts.unwired === report.counts.sections,
+    'every section must land in exactly one state — a section counted nowhere is a section nobody checked',
+  );
   assert(
     report.sections.every((s) => ['pass', 'violation', 'unwired'].includes(s.status)),
     'every section lands in exactly one of the three states',

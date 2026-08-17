@@ -104,7 +104,11 @@ called them `board_observed`. Producer and consumer are both fixed; the *data* i
 
 ## Wave 3 — the 22 unwired DIE contracts
 
-`node demigod-die-contracts-check.mjs` reports 8 enforced, 22 unwired of 30. Unwired means the
+**Closed 2026-08-17: 30 enforced, 0 violated, 0 unwired of 30.** Started the day at 8 enforced,
+22 unwired. Every section now has an executor and the enforced count is ratcheted at 30, so a
+section falling back to prose fails the run.
+
+Originally: `node demigod-die-contracts-check.mjs` reported 8 enforced, 22 unwired of 30. Unwired means the
 section is prose no executor answers for. Wire them in dependency order; each one is its own task
 and its own commit. A section whose rules cannot be expressed as a fence gets its prose rewritten
 until they can — that rewrite is the work, not a detour.
@@ -113,17 +117,17 @@ until they can — that rewrite is the work, not a detour.
   recent bugs. Fence: quarantine nulls, `board_observed` needs a count, roles bound to 25, journal
   window 14 days, `shape` never a score.
 - [x] **W3-2 §4 Company row** — the map row shape every producer writes and every consumer reads.
-- [ ] **W3-3 §1 Company identity** — one identity per company; the 10-of-14 wrong-pair finding from
+- [x] **W3-3 §1 Company identity** — one identity per company; the 10-of-14 wrong-pair finding from
   2026-08-16 belongs here as enforced rules.
-- [ ] **W3-4 §14 Company table** · **W3-5 §15 Company waterfall** · **W3-6 §17 Writeback preview** —
+- [x] **W3-4 §14 Company table** · **W3-5 §15 Company waterfall** · **W3-6 §17 Writeback preview** —
   the three surfaces that turn a packet into something a human acts on.
-- [ ] **W3-7 §12 Research projection entry point** · **W3-8 §16 Private memo** — private evidence
+- [x] **W3-7 §12 Research projection entry point** · **W3-8 §16 Private memo** — private evidence
   must not leak into a shared surface; that is a fail-closed rule, so it is checkable.
-- [ ] **W3-9 §20 Role Mission** · **W3-10 §21 Evidence bill** · **W3-11 §22 Mutual projection** ·
+- [x] **W3-9 §20 Role Mission** · **W3-10 §21 Evidence bill** · **W3-11 §22 Mutual projection** ·
   **W3-12 §23 Mission scenario**.
-- [ ] **W3-13 §24 / §25 / §27 / §28 candidate evidence** — assertion, correction and withdrawal,
+- [x] **W3-13 §24 / §25 / §27 / §28 candidate evidence** — assertion, correction and withdrawal,
   review-note references, workbench. Withdrawal is the one with a real-world cost if it is wrong.
-- [ ] **W3-14 §2 Benchmark document** · **W3-15 §3 Operational catalog** · **W3-16 §6 Frozen fields**
+- [x] **W3-14 §2 Benchmark document** · **W3-15 §3 Operational catalog** · **W3-16 §6 Frozen fields**
   · **W3-17 §7 Accepted-field policy** · **W3-18 §18 Supported command surface** ·
   **W3-19 §19 Decision rehearsal**.
 - [x] **W3-20 Make the unwired count a gate.** Today it can grow silently. Pin the current number as

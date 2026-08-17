@@ -576,6 +576,15 @@ The targets must exist in the same candidate/role scope. Once effective, raw cla
 content are withheld. Expiry has the same raw-content boundary. This is application suppression,
 not a claim that physical/legal erasure has occurred.
 
+```text
+demigod.candidate-evidence-withdrawal/1
+  correction              => a new assertion carrying supersedes; the predecessor is never rewritten
+  predecessor-must-exist  => superseding an unknown assertion fails closed
+  same-scope              => a correction across candidate, role or must-have fails closed
+  withdrawal-targets      => a stop event naming an unknown evidence id fails closed
+  suppression-not-erasure => the event says what it is; raw claim and span are withheld, not deleted
+```
+
 ## 26. Candidate evidence projection
 
 `projectCandidateEvidence({ roleId, packet, corpus, at })` returns
@@ -595,6 +604,13 @@ notes remain valid. A missing, cross-candidate, cross-criterion, corrected, with
 conflicting, or stale citation cannot silently become an answered question. Candidate evidence is
 included only in Role Mission's private workspace and evidence bill; the mutual projection excludes
 candidate IDs, claims, spans, ratings, and reviewer text.
+
+```text
+demigod.review-note/1 evidenceIds
+  bound                   <= 20 ids per rating
+  private-only            => claims and spans reach the private workspace, never the mutual view
+  no-silent-answer        => an unresolvable citation is reported, never dropped
+```
 
 ## 28. Candidate evidence workbench
 

@@ -139,5 +139,12 @@ test('the live contract set is green and genuinely exercised', async () => {
   assert.equal(report.schema, SCHEMA);
   assert.equal(report.ok, true, `live violations: ${JSON.stringify(report.sections.filter((s) => s.status === 'violation'))}`);
   assert.ok(report.counts.pass >= 3, 'at least the wired sections must really run');
-  assert.ok(report.counts.unwired > 0, 'the unwired backlog is the point — it must stay visible');
+  // Was `unwired > 0` while a backlog existed. It reached zero on 2026-08-17; the unwired path is
+  // proven above against a prose-only document, which is where it can actually be observed.
+  assert.equal(
+    report.counts.pass + report.counts.violation + report.counts.unwired,
+    report.counts.sections,
+    'every section must land in exactly one state',
+  );
+  assert.ok(report.counts.pass >= report.counts.sections - report.counts.unwired, 'wired sections must really run');
 });
