@@ -330,6 +330,9 @@ if (ship || wizard) {
     ['demigod-meta-audit.mjs', ['--selftest']],
     ['demigod-navigation-audit.mjs', ['--selftest', '--local']],
     ['demigod-public-comp.mjs', ['--selftest']],
+    // The page copy every route already carries, checked against the real foot: AI crawlers do not
+    // run JavaScript, so copy that only exists in DG_PAGES reaches none of them.
+    ['demigod-route-static.mjs', ['--selftest']],
     // The one Demigod test living outside the repo root, and therefore outside every glob anyone
     // has written to find these.
     ['docs/exchange/demigod-recruiting-research-pack.test.mjs'],
@@ -372,7 +375,7 @@ if (ship || wizard) {
      floor is a volume floor, not a target: a bad merge or a truncated array drops entries silently,
      and 95 steps becoming 12 is the failure mode worth catching. Raise it deliberately when steps
      are added; never lower it to make a run green. */
-  const MIN_STEPS = 239;
+  const MIN_STEPS = 240;
 
   let failed = 0;
   let ran = 0;
