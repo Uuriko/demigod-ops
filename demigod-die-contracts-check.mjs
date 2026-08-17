@@ -190,6 +190,57 @@ function checkSafeUrl() {
  * would admit Bugcrowd and Brave Software in their place. Re-selecting to make that agree would
  * discard 60 graded, evidenced claims to fix a number.
  */
+/**
+ * §18 Supported command surface. The rule is that a mutation flag fails BEFORE dispatch — not that
+ * it eventually fails. A flag that reaches a subcommand which might honour it has already lost the
+ * property, so every case here asserts the planner refuses rather than that the run does nothing.
+ */
+async function checkCommandSurface() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.command-surface\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.command-surface/1 fence in §18 yet' };
+
+  const { companyCommandPlan } = await import('./demigod-company-intelligence.mjs');
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+  const refuses = (argv) => {
+    try { companyCommandPlan(argv); return false; } catch { return true; }
+  };
+
+  if (/commands\s*=\s*list, get, enrich, memo, writeback/.test(fence)) {
+    for (const command of ['list', 'get', 'enrich', 'memo', 'writeback']) {
+      let planned = true;
+      try { companyCommandPlan([command, '--id=yc:acme']); } catch { planned = false; }
+      say(planned, `${command} is documented as supported but the planner refused it`);
+    }
+  }
+  if (/unknown-command\s*=>\s*refused/.test(fence)) {
+    // Refusal here is a null plan, not a throw: the CLI prints usage and exits non-zero. The
+    // property is that nothing is dispatched, and both shapes satisfy it — so assert the property.
+    const dispatched = (argv) => {
+      try { return companyCommandPlan(argv) !== null; } catch { return false; }
+    };
+    say(!dispatched(['apply']), 'an unknown command produced a dispatch plan');
+    say(!dispatched(['apply-map', '--id=yc:acme']), 'an apply-shaped command produced a dispatch plan');
+    say(!dispatched([]), 'an empty command line produced a dispatch plan');
+  }
+  if (/enrich\s*=>\s*always routed with --dry-run/.test(fence)) {
+    const plan = companyCommandPlan(['enrich', '--id=yc:acme']);
+    say(plan?.script === 'demigod-company-waterfall.mjs', `enrich routed to ${plan?.script}`);
+    say((plan?.args || []).includes('--dry-run'), 'enrich was routed without --dry-run');
+  }
+  if (/mutation-flags\s*=>\s*--write, --apply and --apply-map refused/.test(fence)) {
+    for (const flag of ['--write', '--apply', '--apply-map', '--apply=true', '--apply-map=DEMIGOD-SF-STARTUP-MAP.json']) {
+      say(refuses(['writeback', flag]), `${flag} reached dispatch instead of being refused`);
+      say(refuses(['enrich', flag]), `${flag} reached dispatch on enrich instead of being refused`);
+    }
+  }
+
+  return bad.length
+    ? { status: 'violation', detail: `§18 fence and companyCommandPlan disagree on ${bad.length} rule(s)`, sample: bad.slice(0, 5) }
+    : { status: 'pass', detail: `5 commands plan, 10 mutation-flag forms refused before dispatch, enrich forced to dry-run` };
+}
+
 async function checkBenchmarkDoc() {
   const md = fs.readFileSync(CONTRACTS, 'utf8');
   const fence = /```text\s*\n(demigod\.benchmark\/1[\s\S]*?)```/.exec(md)?.[1];
@@ -1133,7 +1184,7 @@ async function checkBoardPay() {
 }
 
 /** Sections with a working executor today. Raise it when you wire one; never lower it. */
-export const ENFORCED_FLOOR = 20;
+export const ENFORCED_FLOOR = 21;
 
 export const EXECUTORS = {
   5: { name: 'demigod-evidence.mjs (claim shape)', run: checkClaim },
@@ -1154,6 +1205,7 @@ export const EXECUTORS = {
   15: { name: 'demigod-company-waterfall.mjs runCompanyWaterfall', run: checkWaterfall },
   16: { name: 'demigod-company-memo.mjs renderCompanyMemo', run: checkPrivateMemo },
   17: { name: 'demigod-packet-writeback.mjs buildWritebackPlan', run: checkWriteback },
+  18: { name: 'demigod-company-intelligence.mjs companyCommandPlan', run: checkCommandSurface },
   29: { name: 'demigod-role-mission-kernel.mjs attachCompany (grok)', run: checkMissionCompany },
   30: { name: 'demigod-board-pay.mjs rolePayVisibility', run: checkBoardPay },
 };

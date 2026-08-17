@@ -444,6 +444,17 @@ demigod.packet-writeback/1
 and `writeback`. It delegates to the contracts above rather than reimplementing them. `enrich`
 forces `--dry-run`; `--write`, `--apply`, and `--apply-map` fail before dispatch.
 
+Failing *before dispatch* is the property, not failing eventually: a mutation flag must never reach
+a subcommand that might honour it.
+
+```text
+demigod.command-surface/1
+  commands                = list, get, enrich, memo, writeback, and nothing else
+  enrich                  => always routed with --dry-run, whether or not the caller passed it
+  mutation-flags          => --write, --apply and --apply-map refused before dispatch
+  unknown-command         => refused, never dispatched
+```
+
 ## 19. Decision rehearsal on review notes
 
 `demigod.review-note/1` may contain an optional private `rehearsal` object with bounded
