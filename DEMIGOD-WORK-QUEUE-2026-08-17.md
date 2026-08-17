@@ -326,6 +326,25 @@ actually reached — that is what the marker is for. Check the ceiling before do
 - **W4-6** — 0 boards shared by more than one company in the live map; the dedupe survivorship
   question does not arise today.
 
+## What a polite enrich actually costs
+
+Run 2026-08-17 at `DEMIGOD_ENRICH_CONCURRENCY=4` — a quarter of the default 12, chosen because one
+run at 12 cost 90 Ashby boards to rate limiting on 2026-08-16 and `ATS-SOURCE-TERMS.md` argues the
+absence of a published rate limit is not permission.
+
+**It did not finish inside 90 minutes.** That is the number to plan around: politeness against ~2,900
+companies over seven providers is an hour-plus job, not something to slip in beside a verification
+pass. The map is only written at the end, so a timeout leaves the committed map untouched — a safe
+failure, and the reason it was run this way rather than in-place.
+
+Consequences worth keeping:
+- Schedule it as its own long-running job, not alongside gates. It loads the machine enough that
+  unrelated greps time out.
+- `lastAttempt` therefore still does not exist on any live row (W2-3 / W2-5 stay open). The producer
+  writes it correctly; no complete run has happened since the code landed.
+- If a faster run is ever needed, raise concurrency deliberately and expect to pay in lost boards,
+  not silently.
+
 ## Corpus defects, measured 2026-08-17
 
 `node demigod-corpus-defects.mjs report` over 2,917 companies: **547 findings across 517 rows**,
