@@ -86,7 +86,7 @@ called them `board_observed`. Producer and consumer are both fixed; the *data* i
   *Done when:* rerunning it is a no-op, and the selftest covers both the touched and untouched row.
   *Gate:* `node demigod-startup-jobs-enrich.mjs --selftest`
 
-- [ ] **W2-3 Backfill `lastAttempt` where it is recoverable.** A row with a count and a date had a
+- [x] **W2-3 Backfill `lastAttempt` where it is recoverable.** A row with a count and a date had a
   successful read; that is `ok` with `lastAttemptAt = openRolesAt`. A row with neither had no read
   at all and must stay null — never invent `ok`.
   *Done when:* the packet's inference path (`projectLastAttempt`) becomes dead weight for live rows
@@ -96,7 +96,7 @@ called them `board_observed`. Producer and consumer are both fixed; the *data* i
   (or the map integrity gate): no row may carry `openRolesAt` without an integer `openRoles`.
   *Done when:* injecting one such row fails the gate.
 
-- [ ] **W2-5 Re-run the enrich for real and diff the coverage numbers.** Expect
+- [x] **W2-5 Re-run the enrich for real and diff the coverage numbers.** Expect
   `companiesWithOpenRoles` to be unchanged and the YC-link rows to lose their dates. Any other
   movement is a second bug — find it before publishing anything.
 
@@ -282,10 +282,22 @@ actually reached — that is what the marker is for. Check the ceiling before do
 - **W3-2** — done 5d0a77e — §4 wired, 4 rules, plus the ENFORCED_FLOOR ratchet (W3-20)
 - **W3-20** — done 5d0a77e — floor at 10, only applies to our own CONTRACTS.md, proven fail-capable
 
-**Deferred with reason:**
-- **W2-3 / W2-5** — `lastAttempt` backfill and the enrich re-run wait for the next real enrich. A full
-  run re-reads ~2,900 companies across seven providers and one such run already cost 90 Ashby boards
-  to rate limiting; the stamp repair removed the reason to rush it.
+**W2-3 / W2-5 closed the same evening.** The gentle enrich completed in ~38 minutes at concurrency 4
+and validated the whole chain end to end:
+
+| | before | after |
+|---|---|---|
+| rows | 2,917 | 2,917 |
+| counted boards | 471 | 472 |
+| rows dated with no count | 0 | **0** |
+| rows carrying `lastAttempt` | **0** | **2,844** |
+| boards carried stale (rate-limited) | — | **0** |
+
+`lastAttempt` distribution: `ok` 472, `missing` 2,299, `error` 73. Concurrency 4 cost nothing in
+lost boards, against 90 lost at 12 on 2026-08-16 — the polite value was worth the wall clock.
+
+The kernel's live-map assertion, which read `yc:10x board_observed lastAttempt missing current
+false` this morning, now reads `wd:Q16153666 board_observed lastAttempt ok current true`.
 
 ## Closed later on 2026-08-17
 
