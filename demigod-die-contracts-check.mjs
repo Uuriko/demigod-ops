@@ -339,8 +339,49 @@ async function checkEvidenceResolver() {
     : { status: 'pass', detail: 'resolver mutates none of its four inputs; status within enum' };
 }
 
+/**
+ * §26 Candidate evidence projection. The load-bearing promise is `globalScore: null` — no composite
+ * number about a person, ever. That is the line the whole product rests on, it is the one the
+ * industry's standard quality-of-hire scorecard crosses by design, and under the EU AI Act's
+ * high-risk hiring rules it is also the line with legal weight. It should not depend on nobody
+ * deciding a score would be convenient.
+ *
+ * Deliberately shallow: this pins the invariants reachable without constructing a full valid
+ * assertion, which needs source spans, content hashes, clocks, purpose/basis and a retention
+ * deadline. The deeper §24/§25 rules — supersede clocks, forks, cycles, withdrawal scope — are
+ * already covered by that module's own tests; wiring them here would need a fixture builder the
+ * module does not export, and a checker that fakes one would be testing my fixture, not the rule.
+ */
+async function checkCandidateProjection() {
+  const { projectCandidateEvidence, CORPUS_SCHEMA } = await import('./demigod-candidate-evidence.mjs');
+  const { createPacket } = await import('./demigod-role-packet.mjs');
+  const packet = createPacket({ roleId: 'r-contract', title: 'Engineer', outcome90d: 'Ship billing to ten customers' });
+  const at = '2026-08-17T00:00:00.000Z';
+  const bad = [];
+  const projection = projectCandidateEvidence({
+    roleId: 'r-contract', packet, corpus: { schema: CORPUS_SCHEMA, evidence: [], withdrawals: [] }, at,
+  });
+  if (projection?.schema !== 'demigod.candidate-evidence-projection/1') bad.push(`schema ${projection?.schema}`);
+  if (projection?.globalScore !== null) bad.push(`globalScore is ${JSON.stringify(projection?.globalScore)}, contract says null`);
+  if (!('authority' in (projection || {}))) bad.push('projection omits the authority block');
+  // A malformed corpus must fail closed rather than project an empty-but-confident answer.
+  try {
+    projectCandidateEvidence({ roleId: 'r-contract', packet, corpus: { schema: 'wrong', evidence: [], withdrawals: [] }, at });
+    bad.push('a corpus with the wrong schema was accepted');
+  } catch { /* refused, as required */ }
+  // A projection with no packet has no criteria to project against and must refuse.
+  try {
+    projectCandidateEvidence({ roleId: 'r-contract', packet: null, corpus: { schema: CORPUS_SCHEMA, evidence: [], withdrawals: [] }, at });
+    bad.push('a projection without a role packet was accepted');
+  } catch { /* refused, as required */ }
+  return bad.length
+    ? { status: 'violation', detail: `§26 projection broke ${bad.length} declared rule(s)`, sample: bad }
+    : { status: 'pass', detail: 'globalScore null, authority present, malformed corpus and missing packet refused' };
+}
+
 export const EXECUTORS = {
   5: { name: 'demigod-evidence.mjs (claim shape)', run: checkClaim },
+  26: { name: 'demigod-candidate-evidence.mjs projectCandidateEvidence', run: checkCandidateProjection },
   8: { name: 'demigod-evidence.mjs projectCompanyResearch', run: checkProjector },
   9: { name: 'demigod-matching-engine.mjs resolveCompanyEvidence', run: checkEvidenceResolver },
   10: { name: 'demigod-company-packet.mjs (quarantine projection)', run: checkQuarantine },
