@@ -120,6 +120,55 @@ Needs the web UI:
 - **Vercel**: connect from a repo's Apps tab for per-PR preview deployments.
 - **GitHub connection** for the sync UI, if you prefer clicking to `create-mirrored`.
 
+## The part nobody documented: what Origin does with your code
+
+**Neither of Cursor's two authoritative privacy pages mentions Origin, code hosting, or git hosting
+at all.** `cursor.com/data-use` and `cursor.com/help/security-and-privacy/privacy` both describe
+Privacy Mode as *"your code is never used for training"*, and enumerate the features that store code
+— codebase indexing, file caching, Cloud Agents. Origin is not among them, because those pages
+predate it.
+
+That matters here more than for most users, because a git host stores your code permanently by
+definition. Privacy Mode's promise is about the AI features. What is unstated for hosted repos:
+
+- retention and deletion terms
+- whether Origin repos are indexed for agents by default
+- whether hosted code is exempt from training in the same way
+- data residency for hosted repos (an Enterprise control, unclear if it covers Origin)
+
+`demigod-ops` carries a hiring corpus — candidate evidence, review notes, a demand queue. This site's
+own `robots.txt` says `ai-train=no`. Worth asking Cursor directly before that repo lands, or keeping
+it on GitHub until the answer is in writing.
+
+**Change of control.** Anysphere was acquired by SpaceX for $60B, announced the same day as Origin.
+The entity that would hold the code is not the entity that built the product.
+
+**Exit is asymmetric.** The code itself is never locked in — it is git, and `git clone` always works.
+What does not come out is the metadata: pull requests, reviews, comments and rulesets live in Origin
+and have no export path anyone has published. Mirroring is cheap to undo; moving the review process
+is not.
+
+## A cost of the naming choice, stated plainly
+
+The Origin remote is called `cursor` here so that `origin` keeps meaning GitHub. The price is that
+`origin pr` and `origin api` infer the repo from **the remote literally named `origin`**, which on
+this machine is GitHub — so they will guess wrong. Two ways round it, both fine:
+
+    origin pr list -R uuriko/demigod-ops
+    ORIGIN_REPO=uuriko/demigod-ops origin pr list
+
+Worth knowing before the first `origin pr` command returns something confusing.
+
+## Two smaller things
+
+- **The PR model is "changes", not pull requests.** `origin pr create` speaks of resolving head and
+  base refs to capture initial version SHAs — the Graphite stacked-diff lineage. It behaves like
+  stacked changes rather than GitHub PRs, which is an adjustment, not a defect.
+- **The CLI updates on a channel.** `origin config get-channel` / `set-channel` — currently `stable`.
+  Worth pinning deliberately for a tool that holds git credentials.
+- **Plan and entitlement are not introspectable.** `/plan`, `/subscription`, `/entitlements` and
+  `/features` all 404, so the only way to know what tier this account has is the billing page.
+
 ## What does not move, and why
 
 `demigod-site-cdn` mirrors to Origin fine, but GitHub stays its home: `cdn.jsdelivr.net/gh/…` serves
