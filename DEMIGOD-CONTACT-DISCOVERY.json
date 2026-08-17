@@ -1,0 +1,170 @@
+{
+ "schema": "demigod.contact-discover/1",
+ "at": "2026-08-17T23:27:16.787Z",
+ "considered": 12,
+ "discovered": 7,
+ "needsReview": [
+  {
+   "id": "waas-6iwLqId0xZ9cLB",
+   "company": "AgentPhone",
+   "email": "founders@agentphone.to",
+   "why": "body text on a domain that is not the company"
+  },
+  {
+   "id": "waas-6xoOh3JFR7Nv_B",
+   "company": "PerfectBit, Inc.",
+   "email": "alex@frontier.ai",
+   "why": "body text on a domain that is not the company"
+  }
+ ],
+ "applied": 7,
+ "results": [
+  {
+   "id": "waas-dFPP3my1wq00M-",
+   "company": "Astraea",
+   "companyUrl": "https://tryastraea.com/",
+   "found": 6,
+   "pick": {
+    "email": "careers@tryastraea.com",
+    "method": "mailto",
+    "pageUrl": "https://www.tryastraea.com/contact",
+    "sameDomain": true,
+    "rank": 3,
+    "confident": true
+   }
+  },
+  {
+   "id": "waas-6iwLqId0xZ9cLB",
+   "company": "AgentPhone",
+   "companyUrl": "https://agentphone.ai/",
+   "found": 5,
+   "pick": {
+    "email": "founders@agentphone.to",
+    "method": "text",
+    "pageUrl": "https://agentphone.ai/",
+    "sameDomain": false,
+    "rank": 0,
+    "confident": false
+   }
+  },
+  {
+   "id": "waas-Pdzoc5sXLxvpKc",
+   "company": "Vela",
+   "companyUrl": "https://tryvela.ai/",
+   "found": 0,
+   "pick": null
+  },
+  {
+   "id": "waas-gUnm86H3zWD3TZ",
+   "company": "Superset",
+   "companyUrl": "https://www.superset.sh/",
+   "found": 3,
+   "pick": {
+    "email": "founders@superset.sh",
+    "method": "mailto",
+    "pageUrl": "https://superset.sh/contact",
+    "sameDomain": true,
+    "rank": 3,
+    "confident": true
+   }
+  },
+  {
+   "id": "waas-Yg-zvukFrmrta4",
+   "company": "Ventura",
+   "companyUrl": "https://www.ventura.ai/",
+   "found": 1,
+   "pick": {
+    "email": "support@ventura.ai",
+    "method": "text",
+    "pageUrl": "https://ventura.ai/",
+    "sameDomain": true,
+    "rank": 1,
+    "confident": true
+   }
+  },
+  {
+   "id": "waas-ZaoKrcG7m04QXe",
+   "company": "Lance",
+   "companyUrl": "https://www.lance.live/",
+   "found": 0,
+   "pick": null
+  },
+  {
+   "id": "waas-o8UHRpPmUMjeXM",
+   "company": "Asendia AI",
+   "companyUrl": "https://asendia.ai/",
+   "found": 2,
+   "pick": {
+    "email": "connect@asendia.ai",
+    "method": "text",
+    "pageUrl": "https://asendia.ai/",
+    "sameDomain": true,
+    "rank": 1,
+    "confident": true
+   }
+  },
+  {
+   "id": "waas-6xoOh3JFR7Nv_B",
+   "company": "PerfectBit, Inc.",
+   "companyUrl": "https://perfectbit.ai/",
+   "found": 1,
+   "pick": {
+    "email": "alex@frontier.ai",
+    "method": "text",
+    "pageUrl": "https://perfectbit.ai/contact/",
+    "sameDomain": false,
+    "rank": 0,
+    "confident": false
+   }
+  },
+  {
+   "id": "waas-qKKkdRMa-9h8uq",
+   "company": "Pocket",
+   "companyUrl": "https://heypocket.com/now",
+   "found": 1,
+   "pick": {
+    "email": "hey@heypocket.com",
+    "method": "mailto",
+    "pageUrl": "https://heypocket.com/pages/now",
+    "sameDomain": true,
+    "rank": 3,
+    "confident": true
+   }
+  },
+  {
+   "id": "waas-kttpRAxzgJ2Fv3",
+   "company": "Pocket",
+   "companyUrl": "https://heypocket.com/now",
+   "found": 1,
+   "pick": {
+    "email": "hey@heypocket.com",
+    "method": "mailto",
+    "pageUrl": "https://heypocket.com/pages/now",
+    "sameDomain": true,
+    "rank": 3,
+    "confident": true
+   }
+  },
+  {
+   "id": "waas-R4NgNZUiAexLmN",
+   "company": "Lance",
+   "companyUrl": "https://www.lance.live/",
+   "found": 0,
+   "pick": null
+  },
+  {
+   "id": "waas-ZQ78hJKaAAkWPj",
+   "company": "Payna",
+   "companyUrl": "https://payna.com/",
+   "found": 1,
+   "pick": {
+    "email": "hello@payna.com",
+    "method": "mailto",
+    "pageUrl": "https://payna.com/",
+    "sameDomain": true,
+    "rank": 3,
+    "confident": true
+   }
+  }
+ ]
+}
