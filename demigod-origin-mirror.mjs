@@ -159,13 +159,18 @@ if (isMain) {
     const namespace = flag('namespace') || process.env.CURSOR_ORIGIN_NAMESPACE || null;
     const wantPush = args.includes('--push');
     const blockers = [];
+    const notes = [];
     if (!state.cliInstalled) blockers.push('origin CLI not installed — curl -fsSL https://downloads.cursor.com/origin/install.sh | sh');
     if (state.cliInstalled && !state.authenticated) blockers.push('not signed in — origin auth login (browser flow, needs a plan with Origin access)');
     if (!namespace) blockers.push('no namespace — claim one at cursor.com/codebase, then pass --namespace=<name>');
     for (const repo of state.repos) {
       if (!repo.present) blockers.push(`${repo.name}: no git repo at ${repo.dir}`);
       else if (repo.unpushedToGitHub) {
-        blockers.push(`${repo.name}: ${repo.unpushedToGitHub} commit(s) not on GitHub — push there first so both hosts start from the same history`);
+        /* A note, not a blocker. Origin-first is the chosen order, so Origin simply receives the
+           complete local history and ends up ahead of GitHub — which is the intended state, not a
+           conflict. It is still worth saying out loud, because "the two hosts disagree" is
+           confusing to discover later without knowing it was deliberate. */
+        notes.push(`${repo.name}: ${repo.unpushedToGitHub} local commit(s) GitHub does not have — Origin will receive them, so Origin leads GitHub by that much`);
       }
     }
     if (!wantPush || blockers.length) {
@@ -179,6 +184,7 @@ if (isMain) {
           note: repo.note,
         })),
         blockers,
+        notes,
         dryRun: !wantPush,
       }, null, 2));
       process.exit(blockers.length && wantPush ? 1 : 0);
