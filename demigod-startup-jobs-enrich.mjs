@@ -1663,7 +1663,15 @@ if (isMain) {
         // Never silent: a run that honoured N opt-outs says so, so a drop in coverage has an
         // explanation that is not "the market cooled".
         directoryOptOuts: optedOutRows,
-        at, scope: 'us-posted' },
+        at,
+        scope: 'us-posted',
+        /* withoutJobEvidence strips the aging annotations along with the rest of the job evidence,
+           and only demigod-directory-aging.mjs puts them back. Running this command on its own
+           therefore leaves the directory with no "posted 90–365 days ago" line until that runs —
+           silent, and caught on 2026-08-17 only because directory-static's selftest asserts the
+           line exists. The next step is part of the result, so it is printed with it. */
+        next: 'node demigod-directory-aging.mjs --enrich-map  # restores the aging annotations this run stripped',
+      },
       null,
       2,
     ),

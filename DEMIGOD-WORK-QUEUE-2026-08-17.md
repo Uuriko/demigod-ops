@@ -338,6 +338,25 @@ false` this morning, now reads `wd:Q16153666 board_observed lastAttempt ok curre
 - **W4-6** — 0 boards shared by more than one company in the live map; the dedupe survivorship
   question does not arise today.
 
+## The enrich strips aging, and only one other command puts it back
+
+Running `demigod-startup-jobs-enrich.mjs` on its own left the map with **zero** companies carrying
+`agingRoles`, down from 99. Not a defect in the fix — `withoutJobEvidence` drops the aging
+annotations along with the rest of the job evidence by design, and `demigod-directory-aging.mjs
+--enrich-map` is what puts them back. Running the enrich outside the pipeline skips that.
+
+The cost was silent: the public directory simply stops carrying its *"N roles across M companies were
+posted 90–365 days ago (Greenhouse board date)"* line. It was caught only because
+`demigod-directory-static.mjs --selftest` asserts that sentence exists — one of the 46 selftests
+wired an hour earlier, which is a fair advertisement for wiring them.
+
+Restored: 466 companies with ledger open roles, 98 with 90–365d aging. The enrich's run summary now
+prints the follow-up command, because the next step is part of the result.
+
+A reseal was enqueued by the aging run and is **left pending on purpose**: it reports
+`research.green: false · no-evidence`, and forcing a reseal that its own gate says is unbacked is
+the opposite of the point.
+
 ## The second sweep: 46 selftests nobody called
 
 After the 101 orphan `*.test.mjs` files, the same question asked of `--selftest` modes found 46 more
