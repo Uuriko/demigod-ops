@@ -61,8 +61,15 @@ function requiredFiles() {
     'AGENTS.md', 'DEMIGOD-AGENTS.md', 'DEMIGOD-WORKFLOW.md',
     'demigod-foot-core.js', 'demigod-head-minimal.html', 'demigod-footer-lite.html',
     'demigod-verify-all.mjs', 'demigod-open-workspace.mjs', 'launch-demigod-chrome.sh',
-    'agent-dev.sh', 'bin/dg-orca', '.cursor/mcp.json', '.cursor/rules/demigod.mdc',
+    'agent-dev.sh', 'bin/dg-orca',
   ];
+  // Cursor's config is required only where Cursor is installed. These two were unconditional, and
+  // cursor-agent is not on this machine — .cursor/mcp.json has never existed in the repo's history —
+  // so the audit reported two permanently unfixable "missing" issues. With the CDP line that is
+  // three, and three is the red threshold: this score could never be green and was red for reasons
+  // nobody could act on, which is how a health signal stops being read at all. The audit already
+  // probes for the binary; ask it before demanding its config.
+  if (binary('cursor-agent').present) files.push('.cursor/mcp.json', '.cursor/rules/demigod.mdc');
   return files.map((f) => ({ file: f, ok: fs.existsSync(path.join(ROOT, f)) }));
 }
 
