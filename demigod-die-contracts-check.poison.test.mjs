@@ -117,6 +117,23 @@ test('§29 board-observed goes red for a status function that trusts a date alon
   assert.deepEqual(hiringStatusComplaints(hiringStatusOf), [], 'and the real kernel must have nothing to answer for');
 });
 
+test('losing an executor fails the run instead of quietly lowering the enforced count', async () => {
+  // The regression this catches: a section falls back to `unwired`, the run stays green, and the
+  // number nobody was watching goes down. Removing three executors must be loud.
+  const saved = { 4: EXECUTORS[4], 13: EXECUTORS[13], 29: EXECUTORS[29] };
+  try {
+    delete EXECUTORS[4];
+    delete EXECUTORS[13];
+    delete EXECUTORS[29];
+    const report = await checkContracts();
+    assert.equal(report.ok, false, 'three fewer enforced sections must not read as a clean run');
+    assert.match(String(report.error), /below the floor/);
+    assert.equal(report.counts.violation, 0, 'and it is a floor breach, not a fake violation');
+  } finally {
+    Object.assign(EXECUTORS, saved);
+  }
+});
+
 test('the live contract set is green and genuinely exercised', async () => {
   const report = await checkContracts();
   assert.equal(report.schema, SCHEMA);

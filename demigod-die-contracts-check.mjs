@@ -146,6 +146,57 @@ function checkSafeUrl() {
  * that mattered would arrive through a field nobody thought to enumerate, so the assertion has to
  * be "these bytes do not appear", at any depth.
  */
+/**
+ * §4 Company row. The shape every catalog row must have, checked against the real projector.
+ *
+ * The rule worth having an executor for is "unknown extra keys are ignored". That is the sentence a
+ * future agent breaks by reaching for a convenient undeclared field — and it breaks silently, since
+ * the row still validates and the projection still returns something. Comparing the serialized
+ * projection with and without the extra keys is the only form of that claim that can fail.
+ */
+async function checkCompanyRow() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.company-row\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.company-row/1 fence in §4 yet' };
+  if (!fs.existsSync(BENCHMARK)) return { status: 'violation', detail: `benchmark artifact missing: ${BENCHMARK}` };
+
+  const { projectCompanyResearch } = await import('./demigod-evidence.mjs');
+  const benchmark = readJson(BENCHMARK);
+  const id = (benchmark.companies || [])[0]?.id;
+  if (!id) return { status: 'violation', detail: 'benchmark has no rows to project' };
+  const cat = (companies) => ({ version: 1, researchedAt: null, companies });
+  const project = (companies) => projectCompanyResearch({ companyId: id, benchmark, catalog: cat(companies) });
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+
+  const base = { id, fields: {} };
+  const plain = project([base]);
+  if (/extra-keys\s*=>\s*ignored/.test(fence)) {
+    // Names chosen to be exactly the kind a shortcut would use: a score, a verdict, a flag.
+    const withJunk = project([{ ...base, score: 99, decide: true, surpriseKey: 'x' }]);
+    say(JSON.stringify(plain) === JSON.stringify(withJunk),
+      'extra keys changed the projection — an undeclared field is deciding something');
+  }
+  if (/id\s*=>\s*required/.test(fence)) {
+    const idless = project([{ fields: { canonicalCompany: { value: 'Ghost' } } }]);
+    say(idless?.source !== 'catalog', 'a row with no id was selected as catalog evidence');
+  }
+  if (/fields\s*=>\s*required/.test(fence)) {
+    const fieldless = project([{ id }]);
+    say(fieldless?.status === 'unknown', `a row with no fields must project unknown, got ${fieldless?.status}`);
+  }
+  if (/quarantineHiring\s*=>\s*only literal true/.test(fence)) {
+    say(project([{ ...base, quarantineHiring: 'true' }])?.quarantineHiring === false,
+      'the string "true" activated quarantine — only the literal boolean may');
+    say(project([{ ...base, quarantineHiring: true }])?.quarantineHiring === true,
+      'literal true failed to activate quarantine');
+  }
+
+  return bad.length
+    ? { status: 'violation', detail: `§4 fence and projectCompanyResearch disagree on ${bad.length} rule(s)`, sample: bad.slice(0, 5) }
+    : { status: 'pass', detail: `all ${fence.trim().split('\n').length - 1} row rules hold; extra keys change no projection` };
+}
+
 async function checkCompanyPacket() {
   const md = fs.readFileSync(CONTRACTS, 'utf8');
   const fence = /```text\s*\n(demigod\.company-packet\/1[\s\S]*?)```/.exec(md)?.[1];
@@ -574,6 +625,9 @@ async function checkBoardPay() {
     : { status: 'pass', detail: 'all 8 fenced board-pay rules hold; unreadable never becomes withheld' };
 }
 
+/** Sections with a working executor today. Raise it when you wire one; never lower it. */
+export const ENFORCED_FLOOR = 10;
+
 export const EXECUTORS = {
   5: { name: 'demigod-evidence.mjs (claim shape)', run: checkClaim },
   26: { name: 'demigod-candidate-evidence.mjs projectCandidateEvidence', run: checkCandidateProjection },
@@ -581,6 +635,7 @@ export const EXECUTORS = {
   9: { name: 'demigod-matching-engine.mjs resolveCompanyEvidence', run: checkEvidenceResolver },
   10: { name: 'demigod-company-packet.mjs (quarantine projection)', run: checkQuarantine },
   11: { name: 'demigod-evidence.mjs safeResearchUrl', run: checkSafeUrl },
+  4: { name: 'demigod-evidence.mjs company-row projection', run: checkCompanyRow },
   13: { name: 'demigod-company-packet.mjs buildCompanyPacket', run: checkCompanyPacket },
   29: { name: 'demigod-role-mission-kernel.mjs attachCompany (grok)', run: checkMissionCompany },
   30: { name: 'demigod-board-pay.mjs rolePayVisibility', run: checkBoardPay },
@@ -609,14 +664,25 @@ export async function checkContracts({ file = CONTRACTS } = {}) {
     }
   }
   const violations = results.filter((r) => r.status === 'violation');
+  const pass = results.filter((r) => r.status === 'pass').length;
+  /* Ratchet, not a target. Deleting an executor, or letting a fence drift until its section falls
+     back to `unwired`, used to cost nothing: the run stayed green and the enforced count quietly
+     dropped. The floor only ever moves up, in the same commit that wires the section. Lowering it
+     to make a run green is the one thing it exists to prevent. */
+  /* Only our own document is ratcheted. The poison suite feeds this checker hand-written stubs with
+     one prose section, and those must still report cleanly-unwired rather than breaching a floor
+     that describes a file they are not. */
+  const regressed = path.resolve(file) === path.resolve(CONTRACTS) && pass < ENFORCED_FLOOR;
   return {
     schema: SCHEMA,
-    ok: violations.length === 0,
+    ok: violations.length === 0 && !regressed,
+    ...(regressed ? { error: `enforced sections fell to ${pass}, below the floor of ${ENFORCED_FLOOR} — an executor was removed or a fence stopped matching` } : {}),
     counts: {
       sections: results.length,
-      pass: results.filter((r) => r.status === 'pass').length,
+      pass,
       violation: violations.length,
       unwired: results.filter((r) => r.status === 'unwired').length,
+      enforcedFloor: ENFORCED_FLOOR,
     },
     sections: results,
   };

@@ -91,7 +91,17 @@ Rules:
 | `fields` | object | yes | Claims keyed by frozen field name |
 | `quarantineHiring` | boolean | no | Only literal `true` activates quarantine |
 
-Unknown extra keys are ignored by the projector. Do not use them as hidden decision inputs.
+Unknown extra keys are ignored by the projector. Do not use them as hidden decision inputs. "Ignored"
+is a testable claim, not a convention: the projection of a row with extra keys must be byte-identical
+to the projection of the same row without them, or the key is a decision input that nobody declared.
+
+```text
+demigod.company-row/1
+  id                      => required; a row without one is never selected
+  fields                  => required; a row without one projects unknown, never a partial claim
+  quarantineHiring        => only literal true activates (see §8)
+  extra-keys              => ignored; identical projection with or without them
+```
 
 ## 5. Claim
 
