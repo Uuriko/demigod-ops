@@ -27,6 +27,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
@@ -197,6 +198,81 @@ export async function faqStaticBundle({ pages, maxBytes = DEPLOYABLE_BYTES } = {
   return { ...fragment, html, bytes, headroom: maxBytes - bytes, pairs: pairs.length };
 }
 
+/**
+ * Stage one route's fragment where an authorized publish can paste it, in the shape
+ * demigod-directory-static already stages /startups: the HTML, its SHA256, and a prepare record.
+ *
+ * The point of staging is that publishing later is a paste rather than a build. A publish that has
+ * to regenerate first is a publish that can ship different bytes than the ones anyone reviewed.
+ */
+export function stageRoutePastePackage(fragment, { busy = process.env.DEMIGOD_BUSY || process.env.DG_BUSY || '/tmp/dg-busy' } = {}) {
+  const dir = path.join(busy, 'route-paste', fragment.key);
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const file = `dg-static-${fragment.key}.html`;
+  fs.writeFileSync(path.join(dir, file), fragment.html);
+  const sha256 = createHash('sha256').update(fragment.html).digest('hex');
+  fs.writeFileSync(path.join(dir, 'SHA256'), `${sha256}  ${file}\n`);
+  const record = {
+    schema: 'demigod.route-paste-prepare/1',
+    at: new Date().toISOString(),
+    route: fragment.key,
+    bytes: fragment.bytes,
+    crawlableChars: crawlableText(fragment.html).length,
+    deployableCeilingBytes: DEPLOYABLE_BYTES,
+    deployable: fragment.bytes <= DEPLOYABLE_BYTES,
+    headroom: fragment.headroom,
+    sha256,
+    source: 'DG_PAGES in demigod-foot-core.js — regenerate rather than editing this file',
+    authBoundary: 'Paste into the Webflow page custom code for this route. Publishing needs authorization in the current request.',
+    target: `Webflow ${fragment.key} page-settings custom code — page-scoped only`,
+    packagePath: dir + path.sep,
+  };
+  fs.writeFileSync(path.join(dir, 'prepare.json'), `${JSON.stringify(record, null, 2)}\n`);
+  return record;
+}
+
+/** PURE. HTML-escape text that came from a data file, not from authored markup. */
+function esc(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/**
+ * The blog page a crawler should receive: the shell, plus the bodies of the posts that are actually
+ * published.
+ *
+ * /blog is one of the four data shells — its own copy is 180 crawlable characters, and the essays
+ * arrive at runtime from DG_BLOG_POSTS. So a crawler gets a hero and a call to action while 4,448
+ * characters of essay sit behind JavaScript it will never run.
+ *
+ * `published !== false` is the same rule demigod-blog-sync uses to decide what reaches the foot.
+ * Three of the four posts are drafts and must not appear here: publishing a draft because it was
+ * convenient to render is a worse failure than an empty page.
+ */
+export function blogStaticBundle({ pages, posts, maxBytes = DEPLOYABLE_BYTES } = {}) {
+  const shell = routeStaticFragment('blog', { pages, maxBytes });
+  const published = (Array.isArray(posts) ? posts : []).filter((post) => post?.published !== false && post?.body);
+  const articles = published.map((post) => {
+    const paragraphs = String(post.body)
+      .split(/\n{2,}/)
+      .map((para) => para.trim())
+      .filter(Boolean)
+      .map((para) => `<p>${esc(para)}</p>`)
+      .join('');
+    const dated = post.publishedAt
+      ? `<p class="dg-static-date"><time datetime="${esc(post.publishedAt)}">${esc(post.publishedAt)}</time></p>`
+      : '';
+    return `<article id="note-${esc(post.slug)}"><h2>${esc(post.title)}</h2>${dated}<p><em>${esc(post.summary || '')}</em></p>${paragraphs}</article>`;
+  }).join('\n');
+  const html = `${shell.html}<section id="dg-static-blog-posts" data-dg-static="blog-posts">\n${articles}\n</section>\n`;
+  const bytes = Buffer.byteLength(html);
+  if (bytes > maxBytes) {
+    throw new Error(`route-static: blog bundle is ${bytes} bytes, over the ${maxBytes} ceiling — paginate rather than truncating an essay`);
+  }
+  return { ...shell, html, bytes, headroom: maxBytes - bytes, posts: published.length, drafts: (posts || []).length - published.length };
+}
+
 function selftestPages(pages) {
   const assert = (cond, msg) => { if (!cond) throw new Error(`route-static selftest: ${msg}`); };
   const paths = {};
@@ -255,10 +331,35 @@ async function faqSelftest(pages) {
   return bundle;
 }
 
+function blogSelftest(pages) {
+  const assert = (cond, msg) => { if (!cond) throw new Error(`route-static selftest: ${msg}`); };
+  const posts = JSON.parse(fs.readFileSync(path.join(ROOT, 'demigod-blog-posts.json'), 'utf8'));
+  const list = Array.isArray(posts) ? posts : posts.posts || [];
+  const bundle = blogStaticBundle({ pages, posts: list });
+  const text = crawlableText(bundle.html);
+  const drafts = list.filter((post) => post?.published === false);
+  assert(bundle.posts >= 1, 'the published essay must reach the fragment');
+  assert(text.length > 3000, `blog bundle carries only ${text.length} crawlable characters`);
+  for (const draft of drafts) {
+    assert(!text.includes(String(draft.title)), `draft "${draft.title}" must not be published by a renderer`);
+    const opening = String(draft.body || '').slice(0, 60);
+    assert(!opening || !text.includes(opening), `draft "${draft.title}" body leaked into the fragment`);
+  }
+  // A body that arrives as data is escaped, not trusted: the essays are a file anyone can edit.
+  const escaped = blogStaticBundle({
+    pages,
+    posts: [{ slug: 'x', title: '<script>alert(1)</script>', summary: 's', body: 'Body & more', published: true }],
+  });
+  assert(!/<script>alert/.test(escaped.html), 'a post title must be escaped, never rendered as markup');
+  assert(escaped.html.includes('&amp;'), 'a body ampersand must be escaped');
+  return bundle;
+}
+
 async function runSelftest() {
   const { pages } = loadFootPages();
   const { keys, faqText } = selftestPages(pages);
   const bundle = await faqSelftest(pages);
+  const blog = blogSelftest(pages);
   console.log(JSON.stringify({
     ok: true,
     selftest: 'route-static',
@@ -266,6 +367,9 @@ async function runSelftest() {
     faqCrawlableChars: faqText.length,
     faqPairs: bundle.pairs,
     faqBundleBytes: bundle.bytes,
+    blogPosts: blog.posts,
+    blogDrafts: blog.drafts,
+    blogCrawlableChars: crawlableText(blog.html).length,
   }));
 }
 
@@ -282,10 +386,26 @@ if (isMain) {
       return { key, bytes: fragment.bytes, crawlableChars: chars, kind: chars >= PROSE_MIN_CHARS ? 'prose' : 'data-shell' };
     });
     console.log(JSON.stringify({ schema: 'demigod.route-static/1', routes: rows }, null, 2));
+  } else if (args.includes('--stage')) {
+    const { pages } = loadFootPages();
+    const posts = JSON.parse(fs.readFileSync(path.join(ROOT, 'demigod-blog-posts.json'), 'utf8'));
+    const list = Array.isArray(posts) ? posts : posts.posts || [];
+    const staged = [];
+    for (const key of routeKeysWithProse(pages)) {
+      const fragment = key === 'faq' ? await faqStaticBundle({ pages }) : routeStaticFragment(key, { pages });
+      staged.push(stageRoutePastePackage(fragment));
+    }
+    staged.push(stageRoutePastePackage(blogStaticBundle({ pages, posts: list })));
+    console.log(JSON.stringify({
+      schema: 'demigod.route-static/1',
+      staged: staged.length,
+      totalCrawlableChars: staged.reduce((sum, row) => sum + row.crawlableChars, 0),
+      routes: staged.map((row) => ({ route: row.route, bytes: row.bytes, crawlableChars: row.crawlableChars, deployable: row.deployable })),
+    }, null, 2));
   } else if (flag('route')) {
     const { pages } = loadFootPages();
     process.stdout.write(routeStaticFragment(flag('route'), { pages }).html);
   } else {
-    console.log('usage: demigod-route-static.mjs [--route=KEY | --list | --selftest]');
+    console.log('usage: demigod-route-static.mjs [--route=KEY | --list | --stage | --selftest]');
   }
 }
