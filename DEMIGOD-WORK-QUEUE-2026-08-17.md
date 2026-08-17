@@ -326,6 +326,22 @@ actually reached — that is what the marker is for. Check the ceiling before do
 - **W4-6** — 0 boards shared by more than one company in the live map; the dedupe survivorship
   question does not arise today.
 
+## Ponytail ceilings, measured 2026-08-17
+
+The rule is to check the ceiling before doing the work. Three checked, one acted on.
+
+- **W8-1 CDP client** — ceiling said "a third caller"; there are **five** (webflow-lib, redirects,
+  x-hiring, conversion-audit, user-test), three of which also PUT `/json/new`. Marker updated with
+  the count and the precondition. Not refactored: CDP Chrome is down and two callers are on the
+  Webflow paste path, so a shared client could not be exercised. Do it with Chrome up.
+- **W8-2 registrable label** — ceiling reached and it does not bite. Two live hosts have multi-label
+  suffixes (`bravegroup.co.jp`, `zendesk.co.jp`) and the naive parser already refuses to split them:
+  it emits the full host only, never `co`. Conservative is the safe direction here. No work.
+- **W8-6 50KB footer** — ceiling effectively reached: **31 bytes** of headroom on real data. The
+  generator already trims, says "Listing the N of these M companies" in the served markup, keeps
+  whole-corpus totals honest, and asserts all of that in its selftest. Pagination is the upgrade
+  when the listing must be complete; nothing to fix today.
+
 ## Learned (append, never rewrite)
 
 - **2026-08-17** `openRolesAt` was doing double duty as a date and as a claim. Any field that is
