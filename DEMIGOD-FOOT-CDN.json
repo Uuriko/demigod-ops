@@ -1,33 +1,33 @@
 {
-  "at": "2026-08-06T17:55:53.971Z",
-  "version": "1071",
-  "cdnUrl": "https://files.catbox.moe/7o703k.js",
+  "at": "2026-08-13T21:09:49.500Z",
+  "version": "1101",
+  "cdnUrl": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@7d7d0ebab1d8/foot-latest.js",
   "ok": true,
   "temporary": false,
-  "bytes": 403963,
-  "sha256": "c4926dbb481b167379234f91285f78e7ed44710670dec51ad14ba6f23a5c0e9d",
-  "liveLen": 403112,
-  "loaderLen": 11059,
-  "host": "catbox.moe",
-  "footVer": "1071",
+  "bytes": 432238,
+  "sha256": "062f293d0abab70b703ff069e576f3ce140065b72b71f7db51d910f6e2fccd12",
+  "liveLen": 429881,
+  "loaderLen": 11106,
+  "host": "cdn.jsdelivr.net",
+  "footVer": "1101",
   "assets": {
     "startupMap": {
-      "url": "https://files.catbox.moe/xik8zi.js",
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@7d7d0ebab1d8/startup-map-latest.js",
       "sha256": "e2c952f3ddf9235bc4a7cd81a8529f96e241866905ab901c538b552154ef862a",
       "bytes": 48983
     },
     "mapData": {
-      "url": "https://files.catbox.moe/i7txgf.json",
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@7d7d0ebab1d8/sf-startup-map.json",
       "sha256": "ae9945b93e8aef99113d1fe4e59c5976d7ab9ebf820d9173f5379b99d5c504fa",
       "bytes": 1497196
     },
     "headCss": {
-      "url": "https://files.catbox.moe/ua6eev.css",
-      "sha256": "a72a2ea53fbae13e4602caaa28c1ef03ec6136146e41bc0d349359c8d6bbadb3",
-      "bytes": 123213
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@7d7d0ebab1d8/head-latest.css",
+      "sha256": "db3e15e6653eabab1c595f7f880d2f559533151c7cbde888ebe84c7a92b50ff4",
+      "bytes": 126978
     },
     "rolesFeed": {
-      "url": "https://files.catbox.moe/z3rx1a.json",
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@7d7d0ebab1d8/roles-feed.json",
       "sha256": "8530d71a3555b17350439b99cb00423b0b94f42e8c38be511c05dadf2b2b666b",
       "bytes": 49972
     }

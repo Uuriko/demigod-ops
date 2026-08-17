@@ -1,6 +1,6 @@
 {
   "schema": "demigod.role-packets-store/1",
-  "updatedAt": "2026-07-31T02:57:37.653Z",
+  "updatedAt": "2026-08-17T04:48:47.716Z",
   "packets": {
     "role-demo-founding-eng": {
       "schema": "demigod.role-packet/1",
@@ -143,6 +143,60 @@
         },
         {
           "mustHaveId": "mh4",
+          "moment": "founder",
+          "owner": null
+        }
+      ]
+    },
+    "role-live-abundant": {
+      "schema": "demigod.role-packet/1",
+      "roleId": "role-live-abundant",
+      "demo": false,
+      "companyId": "yc:abundant",
+      "title": "Member of Technical Staff",
+      "outcome90d": "Ship one production platform loop the founder can review within ninety days.",
+      "mustHaves": [
+        {
+          "id": "mh1",
+          "label": "Domain craft for this role",
+          "kind": "skill"
+        },
+        {
+          "id": "mh2",
+          "label": "Evidence of shipping under ambiguity",
+          "kind": "trait"
+        },
+        {
+          "id": "mh3",
+          "label": "Communication clear enough for mutual-yes",
+          "kind": "trait"
+        }
+      ],
+      "dealBreakers": [],
+      "compBand": null,
+      "stages": [
+        "brief_ready",
+        "reviewing",
+        "mutual_pending",
+        "intro",
+        "outcome"
+      ],
+      "stage": "brief_ready",
+      "createdAt": "2026-08-17T04:48:47.714Z",
+      "updatedAt": "2026-08-17T04:48:47.716Z",
+      "interviewPlan": [
+        {
+          "mustHaveId": "mh1",
+          "moment": "screen",
+          "owner": null
+        },
+        {
+          "mustHaveId": "mh2",
+          "moment": "tech",
+          "owner": null
+        },
+        {
+          "mustHaveId": "mh3",
           "moment": "founder",
           "owner": null
         }

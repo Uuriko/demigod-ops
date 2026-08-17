@@ -1,6 +1,6 @@
 {
-  "at": "2026-08-06T17:57:38.449Z",
-  "url": "https://www.trydemigod.com/?v=verify-1786039056750",
+  "at": "2026-08-17T05:05:06.357Z",
+  "url": "https://www.trydemigod.com/?v=verify-1786943105543",
   "htmlScan": {
     "mcpScripts": [],
     "mcpScriptsGone": true,
@@ -66,7 +66,7 @@
     "footerCoreOk": true,
     "footerCoreCopy": {
       "ok": true,
-      "version": "1070",
+      "version": "1102",
       "noSpeedInCopy": true,
       "noNameInCopy": true,
       "hasScrub": true

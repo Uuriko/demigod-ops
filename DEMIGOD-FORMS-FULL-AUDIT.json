@@ -1,11 +1,11 @@
 {
-  "at": "2026-08-06T14:56:51.611Z",
+  "at": "2026-08-15T21:50:31.138Z",
   "url": "https://www.trydemigod.com",
   "source": "local-core",
   "startup": {
     "clicked": true,
     "modalVisible": true,
-    "footVer": "1070",
+    "footVer": "1103",
     "formId": "startup-hire",
     "formName": "startup-hire",
     "fieldCount": 11,
@@ -17,7 +17,7 @@
         "accept": "",
         "required": true,
         "placeholder": "name@company.com",
-        "label": "Contact Email*",
+        "label": "Work email? *",
         "visible": false,
         "value": ""
       },
@@ -46,8 +46,8 @@
         "type": "text",
         "accept": "",
         "required": true,
-        "placeholder": "Role title",
-        "label": "Role title *",
+        "placeholder": "e.g. Founding engineer, first PM",
+        "label": "What role are you hiring? *",
         "visible": true,
         "value": ""
       },
@@ -56,8 +56,8 @@
         "type": "textarea",
         "accept": "",
         "required": true,
-        "placeholder": "Required skills or domain knowledge",
-        "label": "Skills / requirements *",
+        "placeholder": "2–3 must-haves — skip nice-to-haves",
+        "label": "What are the 2–3 true must-haves? *",
         "visible": false,
         "value": ""
       },
@@ -66,8 +66,8 @@
         "type": "textarea",
         "accept": "",
         "required": true,
-        "placeholder": "One concrete result",
-        "label": "What should this person accomplish first?",
+        "placeholder": "One concrete first result (30–90 days)",
+        "label": "What should this person accomplish first? *",
         "visible": false,
         "value": ""
       },
@@ -77,7 +77,7 @@
         "accept": "",
         "required": true,
         "placeholder": "",
-        "label": "Where and how can this person work? *",
+        "label": "Where and how can they work? *",
         "visible": false,
         "value": ""
       },
@@ -109,7 +109,7 @@
         "placeholder": "",
         "label": "",
         "visible": false,
-        "value": "v1070"
+        "value": "v1103"
       },
       {
         "name": "cf-turnstile-response",
@@ -150,15 +150,15 @@
       "stateCount": 0,
       "accessibleStates": 0
     },
-    "screenshot": "/home/potter/audit-shots/forms-audit/startup-desktop-2026-08-06T14-56-32-712Z.png"
+    "screenshot": "/home/potter/audit-shots/forms-audit/startup-desktop-2026-08-15T21-50-18-504Z.png"
   },
   "engineer": {
     "clicked": true,
     "modalVisible": true,
-    "footVer": "1070",
+    "footVer": "1103",
     "formId": "engineer-join",
     "formName": "engineer-join",
-    "fieldCount": 12,
+    "fieldCount": 13,
     "visibleFields": 1,
     "fields": [
       {
@@ -167,7 +167,7 @@
         "accept": "",
         "required": true,
         "placeholder": "Your full name",
-        "label": "",
+        "label": "Your name? *",
         "visible": false,
         "value": ""
       },
@@ -177,7 +177,7 @@
         "accept": "",
         "required": true,
         "placeholder": "you@email.com",
-        "label": "",
+        "label": "Best email? *",
         "visible": false,
         "value": ""
       },
@@ -187,7 +187,7 @@
         "accept": "",
         "required": true,
         "placeholder": "Role, problems, and strongest skills",
-        "label": "",
+        "label": "What kind of work do you want next? *",
         "visible": false,
         "value": ""
       },
@@ -197,7 +197,7 @@
         "accept": "",
         "required": true,
         "placeholder": "Two or three concrete outcomes",
-        "label": "",
+        "label": "Work you are proud of? *",
         "visible": false,
         "value": ""
       },
@@ -217,7 +217,7 @@
         "accept": "",
         "required": true,
         "placeholder": "",
-        "label": "Availability *",
+        "label": "When could you start? *",
         "visible": false,
         "value": ""
       },
@@ -262,6 +262,16 @@
         "value": ""
       },
       {
+        "name": "proof-url",
+        "type": "url",
+        "accept": "",
+        "required": false,
+        "placeholder": "https://github.com/owner/repo/issues/123",
+        "label": "GitHub issue or PR you shipped (optional)",
+        "visible": false,
+        "value": ""
+      },
+      {
         "name": "form_version",
         "type": "hidden",
         "accept": "",
@@ -269,7 +279,7 @@
         "placeholder": "",
         "label": "",
         "visible": false,
-        "value": "v1070"
+        "value": "v1103"
       },
       {
         "name": "cf-turnstile-response",
@@ -294,6 +304,7 @@
       "Private until you approve an intro. Resume optional. potter@trydemigod.com only on real fits — free ",
       "Optional. PDF/DOCX upload or a shareable https link — or skip. Uploaded files are not restored if yo",
       "Optional. Upload a file, paste one shareable HTTPS link, or skip.",
+      "Optional. One issue or pull URL. Evidence for matching, not a public profile.",
       "Not shared with startups until you approve an intro. Free for talent. No public profile, no blasts.",
       "• Demigod and its form provider process your answers for matching only",
       "• A human proposes only real fits — potter@trydemigod.com is the contact channel",
@@ -308,13 +319,13 @@
       "stateCount": 3,
       "accessibleStates": 1
     },
-    "screenshot": "/home/potter/audit-shots/forms-audit/engineer-desktop-2026-08-06T14-56-38-408Z.png"
+    "screenshot": "/home/potter/audit-shots/forms-audit/engineer-desktop-2026-08-15T21-50-22-419Z.png"
   },
   "mobile": {
     "startup": {
       "clicked": true,
       "modalVisible": true,
-      "footVer": "1070",
+      "footVer": "1103",
       "formId": "startup-hire",
       "formName": "startup-hire",
       "fieldCount": 11,
@@ -326,7 +337,7 @@
           "accept": "",
           "required": true,
           "placeholder": "name@company.com",
-          "label": "Contact Email*",
+          "label": "Work email? *",
           "visible": false,
           "value": ""
         },
@@ -355,8 +366,8 @@
           "type": "text",
           "accept": "",
           "required": true,
-          "placeholder": "Role title",
-          "label": "Role title *",
+          "placeholder": "e.g. Founding engineer, first PM",
+          "label": "What role are you hiring? *",
           "visible": true,
           "value": ""
         },
@@ -365,8 +376,8 @@
           "type": "textarea",
           "accept": "",
           "required": true,
-          "placeholder": "Required skills or domain knowledge",
-          "label": "Skills / requirements *",
+          "placeholder": "2–3 must-haves — skip nice-to-haves",
+          "label": "What are the 2–3 true must-haves? *",
           "visible": false,
           "value": ""
         },
@@ -375,8 +386,8 @@
           "type": "textarea",
           "accept": "",
           "required": true,
-          "placeholder": "One concrete result",
-          "label": "What should this person accomplish first?",
+          "placeholder": "One concrete first result (30–90 days)",
+          "label": "What should this person accomplish first? *",
           "visible": false,
           "value": ""
         },
@@ -386,7 +397,7 @@
           "accept": "",
           "required": true,
           "placeholder": "",
-          "label": "Where and how can this person work? *",
+          "label": "Where and how can they work? *",
           "visible": false,
           "value": ""
         },
@@ -418,7 +429,7 @@
           "placeholder": "",
           "label": "",
           "visible": false,
-          "value": "v1070"
+          "value": "v1103"
         },
         {
           "name": "cf-turnstile-response",
@@ -459,15 +470,15 @@
         "stateCount": 0,
         "accessibleStates": 0
       },
-      "screenshot": "/home/potter/audit-shots/forms-audit/startup-mobile-2026-08-06T14-56-44-260Z.png"
+      "screenshot": "/home/potter/audit-shots/forms-audit/startup-mobile-2026-08-15T21-50-26-603Z.png"
     },
     "engineer": {
       "clicked": true,
       "modalVisible": true,
-      "footVer": "1070",
+      "footVer": "1103",
       "formId": "engineer-join",
       "formName": "engineer-join",
-      "fieldCount": 12,
+      "fieldCount": 13,
       "visibleFields": 1,
       "fields": [
         {
@@ -476,7 +487,7 @@
           "accept": "",
           "required": true,
           "placeholder": "Your full name",
-          "label": "",
+          "label": "Your name? *",
           "visible": false,
           "value": ""
         },
@@ -486,7 +497,7 @@
           "accept": "",
           "required": true,
           "placeholder": "you@email.com",
-          "label": "",
+          "label": "Best email? *",
           "visible": false,
           "value": ""
         },
@@ -496,7 +507,7 @@
           "accept": "",
           "required": true,
           "placeholder": "Role, problems, and strongest skills",
-          "label": "",
+          "label": "What kind of work do you want next? *",
           "visible": false,
           "value": ""
         },
@@ -506,7 +517,7 @@
           "accept": "",
           "required": true,
           "placeholder": "Two or three concrete outcomes",
-          "label": "",
+          "label": "Work you are proud of? *",
           "visible": false,
           "value": ""
         },
@@ -526,7 +537,7 @@
           "accept": "",
           "required": true,
           "placeholder": "",
-          "label": "Availability *",
+          "label": "When could you start? *",
           "visible": false,
           "value": ""
         },
@@ -571,6 +582,16 @@
           "value": ""
         },
         {
+          "name": "proof-url",
+          "type": "url",
+          "accept": "",
+          "required": false,
+          "placeholder": "https://github.com/owner/repo/issues/123",
+          "label": "GitHub issue or PR you shipped (optional)",
+          "visible": false,
+          "value": ""
+        },
+        {
           "name": "form_version",
           "type": "hidden",
           "accept": "",
@@ -578,7 +599,7 @@
           "placeholder": "",
           "label": "",
           "visible": false,
-          "value": "v1070"
+          "value": "v1103"
         },
         {
           "name": "cf-turnstile-response",
@@ -603,6 +624,7 @@
         "Private until you approve an intro. Resume optional. potter@trydemigod.com only on real fits — free ",
         "Optional. PDF/DOCX upload or a shareable https link — or skip. Uploaded files are not restored if yo",
         "Optional. Upload a file, paste one shareable HTTPS link, or skip.",
+        "Optional. One issue or pull URL. Evidence for matching, not a public profile.",
         "Not shared with startups until you approve an intro. Free for talent. No public profile, no blasts.",
         "• Demigod and its form provider process your answers for matching only",
         "• A human proposes only real fits — potter@trydemigod.com is the contact channel",
@@ -617,7 +639,7 @@
         "stateCount": 3,
         "accessibleStates": 1
       },
-      "screenshot": "/home/potter/audit-shots/forms-audit/engineer-mobile-2026-08-06T14-56-51-031Z.png"
+      "screenshot": "/home/potter/audit-shots/forms-audit/engineer-mobile-2026-08-15T21-50-30-623Z.png"
     }
   },
   "issues": [],

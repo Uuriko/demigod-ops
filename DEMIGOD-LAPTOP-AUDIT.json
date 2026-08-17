@@ -1,34 +1,32 @@
 {
-  "at": "2026-07-27T03:29:33.231Z",
+  "at": "2026-08-17T02:29:53.188Z",
   "project": "demigod",
   "system": {
     "host": "pop-os",
     "os": "Pop!_OS 24.04 LTS",
     "lan": "192.168.1.218",
     "disk": null,
-    "mem": "Mem:            62Gi        17Gi       4.9Gi       339Mi        45Gi        45Gi",
-    "load": "20:29:31 up 4 days,  5:24,  1 user,  load average: 1.47, 2.14, 1.99"
+    "mem": "Mem:            62Gi       8.9Gi        50Gi       138Mi       7.3Gi        53Gi",
+    "load": "19:29:53 up  6:09,  1 user,  load average: 0.90, 1.22, 1.13"
   },
   "binaries": {
     "grok": {
       "present": true,
       "path": "/home/potter/.local/bin/grok",
-      "version": "grok 0.2.112 (9bbd559437) [stable]"
+      "version": "grok 1.0.4 (d846eb93d9) [stable]"
     },
     "orcaIde": {
-      "present": true,
-      "path": "/home/potter/.local/bin/orca-ide",
-      "version": "orca"
+      "present": false
     },
     "node": {
       "present": true,
-      "path": "/home/potter/.nvm/versions/node/v24.17.0/bin/node",
+      "path": "/home/potter/bin/node",
       "version": "v24.17.0"
     },
     "npm": {
       "present": true,
-      "path": "/home/potter/.nvm/versions/node/v24.17.0/bin/npm",
-      "version": "11.13.0"
+      "path": "/usr/bin/npm",
+      "version": "9.2.0"
     },
     "bun": {
       "present": true,
@@ -36,34 +34,32 @@
       "version": "1.3.14"
     },
     "cursorAgent": {
-      "present": true,
-      "path": "/home/potter/.local/bin/cursor-agent",
-      "version": "2026.06.24-00-45-58-9f61de7"
+      "present": false
     },
     "gh": {
       "present": true,
       "path": "/home/potter/.local/bin/gh",
-      "version": "gh version 2.63.2 (2024-12-05)"
+      "version": "gh version 2.74.0 (2025-05-29)"
     },
     "python3": {
       "present": true,
-      "path": "/home/potter/.local/bin/python3",
+      "path": "/usr/bin/python3",
       "version": "Python 3.12.3"
     }
   },
   "services": {
-    "cdp": true,
+    "cdp": false,
     "cdpUrl": "http://127.0.0.1:9223",
-    "orcaMobile": true,
+    "orcaMobile": false,
     "gameServer": false
   },
   "demigod": {
     "live": "https://www.trydemigod.com",
     "designer": "https://talentlink-sf.design.webflow.com/",
-    "footCore": "v820",
+    "footCore": "v1103",
     "verifyLive": {
-      "at": "2026-07-27T03:16:55.824Z",
-      "url": "https://www.trydemigod.com/?v=verify-1785122215064",
+      "at": "2026-08-17T02:28:13.613Z",
+      "url": "https://www.trydemigod.com/?v=verify-1786933692863",
       "htmlScan": {
         "mcpScripts": [],
         "mcpScriptsGone": true,
@@ -83,6 +79,18 @@
             "aliases": [
               "jobseeker-form",
               "engineer-join"
+            ]
+          },
+          {
+            "name": "partner-apply",
+            "present": true,
+            "aliases": [
+              "partner-apply"
+            ],
+            "fields": [
+              "partner-name",
+              "partner-email",
+              "referral-plan"
             ]
           }
         ],
@@ -117,26 +125,14 @@
         "footerCoreOk": true,
         "footerCoreCopy": {
           "ok": true,
-          "version": "820",
+          "version": "1102",
           "noSpeedInCopy": true,
           "noNameInCopy": true,
           "hasScrub": true
         },
         "runtimeNavOk": true,
         "badgeHiddenByCss": true,
-        "tallyConfigured": false,
-        "formsMode": "webflow-footer-core",
-        "tallyHosts": {
-          "startup": false,
-          "engineer": false
-        },
-        "staticDrift": [
-          {
-            "severity": "medium",
-            "issue": "hello@ contact in static HTML (runtime scrubs to potter@)"
-          }
-        ],
-        "liveWebhookUrl": "https://blvd-representation-hide-chris.trycloudflare.com/api/events-bot/"
+        "staticDrift": []
       },
       "metaCounts": {
         "description": 1,
@@ -144,8 +140,8 @@
       },
       "pageScan": {
         "postJob": false,
-        "hireTalent": 2,
-        "findTalent": 1,
+        "hireTalent": 3,
+        "findTalent": 0,
         "joinNetwork": 1,
         "getJob": 0,
         "talentLink": false,
@@ -156,27 +152,42 @@
         "edtech": false,
         "webflowBadge": true
       },
-      "findings": [
-        {
-          "severity": "medium",
-          "issue": "Static HTML drift (runtime OK): hello@ contact in static HTML (runtime scrubs to potter@)"
-        }
-      ],
+      "findings": [],
       "pass": true
     },
     "verifySource": {
-      "at": "2026-07-27T03:29:09.679Z",
+      "at": "2026-08-17T02:29:47.692Z",
       "architecture": "head-minimal-css + foot-core-cdn",
       "checks": [
         {
+          "name": "forms:no-dormant-analytics",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:wiz-resume-step-sync",
+          "ok": true,
+          "detail": "showStep must persist every forward/back/edit navigation through the existing draft writer"
+        },
+        {
           "name": "head:size-under-cap",
           "ok": true,
-          "detail": "43273/50000 (6727 left)"
+          "detail": "44698/50000 (5302 left)"
         },
         {
           "name": "head:hide-webflow-badge",
           "ok": true,
           "detail": null
+        },
+        {
+          "name": "head:turnstile-modal-defer",
+          "ok": true,
+          "detail": "Turnstile must defer until a form opens while preserving Webflow script initialization"
+        },
+        {
+          "name": "head:no-raw-title-tag-in-source",
+          "ok": true,
+          "detail": "head-minimal must not contain a raw HTML title tag (leaks into live HTML / soft SEO noise)"
         },
         {
           "name": "head:no-retired-hero-asset",
@@ -194,6 +205,16 @@
           "detail": null
         },
         {
+          "name": "head:nojs-hero-flow",
+          "ok": true,
+          "detail": "the authored no-JavaScript hero heading must use intrinsic height without affecting the JavaScript-on critical box"
+        },
+        {
+          "name": "head:nojs-native-actions",
+          "ok": true,
+          "detail": "no-JavaScript fallback must expose native Home/email actions, not script-only routes or inert hash CTAs"
+        },
+        {
           "name": "head:heavy-meta",
           "ok": true,
           "detail": null
@@ -206,12 +227,17 @@
         {
           "name": "head:hero-font-no-layout-swap",
           "ok": true,
-          "detail": "Unbounded must use display=optional; Lighthouse traced the live hero CLS to its late swap"
+          "detail": "hero must use the system sans stack instead of downloading the decorative Unbounded font"
+        },
+        {
+          "name": "css:critical-hero-geometry",
+          "ok": true,
+          "detail": "head CSS must reserve the final hero geometry before foot-core loads"
         },
         {
           "name": "head:preconnect-budget",
           "ok": true,
-          "detail": "Webflow already preconnects its CDN and Google Fonts; custom head should add only critical jsDelivr"
+          "detail": "custom head has no redundant preconnects; critical CSS and hero preload are discovered immediately"
         },
         {
           "name": "site:no-internal-leak",
@@ -247,6 +273,11 @@
           "name": "head:canonical-https",
           "ok": true,
           "detail": null
+        },
+        {
+          "name": "head:route-alias-consolidation",
+          "ok": true,
+          "detail": "legacy product paths must target canonical pages, Refer needs its canonical, and nav JSON-LD must list only 10 real surfaces"
         },
         {
           "name": "head:blog-canonical",
@@ -379,11 +410,6 @@
           "detail": null
         },
         {
-          "name": "head:preconnect-og-image",
-          "ok": true,
-          "detail": null
-        },
-        {
           "name": "head:favicon-svg",
           "ok": true,
           "detail": null
@@ -444,34 +470,14 @@
           "detail": null
         },
         {
-          "name": "head:hero-shell-only",
+          "name": "head:no-obsolete-ix-unhide",
           "ok": true,
-          "detail": null
+          "detail": "head must not restore the retired Webflow IX visibility workaround"
         },
         {
-          "name": "head:unhide-v5-safe",
+          "name": "core:no-obsolete-ix-unhide",
           "ok": true,
-          "detail": null
-        },
-        {
-          "name": "head:early-unhide-shell",
-          "ok": true,
-          "detail": null
-        },
-        {
-          "name": "head:unhide-transform-hero",
-          "ok": true,
-          "detail": null
-        },
-        {
-          "name": "head:noscript-shell",
-          "ok": true,
-          "detail": null
-        },
-        {
-          "name": "head:critical-transform-hero",
-          "ok": true,
-          "detail": null
+          "detail": "foot must not restore the retired Webflow IX visibility workaround"
         },
         {
           "name": "head:path-redirects",
@@ -482,11 +488,6 @@
           "name": "head:skip-main-target",
           "ok": true,
           "detail": "early skip link must create #main and a main landmark from the existing hero when Webflow has no <main>"
-        },
-        {
-          "name": "head:unhide-main-header",
-          "ok": true,
-          "detail": null
         },
         {
           "name": "head:contact-scrub",
@@ -510,11 +511,6 @@
         },
         {
           "name": "head:path-pills-not-force-hidden",
-          "ok": true,
-          "detail": null
-        },
-        {
-          "name": "head:preconnect-foot-cdn",
           "ok": true,
           "detail": null
         },
@@ -544,6 +540,11 @@
           "detail": null
         },
         {
+          "name": "footer:cdn-matches-manifest",
+          "ok": true,
+          "detail": "footer=https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@7d7d0ebab1d8/foot-latest.js manifest=https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@7d7d0ebab1d8/foot-latest.js"
+        },
+        {
           "name": "footer:inline-scripts-parse",
           "ok": true,
           "detail": ""
@@ -551,7 +552,12 @@
         {
           "name": "footer:path-redirects",
           "ok": true,
-          "detail": "need blog|notes + method + #note-slug + /fees→pricing + /security→legal + /network→?p=talent (v28/c201/c247)"
+          "detail": "need blog|notes + /method→how + #note-slug + /fees→pricing + /security→legal + /network→talent"
+        },
+        {
+          "name": "footer:route-alias-consolidation",
+          "ok": true,
+          "detail": "legacy footer routes must preserve inbound URLs without regenerating retired page ids"
         },
         {
           "name": "footer:sample-path",
@@ -559,14 +565,14 @@
           "detail": "footer-lite must redirect /sample → ?p=sample (pairs with core DG_PAGES.sample)"
         },
         {
-          "name": "footer:pilot-path",
+          "name": "pilot:retired-alias",
           "ok": true,
-          "detail": "footer-lite + footer-loader must redirect /pilot → ?p=pilot (pairs with DG_PAGES.pilot + legal nav)"
+          "detail": "legacy /pilot and ?p=pilot must resolve to hire; the public Pilot page/link/metadata stay retired"
         },
         {
           "name": "core:version-marker",
           "ok": true,
-          "detail": "v820"
+          "detail": "v1103"
         },
         {
           "name": "coreJs:run-defined-if-called",
@@ -609,14 +615,29 @@
           "detail": null
         },
         {
+          "name": "core:unique-submit-trust",
+          "ok": true,
+          "detail": "both wizard trust notes must share a class, never a duplicated document id"
+        },
+        {
           "name": "core:form-autocomplete",
           "ok": true,
           "detail": null
         },
         {
-          "name": "core:offer-abandon-a11y",
+          "name": "core:no-exit-interstitial",
           "ok": true,
-          "detail": "offerAbandon must be dialog (aria-modal + label) with Escape close + focus #dg-abandon-email"
+          "detail": "wizard Close must not open a follow-up interstitial; same-tab draft resume stays intact"
+        },
+        {
+          "name": "core:turnstile-modal-flush",
+          "ok": true,
+          "detail": "opening either form modal must load the deferred Turnstile protection"
+        },
+        {
+          "name": "core:brandAssets-cascade",
+          "ok": true,
+          "detail": "brandAssets 36124b plus=177"
         },
         {
           "name": "core:route-fees-security",
@@ -624,9 +645,14 @@
           "detail": null
         },
         {
-          "name": "core:legal-links-pilot",
+          "name": "core:route-alias-consolidation",
           "ok": true,
-          "detail": "Pilot must be in #dg-legal-links + path map + DG_PAGES (no orphan /?p=pilot)"
+          "detail": "duplicate pages and their dead presentation code must stay deleted while legacy aliases target canonical pages"
+        },
+        {
+          "name": "core:community-manage-on-demand",
+          "ok": true,
+          "detail": "submission management stays hidden until relevant, and blocked storage cannot destroy its private credential"
         },
         {
           "name": "core:sample-page",
@@ -634,9 +660,19 @@
           "detail": "DG_PAGES.sample honesty required (Sample matches + no fake placements); ban sample→notfound"
         },
         {
-          "name": "core:pilot-page",
+          "name": "core:sample-one-match-one-pass",
           "ok": true,
-          "detail": "DG_PAGES.pilot + /pilot path + legal-nav Pilot link required (v507 discoverability)"
+          "detail": "sample must show one useful match and one useful pass without mirrored audience blocks"
+        },
+        {
+          "name": "core:no-zero-behavior-page-branches",
+          "ok": true,
+          "detail": "remove impossible or unread page branches, one-reader constants, and the ignored mk return"
+        },
+        {
+          "name": "core:home-proof-links",
+          "ok": true,
+          "detail": "home must reveal only scrubbed process/pricing, hide sample-role/blog/decorative sections, and expose sample + SF directory"
         },
         {
           "name": "core:notfound-page",
@@ -644,9 +680,49 @@
           "detail": "DG_PAGES.notfound soft-404 page required (title + doc)"
         },
         {
-          "name": "core:pilot-legal-nav",
+          "name": "core:compact-footer",
           "ok": true,
-          "detail": "DG_PAGES.pilot + path /pilot + #dg-legal-links Pilot link required (v507 orphan fix)"
+          "detail": "footer: Product (how/pricing/hire/talent/faq) + Company (about/map/contact/legal/email); no explore link-farm"
+        },
+        {
+          "name": "core:header-site-directory",
+          "ok": true,
+          "detail": "logo-only header must expose a native, keyboard-visible directory to every canonical public area"
+        },
+        {
+          "name": "core:product-page-stable-insertion",
+          "ok": true,
+          "detail": "product pages must enter before the homepage shell is hidden, preventing a full-body layout shift"
+        },
+        {
+          "name": "head:routed-shell-out-of-flow-before-ready",
+          "ok": true,
+          "detail": "deep routes must keep the Webflow shell out of layout until the routed page is ready"
+        },
+        {
+          "name": "head:single-attested-foot-preload",
+          "ok": true,
+          "detail": "head must discover exactly one approved foot runtime before the footer loader"
+        },
+        {
+          "name": "head:attested-startup-directory-assets",
+          "ok": true,
+          "detail": "runtime directory script, data, and roles feed must use the exact release-attested asset URLs"
+        },
+        {
+          "name": "core:mobile-footer-action-dedupe",
+          "ok": true,
+          "detail": "mobile keeps stacked dual-path panels; hide only footer action pair (sticky bar covers scroll depth)"
+        },
+        {
+          "name": "core:cta-visible-name-match",
+          "ok": true,
+          "detail": "CTA accessible names must come from their visible labels so speech input and screen readers agree"
+        },
+        {
+          "name": "core:faq-lean",
+          "ok": true,
+          "detail": "FAQ must match the 17 ordered FAQPage schema questions (visible == schema for /faq SEO)"
         },
         {
           "name": "core:no-fake-sms-trust",
@@ -669,17 +745,17 @@
           "detail": null
         },
         {
-          "name": "core:show-defined-if-called",
-          "ok": true,
-          "detail": null
-        },
-        {
           "name": "core:enhanceWIZ-defined-if-called",
           "ok": true,
           "detail": null
         },
         {
           "name": "core:wizBuild-defined-if-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:show-defined-if-called",
           "ok": true,
           "detail": null
         },
@@ -736,7 +812,7 @@
         {
           "name": "core:blog-sor-in-sync",
           "ok": true,
-          "detail": "1posts+dynSoR+deeplink+hash+rmotion+lazyDims"
+          "detail": "1 published post(s), routes+renderer+deep-link aligned"
         },
         {
           "name": "core:lazy-decode-async",
@@ -756,7 +832,7 @@
         {
           "name": "footer:boot-smoke",
           "ok": true,
-          "detail": "820"
+          "detail": "1103"
         },
         {
           "name": "combined:forms-via-footer",
@@ -861,140 +937,33 @@
         {
           "name": "privacy:no-committable-sor",
           "ok": true,
-          "detail": "tracked=554; privacyRules=56; no committable SoR/PII"
+          "detail": "tracked=1680; privacyRules=56; no committable SoR/PII"
         },
         {
           "name": "sor:import-integrity",
           "ok": true,
-          "detail": "import-integrity OK edges=389 contracts=11"
+          "detail": "import-integrity OK edges=607 contracts=10 · gate-advisory untracked=1 missing=0"
+        },
+        {
+          "name": "referrals:lifecycle",
+          "ok": true,
+          "detail": "ℹ duration_ms 236.311099"
         }
       ],
       "pass": true
     }
   },
   "chrome": {
-    "up": true,
-    "count": 23,
-    "purposefulCount": 7,
-    "byRole": {
-      "other": 8,
-      "iframe-noise": 6,
-      "webflow-dash": 2,
-      "live": 1,
-      "chrome-ui": 2,
-      "grok": 4
-    },
-    "urls": [
-      {
-        "role": "other",
-        "url": "https://webflow.com/login?r=https%3A%2F%2Fwebflow.com%2Fexternal%2Fdesigner%2Ftalentlink-sf"
-      },
-      {
-        "role": "other",
-        "url": "about:blank"
-      },
-      {
-        "role": "other",
-        "url": "http://127.0.0.1:9878/#tools"
-      },
-      {
-        "role": "iframe-noise",
-        "url": "https://js.stripe.com/v3/m-outer-3437aaddcdf6922d623e172c2d6f9278.html#url=https%3A%2F%2Fwebflow.com%2Fdashboard%2Fsites"
-      },
-      {
-        "role": "webflow-dash",
-        "url": "https://webflow.com/dashboard/sites/talentlink-sf/custom-code"
-      },
-      {
-        "role": "iframe-noise",
-        "url": "https://js.stripe.com/v3/controller-with-preconnect-1dc9f6b2ecfde14a6c95d0334d469629.html#__shared_params__[version]=v3&"
-      },
-      {
-        "role": "iframe-noise",
-        "url": "https://m.stripe.network/inner.html#url=https%3A%2F%2Fwebflow.com%2Fdashboard%2Fsites%2Ftalentlink-sf%2Fcustom-code&titl"
-      },
-      {
-        "role": "live",
-        "url": "https://www.trydemigod.com/startups"
-      },
-      {
-        "role": "chrome-ui",
-        "url": "chrome://omnibox-popup.top-chrome/"
-      },
-      {
-        "role": "other",
-        "url": "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/offscreen.html"
-      },
-      {
-        "role": "other",
-        "url": "chrome-extension://fcoeoabgfenejglbffodgkkbkcdhcgfn/offscreen.html"
-      },
-      {
-        "role": "grok",
-        "url": "https://m.stripe.network/inner.html#url=https%3A%2F%2Fgrok.com%2F&title=Grok&referrer=&muid=d006d3d1-6edd-4c3b-8bec-75d0"
-      },
-      {
-        "role": "grok",
-        "url": "https://js.stripe.com/v3/m-outer-3437aaddcdf6922d623e172c2d6f9278.html#url=https%3A%2F%2Fgrok.com%2F&title=Grok&referrer"
-      },
-      {
-        "role": "grok",
-        "url": "https://grok.com/"
-      },
-      {
-        "role": "chrome-ui",
-        "url": "chrome://omnibox-popup.top-chrome/omnibox_popup_aim.html"
-      },
-      {
-        "role": "other",
-        "url": "chrome-extension://fcoeoabgfenejglbffodgkkbkcdhcgfn/service-worker-loader.js"
-      },
-      {
-        "role": "other",
-        "url": "chrome-extension://ghmbeldphafepmbegfdlkpapadhbakde/background.js"
-      },
-      {
-        "role": "grok",
-        "url": "blob:https://grok.com/1b31faa1-148a-4ff6-a923-13ebaba46481"
-      },
-      {
-        "role": "other",
-        "url": "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/service-worker.js"
-      },
-      {
-        "role": "iframe-noise",
-        "url": "https://m.stripe.network/inner.html#url=https%3A%2F%2Fwebflow.com%2Fdashboard%2Fsites%2Ftalentlink-sf%2Fforms&title=Demi"
-      },
-      {
-        "role": "iframe-noise",
-        "url": "https://js.stripe.com/v3/m-outer-3437aaddcdf6922d623e172c2d6f9278.html#url=https%3A%2F%2Fwebflow.com%2Fdashboard%2Fsites"
-      },
-      {
-        "role": "iframe-noise",
-        "url": "https://js.stripe.com/v3/controller-with-preconnect-ebbaa08db5b50aeb597a91378898c883.html#__shared_params__[version]=v3&"
-      },
-      {
-        "role": "webflow-dash",
-        "url": "https://webflow.com/dashboard/sites/talentlink-sf/forms"
-      }
-    ]
+    "up": false,
+    "tabs": []
   },
   "git": {
-    "dirtyFiles": 883,
-    "rootArtifacts": 135
+    "dirtyFiles": 168,
+    "rootArtifacts": 78
   },
   "orca": {
-    "reachable": true,
-    "worktrees": [
-      "master",
-      "mobile-grok-hub",
-      "manual-shell",
-      "orca-explore",
-      "demigod-ops",
-      "demigod",
-      "demigod-swarm",
-      "potter-hub"
-    ]
+    "reachable": false,
+    "worktrees": []
   },
   "files": [
     {
@@ -1040,40 +1009,17 @@
     {
       "file": "bin/dg-orca",
       "ok": true
-    },
-    {
-      "file": ".cursor/mcp.json",
-      "ok": true
-    },
-    {
-      "file": ".cursor/rules/demigod.mdc",
-      "ok": true
     }
   ],
-  "mcp": {
-    "mcpServers": {
-      "chrome-devtools": {
-        "command": "npx",
-        "args": [
-          "-y",
-          "chrome-devtools-mcp@latest",
-          "--browserUrl=http://127.0.0.1:9223",
-          "--no-performance-crux"
-        ],
-        "env": {
-          "DEBUG": ""
-        }
-      },
-      "webflow": {
-        "url": "https://mcp.webflow.com/mcp"
-      }
-    }
-  },
-  "issues": [],
+  "mcp": null,
+  "issues": [
+    "Chrome CDP off — agents cannot verify or automate browser"
+  ],
   "recommendations": [
-    "Trim browser tabs (7 purposeful): ~/agent-dev.sh tabs-cleanup",
-    "Archive run artifacts: ~/agent-dev.sh archive",
+    "Start session: ~/agent-dev.sh ready",
+    "Orca IDE offline — canonical recovery: bin/dg orca up",
+    "Write desk snapshot: ~/agent-dev.sh ready",
     "Start of day: ~/agent-dev.sh ready · Before publish: ~/agent-dev.sh ship"
   ],
-  "score": "green"
+  "score": "yellow"
 }

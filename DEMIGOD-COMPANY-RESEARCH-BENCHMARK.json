@@ -880,8 +880,8 @@
         "productSummary": {
           "value": "AI app builder that creates websites and web apps from chat.",
           "status": "supported",
-          "url": "https://lovable.dev/",
-          "quote": "Create apps and websites by chatting with AI"
+          "url": "https://lovable.dev/pricing",
+          "quote": "Simply chat to instantly build websites and web apps"
         },
         "productCategory": {
           "value": "AI software engineer / vibe coding platform",
@@ -892,8 +892,8 @@
         "likelyBuyer": {
           "value": "founders, product managers, designers, and marketers building web products",
           "status": "supported",
-          "url": "https://lovable.dev/",
-          "quote": "Teams from top companies build with Lovable"
+          "url": "https://docs.lovable.dev/introduction/welcome",
+          "quote": "Founders and entrepreneurs launching MVPs or testing early product ideas"
         },
         "pricingStatus": {
           "value": "freemium with paid capacity plans",
@@ -912,19 +912,19 @@
           "value": "MintMCP",
           "status": "supported",
           "url": "https://www.mintmcp.com/",
-          "quote": "MintMCP is the management layer for enterprise agents."
+          "quote": "MintMCP - Agent Governance"
         },
         "productSummary": {
           "value": "Governed access layer for enterprise AI tools, connectors, and autonomous agents.",
           "status": "supported",
           "url": "https://www.mintmcp.com/",
-          "quote": "MintMCP is the management layer for enterprise agents."
+          "quote": "One governed path for every tool, connector, and agent."
         },
         "productCategory": {
           "value": "enterprise AI-agent governance and MCP gateway",
           "status": "supported",
           "url": "https://www.mintmcp.com/",
-          "quote": "The MCP Gateway scopes & audits connections across Claude, Cursor, & MCP servers."
+          "quote": "Route every agent and MCP tool through one gateway you control"
         },
         "likelyBuyer": {
           "value": "enterprise engineering and security teams",
@@ -1166,5 +1166,5 @@
       "mapDefects": []
     }
   ],
-  "reseedNote": "2026-08-05: re-pinned company ids to current map selector after directory-aging (selection drift). Retained field evidence for overlap; new admits unknown until researched. 2026-08-06: researched new admits (Ambient, NewsBreak, Cowboy Space, Maven, Lovable, C1, Softmax, Jäntra, Augmental, Bedrock); repointed GigaGen evidence to gigagen.com after grifols.com fetch failures. 2026-08-06b: pricingStatus for GigaGen + Jäntra as honest no-public-price (pipeline/research)."
+  "reseedNote": "2026-08-05: re-pinned company ids to current map selector after directory-aging (selection drift). Retained field evidence for overlap; new admits unknown until researched. 2026-08-06: researched new admits (Ambient, NewsBreak, Cowboy Space, Maven, Lovable, C1, Softmax, Jäntra, Augmental, Bedrock); repointed GigaGen evidence to gigagen.com after grifols.com fetch failures. 2026-08-06b: pricingStatus for GigaGen + Jäntra as honest no-public-price (pipeline/research). 2026-08-14: live reseal keepers — MintMCP homepage copy rotated (canonicalCompany/productSummary/productCategory quotes re-pinned to text still on www.mintmcp.com); Lovable apex homepage http:403 to demigod-perf-cache (and Chrome UA), so productSummary repointed to lovable.dev/pricing and likelyBuyer to docs.lovable.dev/introduction/welcome with new exact quotes. No invented quotes; values unchanged; no people data."
 }

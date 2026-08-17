@@ -1,5 +1,5 @@
 {
-  "at": "2026-08-08T00:15:52.552Z",
+  "at": "2026-08-17T05:05:05.505Z",
   "architecture": "head-minimal-css + foot-core-cdn",
   "checks": [
     {
@@ -15,7 +15,7 @@
     {
       "name": "head:size-under-cap",
       "ok": true,
-      "detail": "44577/50000 (5423 left)"
+      "detail": "44698/50000 (5302 left)"
     },
     {
       "name": "head:hide-webflow-badge",
@@ -385,7 +385,7 @@
     {
       "name": "footer:cdn-matches-manifest",
       "ok": true,
-      "detail": "footer=https://files.catbox.moe/7o703k.js manifest=https://files.catbox.moe/7o703k.js"
+      "detail": "footer=https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@7d7d0ebab1d8/foot-latest.js manifest=https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@7d7d0ebab1d8/foot-latest.js"
     },
     {
       "name": "footer:inline-scripts-parse",
@@ -415,7 +415,7 @@
     {
       "name": "core:version-marker",
       "ok": true,
-      "detail": "v1096"
+      "detail": "v1103"
     },
     {
       "name": "coreJs:run-defined-if-called",
@@ -675,7 +675,7 @@
     {
       "name": "footer:boot-smoke",
       "ok": true,
-      "detail": "1096"
+      "detail": "1103"
     },
     {
       "name": "combined:forms-via-footer",
@@ -780,17 +780,17 @@
     {
       "name": "privacy:no-committable-sor",
       "ok": true,
-      "detail": "tracked=1381; privacyRules=56; no committable SoR/PII"
+      "detail": "tracked=1686; privacyRules=56; no committable SoR/PII"
     },
     {
       "name": "sor:import-integrity",
       "ok": true,
-      "detail": "import-integrity OK edges=563 contracts=10"
+      "detail": "import-integrity OK edges=623 contracts=10 · gate-advisory untracked=1 missing=0"
     },
     {
       "name": "referrals:lifecycle",
       "ok": true,
-      "detail": "ℹ duration_ms 240.883588"
+      "detail": "ℹ duration_ms 234.18145"
     }
   ],
   "pass": true
