@@ -456,6 +456,10 @@ if (SELFTEST) {
     'recognizes the canonical foot-latest loader without an id',
   );
   checkSelf(
+    footLoaderUrls('<script id="demigod-foot-cdn-loader" src="https://cdn.jsdelivr.net/gh/org/repo@sha/foot-latest.js" integrity="sha384-AAAA" crossorigin="anonymous" defer></script>').length === 1,
+    'a loader carrying SRI is still recognised as the loader — the attributes must not hide the tag from our own parser',
+  );
+  checkSelf(
     footLoaderUrls('<script src="https://cdn.jsdelivr.net/gh/org/repo@sha/unrelated.js"></script>').length === 0,
     'ignores unrelated scripts on an approved CDN host',
   );
@@ -1236,11 +1240,23 @@ else if(/^\\/pilot\\/?$/i.test(p))go('/?p=hire');
 else if(/^\\/status\\/?$/i.test(p))go('/?p=about');
 })();</script>`;
 const ver = (liveJs.match(/__dgFootVer\s*=\s*['"](\d+)['"]/) || [])[1] || '?';
-const loader = `<!-- demigod-foot-cdn-loader v28 + events + foot v${ver}${temporary ? ' TEMP-litterbox-72h' : ''} -->\n${redirect}\n${publicRolesDataBlock(publicRoles)}<script id="demigod-foot-cdn-loader" src="${cdnUrl}" defer></script>\n`;
+/* Subresource integrity, computed from the bytes the CDN is ALREADY SERVING rather than from the
+ * source we uploaded. Those are attested equal a few lines up, so the two are the same today — but
+ * the failure this ordering prevents is the one that killed Dasha's board twice: a pin taken from
+ * what we meant to publish, against a URL serving something else, refused by the browser with no
+ * error anywhere in our own gates. A hash of the fetched bytes cannot be wrong about the fetched
+ * bytes. `crossorigin` is required for SRI on a cross-origin script, and jsDelivr sends
+ * Access-Control-Allow-Origin: * — without it the browser refuses the script outright.
+ * The URL is already commit-pinned, so drift after this point would mean jsDelivr served different
+ * bytes for an immutable ref; SRI turns that from a silent swap into a refusal, which is the
+ * correct outcome for a script that runs on every page. */
+const footSri = `sha384-${crypto.createHash('sha384').update(Buffer.from(liveJs, 'utf8')).digest('base64')}`;
+const loader = `<!-- demigod-foot-cdn-loader v28 + events + foot v${ver}${temporary ? ' TEMP-litterbox-72h' : ''} -->\n${redirect}\n${publicRolesDataBlock(publicRoles)}<script id="demigod-foot-cdn-loader" src="${cdnUrl}" integrity="${footSri}" crossorigin="anonymous" defer></script>\n`;
 const manifest = JSON.stringify({
   at: new Date().toISOString(),
   version: ver,
   cdnUrl,
+  footSri,
   ok,
   temporary: !!temporary,
   // The fetched asset is SHA/byte-attested above. Record the immutable
