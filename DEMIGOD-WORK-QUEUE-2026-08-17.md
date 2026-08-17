@@ -326,6 +326,21 @@ actually reached — that is what the marker is for. Check the ceiling before do
 - **W4-6** — 0 boards shared by more than one company in the live map; the dedupe survivorship
   question does not arise today.
 
+## W6-1 sharpened: the aggregate form needs no decision
+
+`node demigod-posting-age-index.mjs --json`, run 2026-08-17, already produces a defensible original
+data table: 333 SF companies with a verified public ATS board, 8,277 open roles, 4,724 with a date
+attributable to the company's own ATS, **1,304 of those posted 90–365 days — 27.6%** — plus 276
+evergreen roles counted separately and never folded in.
+
+It carries its own limits, including the uncomfortable one: *"Demigod independently observed 0 of
+these roles open for 90 days or more; the rest of the window rests on those ATS dates."*
+
+This means P2 decision #15 (named companies vs aggregate) **does not block it**. The aggregate names
+nobody and invites no dispute. What is left is a host page and a publish — and it cannot go in the
+`/startups` footer payload, which has 31 bytes of headroom. Naming companies with day counts stays a
+separate, later, and much more contentious product.
+
 ## W6-4 measured: the consent receipt has neither end
 
 `demigod-taste-prior.mjs` is a complete, tested, fail-closed module — adversarial cases for a forged
