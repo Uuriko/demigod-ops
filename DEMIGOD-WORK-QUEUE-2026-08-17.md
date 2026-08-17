@@ -326,6 +326,28 @@ actually reached — that is what the marker is for. Check the ceiling before do
 - **W4-6** — 0 boards shared by more than one company in the live map; the dedupe survivorship
   question does not arise today.
 
+## The second sweep: 46 selftests nobody called
+
+After the 101 orphan `*.test.mjs` files, the same question asked of `--selftest` modes found 46 more
+modules whose selftest was in no runner. Measured before wiring: the whole set costs **under five
+seconds**. Two were failing while nobody looked.
+
+- **`demigod-public-comp.mjs`** — "OTE $200k–$250k" was extracted twice, once as the range and once
+  as a `$200k` point band, because the dedupe key is `unit|min|max` and those are two different
+  keys. The floor of a published band presented as the band — the same defect as the morning's
+  Greenhouse entity bug, from the other side. `board-pay` was safe only because it takes `[0]` and
+  the range happened to sort first.
+- **`demigod-navigation-audit.mjs`** — needs `--selftest --local`; it had simply never been called
+  correctly.
+- `demigod-agent-dashboard.mjs` has no selftest at all (the flag string matched something else) and
+  `demigod-verify-all.mjs` is the suite itself. Both excluded.
+
+`demigod-foot-cdn-publish.mjs` is in the wired set deliberately: it guards the publish path, it was
+changed twice tonight, and its selftest was outside the suite.
+
+Also wired: `docs/exchange/demigod-recruiting-research-pack.test.mjs`, the one Demigod test living
+outside the repo root and therefore outside every glob anyone has written to find these.
+
 ## W6-1 sharpened: the aggregate form needs no decision
 
 `node demigod-posting-age-index.mjs --json`, run 2026-08-17, already produces a defensible original

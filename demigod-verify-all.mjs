@@ -302,6 +302,60 @@ if (ship || wizard) {
     ['demigod-wiz-step-announcement.test.mjs'],
     ['demigod-wizard-close.test.mjs'],
     ['demigod-x-self-announcement.test.mjs'],
+    /* Wired 2026-08-17. Forty-six modules carried a --selftest that no runner called; measured
+       first, the whole set costs under five seconds. Two were failing while nobody looked:
+       public-comp returned a published range AND a point band for the same money, and
+       navigation-audit needs --local, which is why it had "never passed". foot-cdn-publish is in
+       here deliberately — it guards the publish path and its selftest was outside the suite. */
+    ['demigod-button-audit.mjs', ['--selftest']],
+    ['demigod-call-note.mjs', ['--selftest']],
+    ['demigod-candidate-touch.mjs', ['--selftest']],
+    ['demigod-cdp-mobile-a11y-sweep.mjs', ['--selftest']],
+    ['demigod-cm6-paste-publish.mjs', ['--selftest']],
+    ['demigod-company-intelligence.mjs', ['--selftest']],
+    ['demigod-company-peers.mjs', ['--selftest']],
+    ['demigod-control-board.mjs', ['--selftest']],
+    ['demigod-directory-aging.mjs', ['--selftest']],
+    ['demigod-enrichment.mjs', ['--selftest']],
+    ['demigod-faq-schema.mjs', ['--selftest']],
+    ['demigod-foot-cdn-publish.mjs', ['--selftest']],
+    ['demigod-github-agent.mjs', ['--selftest']],
+    ['demigod-hiring-freshness.mjs', ['--selftest']],
+    ['demigod-hiring-ticket.mjs', ['--selftest']],
+    ['demigod-hn-map-admit.mjs', ['--selftest']],
+    ['demigod-intro-path.mjs', ['--selftest']],
+    ['demigod-lighthouse.mjs', ['--selftest']],
+    ['demigod-meta-audit.mjs', ['--selftest']],
+    ['demigod-navigation-audit.mjs', ['--selftest', '--local']],
+    ['demigod-public-comp.mjs', ['--selftest']],
+    // The one Demigod test living outside the repo root, and therefore outside every glob anyone
+    // has written to find these.
+    ['docs/exchange/demigod-recruiting-research-pack.test.mjs'],
+    ['demigod-outcome-grammar.mjs', ['--selftest']],
+    ['demigod-page-review.mjs', ['--selftest']],
+    ['demigod-phase2.mjs', ['--selftest']],
+    ['demigod-pilot-batch.mjs', ['--selftest']],
+    ['demigod-pilot-inbound.mjs', ['--selftest']],
+    ['demigod-posting-age-index.mjs', ['--selftest']],
+    ['demigod-pricing-fragment.mjs', ['--selftest']],
+    ['demigod-public-roles.mjs', ['--selftest']],
+    ['demigod-pulse-page.mjs', ['--selftest']],
+    ['demigod-recruitai-desk.mjs', ['--selftest']],
+    ['demigod-recruitai-import.mjs', ['--selftest']],
+    ['demigod-recruitai-seed-pack.mjs', ['--selftest']],
+    ['demigod-reseal-queue.mjs', ['--selftest']],
+    ['demigod-roles-ats-apply.mjs', ['--selftest']],
+    ['demigod-roles-ats-links.mjs', ['--selftest']],
+    ['demigod-roles-feed.mjs', ['--selftest']],
+    ['demigod-roles-pipeline.mjs', ['--selftest']],
+    ['demigod-route-health.mjs', ['--selftest']],
+    ['demigod-seo-audit.mjs', ['--selftest']],
+    ['demigod-site-counters.mjs', ['--selftest']],
+    ['demigod-startups-static-paste.mjs', ['--selftest']],
+    ['demigod-tools-registry.mjs', ['--selftest']],
+    ['demigod-truth.mjs', ['--selftest']],
+    ['demigod-work-find.mjs', ['--selftest']],
+    ['demigod-x-hiring.mjs', ['--selftest']],
     ['demigod-verify-source.mjs'],
 
     ['demigod-verify-live.mjs'],
@@ -316,7 +370,7 @@ if (ship || wizard) {
      floor is a volume floor, not a target: a bad merge or a truncated array drops entries silently,
      and 95 steps becoming 12 is the failure mode worth catching. Raise it deliberately when steps
      are added; never lower it to make a run green. */
-  const MIN_STEPS = 195;
+  const MIN_STEPS = 240;
 
   let failed = 0;
   let ran = 0;
