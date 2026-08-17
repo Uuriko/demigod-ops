@@ -279,3 +279,34 @@ pruned. Three worktrees remain, all real.
 
 Recorded because both failures are the same shape as the bug this codebase keeps finding: a check
 that reports on a narrower thing than the question it appears to answer.
+
+## Privacy: what is settled, and the one switch only you can see
+
+**Exposure did not widen.** Origin returns HTTP 401 to anonymous git clients for every repo,
+including ones that are *public* on GitHub (`social-media-wg-secrets` is PUBLIC upstream and still
+401s on Origin). So mirroring `demigod-ops` — which holds the hiring corpus — did not make it
+readable by anyone who could not already read it.
+
+**Training is a per-account setting, not an Origin property.** Cursor's data-use documentation is
+explicit in both directions: with Privacy Mode on, "Customer Data will not be used for training by
+Cursor" and zero-retention agreements cover the model providers; with it off, "we may use and store
+codebase data, prompts, editor actions, code snippets, and other code data and actions to improve
+our AI features and train our models." The document does not carve out git-hosted repos, so the
+uniform reading is that it applies to Origin too.
+
+That setting is not introspectable from here: `origin config` exposes only the release channel,
+`/api/privacy`, `/api/me`, `/api/user` and `/api/settings` all 404, and no local Cursor config on
+this machine records it. **It has to be read off the Cursor dashboard.** Until it is confirmed on,
+treat the corpus as hosted under standard terms.
+
+## One thing worth deleting
+
+`Uuriko/social-media-wg-secrets` is public on GitHub and now mirrored to Origin. It is a fork of
+`BekaValentine/social-media-wg-secrets` — the Noisebridge hackerspace social-media working group —
+containing `Passwords.kdbx`, a KeePass 2 database whose last content commit is 2019-01-06 and whose
+upstream has been public since 2018. Nothing in it is Demigod or Dasha data, the credentials are
+seven years old, and the file is encrypted; the exposure is not new and is not ours to fix upstream.
+
+But the fork adds nothing, and it is the one repo of the fourteen whose name and payload read as a
+credential leak under this account. Deleting the fork removes it from Origin as well. That is a
+destructive, account-level action, so it is left for the operator to call.
