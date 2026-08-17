@@ -189,6 +189,59 @@ export function appendHistory(report, { file = path.join(ROOT, 'DEMIGOD-CRAWLABL
   return { written: true, date: row.date, rows: existing.length + 1, file };
 }
 
+/**
+ * PURE. What a route would measure if its staged fragment were pasted into the live page.
+ *
+ * "We built fragments" is not a result. The claim worth making before anyone publishes is "this
+ * fragment turns /faq from 590 characters into N", and that is checkable now: take the HTML the
+ * site actually serves, insert the fragment where a Webflow page embed would land, and measure the
+ * same way. It over-estimates nothing — the fragment is the exact bytes staged.
+ */
+export function projectWithFragment(liveHtml, fragmentHtml) {
+  const live = String(liveHtml || '');
+  const fragment = String(fragmentHtml || '');
+  const before = crawlableText(live).length;
+  if (!fragment) return { before, after: before, gain: 0 };
+  const merged = /<\/body>/i.test(live) ? live.replace(/<\/body>/i, `${fragment}</body>`) : live + fragment;
+  const after = crawlableText(merged).length;
+  return { before, after, gain: after - before };
+}
+
+/** Route → staged package directory name, for the routes whose copy lives in DG_PAGES. */
+export const STAGED_ROUTE_KEYS = {
+  '/how': 'how', '/faq': 'faq', '/about': 'about', '/hire': 'hire', '/talent': 'talent',
+  '/blog': 'blog', '/legal': 'legal', '/refer': 'refer', '/sample': 'sample',
+  '/press': 'press', '/private': 'private', '/contact': 'contact', '/pricing': 'pricing',
+};
+
+export async function simulateStaged({ base = SITE, busy = BUSY, userAgent = CRAWLER_UA } = {}) {
+  const rows = [];
+  for (const [route, key] of Object.entries(STAGED_ROUTE_KEYS)) {
+    const file = path.join(busy, 'route-paste', key, `dg-static-${key}.html`);
+    let fragment = null;
+    try { fragment = fs.readFileSync(file, 'utf8'); } catch { /* not staged */ }
+    if (!fragment) { rows.push({ route, staged: false }); continue; }
+    const live = await fetchRoute(route, { base, userAgent });
+    if (!Number.isInteger(live.chars)) { rows.push({ route, staged: true, unreachable: true }); continue; }
+    const projected = projectWithFragment(live.crawlableText ? live.crawlableText : '', fragment);
+    // fetchRoute hands back stripped text, so re-measure against the raw HTML for an honest merge.
+    const raw = await fetch(base + route, { headers: { 'User-Agent': userAgent } }).then((r) => r.text()).catch(() => '');
+    const merged = projectWithFragment(raw, fragment);
+    rows.push({ route, staged: true, before: merged.before || projected.before, after: merged.after, gain: merged.gain });
+  }
+  const measured = rows.filter((row) => Number.isInteger(row?.gain));
+  return {
+    schema: 'demigod.crawlable-simulation/1',
+    at: new Date().toISOString(),
+    routes: measured.length,
+    notStaged: rows.filter((row) => row.staged === false).map((row) => row.route),
+    unreachable: rows.filter((row) => row.unreachable).map((row) => row.route),
+    totalBefore: measured.reduce((sum, row) => sum + row.before, 0),
+    totalAfter: measured.reduce((sum, row) => sum + row.after, 0),
+    rows: measured.sort((a, b) => b.gain - a.gain),
+  };
+}
+
 function selftest() {
   const assert = (cond, msg) => { if (!cond) throw new Error(`crawlable-audit selftest: ${msg}`); };
   assert(crawlableText('<p>Hello</p><script>var x=1;</script>') === 'Hello', 'script bodies are not readable text');
@@ -230,6 +283,16 @@ function selftest() {
   assert(report.rows[0].route === '/d', 'rows sort richest first');
   assert(report.userAgent === CRAWLER_UA, 'the receipt must say whose view this is');
 
+  // What a fragment would do, before anyone publishes it.
+  const live = '<html><body><p>Nav only</p></body></html>';
+  const projected = projectWithFragment(live, '<section><p>Real copy that a crawler can read.</p></section>');
+  assert(projected.before === 8, `before ${projected.before}`);
+  assert(projected.after > projected.before, 'a fragment must raise the readable text');
+  assert(projected.gain === projected.after - projected.before, 'gain is the difference, not a guess');
+  assert(projectWithFragment(live, '').gain === 0, 'no fragment, no gain claimed');
+  const noBody = projectWithFragment('<p>Nav only</p>', '<section><p>Copy</p></section>');
+  assert(noBody.gain > 0, 'a page with no </body> still merges rather than silently returning zero');
+
   // The durable line. A re-run on the same day must not overwrite the earlier measurement, or the
   // history stops being a before-and-after and becomes whatever ran last.
   const row = historyRow(report);
@@ -256,6 +319,15 @@ if (isMain) {
   const args = process.argv.slice(2);
   if (args.includes('--selftest')) {
     selftest();
+  } else if (args.includes('--simulate')) {
+    const report = await simulateStaged();
+    console.log(`crawlable simulation · ${report.routes} staged routes, live HTML + staged fragment`);
+    for (const row of report.rows) {
+      console.log(`  ${String(row.before).padStart(6)} → ${String(row.after).padStart(6)}  (+${row.gain})  ${row.route}`);
+    }
+    console.log(`  total ${report.totalBefore} → ${report.totalAfter} (+${report.totalAfter - report.totalBefore})`);
+    if (report.notStaged.length) console.log(`  not staged: ${report.notStaged.join(', ')}`);
+    if (report.unreachable.length) console.log(`  unreachable: ${report.unreachable.join(', ')}`);
   } else {
     const report = await auditLive();
     fs.mkdirSync(BUSY, { recursive: true });
