@@ -1,5 +1,5 @@
-/*dg-foot-v1103-core*/
-window.dgFootVersion = 'v1103'; console.log('[demigod] foot v1103-core loaded');
+/*dg-foot-v1104-core*/
+window.dgFootVersion = 'v1104'; console.log('[demigod] foot v1104-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
@@ -5332,7 +5332,7 @@ else if(k==='jobseeker'||h===J||h==='#jobseeker-modal'){if(!q(J))return;e.preven
 document.addEventListener('input',function(e){if(OPEN&&e.target&&e.target.closest&&e.target.closest(S+','+J)){/*dg-wiz-err-clear*/try{var f=e.target.closest('form');var er=f&&f.querySelector('.dg-wiz-err,.dg-wiz-req-err'),eid=er&&er.id;if(er)er.remove();e.target.style.borderColor='';e.target.removeAttribute('aria-invalid');if(eid){var ids=(e.target.getAttribute('aria-describedby')||'').split(/\s+/).filter(function(id){return id&&id!==eid});if(ids.length)e.target.setAttribute('aria-describedby',ids.join(' '));else e.target.removeAttribute('aria-describedby')}}catch(err){}}},true);
 document.addEventListener('keydown',function(e){if(e.defaultPrevented)return;if(e.key==='Escape'&&q('#dg-page')){closePage();return}if(e.key==='Escape'&&OPEN){OPEN=null;hide(true)}});
 typeof window.addEventListener==='function'&&window.addEventListener('popstate',function(){/*dg-page-popstate*/ try{ if(!routePages()) closePage(); }catch(e){} });
-window.__dgFootVer='1103';console.log('Demigod v1103');
+window.__dgFootVer='1104';console.log('Demigod v1104');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 
