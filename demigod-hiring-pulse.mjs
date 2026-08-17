@@ -63,12 +63,23 @@ export function computePulse(map, prior = null, today = '') {
   let deltas = null;
   if (prior && prior.roles) {
     const nowRoles = Object.fromEntries(verified.map((c) => [c.id, c.openRoles]));
+    const byId = new Map(companies.map((company) => [company.id, company]));
     const started = verified.filter((c) => !(c.id in prior.roles)).length;
-    const paused = Object.keys(prior.roles).filter((id) => !(id in nowRoles)).length;
+    // A company that vanished from the counts is not necessarily a company that stopped hiring. It
+    // is also what a failed board read looks like: still in the directory, still carrying a known
+    // ATS board, just with no count this run. One rate-limited crawl cost 90 Ashby boards on
+    // 2026-08-16, and every one of them would have published here as "paused hiring" — a claim
+    // about companies, made out of our own crawl health. They are counted and named separately.
+    const gone = Object.keys(prior.roles).filter((id) => !(id in nowRoles));
+    const unreadable = gone.filter((id) => {
+      const row = byId.get(id);
+      return Boolean(row && row.atsSource && !Number.isSafeInteger(row.openRoles));
+    }).length;
     deltas = {
       since: prior.date,
       startedHiring: started,
-      pausedHiring: paused,
+      pausedHiring: gone.length - unreadable,
+      boardsUnread: unreadable,
       netRoles: totalRoles - prior.totalRoles,
     };
   }
@@ -194,7 +205,7 @@ export function renderPulseHtml(pulse, site = 'https://www.trydemigod.com') {
        <p class="dek">Just <b>${pulse.finding.freshRate}%</b> of the newest cohort (${esc(pulse.finding.freshBatch)}) is hiring; <b>${pulse.finding.matureRate}%</b> of companies a year or more past their batch are. If you're job-hunting, the fresh batch isn't where the openings are.</p></section>`
     : '';
   const deltaLine = pulse.deltas
-    ? `<p class="delta">Since ${esc(pulse.deltas.since)}: <b>${num(pulse.deltas.startedHiring)} started hiring</b>, ${num(pulse.deltas.pausedHiring)} paused, net ${pulse.deltas.netRoles >= 0 ? '+' : ''}${num(pulse.deltas.netRoles)} open roles.</p>`
+    ? `<p class="delta">Since ${esc(pulse.deltas.since)}: <b>${num(pulse.deltas.startedHiring)} started hiring</b>, ${num(pulse.deltas.pausedHiring)} paused, net ${pulse.deltas.netRoles >= 0 ? '+' : ''}${num(pulse.deltas.netRoles)} open roles.${pulse.deltas.boardsUnread ? ` ${num(pulse.deltas.boardsUnread)} board${pulse.deltas.boardsUnread === 1 ? '' : 's'} we could not read are excluded rather than counted as paused.` : ''}</p>`
     : '<p class="delta">Week-over-week trends begin next issue (first snapshot).</p>';
   const batchRows = (pulse.batches || []).map((b) => {
     const w = Math.max(6, Math.round((100 * b.rate) / batchMax));
@@ -279,6 +290,16 @@ if (isMain && (process.env.DEMIGOD_PULSE_SELFTEST === '1' || process.argv.includ
   const prior = { date: '2026-07-17', totalRoles: 20, roles: { a: 8, z: 12 } };
   const p2 = computePulse(fake, prior, '2026-07-24');
   assert(p2.deltas && p2.deltas.startedHiring === 1 && p2.deltas.pausedHiring === 1, 'deltas: 1 started (b), 1 paused (z)');
+  assert(p2.deltas.boardsUnread === 0, 'a company absent from the map entirely is genuinely paused');
+  // The same prior, but company z is still in the directory with its board and no count: that is a
+  // failed read, not a company that stopped hiring, and it must not be published as one.
+  const unreadMap = { companies: [...fake.companies, { id: 'z', name: 'Zeta', atsSource: 'Lever', jobsUrl: 'https://jobs.lever.co/zeta', hiring: 'yes' }] };
+  const p3 = computePulse(unreadMap, prior, '2026-07-24');
+  assert(p3.deltas.pausedHiring === 0 && p3.deltas.boardsUnread === 1, 'an unread board is excluded from paused and counted separately');
+  assert(
+    renderPulseHtml(p3).includes('could not read'),
+    'the published issue must say the unread boards were excluded, not silently drop them',
+  );
   const historyDir = fs.mkdtempSync(path.join('/tmp', 'dg-hiring-history-'));
   try {
     const historyPath = path.join(historyDir, 'history.jsonl');
