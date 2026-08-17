@@ -39,6 +39,45 @@ says whether the next sync preserves them or resets to GitHub. The CLI exposes n
 promote a mirror (`repo` offers only create, create-mirrored, list, view, clone, delete). Until that
 is known, pushing to GitHub and letting the mirror pull is the move that cannot lose work.
 
+## Verification pass — 2026-08-17, after the first real push
+
+**The mirror is live, not a snapshot.** Pushed 20 local commits to GitHub
+(`5ca836b..6c8cc19`) and Origin carried the same SHA **within 10 seconds**. That was the one
+question timestamps could not answer, because GitHub had not been pushed since Origin was created,
+so there had been nothing to sync.
+
+**All 14 repos verified ref-for-ref, not spot-checked.** Every repo's full `git ls-remote` output
+hashed and compared against GitHub's:
+
+| repo | refs | repo | refs |
+|---|---:|---|---:|
+| asi | 5 | eat-the-sounds | 3 |
+| crispy-garbanzo | 1,199 | eliza | 322 |
+| dasha-desk | 20 | firsttimersonly | 3 |
+| dasha-utility | 3 | oracle-hole | 2 |
+| dasha-utility-full | 2 | Projects | 2 |
+| demigod-ops | 122 | social-media-wg-secrets | 2 |
+| demigod-site-cdn | 19 | Uuriko | 2 |
+
+**14 of 14 identical.** Nothing partial, nothing lagging.
+
+**The laptop's git config is correct and scoped.** `origin auth login` added two entries, both
+bounded to the Origin host:
+
+    credential.https://origin.cursor.com/git.helper  → origin credential-helper
+    credential.https://origin.cursor.com.helper      → origin credential-helper
+
+GitHub's pre-existing helpers are untouched and still route to `gh auth git-credential`. No
+catch-all helper was installed, so nothing intercepts credentials for other hosts. `~/.local/bin` is
+already on PATH via `.profile`, so `origin` resolves in ordinary shells and not only when a script
+exports it.
+
+**Push direction settled by evidence.** General mirroring practice warns that writing to both ends of
+a mirror creates race conditions and that rewriting mirrored commits makes syncing fail. Combined
+with the sub-10-second inbound sync, the rule is simple and needs no coordination: **push to GitHub,
+let Origin follow.** Pushing straight to Origin is possible — a dry run reports a clean
+fast-forward — and is the thing not to do.
+
 ## State before the namespace existed
 
 | | |
