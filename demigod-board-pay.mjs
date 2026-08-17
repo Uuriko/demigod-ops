@@ -370,13 +370,69 @@ function selftest() {
   assert(stats.excludedUnreadable === 2, 'unsupported and unread are both excluded and counted');
   assert(payPublishRate([{ pay: { state: 'unsupported' } }]).rate === null, 'no comparable boards yields null, never 0');
 
+  // The matrix reports capability and volume separately, because a reader nobody uses and a reader
+  // that cannot carry pay are different facts that a single "supported" column would merge.
+  const matrix = atsPayMatrix({ companies: [
+    { atsSource: 'Greenhouse', openRoles: 5 },
+    { atsSource: 'Greenhouse', openRoles: 3 },
+    { atsSource: 'Lever', openRoles: 2 },
+    { atsSource: 'Lever', openRoles: null },
+  ] });
+  const row = (name) => matrix.rows.find((r) => r.ats === name);
+  assert(row('Greenhouse').liveBoards === 2 && row('Greenhouse').liveRoles === 8, 'boards and roles counted per reader');
+  assert(row('Lever').liveBoards === 1, 'a row with no count is not a board we read');
+  assert(row('Lever').payCapability === 'none' && row('Greenhouse').payCapability === 'structured', 'capability comes from PAY_CAPABLE_ATS');
+  assert(row('Ashby').liveBoards === 0 && row('Ashby').payCapability === 'structured', 'a supported reader with no live boards is shown, not dropped');
+  assert(matrix.totals.boards === 3 && matrix.totals.unsupportedBoards === 1, 'totals split capable from unsupported');
+
   console.log(`demigod-board-pay selftest OK · ${n} assertions`);
+}
+
+/**
+ * What each reader can carry, against how many live boards it carries it for.
+ *
+ * The "166 of 471 boards are structurally silent" figure lived in a commit message, which means the
+ * denominator behind every pay claim was prose. It is derived here instead: capability comes from
+ * PAY_CAPABLE_ATS, volume comes from the live map, and a provider with no live boards is shown as
+ * such rather than dropped — a reader we support but nobody uses is a different fact from one that
+ * cannot carry pay.
+ */
+export function atsPayMatrix(map) {
+  const boards = {};
+  const roles = {};
+  for (const company of map?.companies || []) {
+    const ats = company?.atsSource;
+    if (!ats || !Number.isSafeInteger(company.openRoles)) continue;
+    boards[ats] = (boards[ats] || 0) + 1;
+    roles[ats] = (roles[ats] || 0) + company.openRoles;
+  }
+  const names = [...new Set([...PAY_CAPABLE_ATS, ...Object.keys(boards)])].sort();
+  const rows = names.map((ats) => ({
+    ats,
+    payCapability: payCapability(ats),
+    liveBoards: boards[ats] || 0,
+    liveRoles: roles[ats] || 0,
+  }));
+  const totalBoards = rows.reduce((sum, row) => sum + row.liveBoards, 0);
+  const unsupportedBoards = rows.filter((row) => row.payCapability === 'none').reduce((sum, row) => sum + row.liveBoards, 0);
+  return {
+    schema: 'demigod.ats-pay-matrix/1',
+    rows,
+    totals: {
+      boards: totalBoards,
+      payCapableBoards: totalBoards - unsupportedBoards,
+      unsupportedBoards,
+      note: 'unsupportedBoards say nothing about those companies — the reader cannot carry pay there',
+    },
+  };
 }
 
 if (isMain) {
   const args = process.argv.slice(2);
   const flag = (name) => args.find((a) => a.startsWith(`--${name}=`))?.split('=')[1];
   if (args.includes('--selftest')) selftest();
-  else if (args[0] === 'scan') await scan({ limit: Number(flag('limit')) || 0, out: flag('out') || OUT });
-  else console.log('usage: demigod-board-pay.mjs [scan [--limit=N] [--out=FILE] | --selftest]');
+  else if (args.includes('--matrix')) {
+    console.log(JSON.stringify(atsPayMatrix(JSON.parse(fs.readFileSync(MAP, 'utf8'))), null, 2));
+  } else if (args[0] === 'scan') await scan({ limit: Number(flag('limit')) || 0, out: flag('out') || OUT });
+  else console.log('usage: demigod-board-pay.mjs [scan [--limit=N] [--out=FILE] | --matrix | --selftest]');
 }
