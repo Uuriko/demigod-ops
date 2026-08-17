@@ -279,6 +279,56 @@ export function repairLifecycleHistory(lead) {
   return { kept, removed };
 }
 
+/**
+ * PURE. The part of the funnel that cannot be re-collected: what a human decided, and why.
+ *
+ * DEMIGOD-LEADS.json is gitignored for a good reason — it holds email, contactEmail and linkedin
+ * for 112 partner leads. So it has no backup at all, and the decisions inside it are the expensive
+ * half. The scraped fields (company, title, url, signal) can be sourced again; "we disqualified this
+ * one on 2026-07-17 and here is the evidence path" cannot, and losing it means re-deciding every
+ * lead and possibly contacting someone already disqualified.
+ *
+ * The split is the same one the role-ledger archive makes: re-collectable detail is dropped,
+ * observation and judgement are kept. Everything here is keyed by lead id and carries no contact
+ * field, so the result is safe to track where the source file is not.
+ */
+export function decisionArchive(doc, { at } = {}) {
+  const leads = [...(doc?.partners || []), ...(doc?.talent || [])];
+  const decisions = {};
+  for (const lead of leads) {
+    if (!lead?.id) continue;
+    decisions[lead.id] = {
+      type: lead.type || null,
+      state: getState(lead),
+      stateUpdatedAt: lead.stateUpdatedAt || null,
+      policyHoldReason: lead.policyHoldReason || undefined,
+      // from/to/at/actor/evidence/note — no contact field is ever copied.
+      history: (Array.isArray(lead.stateHistory) ? lead.stateHistory : []).map((h) => ({
+        at: h?.at || null, from: h?.from || null, to: h?.to || null,
+        actor: h?.actor || null, evidence: h?.evidence || null, note: h?.note || null,
+      })),
+    };
+  }
+  return { schema: 'demigod.funnel-decisions/1', at: at || doc?.at || null, count: Object.keys(decisions).length, decisions };
+}
+
+/** PURE. Any field name that would leak a contact if the projection above ever grew one. */
+export const CONTACT_FIELDS = ['email', 'contactEmail', 'linkedin', 'phone', 'contact', 'companyUrl', 'url'];
+
+/** PURE. Proof the archive carries no contact detail — checked, not asserted in a comment. */
+export function archiveLeaksContact(archive) {
+  const seen = [];
+  const walk = (node) => {
+    if (!node || typeof node !== 'object') return;
+    for (const [key, value] of Object.entries(node)) {
+      if (CONTACT_FIELDS.includes(key) && value) seen.push(key);
+      walk(value);
+    }
+  };
+  walk(archive);
+  return [...new Set(seen)];
+}
+
 export function receiptLooksValid(text) {
   if (!text || !String(text).trim()) return false;
   const t = String(text);
@@ -6399,6 +6449,14 @@ if (isMain) {
           cmdStatus();
         }
         else if (cmd === 'l1-snapshot') cmdL1Snapshot();
+        else if (cmd === 'decision-archive') {
+          const doc = JSON.parse(fs.readFileSync(LEADS, 'utf8'));
+          const archive = decisionArchive(doc);
+          const leaks = archiveLeaksContact(archive);
+          if (leaks.length) throw new Error(`funnel: decision archive would leak ${leaks.join(', ')} — refusing to write`);
+          fs.writeFileSync(path.join(ROOT, 'DEMIGOD-FUNNEL-DECISIONS.json'), `${JSON.stringify(archive, null, 1)}\n`);
+          console.log(JSON.stringify({ ok: true, decisions: archive.count, wrote: 'DEMIGOD-FUNNEL-DECISIONS.json' }));
+        }
         else if (cmd === 'normalize' || cmd === 'norm') cmdNormalize();
         else if (cmd === 'transition' || cmd === 'to') cmdTransition(rest);
         else if (cmd === 'approve-drafted' || cmd === 'approve') cmdApproveDrafted(rest);

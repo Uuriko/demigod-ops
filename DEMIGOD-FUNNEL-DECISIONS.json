@@ -1,0 +1,2863 @@
+{
+ "schema": "demigod.funnel-decisions/1",
+ "at": "2026-08-06T12:37:14.208Z",
+ "count": 129,
+ "decisions": {
+  "waas-dFPP3my1wq00M-": {
+   "type": "partner",
+   "state": "policy_hold",
+   "stateUpdatedAt": "2026-07-17T19:29:16.073Z",
+   "policyHoldReason": "no-usable-contact",
+   "history": [
+    {
+     "at": "2026-07-17T16:50:48.696Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/waas-dFPP3my1wq00M-.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T19:29:16.073Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-usable-contact-url-only"
+    }
+   ]
+  },
+  "waas-6iwLqId0xZ9cLB": {
+   "type": "partner",
+   "state": "policy_hold",
+   "stateUpdatedAt": "2026-07-17T19:29:16.073Z",
+   "policyHoldReason": "no-usable-contact",
+   "history": [
+    {
+     "at": "2026-07-17T16:50:48.827Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/waas-6iwLqId0xZ9cLB.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T19:29:16.073Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-usable-contact-url-only"
+    }
+   ]
+  },
+  "waas-Q3HTBl3BEfoB_u": {
+   "type": "partner",
+   "state": "drafted",
+   "stateUpdatedAt": "2026-07-29T18:38:28.939Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:50:50.130Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/waas-Q3HTBl3BEfoB_u.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T19:29:16.073Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-usable-contact-url-only"
+    },
+    {
+     "at": "2026-07-29T18:38:28.939Z",
+     "from": "policy_hold",
+     "to": "drafted",
+     "actor": "enrich",
+     "evidence": null,
+     "note": "enrich-found-contact"
+    }
+   ]
+  },
+  "waas-Pdzoc5sXLxvpKc": {
+   "type": "partner",
+   "state": "policy_hold",
+   "stateUpdatedAt": "2026-07-17T19:29:16.073Z",
+   "policyHoldReason": "no-usable-contact",
+   "history": [
+    {
+     "at": "2026-07-17T16:50:50.273Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/waas-Pdzoc5sXLxvpKc.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T19:29:16.073Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-usable-contact-url-only"
+    }
+   ]
+  },
+  "waas-gUnm86H3zWD3TZ": {
+   "type": "partner",
+   "state": "policy_hold",
+   "stateUpdatedAt": "2026-07-17T19:29:16.073Z",
+   "policyHoldReason": "no-usable-contact",
+   "history": [
+    {
+     "at": "2026-07-17T16:50:50.416Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/waas-gUnm86H3zWD3TZ.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T19:29:16.073Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-usable-contact-url-only"
+    }
+   ]
+  },
+  "waas-Yg-zvukFrmrta4": {
+   "type": "partner",
+   "state": "policy_hold",
+   "stateUpdatedAt": "2026-07-17T19:29:16.073Z",
+   "policyHoldReason": "no-usable-contact",
+   "history": [
+    {
+     "at": "2026-07-17T16:52:22.593Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/waas-Yg-zvukFrmrta4.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T19:29:16.073Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-usable-contact-url-only"
+    }
+   ]
+  },
+  "waas-HUE5cNGUT0N-fG": {
+   "type": "partner",
+   "state": "policy_hold",
+   "stateUpdatedAt": "2026-07-17T19:29:16.073Z",
+   "policyHoldReason": "no-usable-contact",
+   "history": [
+    {
+     "at": "2026-07-17T16:52:22.732Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/waas-HUE5cNGUT0N-fG.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T19:29:16.073Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-usable-contact-url-only"
+    }
+   ]
+  },
+  "waas-ZaoKrcG7m04QXe": {
+   "type": "partner",
+   "state": "policy_hold",
+   "stateUpdatedAt": "2026-07-17T19:29:16.073Z",
+   "policyHoldReason": "no-usable-contact",
+   "history": [
+    {
+     "at": "2026-07-17T16:52:24.132Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/waas-ZaoKrcG7m04QXe.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T19:29:16.073Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-usable-contact-url-only"
+    }
+   ]
+  },
+  "waas-VLny_TRDevK40v": {
+   "type": "partner",
+   "state": "drafted",
+   "stateUpdatedAt": "2026-07-29T18:38:25.474Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:52:24.293Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/waas-VLny_TRDevK40v.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T19:29:16.073Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-usable-contact-url-only"
+    },
+    {
+     "at": "2026-07-29T18:38:25.474Z",
+     "from": "policy_hold",
+     "to": "drafted",
+     "actor": "enrich",
+     "evidence": null,
+     "note": "enrich-found-contact"
+    }
+   ]
+  },
+  "waas-o8UHRpPmUMjeXM": {
+   "type": "partner",
+   "state": "policy_hold",
+   "stateUpdatedAt": "2026-07-17T19:29:16.073Z",
+   "policyHoldReason": "enrich-exhausted",
+   "history": [
+    {
+     "at": "2026-07-17T16:52:24.445Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/waas-o8UHRpPmUMjeXM.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T19:29:16.073Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-usable-contact-url-only"
+    }
+   ]
+  },
+  "waas-6xoOh3JFR7Nv_B": {
+   "type": "partner",
+   "state": "policy_hold",
+   "stateUpdatedAt": "2026-07-17T19:29:16.073Z",
+   "policyHoldReason": "enrich-exhausted",
+   "history": [
+    {
+     "at": "2026-07-17T16:53:56.549Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/waas-6xoOh3JFR7Nv_B.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T19:29:16.073Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-usable-contact-url-only"
+    }
+   ]
+  },
+  "waas-qKKkdRMa-9h8uq": {
+   "type": "partner",
+   "state": "policy_hold",
+   "stateUpdatedAt": "2026-07-17T19:29:16.073Z",
+   "policyHoldReason": "enrich-exhausted",
+   "history": [
+    {
+     "at": "2026-07-17T16:53:56.689Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/waas-qKKkdRMa-9h8uq.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T19:29:16.073Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-usable-contact-url-only"
+    }
+   ]
+  },
+  "waas-kttpRAxzgJ2Fv3": {
+   "type": "partner",
+   "state": "policy_hold",
+   "stateUpdatedAt": "2026-07-17T19:29:16.073Z",
+   "policyHoldReason": "enrich-exhausted",
+   "history": [
+    {
+     "at": "2026-07-17T16:53:57.956Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/waas-kttpRAxzgJ2Fv3.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T19:29:16.073Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-usable-contact-url-only"
+    }
+   ]
+  },
+  "waas-R4NgNZUiAexLmN": {
+   "type": "partner",
+   "state": "policy_hold",
+   "stateUpdatedAt": "2026-07-17T19:29:16.073Z",
+   "policyHoldReason": "enrich-exhausted",
+   "history": [
+    {
+     "at": "2026-07-17T16:53:58.115Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/waas-R4NgNZUiAexLmN.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T19:29:16.073Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-usable-contact-url-only"
+    }
+   ]
+  },
+  "waas-ZQ78hJKaAAkWPj": {
+   "type": "partner",
+   "state": "policy_hold",
+   "stateUpdatedAt": "2026-07-17T19:29:16.073Z",
+   "policyHoldReason": "enrich-exhausted",
+   "history": [
+    {
+     "at": "2026-07-17T16:53:58.245Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/waas-ZQ78hJKaAAkWPj.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T19:29:16.073Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-usable-contact-url-only"
+    }
+   ]
+  },
+  "x-tensorlake": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-08-06T12:04:31.048Z",
+   "policyHoldReason": "no-usable-contact",
+   "history": [
+    {
+     "at": "2026-07-17T15:50:53.503Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "demigod-outreach/funnel-drafts/x-tensorlake.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:00:25.801Z",
+     "from": "drafted",
+     "to": "approved",
+     "actor": "grok-busy",
+     "evidence": null,
+     "note": "batch-approve-agent-busy-2026-07-17"
+    },
+    {
+     "at": "2026-07-17T16:27:17.030Z",
+     "from": "approved",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "demigod-outreach/funnel-drafts/x-tensorlake.txt",
+     "note": "revert-agent-approval-trust-ladder"
+    },
+    {
+     "at": "2026-08-06T07:58:59.912Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-usable-contact-url-only"
+    },
+    {
+     "at": "2026-08-06T12:04:31.048Z",
+     "from": "policy_hold",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "x-paddox": {
+   "type": "partner",
+   "state": "drafted",
+   "stateUpdatedAt": "2026-07-17T16:41:45.399Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:41:45.399Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/x-paddox.txt",
+     "note": null
+    }
+   ]
+  },
+  "inbox-sub-720607a8": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T23:44:29.017Z",
+   "policyHoldReason": "no-contact-email",
+   "history": [
+    {
+     "at": "2026-07-17T16:05:27.090Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/inbox-sub-720607a8.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:12:20.059Z",
+     "from": "drafted",
+     "to": "approved",
+     "actor": "grok-busy-loop",
+     "evidence": null,
+     "note": "grok-busy-auto-approve-cycle-1"
+    },
+    {
+     "at": "2026-07-17T16:26:02.614Z",
+     "from": "approved",
+     "to": "form_filled",
+     "actor": "funnel-join",
+     "evidence": "/tmp/dg-busy/funnel/joins/inbox-sub-720607a8__sub-720607a8.txt",
+     "note": "inbox_id"
+    },
+    {
+     "at": "2026-07-17T16:29:45.660Z",
+     "from": "form_filled",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-contact-email-synthetic-inbox"
+    },
+    {
+     "at": "2026-07-17T23:44:29.017Z",
+     "from": "policy_hold",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "inbox-sub-8e5228d6": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T23:44:29.018Z",
+   "policyHoldReason": "no-contact-email",
+   "history": [
+    {
+     "at": "2026-07-17T16:29:27.046Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/inbox-sub-8e5228d6.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:29:45.766Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-contact-email-synthetic-inbox"
+    },
+    {
+     "at": "2026-07-17T23:44:29.018Z",
+     "from": "policy_hold",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "inbox-sub-a502c21a": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T23:44:29.018Z",
+   "policyHoldReason": "no-contact-email",
+   "history": [
+    {
+     "at": "2026-07-17T16:29:27.173Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/inbox-sub-a502c21a.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:29:45.896Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-contact-email-synthetic-inbox"
+    },
+    {
+     "at": "2026-07-17T23:44:29.018Z",
+     "from": "policy_hold",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "inbox-sub-6ba66db1": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T23:44:29.018Z",
+   "policyHoldReason": "no-contact-email",
+   "history": [
+    {
+     "at": "2026-07-17T16:29:27.305Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/inbox-sub-6ba66db1.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:29:46.024Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-contact-email-synthetic-inbox"
+    },
+    {
+     "at": "2026-07-17T23:44:29.018Z",
+     "from": "policy_hold",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "inbox-sub-8d4788b3": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T23:44:29.018Z",
+   "policyHoldReason": "no-contact-email",
+   "history": [
+    {
+     "at": "2026-07-17T16:30:21.416Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/inbox-sub-8d4788b3.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:48:21.459Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-contact-email"
+    },
+    {
+     "at": "2026-07-17T23:44:29.018Z",
+     "from": "policy_hold",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "inbox-sub-c442f43a": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T23:44:29.018Z",
+   "policyHoldReason": "no-contact-email",
+   "history": [
+    {
+     "at": "2026-07-17T16:30:21.542Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/inbox-sub-c442f43a.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:49:22.141Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-contact-email"
+    },
+    {
+     "at": "2026-07-17T23:44:29.018Z",
+     "from": "policy_hold",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "inbox-sub-608604bf": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T23:44:29.018Z",
+   "policyHoldReason": "no-contact-email",
+   "history": [
+    {
+     "at": "2026-07-17T16:30:22.693Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/inbox-sub-608604bf.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:49:22.141Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-contact-email"
+    },
+    {
+     "at": "2026-07-17T23:44:29.018Z",
+     "from": "policy_hold",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "inbox-sub-29570904": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T23:44:29.018Z",
+   "policyHoldReason": "no-contact-email",
+   "history": [
+    {
+     "at": "2026-07-17T16:30:22.837Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/inbox-sub-29570904.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:49:22.141Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-contact-email"
+    },
+    {
+     "at": "2026-07-17T23:44:29.018Z",
+     "from": "policy_hold",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "inbox-sub-ac2f2e79": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T23:44:29.018Z",
+   "policyHoldReason": "no-contact-email",
+   "history": [
+    {
+     "at": "2026-07-17T16:30:22.973Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/inbox-sub-ac2f2e79.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:49:22.141Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-contact-email"
+    },
+    {
+     "at": "2026-07-17T23:44:29.018Z",
+     "from": "policy_hold",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-p-Z2JfylTHZHdYRz": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T18:30:29.499Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:27:08.911Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-p-Z2JfylTHZHdYRz.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T18:30:29.499Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-p-yyPTsofiVsD6gT": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:20:35.653Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:22:28.804Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-p-yyPTsofiVsD6gT.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T17:20:35.653Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "x-pantograph": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:45:55.099Z",
+   "history": [
+    {
+     "at": "2026-07-17T15:50:53.600Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "demigod-outreach/funnel-drafts/x-pantograph.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:12:26.373Z",
+     "from": "drafted",
+     "to": "approved",
+     "actor": "grok-busy-loop",
+     "evidence": null,
+     "note": "grok-busy-auto-approve-cycle-1"
+    },
+    {
+     "at": "2026-07-17T16:27:17.124Z",
+     "from": "approved",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "demigod-outreach/funnel-drafts/x-pantograph.txt",
+     "note": "revert-agent-approval-trust-ladder"
+    },
+    {
+     "at": "2026-07-17T17:45:55.099Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-x-jobboard-account"
+    }
+   ]
+  },
+  "x-robotics-sf": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:45:55.099Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:24:02.483Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/x-robotics-sf.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T17:45:55.099Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-x-jobboard-account"
+    }
+   ]
+  },
+  "x-magic-ai": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:45:55.099Z",
+   "history": [
+    {
+     "at": "2026-07-17T15:54:44.859Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/x-magic-ai.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:15:55.270Z",
+     "from": "drafted",
+     "to": "approved",
+     "actor": "human",
+     "evidence": null,
+     "note": "batch for lead gen pipeline"
+    },
+    {
+     "at": "2026-07-17T17:45:55.099Z",
+     "from": "approved",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-x-jobboard-account"
+    }
+   ]
+  },
+  "evt-ev-ev_mrp29su6vaqs": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:20:35.653Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:41:45.267Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/evt-ev-ev_mrp29su6vaqs.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T17:20:35.653Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-p-ngFKA_CzFFtY-1": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:16.160Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:19:20.455Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-p-ngFKA_CzFFtY-1.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:16.160Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-p-Ex-_0GBUXrtBTR": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:16.284Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:19:21.325Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-p-Ex-_0GBUXrtBTR.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:16.284Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-p-lpwo7Rxda7ecy1": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:16.342Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:19:21.444Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-p-lpwo7Rxda7ecy1.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:16.342Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-p-A5PuoV4XImGav8": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:16.408Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:19:21.556Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-p-A5PuoV4XImGav8.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:16.408Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-p-o52ubcV45L5Med": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:16.467Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:20:53.378Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-p-o52ubcV45L5Med.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:16.467Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-p-vhrFiK6i21X4PH": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:16.582Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:20:54.287Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-p-vhrFiK6i21X4PH.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:16.582Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-p-QOAwGhuSRYPPVB": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:16.642Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:20:54.436Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-p-QOAwGhuSRYPPVB.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:16.642Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-p-TMUXVcH5iGDE3X": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:16.698Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:22:26.957Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-p-TMUXVcH5iGDE3X.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:16.698Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-p-vHEUSA6xxeDT2C": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:16.775Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:22:27.120Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-p-vHEUSA6xxeDT2C.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:16.775Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-p-rCACtnG_2bqlwU": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:16.834Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:22:28.601Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-p-rCACtnG_2bqlwU.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:16.834Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "web-co-m9DzFnyt66yeDA": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:16.894Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:24:01.225Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/web-co-m9DzFnyt66yeDA.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:16.894Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "web-co-FwHPsCOhixU01g": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:16.948Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:24:01.357Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/web-co-FwHPsCOhixU01g.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:16.948Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-p-hvbjN76ENfYQEa": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:17.005Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:24:02.602Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-p-hvbjN76ENfYQEa.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:17.005Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-p-ZjHT1gF0892oH_": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:17.060Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:24:02.752Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-p-ZjHT1gF0892oH_.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:17.060Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-p-6-OWk46ezCQUtE": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:17.124Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:25:34.905Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-p-6-OWk46ezCQUtE.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:17.124Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-p-bo1EfzJzfJJzUa": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:17.178Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:25:35.053Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-p-bo1EfzJzfJJzUa.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:17.178Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-p-JHNKirnYbGcZmv": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:17.240Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:25:36.335Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-p-JHNKirnYbGcZmv.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:17.240Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-p-_-X-paYYEpExMw": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:17.299Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:25:36.477Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-p-_-X-paYYEpExMw.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:17.299Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-p-dMlONSeo1BM1xz": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:17.352Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:25:36.621Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-p-dMlONSeo1BM1xz.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:17.352Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-p-WY1RPAp70lQC71": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:17.406Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:27:09.054Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-p-WY1RPAp70lQC71.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:17.406Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "web-0UyqNkkB8_q7Nq": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:17.463Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:27:10.168Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/web-0UyqNkkB8_q7Nq.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:17.463Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "web--ANKQbCXOiEjSy": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:17.524Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:27:10.303Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/web--ANKQbCXOiEjSy.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:17.524Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "web-NFJOxgFjAxQwjJ": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:17.573Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:27:10.452Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/web-NFJOxgFjAxQwjJ.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:17.573Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "web-B7vUk9f_DajDBD": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:17.625Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:28:42.739Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/web-B7vUk9f_DajDBD.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:17.625Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "web-XhGiatbm94pnel": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:17.677Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:28:42.844Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/web-XhGiatbm94pnel.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:17.677Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "web-r4sbs8gi7q4Lvi": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:17.742Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:28:43.931Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/web-r4sbs8gi7q4Lvi.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:17.742Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "web-rDUeCyaG06B9Oi": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:17.801Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:28:44.055Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/web-rDUeCyaG06B9Oi.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:17.801Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "web-BjTPQUoRTs4XmO": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:17.856Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:28:44.184Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/web-BjTPQUoRTs4XmO.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:37:17.856Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "yc-gauge-founding": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:17.908Z",
+   "history": [
+    {
+     "at": "2026-07-17T15:50:52.139Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "demigod-outreach/funnel-drafts/yc-gauge-founding.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:00:25.624Z",
+     "from": "drafted",
+     "to": "approved",
+     "actor": "grok-busy",
+     "evidence": null,
+     "note": "batch-approve-agent-busy-2026-07-17"
+    },
+    {
+     "at": "2026-07-17T16:27:17.238Z",
+     "from": "approved",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "demigod-outreach/funnel-drafts/yc-gauge-founding.txt",
+     "note": "revert-agent-approval-trust-ladder"
+    },
+    {
+     "at": "2026-07-17T16:37:17.908Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "clera-founding": {
+   "type": "partner",
+   "state": "policy_hold",
+   "stateUpdatedAt": "2026-07-17T19:29:16.074Z",
+   "policyHoldReason": "no-usable-contact",
+   "history": [
+    {
+     "at": "2026-07-17T15:50:53.404Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "demigod-outreach/funnel-drafts/clera-founding.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:00:25.701Z",
+     "from": "drafted",
+     "to": "approved",
+     "actor": "grok-busy",
+     "evidence": null,
+     "note": "batch-approve-agent-busy-2026-07-17"
+    },
+    {
+     "at": "2026-07-17T16:27:17.349Z",
+     "from": "approved",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "demigod-outreach/funnel-drafts/clera-founding.txt",
+     "note": "revert-agent-approval-trust-ladder"
+    },
+    {
+     "at": "2026-07-17T19:29:16.074Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-usable-contact-url-only"
+    }
+   ]
+  },
+  "reddit-backend-founding": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:17.980Z",
+   "history": [
+    {
+     "at": "2026-07-17T15:53:13.329Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/reddit-backend-founding.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:13:10.048Z",
+     "from": "drafted",
+     "to": "approved",
+     "actor": "grok-busy-loop",
+     "evidence": null,
+     "note": "grok-busy-auto-approve-cycle-1"
+    },
+    {
+     "at": "2026-07-17T16:27:17.438Z",
+     "from": "approved",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "demigod-outreach/funnel-drafts/reddit-backend-founding.txt",
+     "note": "revert-agent-approval-trust-ladder"
+    },
+    {
+     "at": "2026-07-17T16:37:17.980Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "reddit-sfbay-seed-fe": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:23.856Z",
+   "history": [
+    {
+     "at": "2026-07-17T15:53:13.644Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/reddit-sfbay-seed-fe.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:15:55.270Z",
+     "from": "drafted",
+     "to": "approved",
+     "actor": "human",
+     "evidence": null,
+     "note": "batch for lead gen pipeline"
+    },
+    {
+     "at": "2026-07-17T16:37:23.856Z",
+     "from": "approved",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "inbox-featured-growth": {
+   "type": "partner",
+   "state": "policy_hold",
+   "stateUpdatedAt": "2026-07-17T16:29:46.132Z",
+   "policyHoldReason": "no-contact-email",
+   "history": [
+    {
+     "at": "2026-07-17T15:53:13.898Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/inbox-featured-growth.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:15:55.270Z",
+     "from": "drafted",
+     "to": "approved",
+     "actor": "human",
+     "evidence": null,
+     "note": "batch for lead gen pipeline"
+    },
+    {
+     "at": "2026-07-17T16:29:46.132Z",
+     "from": "approved",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-contact-email-synthetic-inbox"
+    }
+   ]
+  },
+  "yc-directory-sf-hiring": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:37:23.927Z",
+   "history": [
+    {
+     "at": "2026-07-17T15:54:44.764Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/yc-directory-sf-hiring.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:15:55.270Z",
+     "from": "drafted",
+     "to": "approved",
+     "actor": "human",
+     "evidence": null,
+     "note": "batch for lead gen pipeline"
+    },
+    {
+     "at": "2026-07-17T16:37:23.927Z",
+     "from": "approved",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "bis-NNQnWP8ExDK1--": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:29:41.820Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:29:41.820Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "bis-HEjN3vM-bMaaNN": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:29:41.820Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:29:41.820Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "bis-JQ-hztSe8mjpiS": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:29:41.821Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:29:41.821Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "bis-SDCcmG2LrjxLg6": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:29:41.821Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:29:41.821Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-i772O6Ezk25yHT": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-PODQg4nLXUSvSW": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-2xMZ-3rKIcePD_": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-SM7iK7K6QQqzsL": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-x3-4RtVtwz8JI0": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-tNs8-McRPsxj5p": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-KwQoBOB2OUTL2f": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-O3hhGwb3110AZD": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-Uy_oycToPUBuMh": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-6yXA6Q4h0jQ1I8": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-jiPhxvDNPe-C7m": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-ZByhLlEZ2DxEWi": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-wvQesrh5t4FSNx": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-LLSmYt0kDgAiQ7": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-HYYuLDAAsSyqU6": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-G_nvM69RG7-pgm": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-_WqGDeCqZY-ZoV": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-rclezttK_gtEHP": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-7zhIqfwqIgrxfi": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-UQTmC8bCPKbaTS": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-JyKKvQryjWmzGz": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-XJafcO2O0Tk9HM": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-9YjrWhPd1orQzA": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-kH0_6U3cblSM92": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-R4APkPOWu3d04W": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-iLdw6WAMyifeoK": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-q2vM3mU-OGG-Bt": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-eM_FTRMEbKKYsL": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-RbEUO37TjGY6cx": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "wf-hElk7d4WwdX_T9": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T17:41:16.363Z",
+   "history": [
+    {
+     "at": "2026-07-17T17:41:16.363Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "evt-cal-cal_mronep9dbixc": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T19:25:42.404Z",
+   "history": [
+    {
+     "at": "2026-07-17T19:25:42.404Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "evt-cal-cal_mronep9mhuue": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T19:25:42.404Z",
+   "history": [
+    {
+     "at": "2026-07-17T19:25:42.404Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "evt-cal-cal_mronlfhaujoj": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T19:25:42.404Z",
+   "history": [
+    {
+     "at": "2026-07-17T19:25:42.404Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "evt-cal-cal_mronmqh4gjtu": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T19:25:42.404Z",
+   "history": [
+    {
+     "at": "2026-07-17T19:25:42.404Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "evt-cal-cal_mronng3dpfwn": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T19:25:42.404Z",
+   "history": [
+    {
+     "at": "2026-07-17T19:25:42.404Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "evt-cal-cal_mronng3iyhze": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T19:25:42.404Z",
+   "history": [
+    {
+     "at": "2026-07-17T19:25:42.404Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "evt-cal-cal_mroo4xue7xmv": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T19:25:42.404Z",
+   "history": [
+    {
+     "at": "2026-07-17T19:25:42.404Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "evt-cal-cal_mroo4xuj433h": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T19:25:42.404Z",
+   "history": [
+    {
+     "at": "2026-07-17T19:25:42.404Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "evt-cal-cal_mrooah84kneb": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T19:25:42.404Z",
+   "history": [
+    {
+     "at": "2026-07-17T19:25:42.404Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "evt-cal-cal_mrooah8bb1jq": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T19:25:42.404Z",
+   "history": [
+    {
+     "at": "2026-07-17T19:25:42.404Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "evt-cal-cal_mrooah8g4zpg": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T19:25:42.404Z",
+   "history": [
+    {
+     "at": "2026-07-17T19:25:42.404Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "evt-cal-cal_mrooah8kuxtg": {
+   "type": "partner",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T19:25:42.404Z",
+   "history": [
+    {
+     "at": "2026-07-17T19:25:42.404Z",
+     "from": "sourced",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "x-kaveri": {
+   "type": "talent",
+   "state": "approved",
+   "stateUpdatedAt": "2026-07-17T16:15:55.271Z",
+   "history": [
+    {
+     "at": "2026-07-17T15:53:13.215Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/x-kaveri.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:15:55.271Z",
+     "from": "drafted",
+     "to": "approved",
+     "actor": "human",
+     "evidence": null,
+     "note": "batch for lead gen pipeline"
+    }
+   ]
+  },
+  "x-kevin-runner": {
+   "type": "talent",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-22T02:05:13.658Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:17:48.788Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/x-kevin-runner.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-22T02:05:13.658Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "roommate/local-presence post is not a job-seeking signal"
+    }
+   ]
+  },
+  "x-tavares": {
+   "type": "talent",
+   "state": "approved",
+   "stateUpdatedAt": "2026-07-17T16:15:55.271Z",
+   "history": [
+    {
+     "at": "2026-07-17T15:53:13.754Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/x-tavares.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:15:55.271Z",
+     "from": "drafted",
+     "to": "approved",
+     "actor": "human",
+     "evidence": null,
+     "note": "batch for lead gen pipeline"
+    }
+   ]
+  },
+  "fc-t-dPDmzYDkxz_Njn": {
+   "type": "talent",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-21T22:47:14.591Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:17:48.685Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-t-dPDmzYDkxz_Njn.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T19:29:16.074Z",
+     "from": "drafted",
+     "to": "policy_hold",
+     "actor": "agent",
+     "evidence": null,
+     "note": "no-usable-contact-url-only"
+    },
+    {
+     "at": "2026-07-17T20:24:39.055Z",
+     "from": "policy_hold",
+     "to": "drafted",
+     "actor": "enrich",
+     "evidence": null,
+     "note": "enrich-found-contact"
+    },
+    {
+     "at": "2026-07-21T22:47:14.591Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "codex-assist",
+     "evidence": null,
+     "note": "legacy-company-location-service-page"
+    }
+   ]
+  },
+  "fc-t-3iJQl75fpFjHgD": {
+   "type": "talent",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:51:26.713Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:17:09.672Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-t-3iJQl75fpFjHgD.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:51:26.713Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-t-XUL9t66PHCs7nh": {
+   "type": "talent",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:51:26.713Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:17:09.954Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-t-XUL9t66PHCs7nh.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:51:26.713Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-t-tM1DJUxsX7g6dF": {
+   "type": "talent",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:51:26.713Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:17:10.177Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-t-tM1DJUxsX7g6dF.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:51:26.713Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-t-eyjEuWqB5x_dLU": {
+   "type": "talent",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:51:26.713Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:17:48.090Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-t-eyjEuWqB5x_dLU.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:51:26.713Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-t-2KaQ025go6aO9x": {
+   "type": "talent",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:51:26.713Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:17:48.197Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-t-2KaQ025go6aO9x.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:51:26.713Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-t-YgHgIDeXl9FFZK": {
+   "type": "talent",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:51:26.713Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:22:28.960Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-t-YgHgIDeXl9FFZK.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:51:26.713Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-t-2NovI2Z719o0D-": {
+   "type": "talent",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:51:26.713Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:23:17.481Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-t-2NovI2Z719o0D-.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:51:26.713Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-t-1rsPKtHQ4LlwtW": {
+   "type": "talent",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:51:26.713Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:23:17.621Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-t-1rsPKtHQ4LlwtW.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:51:26.713Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-t-F7pN-qMK5Jk5on": {
+   "type": "talent",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:51:26.713Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:23:17.775Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-t-F7pN-qMK5Jk5on.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:51:26.713Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-t-KO6xvWf6LzPmaD": {
+   "type": "talent",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:51:26.713Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:31:55.191Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-t-KO6xvWf6LzPmaD.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:51:26.713Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-t-NGepDrNzQYqk3J": {
+   "type": "talent",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:51:26.713Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:31:55.326Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-t-NGepDrNzQYqk3J.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:51:26.713Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-t-8ND8LTfl5Udaam": {
+   "type": "talent",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:51:26.713Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:31:56.610Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-t-8ND8LTfl5Udaam.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:51:26.713Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  },
+  "fc-t-XpNoOlrmF9Rqze": {
+   "type": "talent",
+   "state": "disqualified",
+   "stateUpdatedAt": "2026-07-17T16:51:26.713Z",
+   "history": [
+    {
+     "at": "2026-07-17T16:31:56.764Z",
+     "from": "sourced",
+     "to": "drafted",
+     "actor": "agent",
+     "evidence": "/home/potter/demigod-outreach/funnel-drafts/fc-t-XpNoOlrmF9Rqze.txt",
+     "note": null
+    },
+    {
+     "at": "2026-07-17T16:51:26.713Z",
+     "from": "drafted",
+     "to": "disqualified",
+     "actor": "agent",
+     "evidence": null,
+     "note": "junk-aggregator-or-fragment"
+    }
+   ]
+  }
+ }
+}

@@ -18,6 +18,8 @@ import {
   parsePackageReadyCount,
   packageBoardHonesty,
   placementPairId,
+  decisionArchive,
+  archiveLeaksContact,
   formatHoldsEnrichDuePackage,
   formatEmailFirstApprovePackage,
   formatEmailFirstSendPackage,
@@ -8623,3 +8625,36 @@ if (failed > 0 || skipped > 0) {
   process.exit(1);
 }
 console.log('ALL GREEN');
+
+// --- decision archive: the funnel's judgement is the half that cannot be re-collected ---
+{
+  const doc = {
+    at: '2026-08-06T00:00:00.000Z',
+    partners: [{
+      id: 'p1', type: 'partner', state: 'disqualified', stateUpdatedAt: '2026-07-17T00:00:00.000Z',
+      company: 'Acme', title: 'CEO', email: 'ceo@acme.com', linkedin: 'https://linkedin.com/in/x',
+      companyUrl: 'https://acme.com', policyHoldReason: 'no-usable-contact',
+      stateHistory: [{ at: '2026-07-17T00:00:00.000Z', from: 'sourced', to: 'disqualified', actor: 'agent', evidence: null, note: 'junk' }],
+    }],
+    talent: [{ id: 't1', type: 'talent', state: 'sourced', stateHistory: [] }],
+  };
+  const archive = decisionArchive(doc);
+  if (archive.count !== 2) throw new Error('decision archive: partners and talent both belong in it');
+  if (archive.decisions.p1.state !== 'disqualified') throw new Error('decision archive: the decision itself must survive');
+  if (archive.decisions.p1.history[0].note !== 'junk') throw new Error('decision archive: the reason must survive');
+  if (archive.decisions.p1.policyHoldReason !== 'no-usable-contact') throw new Error('decision archive: the hold reason must survive');
+
+  // The whole point: it is committable only if it carries no contact detail.
+  if (archiveLeaksContact(archive).length) throw new Error(`decision archive leaks ${archiveLeaksContact(archive).join(', ')}`);
+  if (JSON.stringify(archive).includes('acme.com')) throw new Error('decision archive: a contact domain reached the output');
+  if (JSON.stringify(archive).includes('Acme')) throw new Error('decision archive: re-collectable detail should not be carried');
+
+  // And the leak check must be able to fire, or committing on its say-so is unearned.
+  if (!archiveLeaksContact({ decisions: { p1: { email: 'a@b.com' } } }).includes('email')) {
+    throw new Error('decision archive: the leak check cannot detect a leak');
+  }
+  if (archiveLeaksContact({ decisions: { p1: { email: null } } }).length) {
+    throw new Error('decision archive: an empty field is not a leak');
+  }
+  console.log('ok decision-archive');
+}
