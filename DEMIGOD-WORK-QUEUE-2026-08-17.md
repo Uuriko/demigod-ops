@@ -338,6 +338,25 @@ false` this morning, now reads `wd:Q16153666 board_observed lastAttempt ok curre
 - **W4-6** — 0 boards shared by more than one company in the live map; the dedupe survivorship
   question does not arise today.
 
+## The Pulse's other direction, found by running the morning's fix on real data
+
+The paused-hiring fix stopped a failed board read publishing as a company that stopped hiring. The
+mirror image is larger and was live: a board we failed to read yesterday and read today reappears in
+the counts, and `startedHiring` claims a decision the company never made.
+
+Against real history tonight the delta read **133 started**, comparing to a snapshot taken after the
+rate-limited run — 340 boards then, 472 now. Almost all of that is our crawler recovering.
+
+Fixed by recording each day's unread ids in the snapshot (the evidence exists only on the day), and
+withholding the started count with a printed reason when the earlier snapshot predates the field.
+What it publishes today: *"Since 2026-08-16: 1 paused, net +2,508 open roles. A started-hiring count
+is withheld for this comparison."* Tomorrow's snapshot carries the field; the day after, the number
+can be published honestly.
+
+Only that one number is withheld — `paused`, the unread exclusion and the net are computed from
+today's map and hold regardless. Withholding all three was the first attempt and the existing test
+caught it.
+
 ## The one published essay is invisible without JavaScript
 
 Measured on live `/blog`: the title and the one-line summary appear in the served HTML (they ride in
