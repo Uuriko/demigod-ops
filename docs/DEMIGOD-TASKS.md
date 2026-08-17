@@ -535,6 +535,30 @@ tasks unless they appear here.
   foot-core drift above went unnoticed. Wiring the eight is cheap; the red one waits
   on that decision. Measure before generalizing: most of the 166 test files are fine,
   this is a specific hole rather than a systemic one.
+- [ ] **Agreed lane split with Grok, 2026-08-17 — public pay vs packet band.** Ashby
+  publishes compensation on its public board API with an employer opt-in flag
+  (`shouldDisplayCompensationOnJobPostings`); 79% of jobs on our boards carry a range,
+  and across 151 sampled jobs there were zero cases of a range present while the
+  employer had opted out, so consent is respected at the source. Grok's boundary, which
+  CONTRACTS §22 and §29 already implied: **employer-published board pay is observation
+  (Claude); packet `compBand` stays kernel (Grok), post-match context, never a rank.**
+  - Claude may: fetch with `includeCompensation=true`; persist the display *string* plus
+    the flag; project only on the intersection of range AND flag; render as a meta fact
+    on foot-core and atlas; carry Greenhouse `ai_disclaimer` / `include_ai_disclaimer` /
+    `ai_opt_out_request_url` verbatim; add `boardUpdatedAt` to the foot rail the way
+    atlas already shows it.
+  - Claude may not: name it `compBand` or call `setCompBand` (`demigod-public-comp.mjs`
+    already writes quote-extracted bands into packets — a second writer collides); put
+    numeric min/max on the public schema, because numeric keys are how a sort grows
+    later; sort, filter, score or badge by pay; infer pay from prose (Greenhouse returns
+    none — 0 of 577 — and backlog item 17 already forbade parsing it); use Lever's
+    `salaryRange`, which has no display flag; or write "this employer uses automated
+    screening" in Demigod's voice, since their sentence is evidence and ours is a verdict.
+  - The catch worth keeping: pay shown on Ashby rows and absent on Greenhouse reads as
+    "these are the better ones" — a ranking nobody intended, across 46% of roles. State
+    the coverage; absence stays null, never `0` and never "undisclosed".
+  - Order agreed: PR3 `lastAttempt` writes before pay, because `lastAttempt` is what
+    makes the kernel's zeros honest and pay is a field the kernel does not read.
 - [ ] Keep the useful-work loop productive and bounded: repair proven failures,
   prune duplicate/stale work, and never auto-publish, auto-message, or manufacture
   business state. Current state: `bin/dg next` and `node demigod-work-find.mjs`.
