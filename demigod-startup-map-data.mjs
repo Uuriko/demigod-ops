@@ -308,7 +308,14 @@ export function companyWebsiteFromHiringHost(url) {
 export function buildHnPublicCompanies(rows = []) {
   return (Array.isArray(rows) ? rows : [])
     .filter((row) => isPlausibleHnCompanyName(row.name) && isCompanyWebsiteHost(row.website))
-    .map((row) => ({ ...row, website: safeUrl(companyWebsiteFromHiringHost(row.website)) }));
+    /* safeUrl FIRST, then normalise. DEAD_PUBLIC_WEBSITE_HOSTS is a curated list of hosts somebody
+       checked by hand, and it lists `careers.onton.com` by that exact name. Normalising before the
+       denylist ran turned a host known to be dead into `onton.com` and let it through — a curated
+       fact defeated by a tidy-up. If the host we were given is dead, the answer stays null. */
+    .map((row) => {
+      const safe = safeUrl(row.website);
+      return { ...row, website: safe ? safeUrl(companyWebsiteFromHiringHost(safe)) : null };
+    });
 }
 
 /**
@@ -751,6 +758,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         const got = companyWebsiteFromHiringHost(input);
         if (got !== want) throw new Error(`companyWebsiteFromHiringHost(${JSON.stringify(input)}) = ${JSON.stringify(got)}, want ${JSON.stringify(want)} — ${why}`);
       }
+      // Order matters and this pins it: a host on the curated dead list must stay dropped, not be
+      // rescued by normalising it into a host nobody checked.
+      const [ontonRow] = buildHnPublicCompanies([{ name: 'Onton.com', website: 'https://careers.onton.com/', jobsUrl: 'https://jobs.ashbyhq.com/onton' }]);
+      if (ontonRow.website !== null) throw new Error(`a known-dead careers host must stay dropped, got ${ontonRow.website}`);
+      const [liveRow] = buildHnPublicCompanies([{ name: 'Chime', website: 'https://careers.chime.com/' }]);
+      if (liveRow.website !== 'https://chime.com/') throw new Error(`a live careers host normalises, got ${liveRow.website}`);
 
       // Wikidata disambiguators are not company names, and the narrowness of the rule is the point.
       const nameCases = [
