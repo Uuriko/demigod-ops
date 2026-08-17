@@ -492,6 +492,16 @@ questions, process state, and consent/introduction requirements. Founder-only de
 non-public compensation are named as withheld until separately reviewed for sharing. Candidate IDs, ratings, evidence text,
 reviewers, suppression, relationship paths, private notes, and action authority are absent.
 
+```text
+demigod.role-mission-mutual/1
+  workspace-required      => a non-workspace input fails closed
+  candidate-ids           => absent
+  ratings-and-evidence    => absent, including the reviewer who wrote them
+  private-comp            => absent from the projection; named as withheld
+  deal-breakers           => absent from the projection; named as withheld
+  action-authority        => declared as none, never granted
+```
+
 ## 23. Mission scenario
 
 `compareMissionScenario(workspace, changes)` returns `demigod.role-mission-scenario/1`. Only title,
@@ -499,6 +509,16 @@ reviewers, suppression, relationship paths, private notes, and action authority 
 result lists affected requirements, questions, filters, plan, offer context, and role-truth status.
 It is immutable, `committable: false`, has `predictedOutcome: null`, and grants no external action.
 Unknown fields, empty changes, wrong array shapes, and no-op changes fail closed.
+
+```text
+demigod.role-mission-scenario/1
+  changeable              = title, outcome90d, mustHaves, dealBreakers, compBand, interviewPlan
+  unknown-field           => fails closed
+  empty-changes           => fails closed
+  wrong-shape             => fails closed
+  committable             = false
+  predictedOutcome        = null
+```
 
 ## 24. Candidate evidence assertion
 

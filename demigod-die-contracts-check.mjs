@@ -195,6 +195,141 @@ function checkSafeUrl() {
  * it eventually fails. A flag that reaches a subcommand which might honour it has already lost the
  * property, so every case here asserts the planner refuses rather than that the run does nothing.
  */
+/**
+ * §22 Mutual projection and §23 Mission scenario.
+ *
+ * The mutual projection is the only artifact in DIE that is meant to be seen by someone outside the
+ * company, so its rules are all about absence. Absence is checked with sentinels: the workspace is
+ * built with unmistakable strings in every field that must not cross, and the projection is
+ * searched for those bytes. Listing the keys that are allowed through would pass a projection that
+ * started copying a new private field tomorrow.
+ */
+async function missionWorkspaceFixture() {
+  const { composeRoleWorkspace } = await import('./demigod-structured-hiring.mjs');
+  const SENTINELS = {
+    comp: 'PRIVATE-COMP-SENTINEL-220000',
+    dealBreaker: 'PRIVATE-DEALBREAKER-SENTINEL',
+    candId: 'cand-sentinel-9001',
+    evidence: 'PRIVATE-EVIDENCE-TEXT-SENTINEL',
+    reviewer: 'reviewer-sentinel-name',
+  };
+  const workspace = composeRoleWorkspace({
+    roleId: 'role-contract-check',
+    acceptedRole: { roleId: 'role-contract-check', company: 'Acme', roleTruthHash: 'abc' },
+    packet: {
+      roleId: 'role-contract-check',
+      companyId: 'yc:acme',
+      title: 'Founding Engineer',
+      outcome90d: 'Ship the first reliable customer-facing product.',
+      mustHaves: [
+        { id: 'mh1', label: 'Backend craft' },
+        { id: 'mh2', label: 'Product judgment' },
+        { id: 'mh3', label: 'Clear communication' },
+      ],
+      dealBreakers: [{ id: 'db1', label: SENTINELS.dealBreaker }],
+      compBand: { text: SENTINELS.comp, source: 'founder_stated' },
+      stage: 'brief_ready',
+    },
+    companyPacket: { schema: 'demigod.company-packet/1', companyId: 'yc:acme', identity: { name: 'Acme' } },
+    batch: { max: 3, candidates: [{ candId: SENTINELS.candId, why: 'Relevant shipped work', state: 'active' }] },
+    notes: [{
+      roleId: 'role-contract-check',
+      candId: SENTINELS.candId,
+      reviewedAt: '2026-08-14T00:00:00.000Z',
+      reviewedBy: SENTINELS.reviewer,
+      ratings: [{ mustHaveId: 'mh1', rating: 'yes', evidence: SENTINELS.evidence, evidenceIds: ['ev-1'] }],
+    }],
+    at: '2026-08-15T00:00:00.000Z',
+  });
+  return { workspace, SENTINELS };
+}
+
+async function checkMutualProjection() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.role-mission-mutual\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.role-mission-mutual/1 fence in §22 yet' };
+
+  const { projectMutualMission } = await import('./demigod-structured-hiring.mjs');
+  const { workspace, SENTINELS } = await missionWorkspaceFixture();
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+
+  if (/workspace-required\s*=>\s*a non-workspace input fails closed/.test(fence)) {
+    for (const input of [null, {}, { schema: 'demigod.role-mission/1' }, []]) {
+      let threw = false;
+      try { projectMutualMission(input); } catch { threw = true; }
+      say(threw, `projectMutualMission accepted ${JSON.stringify(input)}`);
+    }
+  }
+  const mutual = JSON.stringify(projectMutualMission(workspace));
+  const absent = (sentinel, rule) => say(!mutual.includes(sentinel), `${rule} crossed into the mutual projection`);
+  if (/candidate-ids\s*=>\s*absent/.test(fence)) absent(SENTINELS.candId, 'a candidate id');
+  if (/ratings-and-evidence\s*=>\s*absent/.test(fence)) {
+    absent(SENTINELS.evidence, 'private evidence text');
+    absent(SENTINELS.reviewer, "the reviewer's name");
+  }
+  if (/private-comp\s*=>\s*absent from the projection; named as withheld/.test(fence)) {
+    absent(SENTINELS.comp, 'the private compensation band');
+    say(/withheld/i.test(mutual), 'nothing is named as withheld — silence is not the same as declaring a boundary');
+  }
+  if (/deal-breakers\s*=>\s*absent/.test(fence)) absent(SENTINELS.dealBreaker, 'a founder-only deal-breaker');
+  if (/action-authority\s*=>\s*declared as none, never granted/.test(fence)) {
+    // The projection does carry an `authority` block, and that is correct: it states that the
+    // employment decision is human and external action is none. A declaration that nothing is
+    // authorized is the opposite of a grant, so the check is that the declaration says none --
+    // not that the key is missing, which was this rule's first and wrong wording.
+    const authority = projectMutualMission(workspace).authority || {};
+    say(authority.externalAction === 'none', `externalAction is ${JSON.stringify(authority.externalAction)}`);
+    say(authority.employmentDecision === 'human', `employmentDecision is ${JSON.stringify(authority.employmentDecision)}`);
+    say(!/"(canSend|canIntro|canAct|allowed)"\s*:\s*true/.test(mutual), 'the mutual projection grants an action');
+  }
+
+  return bad.length
+    ? { status: 'violation', detail: `§22 fence and projectMutualMission disagree on ${bad.length} rule(s)`, sample: bad.slice(0, 5) }
+    : { status: 'pass', detail: `5 private sentinels planted in the workspace, none survive the mutual projection` };
+}
+
+async function checkMissionScenario() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.role-mission-scenario\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.role-mission-scenario/1 fence in §23 yet' };
+
+  const { compareMissionScenario } = await import('./demigod-structured-hiring.mjs');
+  const { workspace } = await missionWorkspaceFixture();
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+  const refuses = (changes) => {
+    try { compareMissionScenario(workspace, changes); return false; } catch { return true; }
+  };
+
+  const scenario = compareMissionScenario(workspace, { title: 'Founding Engineer, Platform' });
+  if (/changeable\s*=\s*title, outcome90d/.test(fence)) {
+    say(scenario?.schema === 'demigod.role-mission-scenario/1', `scenario schema is ${scenario?.schema}`);
+  }
+  if (/unknown-field\s*=>\s*fails closed/.test(fence)) {
+    say(refuses({ automaticDecision: true }), 'an undeclared field was accepted as a scenario change');
+    say(refuses({ title: 'x', automaticDecision: true }), 'an undeclared field rode along with a legal one');
+  }
+  if (/empty-changes\s*=>\s*fails closed/.test(fence)) {
+    say(refuses({}), 'an empty change set produced a scenario');
+  }
+  if (/wrong-shape\s*=>\s*fails closed/.test(fence)) {
+    say(refuses(null), 'null changes produced a scenario');
+    say(refuses([{ title: 'x' }]), 'an array of changes produced a scenario');
+    say(refuses({ mustHaves: 'not-an-array' }), 'a string where an array belongs produced a scenario');
+  }
+  if (/committable\s*=\s*false/.test(fence)) {
+    say(scenario?.committable === false, `committable is ${scenario?.committable}`);
+  }
+  if (/predictedOutcome\s*=\s*null/.test(fence)) {
+    say(scenario?.predictedOutcome === null, `predictedOutcome is ${JSON.stringify(scenario?.predictedOutcome)}`);
+  }
+
+  return bad.length
+    ? { status: 'violation', detail: `§23 fence and compareMissionScenario disagree on ${bad.length} rule(s)`, sample: bad.slice(0, 5) }
+    : { status: 'pass', detail: `6 fail-closed shapes refused; a scenario is never committable and predicts nothing` };
+}
+
 async function checkCommandSurface() {
   const md = fs.readFileSync(CONTRACTS, 'utf8');
   const fence = /```text\s*\n(demigod\.command-surface\/1[\s\S]*?)```/.exec(md)?.[1];
@@ -1184,7 +1319,7 @@ async function checkBoardPay() {
 }
 
 /** Sections with a working executor today. Raise it when you wire one; never lower it. */
-export const ENFORCED_FLOOR = 21;
+export const ENFORCED_FLOOR = 23;
 
 export const EXECUTORS = {
   5: { name: 'demigod-evidence.mjs (claim shape)', run: checkClaim },
@@ -1206,6 +1341,8 @@ export const EXECUTORS = {
   16: { name: 'demigod-company-memo.mjs renderCompanyMemo', run: checkPrivateMemo },
   17: { name: 'demigod-packet-writeback.mjs buildWritebackPlan', run: checkWriteback },
   18: { name: 'demigod-company-intelligence.mjs companyCommandPlan', run: checkCommandSurface },
+  22: { name: 'demigod-structured-hiring.mjs projectMutualMission', run: checkMutualProjection },
+  23: { name: 'demigod-structured-hiring.mjs compareMissionScenario', run: checkMissionScenario },
   29: { name: 'demigod-role-mission-kernel.mjs attachCompany (grok)', run: checkMissionCompany },
   30: { name: 'demigod-board-pay.mjs rolePayVisibility', run: checkBoardPay },
 };
