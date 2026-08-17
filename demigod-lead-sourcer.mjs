@@ -518,7 +518,15 @@ function main() {
     leads.forEach(l => l.score = scoreLead(l, type));
     leads.sort((a, b) => b.score - a.score);
   } else {
-    const crm = JSON.parse(fs.readFileSync(LEADS, 'utf8'));
+    let crm;
+    try {
+      crm = JSON.parse(fs.readFileSync(LEADS, 'utf8'));
+    } catch (error) {
+      // Gitignored CRM is absent in CI and after a clean clone. Same answer as a missing
+      // RecruitAI export: refuse, do not print a stack.
+      if (error?.code === 'ENOENT' || error instanceof SyntaxError) throw new Error(EXPORT_REFUSED);
+      throw error;
+    }
     ({ leads, source, selectionReceipt } =
       selectRecruitaiPartners(crm, { limit, offset }));
   }

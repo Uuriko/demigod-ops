@@ -1073,9 +1073,13 @@ test('a non-exportable research field is stripped, not fatal to the whole export
 test('absent committed export refuses cleanly instead of throwing ENOENT', (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-lead-sourcer-absent-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  // CI has no gitignored DEMIGOD-LEADS.json. Give a dummy CRM so this test is about the
+  // export pointer, not a missing SoR — missing CRM is now the same fail-closed refusal.
+  const crmPath = path.join(dir, 'leads.json');
+  fs.writeFileSync(crmPath, JSON.stringify({ companies: [] }));
   const run = spawnSync(process.execPath, ['demigod-lead-sourcer.mjs', '--type=partners', '--limit=5'], {
     encoding: 'utf8',
-    env: partnerChildEnv(dir),
+    env: partnerChildEnv(dir, { DEMIGOD_LEADS_PATH: crmPath }),
   });
   const err = `${run.stderr}${run.stdout}`;
   assert.doesNotMatch(err, /ENOENT|lstat|SyntaxError/, `raw fs error leaked: ${err}`);

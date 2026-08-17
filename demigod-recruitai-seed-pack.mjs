@@ -36,6 +36,47 @@ const isDay = (value) =>
   new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
 const isCount = (value) => Number.isSafeInteger(value) && value >= 0;
 
+export const SIGNALS_DOC_SCHEMA = 'demigod.recruitai-signals/3';
+
+/**
+ * Read-only load of demigod-signals.json. Missing or unreadable → null (never throw).
+ * Present but wrong schema / not an object → null. Does not invent accounts.
+ */
+export function loadSignalsDoc(filePath) {
+  if (filePath == null || filePath === '') return null;
+  let raw;
+  try {
+    raw = fs.readFileSync(filePath, 'utf8');
+  } catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    return null;
+  }
+  try {
+    const doc = JSON.parse(raw);
+    if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return null;
+    if (doc.schema !== SIGNALS_DOC_SCHEMA) return null;
+    return doc;
+  } catch {
+    return null;
+  }
+}
+
+/** Packet-shaped counts for one mapCompanyId. Missing doc/row → zeros, not a crash. */
+export function signalCountsForCompany(doc, mapCompanyId) {
+  const empty = { firstObservedToday: 0, closedToday: 0, reopenedOpen: 0 };
+  if (!doc || typeof mapCompanyId !== 'string' || !mapCompanyId.trim()) return empty;
+  const byId = doc.byMapCompanyId;
+  const row = byId && typeof byId === 'object' && !Array.isArray(byId)
+    ? byId[mapCompanyId]
+    : null;
+  if (!row || typeof row !== 'object' || Array.isArray(row)) return empty;
+  return {
+    firstObservedToday: isCount(row.firstObservedTodayReqCount) ? row.firstObservedTodayReqCount : 0,
+    closedToday: isCount(row.closedTodayReqCount) ? row.closedTodayReqCount : 0,
+    reopenedOpen: isCount(row.reopenedOpenReqCount) ? row.reopenedOpenReqCount : 0,
+  };
+}
+
 function assertSignalObservation(row) {
   const counts = row?.counts;
   if (
@@ -541,6 +582,12 @@ function selftest() {
   const e = rowToSeedEntry(row);
   assert(e.seed.name === 'Acme' && e.seed.domain === 'acme.test', 'seed shape');
   assert(!('website' in e.seed), 'no invented website');
+  assert(loadSignalsDoc('/tmp/dg-signals-file-does-not-exist.json') === null, 'missing signals file is null');
+  assert(
+    JSON.stringify(signalCountsForCompany(null, 'yc:acme')) ===
+      JSON.stringify({ firstObservedToday: 0, closedToday: 0, reopenedOpen: 0 }),
+    'null signals doc → zeros',
+  );
   assert(e.demigod.openReqCount === 12 && e.demigod.openPeopleOpsReqCount === 1, 'signals');
   assert(
     e.demigod.firstObservedTodayReqCount === 2 &&

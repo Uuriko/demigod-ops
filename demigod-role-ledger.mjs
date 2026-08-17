@@ -73,6 +73,41 @@ export const postedVsEditedDays = (row) => {
   return daysBetween(row.nativePostedAt, row.nativeUpdatedAt);
 };
 
+const clipAtsText = (value, max = 120) => {
+  if (value == null) return null;
+  const s = String(value).trim();
+  return s ? s.slice(0, max) : null;
+};
+
+/**
+ * Employer ATS fields already stored on a ledger row.
+ * Dual clock: postedAt is the employer's first_published day only; firstObservedAt is ours.
+ * Never copy firstObservedAt into postedAt. Ashby/Lever publishedAt/createdAt stay null.
+ */
+export function projectEmployerAtsFields(row = {}) {
+  const nativeDateField = typeof row?.nativeDateField === 'string' && row.nativeDateField
+    ? row.nativeDateField
+    : null;
+  const postedOk = nativeDateField === 'first_published' && isDay(row?.nativePostedAt);
+  const nativePostedAt = postedOk ? row.nativePostedAt : null;
+  return {
+    employerDepartment: clipAtsText(row?.employerDepartment),
+    employerOffice: clipAtsText(row?.employerOffice),
+    workplaceType: clipAtsText(row?.workplaceType, 40),
+    employmentType: clipAtsText(row?.employmentType, 60),
+    nativeDeadline: isDay(row?.nativeDeadline) ? row.nativeDeadline : null,
+    nativePostedAt,
+    nativeDateField,
+    nativeUpdatedAt: isDay(row?.nativeUpdatedAt) ? row.nativeUpdatedAt : null,
+    postedAt: nativePostedAt,
+    firstObservedAt: isDay(row?.firstSeen) ? row.firstSeen : null,
+    postedVsEditedDays: postedVsEditedDays({
+      nativePostedAt: row?.nativePostedAt,
+      nativeUpdatedAt: row?.nativeUpdatedAt,
+      nativeDateField,
+    }),
+  };
+}
 
 /** Requisition id is employer-freeform — abstain when not ID-shaped (Airbnb ONE/MULTI trap). */
 export function classifyRequisitionId(raw) {
@@ -1037,6 +1072,35 @@ if (isMain && process.argv.includes('--selftest')) {
     assert(ash.employerDepartment === 'Eng' && ash.employmentType === 'FullTime' && ash.workplaceType === 'Hybrid', 'ashby fields');
     const lev = leverEmployerFields({ categories: { department: 'R&D', location: 'Remote', commitment: 'Full Time' }, workplaceType: 'remote' });
     assert(lev.employerDepartment === 'R&D' && lev.employmentType === 'Full Time' && lev.workplaceType === 'remote', 'lever fields');
+    const gh = projectEmployerAtsFields({
+      firstSeen: '2026-07-01',
+      nativePostedAt: '2026-06-01',
+      nativeDateField: 'first_published',
+      nativeUpdatedAt: '2026-07-15',
+      employerDepartment: 'Engineering',
+      employerOffice: 'San Francisco',
+      workplaceType: 'Hybrid',
+      employmentType: 'Full-time',
+      nativeDeadline: '2026-12-01',
+    });
+    assert(gh.employerDepartment === 'Engineering' && gh.employerOffice === 'San Francisco', 'project dept/office');
+    assert(gh.postedAt === '2026-06-01' && gh.nativePostedAt === '2026-06-01', 'gh posted clock');
+    assert(gh.firstObservedAt === '2026-07-01' && gh.postedAt !== gh.firstObservedAt, 'dual clock not copied');
+    assert(gh.postedVsEditedDays === 44 && gh.nativeDeadline === '2026-12-01', 'maintained-stale + deadline');
+    const ashProj = projectEmployerAtsFields({
+      firstSeen: '2026-07-01',
+      nativePostedAt: '2026-04-27',
+      nativeDateField: 'publishedAt',
+      employerDepartment: 'Engineering',
+    });
+    assert(ashProj.postedAt === null && ashProj.nativePostedAt === null, 'ashby posted stays null');
+    assert(ashProj.firstObservedAt === '2026-07-01' && ashProj.employerDepartment === 'Engineering', 'ashby observer + dept');
+    const copied = projectEmployerAtsFields({
+      firstSeen: '2026-07-01',
+      nativePostedAt: '2026-07-01',
+      nativeDateField: 'createdAt',
+    });
+    assert(copied.postedAt === null && copied.firstObservedAt === '2026-07-01', 'never copy firstObserved into posted');
   }
 
   // --- posting-date renewal detection (ATS auto-renew, 30-90d cycles) -----------------------
