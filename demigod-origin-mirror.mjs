@@ -109,7 +109,27 @@ export function inspect({ root = ROOT } = {}) {
   };
 }
 
+/**
+ * Create the repo on Origin if it is not there yet.
+ *
+ * `origin repo create-mirrored <owner/repo>` also exists and mirrors straight from GitHub without
+ * touching this disk — the better choice when GitHub stays the source of truth. It is NOT used here
+ * because the chosen order is Origin first: a server-side mirror would copy GitHub's history and
+ * silently omit the commits that exist only on this machine.
+ */
+function ensureRepo(repo, namespace) {
+  const view = spawnSync('origin', ['repo', 'view', `${namespace}/${repo.name}`], { encoding: 'utf8' });
+  if (view.status === 0) return { created: false, existed: true };
+  const created = spawnSync('origin', ['repo', 'create', `${namespace}/${repo.name}`], { encoding: 'utf8' });
+  if (created.status !== 0) {
+    return { created: false, existed: false, error: (created.stderr || created.stdout || '').trim().slice(0, 200) };
+  }
+  return { created: true, existed: false };
+}
+
 function pushRepo(repo, namespace) {
+  const made = ensureRepo(repo, namespace);
+  if (made.error) return { repo: repo.name, ok: false, step: 'repo create', error: made.error };
   const url = originUrl(namespace, repo.name);
   const existing = git(repo.dir, ['remote', 'get-url', ORIGIN_REMOTE]);
   if (!existing.ok) {
@@ -125,6 +145,7 @@ function pushRepo(repo, namespace) {
   return {
     repo: repo.name,
     ok: pushed.ok && tagged.ok,
+    created: made.created,
     url,
     branches: pushed.ok ? 'pushed' : pushed.err.slice(0, 200),
     tags: tagged.ok ? 'pushed' : tagged.err.slice(0, 200),
