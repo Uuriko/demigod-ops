@@ -326,6 +326,22 @@ actually reached — that is what the marker is for. Check the ceiling before do
 - **W4-6** — 0 boards shared by more than one company in the live map; the dedupe survivorship
   question does not arise today.
 
+## W6-4 measured: the consent receipt has neither end
+
+`demigod-taste-prior.mjs` is a complete, tested, fail-closed module — adversarial cases for a forged
+hold and a string `proven` included — wired to nothing at either end:
+
+- **No producer.** Nothing in the repo writes `taste-receipts.json`; the Dasha opt-in receipt it
+  expects is not issued by anything.
+- **No consumer.** It appears in no runner, no tools registry entry, no package script, and neither
+  the matching engine nor the dashboard imports it. The only file mentioning it is itself.
+
+It is harmless as it stands — a missing receipt projects `unknown`, never a score — but it is exactly
+what §12 of CONTRACTS.md calls out: an unused, unexercised export is a second contract nobody is
+verifying. Its selftest now runs in verify-all so the fail-closed property is locked while the
+decision waits, and the decision is a real one: **issue the receipt from the Dasha side, or delete
+the module.** Not mine to take — it spans two projects.
+
 ## What a polite enrich actually costs
 
 Run 2026-08-17 at `DEMIGOD_ENRICH_CONCURRENCY=4` — a quarter of the default 12, chosen because one

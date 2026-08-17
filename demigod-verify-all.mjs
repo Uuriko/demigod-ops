@@ -142,6 +142,10 @@ if (ship || wizard) {
     // Gold is pinned and the map moves under it: when the selector stops reproducing gold, the
     // drift must name which companies moved rather than being absorbed into a re-selection.
     ['demigod-benchmark-selection-drift.test.mjs'],
+    // Fail-closed opt-in taste prior. Nothing issues its receipts and nothing reads its output yet,
+    // so this locks the only property that matters while it sits unwired: a missing or forged
+    // receipt projects `unknown` and never a score. If the module is ever deleted, delete this too.
+    ['demigod-taste-prior.mjs', ['--selftest']],
     // Two DIE modules that were untracked and unrun: whether a company is still operating, and the
     // corpus defects that would otherwise be discovered by a reader.
     ['demigod-company-liveness.mjs', ['--selftest']],
@@ -312,7 +316,7 @@ if (ship || wizard) {
      floor is a volume floor, not a target: a bad merge or a truncated array drops entries silently,
      and 95 steps becoming 12 is the failure mode worth catching. Raise it deliberately when steps
      are added; never lower it to make a run green. */
-  const MIN_STEPS = 194;
+  const MIN_STEPS = 195;
 
   let failed = 0;
   let ran = 0;
