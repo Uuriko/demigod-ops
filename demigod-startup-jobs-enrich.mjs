@@ -27,12 +27,12 @@ const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPat
 export const jobsEnrichCliMode = (args) =>
   args.length === 0
     ? 'enrich'
-    : args.length === 1 && ['--selftest', '--repair-denied'].includes(args[0])
+    : args.length === 1 && ['--selftest', '--repair-denied', '--repair-stamps'].includes(args[0])
       ? args[0].slice(2)
       : null;
 const cliMode = jobsEnrichCliMode(process.argv.slice(2));
 if (isMain && cliMode == null) {
-  console.error('usage: demigod-startup-jobs-enrich.mjs [--selftest | --repair-denied]');
+  console.error('usage: demigod-startup-jobs-enrich.mjs [--selftest | --repair-denied | --repair-stamps]');
   process.exit(1);
 }
 // 12 parallel workers over ~2900 companies × 7 providers is enough to get rate-limited by a single
@@ -664,6 +664,26 @@ export function projectJobRow(company, board, { at, attemptAt }) {
   }
   // No board and not YC-hiring — but say why we know that.
   return { row: stamp(rest, board?.lastAttempt) };
+}
+
+/**
+ * Drop `openRolesAt` from rows that carry a date and no count.
+ *
+ * 597 of 2,917 live rows had one on 2026-08-17, all of them YC directory links stamped by a branch
+ * that had read no board. `projectJobRow` stopped writing them, but a full enrich re-reads ~2,900
+ * companies across seven providers and one run has already cost 90 Ashby boards to rate limiting —
+ * too expensive to fire for a field nobody needs to re-derive. This touches the stamp and nothing
+ * else: no count moves, no board is read, and a second run is a no-op.
+ */
+export function repairStampedRows(companies = []) {
+  const touched = [];
+  const rows = companies.map((company) => {
+    if (!company?.openRolesAt || Number.isSafeInteger(company.openRoles)) return company;
+    const { openRolesAt, ...rest } = company;
+    touched.push({ id: company.id || null, jobsSource: company.jobsSource || null, openRolesAt });
+    return rest;
+  });
+  return { rows, touched };
 }
 
 export function updateJobsCoverage(map, at, collapsed = map?.coverage?.boardDupesCollapsed || 0) {
@@ -1503,6 +1523,19 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || cliMode === '
   assert(carried.row.lastAttempt === 'rate_limited', 'and says what actually happened on the read');
   const nothing = projectJobRow({ id: 'yc:quiet', name: 'Quiet', website: 'https://quiet.example/' }, { lastAttempt: 'error' }, stamps).row;
   assert(nothing.openRolesAt === undefined && nothing.lastAttempt === 'error', 'no board and not YC-hiring still records the failed attempt');
+  // The stamp repair: touch the dateless rows, leave everything else byte-identical, converge.
+  const before = [
+    { id: 'yc:link', jobsSource: 'YC', openRolesAt: '2026-08-17', hiring: 'yes' },
+    { id: 'yc:counted', openRoles: 3, atsSource: 'Lever', openRolesAt: '2026-08-17' },
+    { id: 'yc:empty', openRoles: 0, atsSource: 'Lever', openRolesAt: '2026-08-17' },
+    { id: 'yc:none', hiring: 'yes' },
+  ];
+  const repaired = repairStampedRows(before);
+  assert(repaired.touched.length === 1 && repaired.touched[0].id === 'yc:link', 'only the dateless row is touched');
+  assert(repaired.rows[0].openRolesAt === undefined && repaired.rows[0].hiring === 'yes', 'and only its stamp is removed');
+  assert(repaired.rows[1].openRolesAt === '2026-08-17' && repaired.rows[2].openRolesAt === '2026-08-17',
+    'a counted board keeps its date — and so does a board read and found empty');
+  assert(repairStampedRows(repaired.rows).touched.length === 0, 'running the repair twice is a no-op');
   assert(!withinStaleWindow('2026-08-20', '2026-08-16'), 'a future stamp is not evidence');
   console.log(JSON.stringify({ ok: true, selftest: 'location-gate + slug-honesty + import-safe' }));
   process.exit(0);
@@ -1514,6 +1547,17 @@ if (isMain) {
   const at = repairDenied
     ? map.coverage?.openRolesAt || new Date().toISOString().slice(0, 10)
     : new Date().toISOString().slice(0, 10);
+  if (cliMode === 'repair-stamps') {
+    // Coverage keeps the date of the run that actually read the boards. Restamping it here would
+    // launder a field repair as a fresh crawl, which is the same lie in a different field.
+    const coverageAt = map.coverage?.openRolesAt || at;
+    const { rows, touched } = repairStampedRows(map.companies);
+    map.companies = rows;
+    const coverage = updateJobsCoverage(map, coverageAt);
+    atomicWrite(MAP, `${JSON.stringify(map)}\n`);
+    console.log(JSON.stringify({ ok: true, repaired: touched.length, coverage, at: coverageAt, sample: touched.slice(0, 5) }, null, 2));
+    process.exit(0);
+  }
   if (repairDenied) {
     const removed = [];
     map.companies = map.companies.map((company) => {

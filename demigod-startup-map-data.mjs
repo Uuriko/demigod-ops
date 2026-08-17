@@ -612,13 +612,24 @@ export function assertMapFloors(
   // a materially truncated query cannot pass.
   const wikidata = cos.filter((c) => String(c?.id || '').startsWith('wd:')).length;
   const boards = cos.filter((c) => c?.openRoles && c?.atsSource).length;
+  // A stamp with no count. `openRolesAt` is what every consumer reads as "we watched this board",
+  // and on 2026-08-17 597 rows carried one for a YC directory link nobody had opened — a fifth of
+  // the directory projecting as `board_observed` with no roles. This is not a volume floor: one
+  // such row is a defect, because the field means something the row cannot support. Zero is a
+  // count, so a board read and found empty keeps its date.
+  const datedWithoutCount = cos.filter((c) => c?.openRolesAt && !Number.isSafeInteger(c?.openRoles));
   const problems = [];
   if (cos.length < minCompanies) problems.push(`companies ${cos.length} < ${minCompanies}`);
   if (yc < minYc) problems.push(`yc: companies ${yc} < ${minYc}`);
   if (wikidata < minWikidata) problems.push(`wd: companies ${wikidata} < ${minWikidata}`);
   if (withJobs && boards < minBoards) problems.push(`job boards ${boards} < ${minBoards}`);
+  if (datedWithoutCount.length) {
+    problems.push(
+      `${datedWithoutCount.length} row(s) carry openRolesAt with no count (${datedWithoutCount.slice(0, 3).map((c) => c.id).join(', ')})`,
+    );
+  }
   if (problems.length) throw new Error('map floor breach: ' + problems.join('; '));
-  return { companies: cos.length, yc, wikidata, boards };
+  return { companies: cos.length, yc, wikidata, boards, datedWithoutCount: datedWithoutCount.length };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -665,6 +676,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         jobsFloorThrew = true;
       }
       if (!jobsFloorThrew) throw new Error('jobs floor did not fire on zero boards');
+      // fail-capable: one dated row with no count must breach. This is the check that would have
+      // caught 597 YC links reading as observed boards, so it has to be able to fire on one.
+      let stampThrew = false;
+      try {
+        assertMapFloors({ ...real, companies: [...cos, { id: 'yc:stamp-probe', openRolesAt: '2026-08-17' }] }, { withJobs: false });
+      } catch (error) {
+        stampThrew = /openRolesAt with no count/.test(String(error?.message));
+      }
+      if (!stampThrew) throw new Error('stamp guard did not fire on a dated row with no count');
       // If disk already carries ATS enrich, enforce live board volume too.
       if (jobsEnriched) assertMapFloors(real, { withJobs: true });
 
