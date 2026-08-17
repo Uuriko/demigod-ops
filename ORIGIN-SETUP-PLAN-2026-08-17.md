@@ -247,3 +247,35 @@ Worth knowing before the first `origin pr` command returns something confusing.
 the live foot on every page of trydemigod.com, pinned by commit SHA, and jsDelivr's `/gh/` endpoint
 reads GitHub only. The SRI pins hash bytes fetched from that exact URL. Mirroring is additive here —
 nothing about the delivery path changes.
+
+## The backup audit — what "everything is mirrored" actually turned out to mean
+
+Mirroring 14 repos proves nothing about whether the repos hold the work. The real question is how
+many commits exist **only on this laptop**, and the honest answer on 2026-08-17 was **65**:
+
+| Where | Commits at risk | What they were |
+|---|---|---|
+| `dasha-desk` / `provider-url-hardening` | 60 | back to 2026-08-07 |
+| `dasha-desk` / two leftover branches | 2 | |
+| `demigod-ops` / `dasha/bounty-github-oauth` | 2 | lobby-edge bounty JSON + OAuth |
+| `demigod-site-cdn` / `leftover-hire-card-contrast` | 1 | live foot + head CSS |
+
+All 65 were scanned for credentials before anything was pushed, and all are now on GitHub — and
+therefore on Origin, which picked up every new branch on its own (`dasha-desk` 20→23 refs,
+`demigod-ops` 122→124, `demigod-site-cdn` 19→20, all still ref-for-ref identical). Nothing was
+merged and nothing was deployed; these are backup branches. `demigod-site-cdn`'s new branch is not
+`main`, so the jsDelivr pin is untouched.
+
+**Two findings mattered more than the commits.**
+
+`demigod-site-cdn` had `remote.origin.fetch` narrowed to `+refs/heads/main:refs/remotes/origin/main`.
+Every local check of "is my work backed up?" in that repo was answering a question about `main` and
+presenting it as an answer about the repo — it was hiding two remote branches and reporting a pushed
+commit as unbacked. Widened to the standard refspec.
+
+Nine of twelve git worktrees pointed at `/tmp` directories that no longer existed, and one of them
+held the only copy of a commit. It is now `backup/pr9-lobby-404` on GitHub; the dead entries are
+pruned. Three worktrees remain, all real.
+
+Recorded because both failures are the same shape as the bug this codebase keeps finding: a check
+that reports on a narrower thing than the question it appears to answer.
