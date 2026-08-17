@@ -51,6 +51,16 @@ export const HIRING_SHAPES = Object.freeze([
 
 /** Minimum board size before a mix means anything. Two roles is an anecdote. */
 export const MIN_ROLES_FOR_SHAPE = 3;
+/**
+ * Recruiting seats only mean "building the hiring function" as a SHARE of the board.
+ * A bare `people >= 2` labelled OpenAI (7 recruiters of 627 open roles, 1.1%) and Databricks
+ * (3 of 424) as building their hiring function — 46 of 49 hits were boards of 20+ roles, and
+ * because this rule is tested before broad-scale it stole their correct label too. Measured over
+ * the 101 boards that have any people role, the median share is 0.056 and p90 is 0.179, so 0.10
+ * is about double typical: notable rather than merely present. Same reasoning as the board-size
+ * bound on first-commercial-hires — "two sales roles out of forty is not a transition".
+ */
+export const MIN_PEOPLE_SHARE = 0.1;
 /** Above this share of unclassifiable titles the mix describes our bucketer, not the company. */
 export const MAX_OTHER_SHARE = 0.5;
 
@@ -97,8 +107,12 @@ export function hiringShape(company = {}) {
       evidence,
     };
   }
-  if (people >= 2) {
-    return { shape: 'people-building', why: `${people} people/recruiting roles open — building the hiring function itself`, evidence };
+  if (people >= 2 && people / total >= MIN_PEOPLE_SHARE) {
+    return {
+      shape: 'people-building',
+      why: `${people} of ${total} roles are people/recruiting — building the hiring function itself`,
+      evidence,
+    };
   }
   if (commercial / total >= 0.5) {
     return { shape: 'gtm-heavy', why: `${commercial} of ${total} roles are sales or marketing`, evidence };
@@ -158,6 +172,16 @@ if (isMain && process.argv.includes('--selftest')) {
   assert(sh({ roleMix: { sales: 5, marketing: 3, engineering: 2 } }) === 'gtm-heavy', 'commercial majority');
   assert(sh({ roleMix: { operations: 4, engineering: 2, product: 2 } }) === 'ops-heavy', 'operations plurality');
   assert(sh({ roleMix: { people: 3, engineering: 5, sales: 3 } }) === 'people-building', 'building the hiring function');
+  // Recruiting seats are a share, not a count. A big board with a couple of recruiters is a big
+  // board — and must fall through to the label that actually describes it.
+  assert(
+    sh({ roleMix: { engineering: 400, people: 7, sales: 90, product: 40, design: 30, operations: 30, marketing: 30 } }) !== 'people-building',
+    '7 recruiters on a 627-role board is not building the hiring function',
+  );
+  assert(
+    sh({ roleMix: { engineering: 400, people: 7, sales: 90, product: 40, design: 30, operations: 30, marketing: 30 } }) === 'broad-scale',
+    'and the share bound must hand it back to the label that fits',
+  );
   assert(
     sh({ roleMix: { engineering: 10, sales: 4, product: 3, design: 2, operations: 2, people: 1, marketing: 1 } }) === 'broad-scale',
     'wide board at scale',

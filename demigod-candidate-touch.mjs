@@ -89,6 +89,28 @@ export function appendTouch(touch) {
 const CHANNEL_W = { intro: 5, review: 4, call: 4, email: 3, dm: 2, note: 1 };
 
 /**
+ * Outcomes that withdraw consent. A candidate whose most recent touch ended this way is never
+ * re-surfaced, regardless of how warm the history looks.
+ *
+ * This was recorded and then ignored: `lastOutcome` existed, the selftest asserted it was "retained
+ * for suppression", and nothing suppressed on it — `rediscover`'s only caller (the CLI below)
+ * passes no `suppress` set at all, so an opted-out candidate ranked normally, and ranked FIRST if
+ * they had role hits. Rediscovery over consented history is the one mechanism here that beats a
+ * bought list precisely because the person agreed to be contacted; re-opening someone who asked us
+ * to stop is the single thing that would make it worth less than a bought list.
+ *
+ * Deliberately narrow. It does NOT reuse demigod-lead-collect's SUPPRESSED_STATUSES, which also
+ * carries `cold`, `rejected`, `disqualified` and `fell_through` — those are exactly the people
+ * rediscovery exists to re-open. Only a withdrawal of consent is terminal.
+ */
+export const CONSENT_WITHDRAWN = /\b(opt(?:ed)?[\s_-]?out|unsubscrib\w*|do[\s_-]?not[\s_-]?contact|dnc)\b/i;
+
+/** True when this candidate's most recent recorded outcome withdrew consent. */
+export function isConsentWithdrawn(outcome) {
+  return CONSENT_WITHDRAWN.test(String(outcome || ''));
+}
+
+/**
  * Rediscover: group by candId, rank without a global fit score.
  * Prefer same roleId matches, then recency, then channel weight, then touch count.
  */
@@ -104,10 +126,14 @@ export function rediscover(touches, { roleId = null, limit = 10, suppress = new 
       roleHits: 0,
       lastNote: null,
       lastOutcome: null,
+      consentWithdrawn: false,
       scoreParts: { recency: 0, channel: 0, role: 0, volume: 0 },
     };
     g.touches += 1;
     g.channels.add(t.channel);
+    // Sticky, not "most recent": consent does not come back because someone later logged a note.
+    // Keying this off lastOutcome would silently un-suppress the candidate on the next touch.
+    if (isConsentWithdrawn(t.outcome)) g.consentWithdrawn = true;
     if (roleId && t.roleId === roleId) g.roleHits += 1;
     if (!g.lastAt || Date.parse(t.at) > Date.parse(g.lastAt)) {
       g.lastAt = t.at;
@@ -117,7 +143,7 @@ export function rediscover(touches, { roleId = null, limit = 10, suppress = new 
     by.set(t.candId, g);
   }
   const nowMs = Date.now();
-  const rows = [...by.values()].map((g) => {
+  const rows = [...by.values()].filter((g) => !g.consentWithdrawn).map((g) => {
     const ageDays = Math.max(0, (nowMs - Date.parse(g.lastAt)) / 864e5);
     // Soft recency: fresher is better; not a fit score — ranking aid only, never exported as "score"
     const recency = Math.max(0, 30 - ageDays);
@@ -167,11 +193,25 @@ function selftest() {
     at: '2026-07-25T00:00:00.000Z',
   });
   assertTouch(t1);
+  // t2 records opt_out for c-a. The warmest-looking history in the set is exactly the one that
+  // must not surface — this assertion used to say "role hit ranks first" and c-a ranked first
+  // WITH its opt_out, which is the bug: the outcome was retained and never acted on.
   const hits = rediscover([t1, t2, t3], { roleId: 'role-1', limit: 10 });
-  assert(hits[0].candId === 'c-a', 'role hit ranks first');
+  assert(!hits.some((h) => h.candId === 'c-a'), 'a candidate who opted out is never re-surfaced');
+  assert(hits.length === 1 && hits[0].candId === 'c-b', 'the remaining candidate still ranks');
   assert(hits[0].fitScore === null, 'no fit score');
-  assert(hits[0].roleHits === 2, 'role hits');
-  assert(hits[0].lastOutcome === 'opt_out', 'latest outcome retained for suppression');
+
+  // Consent withdrawal is sticky. Logging any later touch must not un-suppress.
+  const t4 = makeTouch({ candId: 'c-a', channel: 'note', note: 'saw them at a meetup', at: '2026-08-01T00:00:00.000Z' });
+  assert(!rediscover([t1, t2, t4], { roleId: 'role-1' }).some((h) => h.candId === 'c-a'), 'a later note does not restore consent');
+  assert(isConsentWithdrawn('opted out via email') && isConsentWithdrawn('unsubscribed'), 'withdrawal phrasings match');
+  assert(!isConsentWithdrawn('rejected') && !isConsentWithdrawn('fell through') && !isConsentWithdrawn(null),
+    'not-placed is not withdrawal — those are exactly who rediscovery is for');
+
+  // Role hits still drive ranking among candidates who have not withdrawn.
+  const ranked = rediscover([makeTouch({ candId: 'c-c', channel: 'dm', at: '2026-07-02T00:00:00.000Z' }), t3,
+    makeTouch({ candId: 'c-d', channel: 'review', roleId: 'role-1', at: '2026-07-02T00:00:00.000Z' })], { roleId: 'role-1' });
+  assert(ranked[0].candId === 'c-d' && ranked[0].roleHits === 1, 'role hit ranks first');
   let threw = false;
   try {
     makeTouch({ candId: 'x', channel: 'linkedin' });

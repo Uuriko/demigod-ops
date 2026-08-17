@@ -227,15 +227,35 @@ function dayDiff(a, b) {
 /**
  * PURE. Open/close velocity from ledger firstSeen / closedAt (our observation clock).
  * Website-safe: no people data, no scores.
+ *
+ * BACKFILL IS NOT AN OPEN. When a board enters the ledger, every role already posted on it gets
+ * today's `firstSeen`. Counting those as opens measures Demigod starting to watch a company, not
+ * the company starting to hire — and it lands at the TOP of the ranking, because a board arrives
+ * with its whole backlog at once. Measured 2026-08-16: Block ranked #1 at 195 opened / 1 closed
+ * and Reddit #3 at 154 / 3, of which 192 and 152 were roles on boards first tracked that same day.
+ *
+ * A role present at a board's first observation was never observed opening — we saw it exist, not
+ * begin. So the rule is the same one that makes closes trustworthy: only transitions we actually
+ * witnessed are events. Backfill is counted and reported separately rather than dropped silently,
+ * because "we started tracking 12 boards this week" is real information, just not hiring momentum.
  */
 export function hiringVelocity(ledger, { today = new Date().toISOString().slice(0, 10), days = 7 } = {}) {
   const windowDays = Number.isFinite(days) && days > 0 ? Math.min(Math.floor(days), 90) : 7;
   const roles = Object.values(ledger?.roles || {}).filter((r) => r && typeof r === 'object');
+  // Earliest observation per board — the day that board's backlog entered the ledger.
+  const boardFirstSeen = {};
+  for (const r of roles) {
+    if (!r.firstSeen) continue;
+    const key = `${r.provider}|${r.slug}`;
+    if (!boardFirstSeen[key] || r.firstSeen < boardFirstSeen[key]) boardFirstSeen[key] = r.firstSeen;
+  }
+  const isBackfill = (r) => r.firstSeen === boardFirstSeen[`${r.provider}|${r.slug}`];
   const opened = [];
   const closed = [];
+  const backfilled = [];
   for (const r of roles) {
     if (r.firstSeen && dayDiff(r.firstSeen, today) >= 0 && dayDiff(r.firstSeen, today) <= windowDays) {
-      opened.push(r);
+      (isBackfill(r) ? backfilled : opened).push(r);
     }
     if (r.closedAt && dayDiff(r.closedAt, today) >= 0 && dayDiff(r.closedAt, today) <= windowDays) {
       closed.push(r);
@@ -270,6 +290,10 @@ export function hiringVelocity(ledger, { today = new Date().toISOString().slice(
       closedInWindow: closed.length,
       net: opened.length - closed.length,
       boardsActive: boards.length,
+      // Roles that were already posted when we first saw their board. Not opens; reported so the
+      // difference between "they started hiring" and "we started looking" stays visible.
+      backfilledInWindow: backfilled.length,
+      boardsFirstTrackedInWindow: new Set(backfilled.map((r) => `${r.provider}|${r.slug}`)).size,
     },
     topBoards: boards.slice(0, 40),
   };
@@ -631,7 +655,13 @@ function selftest() {
     },
     { today: '2026-07-31', days: 7 },
   );
-  assert(vel.counts.openedInWindow === 2 && vel.counts.closedInWindow === 1, 'velocity window');
+  // Board 'a' was already tracked (its earliest role is 2026-07-01), so role 'a' appearing on
+  // 07-28 is a witnessed open. Board 'b' is seen for the first time on 07-30 — its role was
+  // already posted when we arrived, so it is backfill, not an open. Counting it as an open is
+  // what put Block (195 opened / 1 closed) at the top of the live ranking on 2026-08-16.
+  assert(vel.counts.openedInWindow === 1 && vel.counts.closedInWindow === 1, 'velocity window counts only witnessed opens');
+  assert(vel.counts.backfilledInWindow === 1 && vel.counts.boardsFirstTrackedInWindow === 1, 'the backlog is reported, not dropped');
+  assert(!vel.topBoards.some((b) => b.slug === 'b'), 'a board we just started watching is not hiring momentum');
   assert(vel.topBoards.some((b) => b.slug === 'a' && b.opened === 1 && b.closed === 1), 'velocity board');
 
   const rq = requisitionStats({

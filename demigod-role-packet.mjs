@@ -45,6 +45,8 @@ export const DECISION_AIDS = [
   'error_prevented',
   'none',
 ];
+const REHEARSAL_FIELDS = ['initialView', 'contraryEvidence', 'changeCondition', 'finalRationale'];
+const REHEARSAL_TEXT_MAX = 1200;
 export const COMP_SOURCES = ['founder_stated', 'public_job_post', 'unknown'];
 /** Ashby-shaped interview moments (plan only — no scheduling product). */
 export const INTERVIEW_MOMENTS = ['screen', 'tech', 'founder', 'debrief'];
@@ -308,6 +310,16 @@ export function assertNote(note, packet) {
   if (note.roleId !== packet.roleId) throw new Error('note_role_mismatch');
   if (!String(note.candId || '').trim()) throw new Error('note_candId');
   if (!Array.isArray(note.ratings) || note.ratings.length === 0) throw new Error('note_ratings');
+  // One rating per must-have. Building the map straight from the array let a LATER duplicate win,
+  // so a rating carrying no real evidence rode along unchecked: ratings [{mh1, strong_no,
+  // evidence:'x'}, {mh1, strong_no, evidence:'shipped rust at Acme'}] passed, and the unevidenced
+  // strong_no stayed in the saved note. This gate's whole claim is that no judgment is stored
+  // without the line it rests on, and a rejection with no recorded reason is the worst case of it.
+  const seenMh = new Set();
+  for (const r of note.ratings) {
+    if (seenMh.has(r?.mustHaveId)) throw new Error(`note_duplicate_rating:${r.mustHaveId}`);
+    seenMh.add(r?.mustHaveId);
+  }
   const byMh = new Map(note.ratings.map((r) => [r.mustHaveId, r]));
   for (const m of packet.mustHaves) {
     const r = byMh.get(m.id);
@@ -319,9 +331,39 @@ export function assertNote(note, packet) {
     if (!packet.mustHaves.some((m) => m.id === r.mustHaveId)) {
       throw new Error(`note_unknown_mustHave:${r.mustHaveId}`);
     }
+    if (r.evidenceIds != null) {
+      if (!Array.isArray(r.evidenceIds) || r.evidenceIds.length > 20) {
+        throw new Error(`note_evidenceIds:${r.mustHaveId}`);
+      }
+      for (const id of r.evidenceIds) {
+        if (!String(id || '').trim() || String(id).length > 160) {
+          throw new Error(`note_evidenceId:${r.mustHaveId}`);
+        }
+      }
+    }
   }
   const aid = note.decisionAid || 'none';
   if (!DECISION_AIDS.includes(aid)) throw new Error('note_decisionAid');
+  if (note.rehearsal != null) {
+    if (typeof note.rehearsal !== 'object' || Array.isArray(note.rehearsal)) {
+      throw new Error('note_rehearsal');
+    }
+    for (const field of REHEARSAL_FIELDS) {
+      const value = note.rehearsal[field];
+      if (value != null && (!String(value).trim() || String(value).length > REHEARSAL_TEXT_MAX)) {
+        throw new Error(`note_rehearsal_${field}`);
+      }
+    }
+    if (!Array.isArray(note.rehearsal.consultedEvidence)) {
+      throw new Error('note_rehearsal_consultedEvidence');
+    }
+    if (note.rehearsal.consultedEvidence.length > 50) throw new Error('note_rehearsal_consultedEvidence_count');
+    for (const id of note.rehearsal.consultedEvidence) {
+      if (!String(id || '').trim() || String(id).length > 160) {
+        throw new Error('note_rehearsal_consultedEvidence_id');
+      }
+    }
+  }
   return true;
 }
 
@@ -408,8 +450,22 @@ export function createNote({
   ratings,
   decisionAid = 'none',
   companyContextUsed = [],
+  rehearsal = null,
   reviewedBy = 'operator',
 } = {}) {
+  const normalizedRehearsal = rehearsal && typeof rehearsal === 'object' && !Array.isArray(rehearsal)
+    ? {
+        ...Object.fromEntries(REHEARSAL_FIELDS.map((field) => [
+          field,
+          String(rehearsal[field] || '').trim() || null,
+        ])),
+        consultedEvidence: [...new Set(
+          (Array.isArray(rehearsal.consultedEvidence) ? rehearsal.consultedEvidence : [])
+            .map((id) => String(id || '').trim())
+            .filter(Boolean),
+        )].slice(0, 50),
+      }
+    : null;
   return {
     schema: NOTE_SCHEMA,
     roleId: String(roleId).trim(),
@@ -419,9 +475,15 @@ export function createNote({
       mustHaveId: r.mustHaveId,
       rating: r.rating,
       evidence: String(r.evidence || '').trim(),
+      evidenceIds: [...new Set(
+        (Array.isArray(r.evidenceIds) ? r.evidenceIds : [])
+          .map((id) => String(id || '').trim())
+          .filter(Boolean),
+      )].slice(0, 20),
     })),
     decisionAid,
     companyContextUsed: Array.isArray(companyContextUsed) ? companyContextUsed : [],
+    rehearsal: normalizedRehearsal,
     reviewedAt: now(),
     reviewedBy: String(reviewedBy || 'operator'),
   };
@@ -509,6 +571,7 @@ export function projectForReview(packet, note = null) {
           candId: note.candId,
           ratings: note.ratings,
           decisionAid: note.decisionAid,
+          rehearsal: note.rehearsal || null,
           reviewedAt: note.reviewedAt,
         }
       : null,
@@ -592,6 +655,7 @@ function selftest() {
     mustHaveId: m.id,
     rating: i === 0 ? 'yes' : 'strong_yes',
     evidence: `Observed concrete evidence for ${m.label} in work samples.`,
+    evidenceIds: i === 0 ? ['ev-demo-1'] : [],
   }));
   const note = createNote({
     roleId: p2.roleId,
@@ -599,8 +663,40 @@ function selftest() {
     ratings,
     decisionAid: 'changed_by_context',
     companyContextUsed: ['productSummary'],
+    rehearsal: {
+      initialView: 'The submitted work appears relevant, pending the structured review.',
+      contraryEvidence: 'The example may not show equivalent production scale.',
+      changeCondition: 'A verified example showing independent ownership would change the view.',
+      finalRationale: 'The human reviewer kept the evidence question open for follow-up.',
+      consultedEvidence: ['company:productSummary', 'question:mh1'],
+    },
   });
   assertNote(note, p2);
+  assert(note.ratings[0].evidenceIds[0] === 'ev-demo-1', 'review note evidence reference');
+  threw = false;
+  try {
+    assertNote({
+      ...note,
+      ratings: note.ratings.map((rating, index) => index ? rating : {
+        ...rating,
+        evidenceIds: Array.from({ length: 21 }, (_, i) => `ev-${i}`),
+      }),
+    }, p2);
+  } catch {
+    threw = true;
+  }
+  assert(threw, 'too many review evidence references refused');
+  assert(note.rehearsal.consultedEvidence.length === 2, 'decision rehearsal');
+  threw = false;
+  try {
+    assertNote({
+      ...note,
+      rehearsal: { ...note.rehearsal, initialView: 'x'.repeat(REHEARSAL_TEXT_MAX + 1) },
+    }, p2);
+  } catch {
+    threw = true;
+  }
+  assert(threw, 'oversized rehearsal refused');
 
   threw = false;
   try {
@@ -620,6 +716,25 @@ function selftest() {
     threw = true;
   }
   assert(threw, 'short evidence refused');
+
+  // A duplicate rating must not launder an unevidenced one past the per-must-have check.
+  threw = false;
+  try {
+    assertNote(
+      createNote({
+        roleId: p2.roleId,
+        candId: 'c2',
+        ratings: [
+          { mustHaveId: p2.mustHaves[0].id, rating: 'strong_no', evidence: 'x' },
+          ...p2.mustHaves.map((m) => ({ mustHaveId: m.id, rating: 'yes', evidence: 'shipped rust at Acme' })),
+        ],
+      }),
+      p2,
+    );
+  } catch {
+    threw = true;
+  }
+  assert(threw, 'a duplicate rating cannot smuggle an unevidenced judgment through');
 
   const proj = projectForReview(p2, note);
   assert(proj.score === null && proj.note.candId === 'cand-demo-1', 'project');
@@ -875,6 +990,15 @@ Design: docs/die/ROLE-PACKET-DESIGN.md`);
       pairId: flags.pair || null,
       ratings,
       decisionAid: flags.aid || 'none',
+      rehearsal: (flags.initial || flags.contrary || flags['change-condition'] || flags.rationale || flags.consulted)
+        ? {
+            initialView: flags.initial,
+            contraryEvidence: flags.contrary,
+            changeCondition: flags['change-condition'],
+            finalRationale: flags.rationale,
+            consultedEvidence: String(flags.consulted || '').split(',').map((value) => value.trim()).filter(Boolean),
+          }
+        : null,
       reviewedBy: flags.by || 'operator',
     });
     upsertNote(note, packet);
