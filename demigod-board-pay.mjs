@@ -385,6 +385,18 @@ function selftest() {
   assert(row('Ashby').liveBoards === 0 && row('Ashby').payCapability === 'structured', 'a supported reader with no live boards is shown, not dropped');
   assert(matrix.totals.boards === 3 && matrix.totals.unsupportedBoards === 1, 'totals split capable from unsupported');
 
+  // The published fragment. 44.2% of AI citations come from the first 30% of a page, so the number
+  // has to lead — and the denominator has to travel with it or the number is a smear on 44 companies.
+  const fragment = payTransparencyFragment(matrix, { publishing: 2, comparable: 2, rate: 1 }, { at: '2026-08-17T00:00:00.000Z' });
+  const head = fragment.slice(0, Math.floor(fragment.length * 0.3));
+  assert(head.includes('100.0%'), 'the headline rate must appear in the first 30% of the fragment');
+  assert(fragment.includes('cannot express pay at all'), 'the fragment must say why the denominator excludes boards');
+  assert(fragment.includes('Lever') && fragment.includes('cannot carry pay'), 'the unsupported reader is named, not hidden');
+  assert(/Measured 2026-08-17/.test(fragment), 'a data page must carry the date it was measured');
+  assert(!/undefined|NaN/.test(fragment), 'no placeholder may reach a published fragment');
+  const empty = payTransparencyFragment({ rows: [], totals: {} }, {}, { at: '2026-08-17T00:00:00.000Z' });
+  assert(!/NaN/.test(empty), 'an empty matrix must not render NaN into a public claim');
+
   console.log(`demigod-board-pay selftest OK · ${n} assertions`);
 }
 
@@ -427,12 +439,59 @@ export function atsPayMatrix(map) {
   };
 }
 
+/**
+ * The pay-transparency finding as a crawlable page fragment.
+ *
+ * AI crawlers do not run JavaScript, and 52.2% of the passages they cite carry original data. This
+ * is original data: nobody else measures SF startup pay transparency against a denominator that
+ * excludes the boards physically unable to express pay. The headline number goes first because
+ * 44.2% of citations come from the first 30% of a page.
+ *
+ * The denominator is the whole point and it leads the copy. Over all boards the rate reads 75.8%;
+ * over the boards that could have answered it reads 83.8%. The 8-point gap is a fact about Lever's
+ * API, not about the companies using it, and publishing the first number alone would blame 44
+ * companies for their vendor's limitation.
+ */
+export function payTransparencyFragment(matrix, stats, { at = null } = {}) {
+  const esc = (value) => String(value ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const pct = (value) => `${(Number(value || 0) * 100).toFixed(1)}%`;
+  const num = (value) => Number(value || 0).toLocaleString('en-US');
+  const day = String(at || new Date().toISOString()).slice(0, 10);
+  const rows = (matrix?.rows || []).map((row) => `<tr><th scope="row">${esc(row.ats)}</th>`
+    + `<td>${row.payCapability === 'structured' ? 'can carry pay' : 'cannot carry pay'}</td>`
+    + `<td>${num(row.liveBoards)}</td><td>${num(row.liveRoles)}</td></tr>`).join('');
+  const capable = matrix?.totals?.payCapableBoards ?? 0;
+  const boards = matrix?.totals?.boards ?? 0;
+  const unsupported = matrix?.totals?.unsupportedBoards ?? 0;
+  return `<section id="dg-static-pay" data-dg-static="pay" aria-labelledby="dg-pay-h">`
+    + `<h2 id="dg-pay-h">How many SF startups publish pay</h2>`
+    + `<p><strong>${pct(stats?.rate)}</strong> of SF startup job boards that <em>can</em> state pay do state it`
+    + ` — ${num(stats?.publishing)} of ${num(stats?.comparable)} boards, measured ${esc(day)}.</p>`
+    + `<p>The denominator matters more than the number. Of ${num(boards)} verified public boards, ${num(unsupported)}`
+    + ` run on an applicant tracking system whose public API cannot express pay at all. Counting those as`
+    + ` companies that withhold pay would drop the rate to ${pct((stats?.publishing || 0) / (boards || 1))}`
+    + ` and blame ${num(unsupported)} companies for a limitation of the software they bought.</p>`
+    + `<table><caption>Public ATS readers, what each can carry, and how many live SF boards run on it</caption>`
+    + `<thead><tr><th scope="col">Reader</th><th scope="col">Pay</th><th scope="col">Boards</th><th scope="col">Open roles</th></tr></thead>`
+    + `<tbody>${rows}</tbody></table>`
+    + `<p>${num(capable)} of ${num(boards)} boards are comparable. Method: a role counts as publishing pay when the`
+    + ` posting states a range, whether in a structured compensation field or in the description body. A board we`
+    + ` could not read is excluded rather than counted either way.</p>`
+    + `<p><time datetime="${esc(day)}">Measured ${esc(day)}</time> from public employer job boards.</p>`
+    + `</section>\n`;
+}
+
 if (isMain) {
   const args = process.argv.slice(2);
   const flag = (name) => args.find((a) => a.startsWith(`--${name}=`))?.split('=')[1];
   if (args.includes('--selftest')) selftest();
-  else if (args.includes('--matrix')) {
+  else if (args.includes('--fragment')) {
+    const matrix = atsPayMatrix(JSON.parse(fs.readFileSync(MAP, 'utf8')));
+    const report = JSON.parse(fs.readFileSync(OUT, 'utf8'));
+    process.stdout.write(payTransparencyFragment(matrix, report.stats, { at: report.generatedAt }));
+  } else if (args.includes('--matrix')) {
     console.log(JSON.stringify(atsPayMatrix(JSON.parse(fs.readFileSync(MAP, 'utf8'))), null, 2));
   } else if (args[0] === 'scan') await scan({ limit: Number(flag('limit')) || 0, out: flag('out') || OUT });
-  else console.log('usage: demigod-board-pay.mjs [scan [--limit=N] [--out=FILE] | --matrix | --selftest]');
+  else console.log('usage: demigod-board-pay.mjs [scan [--limit=N] [--out=FILE] | --matrix | --fragment | --selftest]');
 }

@@ -402,10 +402,27 @@ if (isMain) {
       totalCrawlableChars: staged.reduce((sum, row) => sum + row.crawlableChars, 0),
       routes: staged.map((row) => ({ route: row.route, bytes: row.bytes, crawlableChars: row.crawlableChars, deployable: row.deployable })),
     }, null, 2));
+  } else if (args.includes('--stage-data')) {
+    /* The data pages: original measurements this company owns and publishes nowhere a crawler can
+       read. Staged through the same path as the copy routes so an authorized publish is one motion. */
+    const { execFileSync } = await import('node:child_process');
+    const run = (file, argv) => execFileSync(process.execPath, [path.join(ROOT, file), ...argv], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
+    const built = [
+      { key: 'posting-age', html: run('demigod-posting-age-index.mjs', []) },
+      { key: 'pay-transparency', html: run('demigod-board-pay.mjs', ['--fragment']) },
+    ];
+    const staged = built.map(({ key, html }) => stageRoutePastePackage({
+      key,
+      title: key,
+      html,
+      bytes: Buffer.byteLength(html),
+      headroom: DEPLOYABLE_BYTES - Buffer.byteLength(html),
+    }));
+    console.log(JSON.stringify({ schema: 'demigod.route-static/1', staged: staged.length, routes: staged }, null, 2));
   } else if (flag('route')) {
     const { pages } = loadFootPages();
     process.stdout.write(routeStaticFragment(flag('route'), { pages }).html);
   } else {
-    console.log('usage: demigod-route-static.mjs [--route=KEY | --list | --stage | --selftest]');
+    console.log('usage: demigod-route-static.mjs [--route=KEY | --list | --stage | --stage-data | --selftest]');
   }
 }
