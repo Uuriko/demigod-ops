@@ -1383,7 +1383,7 @@ if (isMain) {
       const prev = loadLedger();
       const up = upsertLedger(prev, polled, today, { onVolumeAnomaly: (e) => volumeAnomalies.push(e) });
       const pc = pruneClosed(up, today); pruned = pc.pruned;
-      atomicWrite(LEDGER, JSON.stringify(pc.ledger) + '\n', { mode: 0o600 }); // compact — 13k+ roles, daily-changing local SoR (gitignored, re-pollable)
+      atomicWrite(LEDGER, JSON.stringify(pc.ledger) + '\n', { mode: 0o600 }); // compact — 13k+ roles, daily-changing local SoR (gitignored). Only the DESCRIPTION is re-pollable: closed roles and every firstSeen/closedAt are not, and pruneClosed deletes them at 180 days. demigod-role-ledger-archive.mjs holds that half.
       summary = summarize(pc.ledger, today);
     });
     const okFetches = polled.filter((p) => p.ok).length;
