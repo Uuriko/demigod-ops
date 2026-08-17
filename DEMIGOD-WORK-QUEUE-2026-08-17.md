@@ -326,6 +326,26 @@ actually reached — that is what the marker is for. Check the ceiling before do
 - **W4-6** — 0 boards shared by more than one company in the live map; the dedupe survivorship
   question does not arise today.
 
+## Corpus defects, measured 2026-08-17
+
+`node demigod-corpus-defects.mjs report` over 2,917 companies: **547 findings across 517 rows**,
+in two kinds.
+
+- **486 companies store an `http://` website** (239 from Wikidata, 247 from YC). Not our bug: both
+  upstream sources carry the scheme that way and `safeUrl` preserves whatever it is handed rather
+  than inventing one. The cost is real anyway — a public directory linking `http://` sends every
+  visitor's first hop unencrypted, and it reads as a quality signal.
+  **The fix must not be a bulk rewrite.** Upgrading a scheme we have not tested is asserting
+  something we did not check, which is the error this codebase spends most of its comments avoiding.
+  It needs a verification pass — request `https://` for each host, upgrade only the ones that
+  answer, leave the rest alone and say how many were left — and `demigod-corpus-defects.mjs` is
+  deliberately not the place for it: it is review-only, no fetch, no map write, by contract.
+- **34 name-disambiguator findings**, unexamined.
+
+Not done tonight because it is 486 outbound requests and an enrich was already running; queueing
+hundreds more against the same hosts is exactly the impoliteness `ATS-SOURCE-TERMS.md` argues
+against.
+
 ## Live findings from site-health, 2026-08-17
 
 `demigod-site-health.mjs` was wired by selftest only, so its actual audit ran by hand or never. Two
