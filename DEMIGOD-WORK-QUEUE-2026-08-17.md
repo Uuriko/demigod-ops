@@ -440,11 +440,15 @@ in two kinds.
   upstream sources carry the scheme that way and `safeUrl` preserves whatever it is handed rather
   than inventing one. The cost is real anyway — a public directory linking `http://` sends every
   visitor's first hop unencrypted, and it reads as a quality signal.
-  **The fix must not be a bulk rewrite.** Upgrading a scheme we have not tested is asserting
-  something we did not check, which is the error this codebase spends most of its comments avoiding.
-  It needs a verification pass — request `https://` for each host, upgrade only the ones that
-  answer, leave the rest alone and say how many were left — and `demigod-corpus-defects.mjs` is
-  deliberately not the place for it: it is review-only, no fetch, no map write, by contract.
+  **Done 2026-08-17 with evidence, not a rewrite.** `--upgrade-https` probes each site and upgrades
+  only what answers on https at the same registrable host: **351 of 486 upgraded**, zero other
+  fields touched on any row, 135 left as they were. Corpus findings fell 547 → 196.
+  The 135 refusals each have a recorded reason — 60 answered on a genuinely different host, 32 did
+  not answer, 15 timed out, 26 failed, 2 answered on http. They stay `http://` because nobody
+  verified otherwise.
+  The first pass refused 195 rows for `different-host` that were only `www.` canonicalisation. The
+  comparison now uses `websiteHostKey`, the same one identity uses, so `www.acme.com` answering at
+  `acme.com` counts as the same site while `app.acme.com` still does not.
 - **34 name-disambiguator findings**, unexamined.
 
 Not done tonight because it is 486 outbound requests and an enrich was already running; queueing

@@ -28,12 +28,12 @@ const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPat
 export const jobsEnrichCliMode = (args) =>
   args.length === 0
     ? 'enrich'
-    : args.length === 1 && ['--selftest', '--repair-denied', '--repair-stamps'].includes(args[0])
+    : args.length === 1 && ['--selftest', '--repair-denied', '--repair-stamps', '--upgrade-https'].includes(args[0])
       ? args[0].slice(2)
       : null;
 const cliMode = jobsEnrichCliMode(process.argv.slice(2));
 if (isMain && cliMode == null) {
-  console.error('usage: demigod-startup-jobs-enrich.mjs [--selftest | --repair-denied | --repair-stamps]');
+  console.error('usage: demigod-startup-jobs-enrich.mjs [--selftest | --repair-denied | --repair-stamps | --upgrade-https]');
   process.exit(1);
 }
 // 12 parallel workers over ~2900 companies × 7 providers is enough to get rate-limited by a single
@@ -689,6 +689,39 @@ export function loadDirectoryOptOuts(file = OPTOUT_PATH) {
     if (fs.existsSync(file)) throw new Error('directory_optout_unreadable');
     return new Set();
   }
+}
+
+/**
+ * Decide whether an https probe earns an upgrade. PURE, so the rule is testable without a network.
+ *
+ * 486 rows store `http://` websites (239 Wikidata, 247 YC) — both upstream sources hand them over
+ * that way and safeUrl preserves what it is given. A public directory linking http:// sends every
+ * visitor's first hop unencrypted, so it is worth fixing, but a bulk rewrite would be asserting
+ * something nobody checked. The only upgrade allowed here is one an https request actually answered.
+ *
+ * Same host only. A redirect to a different host is a different company's problem — sites park,
+ * merge and get sold, and following one would silently rewrite identity, which is keyed on the
+ * registrable domain.
+ */
+export function httpsUpgradeVerdict(originalUrl, probe) {
+  let original;
+  try { original = new URL(String(originalUrl || '')); } catch { return { upgrade: false, reason: 'unparseable' }; }
+  if (original.protocol !== 'http:') return { upgrade: false, reason: 'not-http' };
+  if (!probe || probe.ok !== true) return { upgrade: false, reason: probe?.reason || 'no-answer' };
+  let answered;
+  try { answered = new URL(String(probe.finalUrl || '')); } catch { return { upgrade: false, reason: 'unparseable-answer' }; }
+  if (answered.protocol !== 'https:') return { upgrade: false, reason: 'answered-http' };
+  /* Compare the way identity does: websiteHostKey strips `www.` and lowercases, so
+     `http://www.acme.com/` answering at `https://acme.com/` is the same site canonicalising, not a
+     different company. An exact hostname comparison refused 195 of 486 rows on the first pass for
+     exactly that reason. Arbitrary subdomains still count as different — a redirect to
+     app.acme.com is another page, and refusing is the conservative direction. */
+  if (websiteHostKey(answered.href) !== websiteHostKey(original.href)) {
+    return { upgrade: false, reason: 'different-host' };
+  }
+  const next = new URL(original.href);
+  next.protocol = 'https:';
+  return { upgrade: true, url: next.href };
 }
 
 /**
@@ -1561,6 +1594,27 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || cliMode === '
   assert(repaired.rows[1].openRolesAt === '2026-08-17' && repaired.rows[2].openRolesAt === '2026-08-17',
     'a counted board keeps its date — and so does a board read and found empty');
   assert(repairStampedRows(repaired.rows).touched.length === 0, 'running the repair twice is a no-op');
+  // The https upgrade rule, without a network. Only an answer earns the rewrite.
+  const httpsCases = [
+    ['http://acme.example/', { ok: true, finalUrl: 'https://acme.example/' }, 'https://acme.example/', 'an https answer on the same host upgrades'],
+    ['http://acme.example/', { ok: false, reason: 'fetch failed' }, null, 'no answer, no upgrade'],
+    ['http://acme.example/', { ok: true, finalUrl: 'http://acme.example/' }, null, 'an http answer is not an https site'],
+    ['http://acme.example/', { ok: true, finalUrl: 'https://someone-else.example/' }, null, 'a redirect off-host is a different company, not an upgrade'],
+    ['http://acme.example/', { ok: true, finalUrl: 'https://ACME.example/' }, 'https://acme.example/', 'host comparison is case-insensitive'],
+    ['http://www.acme.example/', { ok: true, finalUrl: 'https://acme.example/' }, 'https://www.acme.example/', 'a site canonicalising away www is the same site'],
+    ['http://acme.example/', { ok: true, finalUrl: 'https://www.acme.example/' }, 'https://acme.example/', 'and the same in the other direction'],
+    ['http://acme.example/', { ok: true, finalUrl: 'https://app.acme.example/' }, null, 'but a subdomain is another page, not a canonical form'],
+    ['https://acme.example/', { ok: true, finalUrl: 'https://acme.example/' }, null, 'an https row is left alone'],
+    ['not a url', { ok: true, finalUrl: 'https://acme.example/' }, null, 'an unparseable row is left alone'],
+  ];
+  for (const [from, probe, want, why] of httpsCases) {
+    const verdict = httpsUpgradeVerdict(from, probe);
+    const got = verdict.upgrade ? verdict.url : null;
+    if (got !== want) throw new Error(`httpsUpgradeVerdict(${from}) = ${got}, want ${want} — ${why}`);
+  }
+  // The path and query survive; only the scheme moves.
+  const kept = httpsUpgradeVerdict('http://acme.example/careers?src=yc', { ok: true, finalUrl: 'https://acme.example/' });
+  assert(kept.url === 'https://acme.example/careers?src=yc', 'only the scheme changes — the path a source gave us is not ours to drop');
   // Opt-out: a stated preference, read from its own file and never confused with a denylist.
   const optDir = fs.mkdtempSync(path.join('/tmp', 'dg-optout-'));
   try {
@@ -1589,6 +1643,44 @@ if (isMain) {
   const at = repairDenied
     ? map.coverage?.openRolesAt || new Date().toISOString().slice(0, 10)
     : new Date().toISOString().slice(0, 10);
+  if (cliMode === 'upgrade-https') {
+    const httpRows = map.companies.filter((c) => String(c?.website || '').startsWith('http://'));
+    // Their own marketing sites, one HEAD-ish GET each, at the same polite concurrency the board
+    // reads use. Nothing here touches an ATS.
+    const probes = await pool(httpRows, async (company) => {
+      const target = String(company.website).replace(/^http:/, 'https:');
+      try {
+        const response = await fetch(target, { redirect: 'follow', signal: AbortSignal.timeout(TIMEOUT) });
+        return { ok: response.ok, finalUrl: response.url || target, status: response.status };
+      } catch (error) {
+        return { ok: false, reason: String(error?.message || error).slice(0, 60) };
+      }
+    });
+    const upgraded = [];
+    const refused = {};
+    map.companies = map.companies.map((company) => {
+      const index = httpRows.indexOf(company);
+      if (index === -1) return company;
+      const verdict = httpsUpgradeVerdict(company.website, probes[index]);
+      if (!verdict.upgrade) {
+        refused[verdict.reason] = (refused[verdict.reason] || 0) + 1;
+        return company;
+      }
+      upgraded.push({ id: company.id || null, from: company.website, to: verdict.url });
+      return { ...company, website: verdict.url };
+    });
+    atomicWrite(MAP, `${JSON.stringify(map)}\n`);
+    console.log(JSON.stringify({
+      ok: true,
+      checked: httpRows.length,
+      upgraded: upgraded.length,
+      // Never silent: a site that refused the upgrade says why, and stays http rather than being
+      // quietly rewritten to a scheme it did not answer on.
+      refused,
+      sample: upgraded.slice(0, 5),
+    }, null, 2));
+    process.exit(0);
+  }
   if (cliMode === 'repair-stamps') {
     // Coverage keeps the date of the run that actually read the boards. Restamping it here would
     // launder a field repair as a fresh crawl, which is the same lie in a different field.
