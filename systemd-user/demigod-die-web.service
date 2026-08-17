@@ -1,0 +1,21 @@
+[Unit]
+Description=Demigod DIE private read-only web app
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/potter
+Environment=NODE_ENV=production
+Environment=DEMIGOD_ROOT=/home/potter
+Environment=DEMIGOD_DIE_STORE=%h/.local/share/demigod/die-missions.sqlite
+EnvironmentFile=-%h/.config/demigod/die-web.env
+ExecStartPre=/usr/bin/mkdir -p %h/.local/share/demigod
+ExecStart=/home/potter/.nvm/versions/node/v24.17.0/bin/node /home/potter/demigod-die-web.mjs --port 9880
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

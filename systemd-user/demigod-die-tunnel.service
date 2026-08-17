@@ -1,0 +1,17 @@
+[Unit]
+Description=Cloudflare Tunnel for the Demigod DIE private app
+Requires=demigod-die-web.service
+After=network-online.target demigod-die-web.service
+ConditionPathExists=%h/.config/demigod/die-tunnel-ready
+
+[Service]
+Type=simple
+WorkingDirectory=/home/potter
+ExecStart=/home/potter/.nvm/versions/node/v24.17.0/bin/npx --yes wrangler@4.120.1 tunnel run demigod-die --log-level warn
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

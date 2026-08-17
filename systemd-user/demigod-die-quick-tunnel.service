@@ -1,0 +1,17 @@
+[Unit]
+Description=Cloudflare quick tunnel for gated Demigod DIE
+Wants=demigod-die-web.service
+After=network-online.target demigod-die-web.service
+ConditionPathExists=%h/.config/demigod/die-gate-ready
+
+[Service]
+Type=simple
+WorkingDirectory=/home/potter
+Environment=PATH=%h/.local/bin:%h/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin
+ExecStart=/home/potter/.nvm/versions/node/v24.17.0/bin/node /home/potter/demigod-die-quick-tunnel.mjs
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

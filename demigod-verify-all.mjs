@@ -142,6 +142,10 @@ if (ship || wizard) {
     // Gold is pinned and the map moves under it: when the selector stops reproducing gold, the
     // drift must name which companies moved rather than being absorbed into a re-selection.
     ['demigod-benchmark-selection-drift.test.mjs'],
+    // Two DIE modules that were untracked and unrun: whether a company is still operating, and the
+    // corpus defects that would otherwise be discovered by a reader.
+    ['demigod-company-liveness.mjs', ['--selftest']],
+    ['demigod-corpus-defects.mjs', ['--selftest']],
     // The activity list every DIE surface projects through — shape only, never a score.
     ['demigod-die-activity-shape.test.mjs'],
     // Public brief: founder compensation stays a required, reviewable wizard step
@@ -299,7 +303,7 @@ if (ship || wizard) {
      floor is a volume floor, not a target: a bad merge or a truncated array drops entries silently,
      and 95 steps becoming 12 is the failure mode worth catching. Raise it deliberately when steps
      are added; never lower it to make a run green. */
-  const MIN_STEPS = 190;
+  const MIN_STEPS = 192;
 
   let failed = 0;
   let ran = 0;

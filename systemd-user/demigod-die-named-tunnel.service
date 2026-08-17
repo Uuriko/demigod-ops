@@ -1,0 +1,18 @@
+[Unit]
+Description=Named Cloudflare tunnel for gated Demigod DIE
+Wants=demigod-die-web.service
+After=network-online.target demigod-die-web.service
+ConditionPathExists=%h/.config/demigod/die-gate-ready
+ConditionPathExists=%h/.config/demigod/die-tunnel.token
+
+[Service]
+Type=simple
+WorkingDirectory=/home/potter
+ExecStart=/home/potter/.local/bin/cloudflared tunnel --no-autoupdate run --token-file %h/.config/demigod/die-tunnel.token
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target
