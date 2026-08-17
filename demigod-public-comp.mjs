@@ -70,7 +70,22 @@ export function extractPublicCompQuotes(text) {
       if (!prev || quoteScore(hit.quote) > quoteScore(prev.quote)) byBand.set(bandKey, hit);
     }
   }
-  return [...byBand.values()];
+  /* A single-value band whose value is the floor of a wider band is the same money read short.
+     "OTE $200k–$250k" matches the range pattern AND the single pattern, and the dedupe key
+     (unit|min|max) treats 200000–250000 and 200000–200000 as different bands, so both survived: a
+     published range and a point pretending to be one. Consumers that take [0] were fine by ordering
+     luck; anything iterating recorded the floor of a band as the band — the same defect the
+     Greenhouse entity bug produced this morning, reached from the other side. */
+  const bands = [...byBand.values()];
+  return bands.filter((hit) => {
+    const { unit, min, max } = hit.parsed;
+    if (max !== null && max !== min) return true;
+    return !bands.some((other) => other !== hit
+      && other.parsed.unit === unit
+      && other.parsed.min === min
+      && other.parsed.max !== null
+      && other.parsed.max > min);
+  });
 }
 
 /** Prefer OTE/salary keyword spans over bare $ranges; then longer exact quote. */
@@ -238,6 +253,13 @@ function selftest() {
   const ote = extractPublicCompQuotes('Role in SF. OTE $200k–$250k plus equity.');
   assert(ote.length === 1 && ote[0].parsed.min === 200000 && ote[0].parsed.max === 250000, 'OTE range deduped to one band');
   assert(/ote/i.test(ote[0].quote), 'prefer keyword OTE quote over bare $ range');
+  const otePoint = extractPublicCompQuotes('OTE $200k for this role.');
+  assert(otePoint.length === 1 && otePoint[0].parsed.max === 200000, 'a genuine single figure is still a band of one');
+  const twoBands = extractPublicCompQuotes('Base $150k–$180k. OTE $200k–$250k.');
+  assert(twoBands.length === 2, 'two real ranges stay two');
+  const distinctPoint = extractPublicCompQuotes('Base pay $150k–$180k. Total cash $210k.');
+  assert(distinctPoint.length === 2 && distinctPoint.some((b) => b.parsed.min === 210000),
+    'a point band at a different figure is a separate fact and survives');
   const tc = extractPublicCompQuotes('Total cash: $145,000 to $175,000 USD per year.');
   assert(tc.length === 1 && tc[0].parsed.min === 145000, 'total cash one band');
   assert(extractPublicCompQuotes('Competitive OTE package').length === 0, 'refuse competitive OTE');
