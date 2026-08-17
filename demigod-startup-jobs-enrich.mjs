@@ -741,9 +741,57 @@ export async function fetchOwnedAtsBoard(company, slug, provider) {
   return found;
 }
 
+/**
+ * The slug of a board we have ALREADY verified for this company, if any.
+ *
+ * A board slug is frequently not derivable from the company's domain at all: Anysphere's board is
+ * ashbyhq.com/cursor while its site is anysphere.inc; Ashby's own board is /ashby while its host is
+ * ashbyhq.com; Alembic has no website, so slugs() returns nothing and detect gives up before it
+ * starts. Re-deriving candidates from the domain on every run throws away the one piece of hard
+ * evidence we already had — the URL of the board we previously read — and then fails to guess it
+ * back. That is 108 companies and 1,742 open roles reading as not hiring on 2026-08-17.
+ *
+ * This is a HINT about where to look, not a carried count: the board is still fetched and counted
+ * fresh, and if it has gone away we find nothing and strip the evidence as before.
+ */
+const knownBoardSlug = (company) => {
+  const url = String(company?.jobsUrl || '');
+  if (!/^https:\/\/(?:boards|job-boards)(?:\.eu)?\.greenhouse\.io\/|^https:\/\/jobs\.(?:lever\.co|ashbyhq\.com|gem\.com)\//i.test(url)) return null;
+  const slug = jobBoardSlug(url);
+  return slug && slug.length >= 2 ? slug : null;
+};
+
+/**
+ * True when the company's own identity IS this board.
+ *
+ * A row like `hn:jobs.ashbyhq.com/baseten` exists BECAUSE that board was found in the company's own
+ * public Hacker News post — the board is the identity, not an inference about it, and these rows
+ * carry no website precisely because we never had one. Requiring owner evidence to match is then
+ * circular: it asks the board to prove it belongs to a company we only know through the board, and
+ * `sameWebsiteOwner(null, …)` is false, so the answer is always no.
+ *
+ * That cost 28 companies on 2026-08-17. This is NOT a loosening of the owner rule — AR-28 exists
+ * because a published Fortune-500 ATS mapping audited at ~52% accurate when it was inferred rather
+ * than probed, and a false attribution poisons every downstream claim about both companies. The
+ * rule stands everywhere it is doing work. It simply cannot do work here, because there is no
+ * competing claim to adjudicate: the identity and the board are the same fact. Exact host AND path
+ * match only, so a different board on the same provider still has to earn its attribution.
+ */
+const idIsThisBoard = (company, found) => {
+  const id = String(company?.id || '').toLowerCase();
+  if (!id.startsWith('hn:')) return false;
+  try {
+    const u = new URL(found?.jobsUrl);
+    return id === `hn:${u.host}${u.pathname.replace(/\/+$/, '')}`.toLowerCase();
+  } catch {
+    return false;
+  }
+};
+
 async function detect(company) {
   return fetchCtx.run({ unreachable: false }, async () => {
-    for (const slug of slugs(company)) {
+    const known = knownBoardSlug(company);
+    for (const slug of known ? [known, ...slugs(company).filter((s) => s !== known)] : slugs(company)) {
       for (const probe of [
         greenhouse,
         lever,
@@ -757,7 +805,7 @@ async function detect(company) {
         if (
           found &&
           !hasDeniedAtsBoard({ ...company, atsSource: found.ats, jobsUrl: found.jobsUrl }) &&
-          boardOwnerMatches(company, found)
+          (boardOwnerMatches(company, found) || idIsThisBoard(company, found))
         ) {
           return found;
         }
@@ -1244,6 +1292,20 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || cliMode === '
   // The whole host is a legitimate board slug and must survive intact — stripping the dot yields
   // `ambientai`, which is nobody's board. Verified live: slug `ambient` 404s, `ambient.ai` returns
   // ten open roles.
+  // A board we already verified is the strongest hint about where the board is, and it is often
+  // underivable from the domain: ashbyhq.com/cursor belongs to anysphere.inc, and Alembic has a
+  // board with no website at all. Re-deriving from the domain every run discarded that evidence.
+  assert(knownBoardSlug({ jobsUrl: 'https://jobs.ashbyhq.com/cursor' }) === 'cursor', 'known Ashby board slug is recovered');
+  // A row whose id IS the board: the identity and the attribution are one fact, so owner evidence
+  // has nothing to adjudicate. Exact host and path only.
+  assert(idIsThisBoard({ id: 'hn:jobs.ashbyhq.com/baseten' }, { jobsUrl: 'https://jobs.ashbyhq.com/baseten' }), 'a board-derived id vouches for its own board');
+  assert(!idIsThisBoard({ id: 'hn:jobs.ashbyhq.com/baseten' }, { jobsUrl: 'https://jobs.ashbyhq.com/someoneelse' }), 'and not for a different board on the same provider');
+  assert(!idIsThisBoard({ id: 'yc:acme', website: 'https://acme.com/' }, { jobsUrl: 'https://jobs.ashbyhq.com/acme' }), 'a YC row still has to satisfy the owner rule');
+  assert(!idIsThisBoard({ id: 'hn:acme.com' }, { jobsUrl: 'https://jobs.ashbyhq.com/acme' }), 'a website-derived hn id is not a board voucher');
+  assert(knownBoardSlug({ jobsUrl: 'https://boards.greenhouse.io/acme' }) === 'acme', 'known Greenhouse board slug is recovered');
+  assert(knownBoardSlug({ jobsUrl: 'https://www.ycombinator.com/companies/acme/jobs' }) === null, 'a YC jobs page is not a board');
+  assert(knownBoardSlug({ jobsUrl: 'https://evil.example/acme' }) === null, 'only public ATS hosts are trusted as hints');
+  assert(knownBoardSlug({}) === null && knownBoardSlug(null) === null, 'no board, no hint');
   assert(slugs({ website: 'https://ambient.ai/' }).includes('ambient.ai'), 'full host is offered as a slug');
   assert(slugs({ website: 'https://ambient.ai/' }).includes('ambient'), 'and the domain label still is');
   assert(!slugs({ website: 'https://ambient.ai/' }).includes('ambientai'), 'a dot-stripped host is not a slug');
@@ -1282,7 +1344,10 @@ if (isMain) {
     process.exit(0);
   }
   const results = await pool(map.companies, async (c) => {
-    if (!c.website) return null;
+    // No website used to mean no board, because slugs() derives only from the domain. A company we
+    // have already read a board for is the exception — Alembic has no verified website and a known
+    // Ashby board, and was skipped before it could be probed.
+    if (!c.website && !knownBoardSlug(c)) return null;
     return detect(c);
   });
   let carriedUnreachable = 0;
