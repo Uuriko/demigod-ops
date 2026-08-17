@@ -6,7 +6,40 @@ generated_at: 2026-08-17
 
 # Getting everything onto Origin — inventory, plan, and the one thing I cannot do
 
-## State right now
+## RESOLVED 2026-08-17 — claiming the namespace mirrored everything by itself
+
+Namespace `johnpotter` claimed, and **all 14 repos appeared on Origin within seconds**, created
+20:58:25–20:58:36Z. Nothing below needed running; the plan's mirroring section is history.
+
+Verified rather than assumed:
+
+| check | result |
+|---|---|
+| repos on Origin | **14 of 14**, including `eliza` at 1.85 GB |
+| `demigod-ops` refs | **122 on Origin, 122 on GitHub, `diff` empty** — byte-exact |
+| spot checks | eliza 322/322, dasha-desk 20/20, demigod-site-cdn 19/19, asi 5/5 — all match |
+| mirror direction | `Mirror status: inbound` — GitHub is the source, Origin pulls |
+
+**The visibility question is answered, and the answer is the safe one.** Origin exposes no
+public/private field at all — not in `repo view`, not in the API record. So I tested it instead:
+unauthenticated `git ls-remote` fails and a plain HTTP fetch of `info/refs` returns **401** for
+`demigod-ops`, `crispy-garbanzo`, `eat-the-sounds` — *and equally for `dasha-desk`, `eliza` and
+`demigod-site-cdn`, which are public on GitHub*. Origin currently has no anonymous access to
+anything. The hiring corpus is not exposed; the canary plan was unnecessary but the test still had
+to be run, because "no visibility field" is not evidence of privacy.
+
+**What this changes about the plan.** These are inbound mirrors, so GitHub is the upstream by
+Origin's own design. The 17 commits that live only on this disk are on neither host, and the clean
+route to Origin now runs *through* GitHub — "worry about GitHub later" is not quite available any
+more, because GitHub is the input.
+
+A direct push to Origin would work — `git push --dry-run cursor` reports a clean fast-forward
+`5ca836b..746f4f0` — but it puts commits on the far side of an inbound mirror, and nothing published
+says whether the next sync preserves them or resets to GitHub. The CLI exposes no way to detach or
+promote a mirror (`repo` offers only create, create-mirrored, list, view, clone, delete). Until that
+is known, pushing to GitHub and letting the mirror pull is the move that cannot lose work.
+
+## State before the namespace existed
 
 | | |
 |---|---|
