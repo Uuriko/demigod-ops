@@ -340,6 +340,9 @@ if (ship || wizard) {
     // The methodology page reads its figures from live artifacts at render time, so its selftest is
     // the thing standing between a published claim and a number that quietly drifted from the data.
     ['demigod-method-page.mjs', ['--selftest']],
+    // The Origin mirror's URL builder and its refusals — a repo name reaching a git remote
+    // unvalidated is how a mirror script writes somewhere nobody meant.
+    ['demigod-origin-mirror.mjs', ['--selftest']],
     // The one Demigod test living outside the repo root, and therefore outside every glob anyone
     // has written to find these.
     ['docs/exchange/demigod-recruiting-research-pack.test.mjs'],
@@ -382,7 +385,7 @@ if (ship || wizard) {
      floor is a volume floor, not a target: a bad merge or a truncated array drops entries silently,
      and 95 steps becoming 12 is the failure mode worth catching. Raise it deliberately when steps
      are added; never lower it to make a run green. */
-  const MIN_STEPS = 242;
+  const MIN_STEPS = 243;
 
   let failed = 0;
   let ran = 0;
