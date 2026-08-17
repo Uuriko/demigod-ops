@@ -75,9 +75,24 @@ export function computePulse(map, prior = null, today = '') {
       const row = byId.get(id);
       return Boolean(row && row.atsSource && !Number.isSafeInteger(row.openRoles));
     }).length;
+    /* The same error runs the other way and is larger. A board we FAILED to read yesterday and read
+       today reappears in the counts, and "started hiring" claims a company made a decision when all
+       that happened is that our crawler worked. On 2026-08-17 this delta read 133 started against a
+       prior snapshot taken after a rate-limited run that lost most of a day's boards — 340 boards
+       then, 472 now. Publishing that as 133 companies starting to hire would have been a fabricated
+       market signal.
+       A snapshot records which ids were unread when it was taken, so a later comparison can subtract
+       them. Snapshots written before that field existed cannot be corrected after the fact, and
+       `priorUnreadKnown: false` says so rather than presenting an uncorrectable number as clean. */
+    const priorUnread = Array.isArray(prior.unread) ? new Set(prior.unread) : null;
+    const recovered = priorUnread
+      ? verified.filter((c) => !(c.id in prior.roles) && priorUnread.has(c.id)).length
+      : 0;
     deltas = {
       since: prior.date,
-      startedHiring: started,
+      startedHiring: started - recovered,
+      boardsRecovered: recovered,
+      priorUnreadKnown: priorUnread !== null,
       pausedHiring: gone.length - unreadable,
       boardsUnread: unreadable,
       netRoles: totalRoles - prior.totalRoles,
@@ -166,6 +181,12 @@ export function snapshotAndPrior(map, today, historyPath = HISTORY) {
         verifiedBoards: verified.length,
         totalRoles: verified.reduce((sum, company) => sum + company.openRoles, 0),
         roles: Object.fromEntries(verified.map((company) => [company.id, company.openRoles])),
+        /* Which boards we could not read on the day. Tomorrow's comparison needs it to tell a
+           company that started hiring from a board our crawler finally managed to open, and that
+           question cannot be answered after the fact — the evidence only exists on the day. */
+        unread: (map.companies || [])
+          .filter((company) => company.atsSource && !Number.isSafeInteger(company.openRoles))
+          .map((company) => company.id),
       };
       fs.appendFileSync(historyPath, `${JSON.stringify(snap)}\n`, { mode: 0o600 });
     }
@@ -205,7 +226,14 @@ export function renderPulseHtml(pulse, site = 'https://www.trydemigod.com') {
        <p class="dek">Just <b>${pulse.finding.freshRate}%</b> of the newest cohort (${esc(pulse.finding.freshBatch)}) is hiring; <b>${pulse.finding.matureRate}%</b> of companies a year or more past their batch are. If you're job-hunting, the fresh batch isn't where the openings are.</p></section>`
     : '';
   const deltaLine = pulse.deltas
-    ? `<p class="delta">Since ${esc(pulse.deltas.since)}: <b>${num(pulse.deltas.startedHiring)} started hiring</b>, ${num(pulse.deltas.pausedHiring)} paused, net ${pulse.deltas.netRoles >= 0 ? '+' : ''}${num(pulse.deltas.netRoles)} open roles.${pulse.deltas.boardsUnread ? ` ${num(pulse.deltas.boardsUnread)} board${pulse.deltas.boardsUnread === 1 ? '' : 's'} we could not read are excluded rather than counted as paused.` : ''}</p>`
+    /* `paused` and the unread exclusion are computed from TODAY's map — a company still listed with
+       a board and no count — so they hold whatever the earlier snapshot recorded. `started` is the
+       one that cannot be trusted without the prior day's unread list, because a board we failed to
+       read then and read now is indistinguishable from a company that just started hiring. So only
+       that number is withheld, and the sentence says why rather than quietly dropping it. */
+    ? `<p class="delta">Since ${esc(pulse.deltas.since)}: ${pulse.deltas.priorUnreadKnown === false
+      ? ''
+      : `<b>${num(pulse.deltas.startedHiring)} started hiring</b>, `}${num(pulse.deltas.pausedHiring)} paused, net ${pulse.deltas.netRoles >= 0 ? '+' : ''}${num(pulse.deltas.netRoles)} open roles.${pulse.deltas.boardsUnread ? ` ${num(pulse.deltas.boardsUnread)} board${pulse.deltas.boardsUnread === 1 ? '' : 's'} we could not read are excluded rather than counted as paused.` : ''}${pulse.deltas.boardsRecovered ? ` ${num(pulse.deltas.boardsRecovered)} board${pulse.deltas.boardsRecovered === 1 ? '' : 's'} we failed to read last time are excluded rather than counted as new.` : ''}${pulse.deltas.priorUnreadKnown === false ? ' A started-hiring count is withheld for this comparison: the earlier snapshot does not record which boards went unread, so a recovered board cannot be told from a company that started hiring.' : ''}</p>`
     : '<p class="delta">Week-over-week trends begin next issue (first snapshot).</p>';
   const batchRows = (pulse.batches || []).map((b) => {
     const w = Math.max(6, Math.round((100 * b.rate) / batchMax));
@@ -300,6 +328,24 @@ if (isMain && (process.env.DEMIGOD_PULSE_SELFTEST === '1' || process.argv.includ
     renderPulseHtml(p3).includes('could not read'),
     'the published issue must say the unread boards were excluded, not silently drop them',
   );
+  /* The same error running the other way, and the larger one: a board we failed to read last time
+     reappears and reads as a company that started hiring. On real history this delta said 133
+     started, against a prior snapshot taken after a rate-limited run. */
+  const priorWithUnread = { date: '2026-07-17', totalRoles: 20, roles: { a: 8 }, unread: ['b'] };
+  const p4 = computePulse(fake, priorWithUnread, '2026-07-24');
+  assert(p4.deltas.boardsRecovered === 1 && p4.deltas.startedHiring === 0,
+    'a board that was unread last time and readable now is a recovery, not a company starting to hire');
+  assert(p4.deltas.priorUnreadKnown === true, 'and the comparison knows it could tell');
+  assert(renderPulseHtml(p4).includes('failed to read last time'), 'the published issue says so');
+  // A snapshot from before the field existed cannot be corrected afterwards, so the two guessable
+  // numbers are withheld rather than published as if they were clean.
+  const p5 = computePulse(fake, { date: '2026-07-17', totalRoles: 20, roles: { a: 8 } }, '2026-07-24');
+  assert(p5.deltas.priorUnreadKnown === false, 'a snapshot with no unread list is flagged');
+  const withheld = renderPulseHtml(p5);
+  assert(withheld.includes('withheld for this comparison'), 'the issue says the started count is withheld');
+  assert(!/started hiring<\/b>/.test(withheld), 'and does not publish it');
+  assert(/paused/.test(withheld) && /net /.test(withheld),
+    'paused and net come from today\'s map, so they are still published — only the unknowable number goes');
   const historyDir = fs.mkdtempSync(path.join('/tmp', 'dg-hiring-history-'));
   try {
     const historyPath = path.join(historyDir, 'history.jsonl');
