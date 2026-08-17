@@ -725,6 +725,24 @@ export function httpsUpgradeVerdict(originalUrl, probe) {
 }
 
 /**
+ * May an empty board claim "we read it and it was empty"?
+ *
+ * Only when the empty board is the one we had ALREADY verified for this company. Extracted from
+ * detect() so the rule can be tested, because the vendor behaviour it guards against is real and
+ * was measured on 2026-08-17: `api.smartrecruiters.com/v1/companies/<anything>/postings` answers
+ * HTTP 200 with `{"totalFound":0,"content":[]}` for a slug that belongs to nobody. Six other
+ * providers 404 an unknown slug; SmartRecruiters says "here is your empty board".
+ *
+ * Without this guard, every slug guess against that provider would manufacture a verified-empty
+ * board, and zero open roles is the one count this codebase treats as a fact. It would publish
+ * "this company is hiring nobody" about thousands of businesses whose board we never found.
+ */
+export function acceptsVerifiedEmpty(emptyBoard, knownSlug) {
+  if (!emptyBoard?.jobsUrl || !knownSlug) return false;
+  return knownBoardSlug({ jobsUrl: emptyBoard.jobsUrl }) === knownSlug;
+}
+
+/**
  * Drop `openRolesAt` from rows that carry a date and no count.
  *
  * 597 of 2,917 live rows had one on 2026-08-17, all of them YC directory links stamped by a branch
@@ -1025,7 +1043,7 @@ async function detect(company) {
     // audits around 52% accurate. Claiming "this company is hiring nobody" on an unverified board
     // would be a confident wrong answer about a real business.
     const empty = store.emptyBoard;
-    if (empty && known && knownBoardSlug({ jobsUrl: empty.jobsUrl }) === known) {
+    if (acceptsVerifiedEmpty(empty, known)) {
       return { verifiedEmpty: true, jobsUrl: empty.jobsUrl, ats: empty.ats, lastAttempt: 'ok' };
     }
     return lastAttempt ? { lastAttempt } : null;
@@ -1579,6 +1597,20 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || cliMode === '
   assert(carried.row.openRolesAt === '2026-08-14' && carried.row.openRolesStale === true,
     'with the date it was actually verified, marked stale — never restamped as fresh');
   assert(carried.row.lastAttempt === 'rate_limited', 'and says what actually happened on the read');
+  /* The one count this codebase treats as a fact is zero, so the gate in front of it matters more
+     than the rest. Measured 2026-08-17: SmartRecruiters answers HTTP 200 with
+     {"totalFound":0,"content":[]} for a slug belonging to nobody, where six other providers 404.
+     Without this guard, every slug guess against that provider manufactures a verified-empty board
+     and publishes "this company is hiring nobody" about a business whose board we never found. */
+  assert(acceptsVerifiedEmpty({ jobsUrl: 'https://jobs.lever.co/acme' }, 'acme'),
+    'the board we already verified may report itself empty');
+  assert(!acceptsVerifiedEmpty({ jobsUrl: 'https://jobs.smartrecruiters.com/acme' }, 'someone-else'),
+    'an empty board on a guessed slug is not this company reporting no roles');
+  assert(!acceptsVerifiedEmpty({ jobsUrl: 'https://jobs.lever.co/acme' }, null),
+    'with no previously verified board there is nothing an empty read can confirm');
+  assert(!acceptsVerifiedEmpty(null, 'acme'), 'no empty board, nothing to accept');
+  assert(!acceptsVerifiedEmpty({}, 'acme'), 'an empty-board record with no URL proves nothing');
+
   const nothing = projectJobRow({ id: 'yc:quiet', name: 'Quiet', website: 'https://quiet.example/' }, { lastAttempt: 'error' }, stamps).row;
   assert(nothing.openRolesAt === undefined && nothing.lastAttempt === 'error', 'no board and not YC-hiring still records the failed attempt');
   // The stamp repair: touch the dateless rows, leave everything else byte-identical, converge.
