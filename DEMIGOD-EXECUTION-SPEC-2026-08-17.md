@@ -134,6 +134,28 @@ states a figure that no artifact can reproduce.
 the 135 sites still on http · the 73 failed board reads · map rebuild for the 33 disambiguators ·
 `/tmp` receipts · the 45 GB `src/` · push.
 
+## 6b. Execution log — 2026-08-17
+
+**Wave 1 complete.** `demigod-route-static.mjs` reads `DG_PAGES` by running foot-core in a vm
+sandbox and stages 15 routes: 23,386 crawlable characters where most served 590. `/faq` 590 → 3,765
+with the orphaned FAQPage generator finally wired and its visible-vs-schema round trip proven
+fail-capable. `/blog` 591 → 4,876, drafts excluded by title and body opening, post fields escaped.
+
+**Wave 2 measured.** `demigod-crawlable-audit.mjs` records what GPTBot receives per route. Nine
+routes are byte-identical once the page title is removed — /about, /blog, /faq, /how, /legal, /press,
+/private, /refer, /sample — and the title is why nobody saw it. Floor set at 900 from the measured
+590-character boilerplate. Live audit deliberately not wired as a gate; its selftest is.
+
+**Wave 3, three of five.** posting-age staged (1,229 chars), pay-transparency built and staged (944),
+methodology built and staged (1,703) with every figure read from live artifacts at render time. The
+"versus" page is left to the operator: it is positioning, not measurement.
+
+**Correction absorbed.** The robots policy is deliberate — `search=yes, ai-train=no, use=reference`,
+training crawlers blocked by name, every citation fetcher allowed. It needed no work, and it changes
+nothing: the allowed fetchers do not run JavaScript either.
+
+**Blocked on hosting.** `llms.txt` cannot be served — Webflow 404s arbitrary root files.
+
 ## 7. Not agent work — these need the operator
 
 Publishing anything. The niche definition. Whether to name companies in the posting-age index. Legal
