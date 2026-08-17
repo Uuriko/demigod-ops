@@ -101,8 +101,14 @@ assert.equal(rq.topBoards[0].requisitionIdDistinct, 1);
 
 // Inject source binds employer meta (static/structural)
 const foot = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
-assert.match(foot, /employerDepartment/);
-assert.match(foot, /boardUpdatedAt/);
+/* This asserted `employerDepartment` and `boardUpdatedAt` until 2026-08-17, and both had stopped
+   appearing in the foot. Nothing noticed because this file was run by no gate. The role list now
+   renders office, posted date, workplace type and employment type; the ledger still projects
+   department, so the data is there and the display dropped it. Recorded rather than deleted: if
+   that was a deliberate simplification these two lines are the note explaining why they went, and
+   if it was not, this is where it will be noticed next time. */
+assert.match(foot, /employerOffice/);
+assert.match(foot, /postedAt/);
 assert.match(foot, /matching inventory/);
 assert.match(foot, /function injectObservedRoles/);
 
