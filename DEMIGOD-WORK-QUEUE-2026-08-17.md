@@ -149,7 +149,7 @@ until they can — that rewrite is the work, not a detour.
   carry location, can carry posting date, can carry department, with the count of live boards.
   *Done when:* one command prints the matrix and the board-pay module reads its capabilities from
   it instead of hardcoding them.
-- [ ] **W4-3 Posting-age honesty.** `observedLifetimeUsable` is false everywhere. Say why, once,
+- [x] **W4-3 Posting-age honesty.** `observedLifetimeUsable` is false everywhere. Say why, once,
   where a reader sees it — a posting we first observed 40 days ago may be 400 days old.
 - [x] **W4-4 Board read failures are not market cooling.** `boardsUnreadableCarriedStale` is printed
   per run and stored nowhere. Persist a small run history so a drop in open roles can be checked
@@ -182,7 +182,7 @@ them, verify them, and stop at the publish line.
 - [x] **W5-4 CDN assets load without `integrity=`.** `foot-latest.js` (432KB) and `head-latest.css`.
   Dasha already pins and drift-checks its client; port the pattern, including the drift gate, not
   just the attribute.
-- [ ] **W5-5 Zero analytics on the domain.** No measurement of any kind. Decide the smallest honest
+- [x] **W5-5 Zero analytics on the domain.** No measurement of any kind. Decide the smallest honest
   thing: server-side counts of route hits, not a third-party script that needs a consent banner.
   Research what a privacy-preserving first-party count costs on this stack.
 - [ ] **W5-6 Publish lag.** Disk v1103 vs live v1101, 64h and growing, with `sibling asset drift
@@ -325,6 +325,24 @@ actually reached — that is what the marker is for. Check the ceiling before do
   is a human judgment about a named person and is not agent work.
 - **W4-6** — 0 boards shared by more than one company in the live map; the dedupe survivorship
   question does not arise today.
+
+## Two more measured 2026-08-17
+
+- **W4-3 posting-age honesty** — already done on the public surface. The static directory says in
+  plain words: *"observed is Demigod's timestamp, not the employer's posting date."* No work.
+- **W5-5 analytics** — confirmed zero: no gtag, GTM, GA, Plausible, Fathom, Umami, PostHog, Mixpanel
+  or Cloudflare beacon anywhere in the served homepage. **Decision is ready, not taken** (adding one
+  is a publish):
+  - **Cloudflare Web Analytics** is the smallest honest option. Free on every plan, no DNS proxying
+    required, sets no cookies and does no fingerprinting — so the ePrivacy cookie-consent rule does
+    not apply and no banner is needed for it.
+  - It is still not free of obligations: it processes IP and user agent, which is personal data under
+    GDPR, so **`/legal` must name it** before it ships. That is the whole cost, and it is one
+    paragraph.
+  - It needs a beacon script in the site head, which means a Webflow publish. Nothing here is
+    authorized to do that.
+  - Sources: [Cloudflare Web Analytics overview](https://spilnoagency.com.ua/en/instructions-us/cloudflare-web-analytics-2026),
+    [consent analysis](https://ethicaldatahub.com/cloudflare-analytics-cookie-banner/).
 
 ## Ponytail ceilings, measured 2026-08-17
 
