@@ -302,6 +302,18 @@ function selftest() {
   );
   assert(gh.state === 'published', 'greenhouse pay comes out of the escaped posting body');
   assert(/114,000/.test(gh.quote), `range must survive &mdash; decoding, got "${gh.quote}"`);
+  // Decoding lives on the one shared path, so it holds for every pay-capable reader and for every
+  // field a posting body can arrive in. Measured 2026-08-17: zero entity-encoded titles, locations
+  // or company names in 19,307 live ledger rows, so the description body is the only exposure.
+  for (const ats of PAY_CAPABLE_ATS) {
+    for (const field of ['descriptionPlain', 'content', 'descriptionHtml']) {
+      const encoded = rolePayVisibility({ [field]: `<p>Pay Range $76,000 &mdash; $114,000 USD</p>` }, ats);
+      assert(
+        encoded.state === 'published' && /114,000/.test(encoded.quote || ''),
+        `${ats} ${field}: an entity-encoded band must decode before extraction, got ${JSON.stringify(encoded)}`,
+      );
+    }
+  }
 
   // A currency we cannot parse must never read as a company stating nothing.
   const gbp = rolePayVisibility({ content: 'Pay Range £51,000 &mdash; £67,000 GBP' }, 'Greenhouse');
