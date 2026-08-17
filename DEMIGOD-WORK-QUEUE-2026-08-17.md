@@ -332,10 +332,12 @@ Run 2026-08-17 at `DEMIGOD_ENRICH_CONCURRENCY=4` — a quarter of the default 12
 run at 12 cost 90 Ashby boards to rate limiting on 2026-08-16 and `ATS-SOURCE-TERMS.md` argues the
 absence of a published rate limit is not permission.
 
-**It did not finish inside 90 minutes.** That is the number to plan around: politeness against ~2,900
-companies over seven providers is an hour-plus job, not something to slip in beside a verification
-pass. The map is only written at the end, so a timeout leaves the committed map untouched — a safe
-failure, and the reason it was run this way rather than in-place.
+**Still running at 30 minutes**, which is the honest figure — an earlier draft of this note claimed
+it had passed 90 and that was a misread clock, not a measurement. What is established: politeness
+against ~2,900 companies over seven providers is a long job, not something to slip in beside a
+verification pass, and it loads the machine enough that unrelated greps time out. The map is only
+written at the end, so a killed run leaves the committed map untouched — a safe failure, and the
+reason it was run this way rather than in-place.
 
 Consequences worth keeping:
 - Schedule it as its own long-running job, not alongside gates. It loads the machine enough that
