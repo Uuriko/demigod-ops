@@ -597,16 +597,28 @@ export function mapRebuildWritePath(finalPath, withJobs) {
 // demigod-startup-jobs-enrich.mjs (domain-label + curated ATS aliases, with its own --selftest) —
 // the floor deliberately does NOT re-check slugs (legit boards can differ from the domain label,
 // e.g. usepylon.com → pylon-labs), it only guards volume so a bad rebuild fails loud.
-export function assertMapFloors(map, { withJobs = false, minCompanies = 2000, minYc = 1900, minBoards = 100 } = {}) {
+export function assertMapFloors(
+  map,
+  { withJobs = false, minCompanies = 2000, minYc = 1900, minWikidata = 550, minBoards = 100 } = {},
+) {
   const cos = Array.isArray(map?.companies) ? map.companies : [];
   const yc = cos.filter((c) => String(c?.id || '').startsWith('yc:')).length;
+  // Wikidata had no floor, so that source could shrink to nothing without tripping anything: the
+  // total floor is 2000 and yc: alone is 2058, so a SPARQL query returning short is invisible.
+  // Found 2026-08-17 via Mercury — HQ San Francisco, correct type, live query returns it, absent
+  // from the map. The three SPARQL queries hard-require P159=Q62 and are the map's real definition
+  // of "San Francisco", which makes a partial response from them a silent redefinition of scope.
+  // 550 against a working 626: low enough not to fire on ordinary Wikidata churn, high enough that
+  // a materially truncated query cannot pass.
+  const wikidata = cos.filter((c) => String(c?.id || '').startsWith('wd:')).length;
   const boards = cos.filter((c) => c?.openRoles && c?.atsSource).length;
   const problems = [];
   if (cos.length < minCompanies) problems.push(`companies ${cos.length} < ${minCompanies}`);
   if (yc < minYc) problems.push(`yc: companies ${yc} < ${minYc}`);
+  if (wikidata < minWikidata) problems.push(`wd: companies ${wikidata} < ${minWikidata}`);
   if (withJobs && boards < minBoards) problems.push(`job boards ${boards} < ${minBoards}`);
   if (problems.length) throw new Error('map floor breach: ' + problems.join('; '));
-  return { companies: cos.length, yc, boards };
+  return { companies: cos.length, yc, wikidata, boards };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

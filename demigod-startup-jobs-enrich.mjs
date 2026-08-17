@@ -175,7 +175,27 @@ export const COMPANY_ATS_BOARD_DENYLIST = {
 };
 
 // One reviewed ownership change: The Athletic's site redirects into its NYT parent.
+/**
+ * Confirmed 2026-08-17, each by reading BOTH sites and checking they describe one business —
+ * not by name similarity, which is how this goes wrong. Of fourteen pairs that looked obvious,
+ * ten turned out to be unrelated companies sharing a brand: weaveos.com "AI to measure engineers"
+ * is not getweave.com "communication platform for small business"; arlo1.com tracks drones and
+ * missiles while joinarlo.com sells health insurance; joinminerva.ai acquires accounting firms
+ * and minerva.io is marketing AI; helloconduit.com is dock scheduling and conduit.xyz is
+ * blockchain infrastructure.
+ *
+ * Those are not near misses. The live directory currently credits the /arlo board — whose
+ * openings include "VP of Clinical Strategy and Population Health" — to the drone company, and
+ * the /weave board's Salesforce and billing support roles to the engineering-metrics company.
+ * Refusing them is a CORRECTION, not a loss, and AR-28 has been silently preventing a dozen more.
+ */
 export const ATS_OWNER_HOST_ALIASES = {
+  // Twilio acquired Authy; authy.com is a Twilio product page. Same shape as theathletic/nytimes.
+  'authy.com': ['twilio.com'],
+  // Both sites: "Candid Health", healthcare revenue-cycle automation. One company, two domains.
+  'joincandidhealth.com': ['candidhealth.com'],
+  // untolabs.com states it outright: "We are the team behind Thru." thru.org is the product.
+  'thru.org': ['untolabs.com'],
   'brainbaselabs.com': ['usebrainbase.xyz'],
   'commodityai.io': ['commodityai.com'],
   'corgi.com': ['corgi.insure'],
@@ -1295,6 +1315,13 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || cliMode === '
   // A board we already verified is the strongest hint about where the board is, and it is often
   // underivable from the domain: ashbyhq.com/cursor belongs to anysphere.inc, and Alembic has a
   // board with no website at all. Re-deriving from the domain every run discarded that evidence.
+  // Owner aliases are confirmed by reading both sites, never by name similarity. These three were;
+  // ten others that looked just as obvious were not, and are refused on purpose.
+  assert(sameWebsiteOwner('https://www.authy.com/', 'https://twilio.com/'), 'acquisition alias holds');
+  assert(sameWebsiteOwner('https://thru.org/', 'https://untolabs.com/'), 'stated-parent alias holds');
+  assert(!sameWebsiteOwner('https://arlo1.com/', 'https://joinarlo.com/'), 'drone tracking is not health insurance');
+  assert(!sameWebsiteOwner('https://weaveos.com/', 'https://www.getweave.com/'), 'engineering metrics is not a phone platform');
+  assert(!sameWebsiteOwner('https://joinminerva.ai/', 'https://minerva.io/'), 'a shared brand is not a shared company');
   assert(knownBoardSlug({ jobsUrl: 'https://jobs.ashbyhq.com/cursor' }) === 'cursor', 'known Ashby board slug is recovered');
   // A row whose id IS the board: the identity and the attribution are one fact, so owner evidence
   // has nothing to adjudicate. Exact host and path only.

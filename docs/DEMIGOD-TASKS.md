@@ -494,7 +494,28 @@ tasks unless they appear here.
   the module's own docstring always said should happen. Cache seeded from the prior
   map's own HN rows (provenance intact, claims re-aged). After refresh: 2754 → 2917
   companies, 340 → 387 boards, 8428 → 9260 open roles — above the pre-loss baseline.
-- [ ] Decide whether 21 companies on the live map belong in a directory that says
+- [x] **Decided 2026-08-17 — the directory means San Francisco, the city.** The three
+  Wikidata SPARQL queries in `demigod-startup-map-data.mjs` all hard-require
+  `wdt:P159 wd:Q62`, which is San Francisco. That constraint, written three times in
+  code, is the strongest statement of scope in the system, and it is what removed the
+  21 companies: checked against Wikidata's own headquarters field, exactly one of them
+  (Mercury) is in San Francisco. Palantir is Palo Alto/Denver/Miami, Robinhood is Palo
+  Alto, Nuro and Elastic and NewsBreak are Mountain View, and the rest are Oakland,
+  Redwood City, Alameda, San Mateo, Sunnyvale, Saratoga, Fremont, San Carlos. They are
+  correctly gone and publishing should drop them.
+  - Still open, and narrower: the HN source regex admits the whole Bay Area while the
+    Wikidata path admits only the city, so the corpus is mixed and the map caveat's
+    "Active San Francisco technology business locations" is true of one source and not
+    the other. Reconciling needs per-company city data the HN rows do not carry, so it
+    is a real task rather than a wording fix.
+  - Mercury is a defect, not scope: HQ San Francisco, correct `P31` type, and the live
+    `BROAD_QUERY` returns it today. It went missing because a SPARQL response came back
+    short and nothing checked. Fixed by adding a `wd:` floor to `assertMapFloors`
+    (550 against a working 626) — previously the only floors were total, `yc:` and
+    boards, and `yc:` alone is 2058, so the Wikidata source could empty without tripping
+    anything. Mercury returns on the next map rebuild.
+- [ ] Superseded — see the decision above.
+  Original: Decide whether 21 companies on the live map belong in a directory that says
   "San Francisco". They are the remainder after the HN recovery, all Wikidata/YC
   rows, carrying 910 open roles: Palantir (Denver), Robinhood (Menlo Park), Nuro and
   NewsBreak (Mountain View), Elastic (Amsterdam), Lightmatter (Boston) — but also
