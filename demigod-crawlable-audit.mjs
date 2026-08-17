@@ -27,6 +27,7 @@
  * Schema: demigod.crawlable-audit/1
  */
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -149,6 +150,45 @@ export async function auditLive({ base = SITE, routes = AUDITED_ROUTES, userAgen
   return summarize(rows, { at: new Date().toISOString() });
 }
 
+/**
+ * PURE. One durable line per day: what a crawler could read, and on how many routes.
+ *
+ * The receipt in /tmp answers "what is it now" and dies at reboot. This answers "did the work
+ * matter", which is the only question worth asking after a publish — the fragments are built and
+ * staged, and the number they are supposed to move is 590 characters on nine routes. Without a
+ * before, the after proves nothing.
+ *
+ * One row per day, first write wins, same rule the hiring history uses. A re-run on the same day
+ * must not overwrite the morning's measurement with the afternoon's.
+ */
+export function historyRow(report) {
+  return {
+    schema: 'demigod.crawlable-history/1',
+    date: String(report?.at || '').slice(0, 10),
+    userAgent: report?.userAgent || null,
+    routes: report?.routes ?? 0,
+    totalCrawlableChars: report?.totalCrawlableChars ?? 0,
+    medianCrawlableChars: report?.medianCrawlableChars ?? 0,
+    belowFloor: (report?.belowFloor || []).length,
+    largestDuplicateGroup: (report?.duplicateGroups || [])[0]?.length || 0,
+    perRoute: Object.fromEntries((report?.rows || []).map((row) => [row.route, row.chars])),
+  };
+}
+
+export function appendHistory(report, { file = path.join(ROOT, 'DEMIGOD-CRAWLABLE-HISTORY.jsonl') } = {}) {
+  const row = historyRow(report);
+  if (!row.date) return { written: false, reason: 'no measurement date' };
+  let existing = [];
+  try {
+    existing = fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line));
+  } catch { /* first run */ }
+  if (existing.some((entry) => entry?.date === row.date)) {
+    return { written: false, reason: `a measurement for ${row.date} already exists`, rows: existing.length };
+  }
+  fs.appendFileSync(file, `${JSON.stringify(row)}\n`, { mode: 0o644 });
+  return { written: true, date: row.date, rows: existing.length + 1, file };
+}
+
 function selftest() {
   const assert = (cond, msg) => { if (!cond) throw new Error(`crawlable-audit selftest: ${msg}`); };
   assert(crawlableText('<p>Hello</p><script>var x=1;</script>') === 'Hello', 'script bodies are not readable text');
@@ -189,6 +229,26 @@ function selftest() {
   assert(report.totalCrawlableChars === 612, `total ${report.totalCrawlableChars}`);
   assert(report.rows[0].route === '/d', 'rows sort richest first');
   assert(report.userAgent === CRAWLER_UA, 'the receipt must say whose view this is');
+
+  // The durable line. A re-run on the same day must not overwrite the earlier measurement, or the
+  // history stops being a before-and-after and becomes whatever ran last.
+  const row = historyRow(report);
+  assert(row.date === '2026-08-17', `history row date ${row.date}`);
+  assert(row.totalCrawlableChars === 612 && row.routes === 4, 'the row carries the run it describes');
+  assert(row.perRoute['/d'] === 600, 'per-route numbers survive so a single page can be tracked');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-crawl-hist-'));
+  try {
+    const file = path.join(tmp, 'history.jsonl');
+    assert(appendHistory(report, { file }).written === true, 'the first measurement of a day is written');
+    const second = appendHistory(report, { file });
+    assert(second.written === false && /already exists/.test(second.reason), 'the second is refused');
+    assert(fs.readFileSync(file, 'utf8').trim().split('\n').length === 1, 'and leaves one line, not two');
+    const later = appendHistory({ ...report, at: '2026-08-18T00:00:00.000Z' }, { file });
+    assert(later.written === true && later.rows === 2, 'a new day appends');
+    assert(appendHistory({ at: '' }, { file }).written === false, 'a measurement with no date is not history');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
   console.log(JSON.stringify({ ok: true, selftest: 'crawlable-audit' }));
 }
 
@@ -201,6 +261,7 @@ if (isMain) {
     fs.mkdirSync(BUSY, { recursive: true });
     const out = path.join(BUSY, 'crawlable-audit.json');
     fs.writeFileSync(out, `${JSON.stringify(report, null, 2)}\n`);
+    const history = appendHistory(report);
     if (args.includes('--json')) {
       console.log(JSON.stringify(report, null, 2));
     } else {
@@ -214,6 +275,7 @@ if (isMain) {
       }
       if (report.unreachable.length) console.log(`  unreachable: ${report.unreachable.join(', ')}`);
       console.log(`  receipt: ${out}`);
+      console.log(history.written ? `  history: +1 row (${history.rows} total)` : `  history: ${history.reason}`);
     }
   }
 }
