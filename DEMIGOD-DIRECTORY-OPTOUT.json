@@ -1,0 +1,5 @@
+{
+  "schema": "demigod.directory-optout/1",
+  "note": "Companies that asked not to have their hiring listed. One entry per request, recorded by a human. This is a stated preference, not a factual correction -- board misattribution belongs in the denylists in demigod-startup-jobs-enrich.mjs, which mean 'this board is not theirs'.",
+  "entries": []
+}

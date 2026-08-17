@@ -23,6 +23,7 @@ import {
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 // Staging rebuilds set DEMIGOD_STARTUP_MAP so a killed enrich cannot leave the live map boardless.
 const MAP = process.env.DEMIGOD_STARTUP_MAP || path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
+const OPTOUT_PATH = process.env.DEMIGOD_DIRECTORY_OPTOUT || path.join(ROOT, 'DEMIGOD-DIRECTORY-OPTOUT.json');
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 export const jobsEnrichCliMode = (args) =>
   args.length === 0
@@ -664,6 +665,30 @@ export function projectJobRow(company, board, { at, attemptAt }) {
   }
   // No board and not YC-hiring — but say why we know that.
   return { row: stamp(rest, board?.lastAttempt) };
+}
+
+/**
+ * Companies that asked not to be listed.
+ *
+ * A stated preference, kept apart from the misattribution denylists on purpose: those mean "this
+ * board is not theirs", which is a factual correction with a different evidence bar and a different
+ * permanence. Merging the two would let a correction be revoked by an argument and a request be
+ * overturned by evidence, and neither is right.
+ *
+ * The effect is narrow and deliberate: we stop probing their board and drop the job evidence we
+ * hold. The company stays in the directory as a company, because "stop publishing our openings" and
+ * "erase us" are different asks and only the first one has been made. See docs/die/ATS-SOURCE-TERMS.md.
+ */
+export function loadDirectoryOptOuts(file = OPTOUT_PATH) {
+  try {
+    const doc = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (doc?.schema !== 'demigod.directory-optout/1') return new Set();
+    return new Set((doc.entries || []).map((entry) => String(entry?.companyId || '').trim()).filter(Boolean));
+  } catch {
+    // No file, or an unreadable one. An opt-out we cannot read must never be silently ignored.
+    if (fs.existsSync(file)) throw new Error('directory_optout_unreadable');
+    return new Set();
+  }
 }
 
 /**
@@ -1536,6 +1561,23 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || cliMode === '
   assert(repaired.rows[1].openRolesAt === '2026-08-17' && repaired.rows[2].openRolesAt === '2026-08-17',
     'a counted board keeps its date — and so does a board read and found empty');
   assert(repairStampedRows(repaired.rows).touched.length === 0, 'running the repair twice is a no-op');
+  // Opt-out: a stated preference, read from its own file and never confused with a denylist.
+  const optDir = fs.mkdtempSync(path.join('/tmp', 'dg-optout-'));
+  try {
+    const optFile = path.join(optDir, 'optout.json');
+    assert(loadDirectoryOptOuts(optFile).size === 0, 'no file means no opt-outs, not an error');
+    fs.writeFileSync(optFile, JSON.stringify({ schema: 'demigod.directory-optout/1', entries: [{ companyId: 'yc:quiet-please', requestedAt: '2026-08-17', recordedBy: 'operator' }] }));
+    const loaded = loadDirectoryOptOuts(optFile);
+    assert(loaded.has('yc:quiet-please') && loaded.size === 1, 'an opt-out entry is loaded by company id');
+    fs.writeFileSync(optFile, JSON.stringify({ schema: 'wrong', entries: [{ companyId: 'yc:quiet-please' }] }));
+    assert(loadDirectoryOptOuts(optFile).size === 0, 'a foreign schema honours nothing rather than guessing');
+    fs.writeFileSync(optFile, 'not json at all');
+    let threw = false;
+    try { loadDirectoryOptOuts(optFile); } catch { threw = true; }
+    assert(threw, 'an unreadable opt-out file must fail loudly — silently ignoring one is the worst outcome here');
+  } finally {
+    fs.rmSync(optDir, { recursive: true, force: true });
+  }
   assert(!withinStaleWindow('2026-08-20', '2026-08-16'), 'a future stamp is not evidence');
   console.log(JSON.stringify({ ok: true, selftest: 'location-gate + slug-honesty + import-safe' }));
   process.exit(0);
@@ -1570,7 +1612,12 @@ if (isMain) {
     console.log(JSON.stringify({ ok: true, removed, coverage, at }, null, 2));
     process.exit(0);
   }
+  const optedOut = loadDirectoryOptOuts();
   const results = await pool(map.companies, async (c) => {
+    // Never probe a board for a company that asked not to be listed. Skipping here rather than
+    // discarding the result afterwards is the point: the request is to stop reading, not to read
+    // and then be discreet about it.
+    if (optedOut.has(String(c?.id || ''))) return null;
     // No website used to mean no board, because slugs() derives only from the domain. A company we
     // have already read a board for is the exception — Alembic has no verified website and a known
     // Ashby board, and was skipped before it could be probed.
@@ -1580,7 +1627,12 @@ if (isMain) {
   let carriedUnreachable = 0;
   let verifiedEmpty = 0;
   const attemptAt = new Date().toISOString();
+  let optedOutRows = 0;
   map.companies = map.companies.map((c, idx) => {
+    if (optedOut.has(String(c?.id || ''))) {
+      optedOutRows++;
+      return { ...withoutJobEvidence(c), directoryOptOut: true };
+    }
     const projected = projectJobRow(c, results[idx], { at, attemptAt });
     if (projected.carriedUnreachable) carriedUnreachable++;
     if (projected.verifiedEmpty) verifiedEmpty++;
@@ -1608,6 +1660,9 @@ if (isMain) {
         // Boards we READ that had no US-posted roles. Distinct from "no board found" — this is the
         // only path that writes openRoles: 0, and the count makes it visible rather than implied.
         boardsVerifiedEmpty: verifiedEmpty,
+        // Never silent: a run that honoured N opt-outs says so, so a drop in coverage has an
+        // explanation that is not "the market cooled".
+        directoryOptOuts: optedOutRows,
         at, scope: 'us-posted' },
       null,
       2,

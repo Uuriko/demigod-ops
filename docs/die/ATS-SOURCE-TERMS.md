@@ -84,6 +84,22 @@ which mean something different: *this board is not theirs*. Reusing those for re
 merge a factual correction with a stated preference, and the two need different evidence and
 different permanence.
 
-The smallest honest version is a separate opt-out list keyed by company id, honoured by the enricher
-before any probe, with the request recorded. It is not built. Until it is, the answer to a removal
-request is a manual edit by someone who knows both denylists exist, which is not an answer.
+**Closed 2026-08-17.** `DEMIGOD-DIRECTORY-OPTOUT.json` is a separate list keyed by company id,
+honoured by `demigod-startup-jobs-enrich.mjs` before any probe: an opted-out company's board is never
+read and the job evidence we hold is dropped. The run summary reports `directoryOptOuts`, so a fall
+in coverage has an explanation that is not "the market cooled".
+
+Three decisions worth keeping:
+
+- It is **not** the denylists. Those mean "this board is not theirs" — a factual correction, which can
+  be overturned by evidence. An opt-out is a stated preference, which cannot. Sharing one list would
+  give both the same evidence bar and the same permanence.
+- We stop **reading**, not just publishing. Skipping the probe is the difference between honouring a
+  request and being discreet about continuing to ignore it.
+- The company stays in the directory as a company. "Stop publishing our openings" and "erase us" are
+  different asks, and only the first has been made by anyone. Build the second when someone asks for
+  it.
+
+An unreadable opt-out file throws rather than defaulting to empty. Silently ignoring a request we
+were told about is the worst available outcome, and a missing file is the only absence that means
+nothing.
