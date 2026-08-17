@@ -138,7 +138,17 @@ export function routeStaticFragment(key, { pages, maxBytes = DEPLOYABLE_BYTES } 
     throw new Error(`route-static: no copy for route key ${JSON.stringify(key)}`);
   }
   const title = String(page.title || key);
-  const html = `<section id="dg-static-${key}" data-dg-static="${key}" aria-label="${title}">\n${page.html}\n</section>\n`;
+  /* Collapsed <details>, not a plain section — the shape demigod-directory-static already ships on
+     /startups. A crawler reads everything inside a closed <details>, because it is in the DOM; a
+     human sees one summary line instead of the same page twice, since the foot paints this copy
+     again a moment later. It also needs no cooperation from the foot, which is why `grep dg-static`
+     finds nothing in foot-core: there is no removal logic to keep in sync, and nothing to go wrong
+     if the foot is slow, blocked, or fails.
+     The CTAs inside this copy carry data-demigod-modal and need JavaScript to do anything, so
+     keeping them collapsed until the foot is up is the friendlier default too. */
+  const summary = String(page.desc || title).trim();
+  const html = `<details class="dg-static" id="dg-static-${key}" data-dg-static="${key}">\n`
+    + `<summary>${summary}</summary>\n${page.html}\n</details>\n`;
   const bytes = Buffer.byteLength(html);
   if (bytes > maxBytes) {
     throw new Error(`route-static: ${key} fragment is ${bytes} bytes, over the ${maxBytes} ceiling — shorten the copy rather than truncating it`);
@@ -284,6 +294,10 @@ function selftestPages(pages) {
   assert(shells.includes('blog'), `blog is a data shell and must be excluded until its posts are joined, got shells ${shells.join(',')}`);
 
   const faq = routeStaticFragment('faq', { pages });
+  // The pattern, asserted: collapsed by default, and the text still readable without opening it.
+  assert(/^<details class="dg-static"/.test(faq.html), 'a route fragment must use the collapsed dg-static shape');
+  assert(/<summary>[^<]{10,}<\/summary>/.test(faq.html), 'and carry a summary a human can read before opening it');
+  assert(!/ open[ >]/.test(faq.html.slice(0, 120)), 'it must not ship expanded — the foot paints this copy again');
   assert(faq.bytes <= DEPLOYABLE_BYTES, `faq fragment ${faq.bytes} over ceiling`);
   const faqText = crawlableText(faq.html);
   assert(faqText.length > 2000, `faq fragment carries only ${faqText.length} crawlable characters`);
