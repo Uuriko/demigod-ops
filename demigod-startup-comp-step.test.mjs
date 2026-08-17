@@ -5,8 +5,22 @@ import { anonymizeRole } from './demigod-submissions-lib.mjs';
 
 test('founder compensation is one required, reviewable wizard step', () => {
   const foot = fs.readFileSync(new URL('./demigod-foot-core.js', import.meta.url), 'utf8');
-  const startup = foot.match(/startup:\{\s*steps:\[([\s\S]*?)\],\s*welcome:[\s\S]*?optional:\[([^\]]*)\]/)?.slice(1);
-  assert.ok(startup);
+  /* Slice the startup wizard out of WIZ_CFG first, then read `steps` and `optional` from inside
+     it. The single mega-regex this replaces required `startup:{` to be followed by `steps:` with
+     only whitespace between, so adding one explanatory comment above the steps array — which is
+     what happened — made the whole match return undefined and the test read as "the founder
+     compensation step is gone" when every field was present and required. The invariant is
+     structural, so match it structurally, and fail with a message that says which half is missing. */
+  const cfg = foot.slice(foot.indexOf('var WIZ_CFG='));
+  const startupBlock = cfg.slice(0, cfg.indexOf('talent:{') === -1 ? undefined : cfg.indexOf('talent:{'));
+  assert.notEqual(startupBlock.indexOf('startup:{'), -1, 'WIZ_CFG must still define a startup wizard');
+  // steps is an array OF arrays, so a lazy `[\s\S]*?\],` stops at the first inner `],` and
+  // captures only `['welcome'`. Match the sequence of bracketed entries instead.
+  const steps = startupBlock.match(/steps:\[((?:\s*\[[^\]]*\],?)+)\s*\]/)?.[1];
+  const optional = startupBlock.match(/optional:\[([^\]]*)\]/)?.[1];
+  assert.ok(steps, 'startup wizard must declare its steps');
+  assert.notEqual(optional, undefined, 'startup wizard must declare its optional set');
+  const startup = [steps, optional];
   /* PRESENCE is the invariant; SEQUENCE is design. This used to assert
      90day-outcome before salary-range. The wizard now asks the hard constraints together
      (work-location → salary-range) and the open-ended outcome question after — verified

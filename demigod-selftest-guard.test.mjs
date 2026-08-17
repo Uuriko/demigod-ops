@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -44,15 +45,40 @@ export function unguardedSelftestLines(src) {
   return hits;
 }
 
+/**
+ * Does importing this module actually run its selftest? The regex is a proxy; this is the property.
+ *
+ * Returns true when the child reached the end of the import without the module exiting for it.
+ * A module whose selftest fires on import calls process.exit(0) and the marker never prints.
+ * An import that merely throws is a different defect and not this guard's business.
+ */
+function importIsClean(file) {
+  const probe =
+    "process.argv.push('--selftest');\n" +
+    `try { await import(${JSON.stringify(`./${file}`)}); } catch { /* import failure is another defect */ }\n` +
+    "console.log('IMPORT_CLEAN');";
+  const run = spawnSync(process.execPath, ['--input-type=module', '-e', probe], {
+    cwd: ROOT, encoding: 'utf8', timeout: 60_000,
+  });
+  return `${run.stdout}`.includes('IMPORT_CLEAN');
+}
+
 test('no module runs its selftest merely because it was imported', () => {
   const files = fs.readdirSync(ROOT).filter((f) => f.endsWith('.mjs') && !f.endsWith('.test.mjs'));
   assert.ok(files.length > 50, `expected the module set, got ${files.length} — a vacuous pass otherwise`);
-  const offenders = [];
+  // The regex is a cheap prefilter over ~430 files. It cannot see a guard that lives at the CALL
+  // site rather than lexically around the check — `function cli() { if (argv.includes('--selftest'))
+  // … }` invoked from `if (isMain) cli()` is perfectly safe and was reported as an offender
+  // (candidate-evidence, company-intelligence). That is the second false-positive class this
+  // detector has had, so confirm the real behaviour on the few files it flags instead of teaching
+  // it more syntax: import the module with --selftest in argv and see whether it hijacks the process.
+  const suspects = [];
   for (const f of files) {
     for (const line of unguardedSelftestLines(fs.readFileSync(path.join(ROOT, f), 'utf8'))) {
-      offenders.push(`${f}:${line}`);
+      suspects.push({ f, line });
     }
   }
+  const offenders = suspects.filter(({ f }) => !importIsClean(f)).map(({ f, line }) => `${f}:${line}`);
   assert.deepEqual(offenders, [], 'gate these on isMain, or an importer inherits a silent exit(0)');
 });
 

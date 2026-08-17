@@ -121,6 +121,10 @@ if (ship || wizard) {
     ['demigod-hn-cache-badhost.test.mjs'],
     // Last-good map: a rebuild that swaps out live boards one-for-one must not read as healthy
     ['demigod-map-checkpoint.mjs', ['--selftest']],
+    // Gate integrity: a module whose selftest fires on import hands its importer a silent exit(0)
+    ['demigod-selftest-guard.test.mjs'],
+    // Public brief: founder compensation stays a required, reviewable wizard step
+    ['demigod-startup-comp-step.test.mjs'],
     // Evidence freshness: null seal hash + source drift must fail closed (not vacuous green)
     ['demigod-evidence-fresh.test.mjs'],
     // Empty-scope seal trap: isFresh vacuous-green documented; producers must not seal scope:[]
