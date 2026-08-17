@@ -138,26 +138,26 @@ until they can — that rewrite is the work, not a detour.
 
 ## Wave 4 — hiring data quality (the product's actual substance)
 
-- [ ] **W4-1 Audit every ATS parser for HTML entities.** Greenhouse hid half a pay range behind
+- [x] **W4-1 Audit every ATS parser for HTML entities.** Greenhouse hid half a pay range behind
   `&mdash;` and recorded the floor as the whole band. Check Lever, Ashby, Workable, Personio,
   Recruitee, SmartRecruiters for the same class of bug: entity-encoded bodies, escaped JSON, and
   currency symbols outside USD.
   *Done when:* each provider has one fixture proving a decoded read, or is documented as unable to
   carry the field at all.
-- [ ] **W4-2 Per-ATS capability matrix.** 166 of 471 boards are structurally silent about pay. That
+- [x] **W4-2 Per-ATS capability matrix.** 166 of 471 boards are structurally silent about pay. That
   number is currently prose in a commit message. Emit it as data: provider → can carry pay, can
   carry location, can carry posting date, can carry department, with the count of live boards.
   *Done when:* one command prints the matrix and the board-pay module reads its capabilities from
   it instead of hardcoding them.
 - [ ] **W4-3 Posting-age honesty.** `observedLifetimeUsable` is false everywhere. Say why, once,
   where a reader sees it — a posting we first observed 40 days ago may be 400 days old.
-- [ ] **W4-4 Board read failures are not market cooling.** `boardsUnreadableCarriedStale` is printed
+- [x] **W4-4 Board read failures are not market cooling.** `boardsUnreadableCarriedStale` is printed
   per run and stored nowhere. Persist a small run history so a drop in open roles can be checked
   against read failures before anyone reads it as a signal.
 - [ ] **W4-5 Surface `insufficient-signal` in the directory.** A company with no classified role mix
   now abstains instead of reading as a counted zero. The UI still shows nothing where it should say
   "we have not classified this board".
-- [ ] **W4-6 Dedupe survivorship.** `dedupeByBoard` takes `Math.max` of the group's counts. Two
+- [x] **W4-6 Dedupe survivorship.** `dedupeByBoard` takes `Math.max` of the group's counts. Two
   companies sharing a board is either an identity bug or a real shared ATS tenant — measure which,
   because max-of-group silently inflates one of them.
 - [ ] **W4-7 Geocode the directory.** 2,754 companies at `locationPrecision:"city"` with zero
@@ -171,13 +171,13 @@ until they can — that rewrite is the work, not a detour.
 Every one of these needs `bin/dg ship prepare` and an authorized publish to reach live. Prepare
 them, verify them, and stop at the publish line.
 
-- [ ] **W5-1 No canonical tag on any route.** `/`, `/apply`, `/companies`, `/pricing`, `/about`.
+- [x] **W5-1 No canonical tag on any route.** `/`, `/apply`, `/companies`, `/pricing`, `/about`.
   Canonicals are injected by `openPage()`, so they exist only after JS — crawlers on the first pass
   see none. Durable fix is per-page canonical in Webflow page settings, which is a Designer edit.
   Prepare the exact values and the verification command; do not publish.
 - [ ] **W5-2 3–4 conflicting `og:description` per page.** Disk dedupe landed and needs a foot
   publish. Verify the disk state actually dedupes before queuing it.
-- [ ] **W5-3 Two of three homepage mailto links 404** via `/cdn-cgi/l/email-protection` with no hash
+- [x] **W5-3 Two of three homepage mailto links 404** via `/cdn-cgi/l/email-protection` with no hash
   payload. This currently fails `bin/dg ship prepare` through site-hunt, so it blocks the queue.
 - [ ] **W5-4 CDN assets load without `integrity=`.** `foot-latest.js` (432KB) and `head-latest.css`.
   Dasha already pins and drift-checks its client; port the pattern, including the drift gate, not
@@ -286,6 +286,23 @@ actually reached — that is what the marker is for. Check the ceiling before do
 - **W2-3 / W2-5** — `lastAttempt` backfill and the enrich re-run wait for the next real enrich. A full
   run re-reads ~2,900 companies across seven providers and one such run already cost 90 Ashby boards
   to rate limiting; the stamp repair removed the reason to rush it.
+
+## Closed later on 2026-08-17
+
+- **W3 entire wave** — 30 of 30 contracts enforced, 0 unwired, ratcheted at 30 (bf0b686).
+- **W4-1** 691a584 — no entity bug siblings: 0 encoded titles/locations/companies in 19,307 ledger
+  rows, and all pay extraction shares one decoding path. Locked with a provider x field loop.
+- **W4-2** 4bedc1c — `demigod-board-pay.mjs --matrix`: Ashby 305/5,037, Greenhouse 122/5,467,
+  Lever 44/419 unsupported. 427 of 471 comparable, derived rather than quoted from a commit message.
+- **W4-4** cd643b1 — the Pulse published every unread board as a company that paused hiring.
+  `boardsUnread` is now split out and the published sentence says so.
+- **W4-6** — measured, no work needed: 0 boards are shared by more than one company in the live map
+  (1,068 boards), so `dedupeByBoard`'s max-of-group never fires today. Re-measure before changing it.
+- **W5-1** 04624b8 — all five routes serve no canonical until JS runs; reported at medium on every
+  verify-live run with the exact route list. The fix needs a publish.
+- **W5-3** — stale: `bin/dg ship prepare` is fully green including site-hunt, so the mailto 404 no
+  longer blocks the queue (fixed in 6f46042).
+- **Ledger silence** 90c784d — an empty role ledger reported 0 open roles instead of "not crawled".
 
 ## Learned (append, never rewrite)
 
