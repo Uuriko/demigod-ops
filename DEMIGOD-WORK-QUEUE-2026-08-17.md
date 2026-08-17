@@ -543,6 +543,25 @@ The rule is to check the ceiling before doing the work. Three checked, one acted
   whole-corpus totals honest, and asserts all of that in its selftest. Pagination is the upgrade
   when the listing must be complete; nothing to fix today.
 
+## The robots policy is deliberate, and it does not save us
+
+Measured 2026-08-17, correcting a looser statement I made earlier in the day. `robots.txt` is not a
+blanket AI block and not an accident:
+
+- `User-agent: *` carries `Content-Signal: search=yes, ai-train=no, use=reference` with `Allow: /`.
+- Nine **training** crawlers are disallowed: GPTBot, ClaudeBot, CCBot, Google-Extended, Bytespider,
+  meta-externalagent, Amazonbot, Applebot-Extended, CloudflareBrowserRenderingCrawler.
+- Every **citation** fetcher is allowed: OAI-SearchBot, PerplexityBot, ChatGPT-User, Claude-User,
+  Claude-SearchBot, Bingbot, Googlebot.
+
+That is a defensible position stated in the right vocabulary — index and cite us, do not train on
+us — and it needs no fixing. It also changes nothing about the pre-rendering work: the fetchers that
+are *allowed* do not execute JavaScript either, so what they are permitted to read is 590 characters
+of navigation. The door is open and the room is empty.
+
+`llms.txt` is blocked by hosting rather than by policy: `/llms.txt` and `/ads.txt` both 404, so
+Webflow is not serving arbitrary root files. It needs a Worker or a redirect first.
+
 ## Where things stand at the end of 2026-08-17
 
 - `node demigod-verify-all.mjs` — **248 steps, 0 failed**, floor 239.

@@ -83,8 +83,18 @@ Sources: [Do AI crawlers render JavaScript](https://searchoptimo.com/blog/do-ai-
 14. Check whether Webflow's per-page custom code has a byte ceiling lower than the footer's 50KB.
 15. `/startups` is at **31 bytes** of headroom. Decide pagination or a second page before it silently
     lists fewer companies.
-16. Serve a `robots.txt` policy that is deliberate about AI crawlers rather than inherited.
-17. Add `llms.txt` — 30 minutes, low value, no downside, and it costs nothing to be early.
+16. **Correction, measured 2026-08-17.** The robots policy is already deliberate and it is not a
+    blanket block. `Content-Signal: search=yes, ai-train=no, use=reference` sits on `User-agent: *`
+    with `Allow: /`, and nine **training** crawlers are disallowed — GPTBot, ClaudeBot, CCBot,
+    Google-Extended, Bytespider, meta-externalagent, Amazonbot, Applebot-Extended and Cloudflare's
+    renderer. The **citation** fetchers are all allowed: OAI-SearchBot, PerplexityBot, ChatGPT-User,
+    Claude-User, Claude-SearchBot, Bingbot, Googlebot.
+    That is a coherent position — index and cite us, do not train on us — and it does not need
+    fixing. It also does not soften Track A one bit: the allowed search fetchers do not execute
+    JavaScript either, so what they are permitted to read is the same 590 characters of nav.
+17. `llms.txt` is **blocked by hosting, not by choice**: `/llms.txt` and `/ads.txt` both 404, so
+    Webflow is not serving arbitrary root files. It would need a Cloudflare Worker or a redirect
+    before the 30 minutes of writing it is worth spending.
 18. Re-run `site-health` after each route lands and watch the duplicate-text list shrink.
 
 ## B — Publish the original data that AI actually cites (12)
