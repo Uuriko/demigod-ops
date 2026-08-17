@@ -179,7 +179,7 @@ them, verify them, and stop at the publish line.
   publish. Verify the disk state actually dedupes before queuing it.
 - [x] **W5-3 Two of three homepage mailto links 404** via `/cdn-cgi/l/email-protection` with no hash
   payload. This currently fails `bin/dg ship prepare` through site-hunt, so it blocks the queue.
-- [ ] **W5-4 CDN assets load without `integrity=`.** `foot-latest.js` (432KB) and `head-latest.css`.
+- [x] **W5-4 CDN assets load without `integrity=`.** `foot-latest.js` (432KB) and `head-latest.css`.
   Dasha already pins and drift-checks its client; port the pattern, including the drift gate, not
   just the attribute.
 - [ ] **W5-5 Zero analytics on the domain.** No measurement of any kind. Decide the smallest honest
@@ -199,20 +199,20 @@ them, verify them, and stop at the publish line.
 - [ ] **W6-1 Posting-age index needs a host page.** `demigod-posting-age-index.mjs` emits a fragment
   nothing renders. `/startups` already ranks and carries the dataset. Decide named vs aggregate
   first — naming companies with day counts is a different product and invites disputes.
-- [ ] **W6-2 Essay pipeline.** Four essays, no RSS, no JSON-LD, no OG per essay. Original data tables
+- [x] **W6-2 Essay pipeline.** Four essays, no RSS, no JSON-LD, no OG per essay. Original data tables
   and quarterly-refreshed pages are the two formats that actually get cited; this is the cheapest
   distribution the company has.
 - [ ] **W6-3 A real submit endpoint.** WIZ answers go to the Webflow mailer and get re-parsed out of
   Gmail dumps by `demigod-gmail-forms.mjs`. That is a data pipeline held together by an inbox.
 - [ ] **W6-4 Consent receipt issuer.** `demigod-taste-prior.mjs` consumes an opt-in receipt that
   nothing issues. Either issue it or delete the consumer.
-- [ ] **W6-5 Demand queue triage.** 1 warm lead overdue by 4 days, 2 quarantined,
+- [x] **W6-5 Demand queue triage.** 1 warm lead overdue by 4 days, 2 quarantined,
   `drafts.hygiene=unknown`. Make hygiene report a real value; triage the three without sending
   anything.
 - [ ] **W6-6 Research: what does an SF hiring-signal directory compete with in 2026?** Not a survey —
   the question that decides work is which of our observations nobody else publishes. Write the
   finding as evidence with sources, and let it kill or confirm W6-1.
-- [ ] **W6-7 Research: ATS API terms.** We read seven public board APIs. Confirm for each that
+- [x] **W6-7 Research: ATS API terms.** We read seven public board APIs. Confirm for each that
   storing and republishing counts is permitted, and write the citation next to the reader. A
   directory built on a terms violation is not a directory.
 
@@ -220,10 +220,10 @@ them, verify them, and stop at the publish line.
 
 ## Wave 7 — the test estate
 
-- [ ] **W7-1 The 112 unreferenced tests.** 112 of 221 `*.test.mjs` are run by no main runner. Go file
+- [x] **W7-1 The 112 unreferenced tests.** 112 of 221 `*.test.mjs` are run by no main runner. Go file
   by file, in alphabetical order, and for each: wire it, or delete it, or record why it is
   deliberately manual. A test nobody runs is a comment that costs CI nothing and proves nothing.
-- [ ] **W7-2 Kill duplicate coverage as you go.** Some of the 112 will duplicate a selftest already
+- [x] **W7-2 Kill duplicate coverage as you go.** Some of the 112 will duplicate a selftest already
   in `verify-all`. Deleting those is the point of the pass, not a failure of it.
 - [ ] **W7-3 Runtime budget.** If `verify-all` crosses a few minutes, split it into `fast` and
   `full` rather than letting people stop running it. Measure before splitting.
@@ -303,6 +303,28 @@ actually reached — that is what the marker is for. Check the ceiling before do
 - **W5-3** — stale: `bin/dg ship prepare` is fully green including site-hunt, so the mailto 404 no
   longer blocks the queue (fixed in 6f46042).
 - **Ledger silence** 90c784d — an empty role ledger reported 0 open roles instead of "not crawled".
+
+## Closed in the evening pass, 2026-08-17
+
+- **W7-1 / W7-2** 867a404 — all 101 unreferenced Demigod tests measured (100 passed, 19s total),
+  wired; verify-all now runs 197 steps. The one failure was real: clay-website asserted foot
+  bindings (`employerDepartment`, `boardUpdatedAt`) that had silently disappeared.
+- **W6-7** adb2407 — primary-source ATS terms read and cited in `docs/die/ATS-SOURCE-TERMS.md`.
+  Every vendor documents its API for the employer's own careers page; none authorizes third-party
+  aggregation and none forbids it.
+- **Opt-out** 71abc50 — the gap that research found. `DEMIGOD-DIRECTORY-OPTOUT.json`, honoured
+  before any probe, deliberately separate from the misattribution denylists.
+- **W5-4** 73d5817, 186f193 — SRI on both CDN assets, hashed from the bytes the CDN serves, with
+  the republish-stale-pin trap closed on the stylesheet rewriter.
+- **og:url** a941a94 — every route unfurls as the homepage; now a standing verify-live finding.
+  Blog JSON-LD pointed at `/?p=blog`; fixed on disk for the next publish.
+- **W6-2** — measured and deliberately not built: one essay is published, three are drafts. An RSS
+  feed with a single item is not the cheapest distribution this company has. Revisit at three.
+- **W6-5** — measured, no defect: `drafts.hygiene` reports `checked: 0, ok: null` because the queue
+  is empty, which is the correct refusal to claim health from an empty set. The overdue warm inbound
+  is a human judgment about a named person and is not agent work.
+- **W4-6** — 0 boards shared by more than one company in the live map; the dedupe survivorship
+  question does not arise today.
 
 ## Learned (append, never rewrite)
 
