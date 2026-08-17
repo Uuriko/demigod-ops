@@ -42,28 +42,74 @@ function argNum(flag, def) {
 }
 
 /**
- * PURE. Prefer SF/Bay (and multi-city rows that include them) for public homepage list.
- * Score 0 = off-geo noise (India-only / remote-Canada-only) — kept only if under limit after prefer.
+ * PURE. First-class public directory metros (expand-from-SF product scope).
+ * Never treat bare ", LA" / state code as Los Angeles (Baton Rouge, LA false positive).
+ * @returns {'sf-bay'|'la'|'nyc'|null}
  */
-export function sfPublicRoleScore(location) {
+export function detectPublicMetro(location) {
   const s = String(location || '');
+  if (!s.trim()) return null;
+  // SF Bay first — multi-city rows that include SF still tag sf-bay for scoring.
   if (
-    /san\s*francisco|\bsf\b|bay\s*area|palo\s*alto|mountain\s*view|menlo\s*park|oakland|berkeley|san\s*mateo|redwood\s*city|sunnyvale|cupertino|san\s*jose|south\s*bay|peninsula/i.test(
+    /san\s*francisco|\bsf\b|bay\s*area|palo\s*alto|mountain\s*view|menlo\s*park|oakland|berkeley|san\s*mateo|redwood\s*city|sunnyvale|cupertino|san\s*jose|south\s*bay|peninsula|fremont|emeryville|daly\s*city|south\s*san\s*francisco|silicon\s*valley|san\s*carlos|foster\s*city|milpitas|los\s*altos|los\s*gatos|campbell|burlingame|san\s*bruno/i.test(
       s,
     )
   ) {
-    return 3;
+    return 'sf-bay';
   }
-  const hasUs = /san\s*francisco|united\s*states|\bUSA\b|\bUS\b|california/i.test(s);
+  if (
+    /los\s*angeles|santa\s*monica|culver\s*city|pasadena|burbank|el\s*segundo|playa\s*vista|venice(?:\s*,\s*ca)?|hollywood\s*beach|long\s*beach,\s*ca|west\s*hollywood|hollywood\s*wood|glendale,\s*ca|marina\s*del\s*rey|century\s*city/i.test(
+      s,
+    )
+  ) {
+    return 'la';
+  }
+  if (
+    /new\s*york|\bnyc\b|brooklyn|manhattan|queens|bronx|long\s*island\s*city|jersey\s*city|hoboken|soho|williamsburg/i.test(
+      s,
+    )
+  ) {
+    return 'nyc';
+  }
+  return null;
+}
+
+/**
+ * PURE. Prefer core metros SF Bay / LA / NYC (and multi-city rows that include them)
+ * for the public directory list.
+ * Score 0 = off-geo noise (India-only / remote-Canada-only) — kept only if under limit after prefer.
+ * Score 3 = first-class metro (SF Bay, Los Angeles area, NYC).
+ * Score 2 = other US / remote-US.
+ * Score 1 = unknown / blank.
+ */
+export function sfPublicRoleScore(location) {
+  const s = String(location || '');
+  if (detectPublicMetro(s)) return 3;
+  const hasUs = /united\s*states|\bUSA\b|\bUS\b|california|\bCA\b|new\s*york|\bNY\b/i.test(s);
+  /* ponytail: hand-maintained off-geo list, so it is whack-a-mole by construction — the ceiling is
+     a location nobody has seen yet, and the real fix is a geo resolver. Europe was the gap that
+     showed why: the list held Asia, the Pacific and Canada, so "London" fell through to the
+     unknown tier and shipped inside a payload claiming SF Bay / LA / NYC / US-remote coverage. */
   const offGeo =
-    /gurugram|gurgaon|bangalore|bengaluru|hyderabad|chennai|pune|mumbai|manila|singapore|hong\s*kong|tokyo|seoul|sydney|melbourne|remote\s*canada|canada\s*only|india\b|\bapac\b|\bemea\b/i.test(
+    /gurugram|gurgaon|bangalore|bengaluru|hyderabad|chennai|pune|mumbai|manila|singapore|hong\s*kong|tokyo|seoul|sydney|melbourne|canada|toronto|vancouver|montreal|india\b|\bapac\b|\bemea\b|london|\bunited\s*kingdom\b|\bUK\b|england|scotland|wales|ireland|dublin|berlin|munich|germany|france|paris|amsterdam|netherlands|madrid|barcelona|spain|lisbon|portugal|warsaw|poland|zurich|switzerland|stockholm|sweden|copenhagen|denmark|tel\s*aviv|israel|dubai|\buae\b|nigeria|lagos|nairobi|kenya|brazil|sao\s*paulo|mexico\s*city|buenos\s*aires|bogota|santiago/i.test(
       s,
     ) && !hasUs;
   if (offGeo) return 0;
-  if (/\b(remote\s*us|united\s*states|\bUSA\b|california|\bCA\b|los\s*angeles|new\s*york|seattle|remote)\b/i.test(s)) {
+  /* `remote` on its own used to be in this alternation, which made "Remote, UK" score as a US
+     remote role — the word "remote" says nothing about a country. It now needs `remote us` or an
+     actual US token; a bare "Remote" falls to the unknown tier below, which is what it is. */
+  if (hasUs || /\b(seattle|austin|boston|chicago|denver)\b/i.test(s)) {
     return 2;
   }
   return 1; // unknown / hybrid / blank — keep mid
+}
+
+/** PURE. Human label for metro filter UI. */
+export function publicMetroLabel(metro) {
+  if (metro === 'sf-bay') return 'SF Bay';
+  if (metro === 'la') return 'Los Angeles';
+  if (metro === 'nyc') return 'NYC';
+  return '';
 }
 
 /**
@@ -147,7 +193,7 @@ export function loadCompanyProfiles(mapPath = MAP) {
   }
 }
 
-/** PURE. Pick newest observed open roles for public display (startups first, SF/Bay preferred). */
+/** PURE. Pick newest observed open roles for public display (startups first; SF Bay / LA / NYC preferred). */
 export function publicRolesFromFeed(feed, { limit = 24, profiles = {}, perCompany = PER_COMPANY_MAX } = {}) {
   const cap = Math.min(Math.max(1, limit | 0), 100);
   if (!feed || !Array.isArray(feed.roles)) {
@@ -186,18 +232,22 @@ export function publicRolesFromFeed(feed, { limit = 24, profiles = {}, perCompan
         /^https:\/\//i.test(r.url) &&
         /^\d{4}-\d{2}-\d{2}$/.test(r.firstObservedAt),
     );
-  // Drop pure off-geo rows when any SF/US/unknown row exists (homepage is SF talent surface).
+  // Drop pure off-geo rows when any in-scope row exists (directory metros + US).
   const nonOff = mapped.filter((r) => sfPublicRoleScore(r.location) > 0);
   const pool = nonOff.length ? nonOff : mapped;
   /* Startups first. Previously this sorted on geo, then date, then company name — with no
      startup signal and no per-company cap, so the list filled with whichever big employer posts
      the most SF roles, and the alphabetical tiebreak made it literally Airbnb/Anthropic/Astro.
-     Demigod's surface is SF *startup* talent; the directory has to show that. */
+     Demigod's surface is startup talent across SF Bay, LA, and NYC; the directory has to show that. */
   // Titles that paste comp into the job name are real ATS text, but on an 8-slot homepage
   // rail they read as marketplace spam. Prefer quieter titles when startup/geo/date tie.
   const titleNoise = (title) =>
     /\$|\b\d{2,3}\s*[–-]\s*\d{2,3}\s*k\b|\+\s*equity\b/i.test(String(title || '')) ? 1 : 0;
-  const ranked = pool.sort((a, b) => {
+  const withMetro = pool.map((r) => ({
+    ...r,
+    metro: detectPublicMetro(r.location) || detectPublicMetro(r.employerOffice) || null,
+  }));
+  const ranked = withMetro.sort((a, b) => {
     const st = startupScore(profiles[companyKey(b.company)]) - startupScore(profiles[companyKey(a.company)]);
     if (st) return st;
     const ds = sfPublicRoleScore(b.location) - sfPublicRoleScore(a.location);
@@ -206,15 +256,20 @@ export function publicRolesFromFeed(feed, { limit = 24, profiles = {}, perCompan
     if (tn) return tn;
     return b.firstObservedAt.localeCompare(a.firstObservedAt) || a.company.localeCompare(b.company);
   });
-  /* Then spread across employers: no company may take more than perCompany slots, so one
-     prolific poster cannot crowd out the rest of the market. Overflow refills any spare
-     capacity at the end so a short feed still fills the list.
+  /* Then spread across employers (and lightly across metros): no company may take more than
+     perCompany slots; prefer not filling the entire rail from one metro when others exist.
+     Overflow refills spare capacity so a short feed still fills the list.
      When enough quiet titles exist, skip $comp-in-title rows on the primary pass so the
      homepage rail is not marketplace-spam shaped (full feed still has those rows). */
   const quietEnough = ranked.filter((r) => titleNoise(r.title) === 0).length >= cap;
   const used = new Map();
+  const metroUsed = new Map();
   const primary = [];
   const overflow = [];
+  // Soft metro spread only when more than one core metro is present — otherwise a SF-only
+  // feed would hit the cap early and refill from one prolific employer (see selftest).
+  const metrosPresent = new Set(ranked.map((r) => r.metro).filter(Boolean));
+  const metroSoftCap = metrosPresent.size > 1 ? Math.max(2, Math.ceil(cap * 0.55)) : cap;
   for (const r of ranked) {
     if (quietEnough && titleNoise(r.title)) {
       overflow.push(r);
@@ -222,22 +277,29 @@ export function publicRolesFromFeed(feed, { limit = 24, profiles = {}, perCompan
     }
     const k = companyKey(r.company);
     const n = used.get(k) || 0;
-    if (n < perCompany && primary.length < cap) { used.set(k, n + 1); primary.push(r); }
-    else overflow.push(r);
+    const m = r.metro || 'other';
+    const mn = metroUsed.get(m) || 0;
+    if (n < perCompany && primary.length < cap && mn < metroSoftCap) {
+      used.set(k, n + 1);
+      metroUsed.set(m, mn + 1);
+      primary.push(r);
+    } else overflow.push(r);
   }
   const roles = primary
     .concat(overflow.slice(0, Math.max(0, cap - primary.length)))
     // Rank on raw ATS titles (noise still demotes); display after selection is cleaned.
     .map((r) => {
       const cleaned = cleanPublicRoleTitle(r.title);
-      return cleaned && cleaned !== r.title ? { ...r, title: cleaned } : r;
+      const row = cleaned && cleaned !== r.title ? { ...r, title: cleaned } : { ...r };
+      return row;
     });
 
   return {
     schema: 'demigod.public-roles/1',
     generatedAt: new Date().toISOString(),
     basis:
-      'Recently first-observed open roles on public employer ATS boards (role-ledger), SF/Bay preferred when available. Optional employerDepartment/office/boardUpdatedAt/employmentType/workplaceType when present on public Greenhouse, Lever, or Ashby boards. Not Demigod matching inventory; not a fill-rate claim.',
+      'Recently first-observed open roles on public employer ATS boards (role-ledger). Prefers SF Bay, Los Angeles area, and NYC when those locations appear; other US/remote stay eligible. Optional employerDepartment/office/boardUpdatedAt/employmentType/workplaceType when present on public Greenhouse, Lever, or Ashby boards. Not Demigod matching inventory; not a fill-rate claim.',
+    coverage: 'sf-bay · los-angeles · nyc · us-remote',
     windowDays: feed.windowDays ?? null,
     roles,
   };
@@ -283,13 +345,48 @@ function selftest() {
     ],
   };
   assert.equal(sfPublicRoleScore('San Francisco, CA'), 3);
+  assert.equal(sfPublicRoleScore('Los Angeles, CA'), 3, 'LA is first-class metro');
+  assert.equal(sfPublicRoleScore('New York, NY'), 3, 'NYC is first-class metro');
+  assert.equal(detectPublicMetro('Baton Rouge, LA'), null, 'Baton Rouge is not LA metro');
+  assert.ok(sfPublicRoleScore('Baton Rouge, LA') < 3, 'Baton Rouge must not get core-metro score');
+  assert.equal(detectPublicMetro('Santa Monica, CA'), 'la');
+  assert.equal(detectPublicMetro('Brooklyn, NY'), 'nyc');
   assert.equal(sfPublicRoleScore('Gurugram'), 0);
-  assert.equal(sfPublicRoleScore('Singapore'), 0, 'pure APAC office is off-geo for SF rail');
+  assert.equal(sfPublicRoleScore('Singapore'), 0, 'pure APAC office is off-geo for public rail');
   assert.equal(sfPublicRoleScore('APAC | Remote'), 0, 'region-only remote is off-geo');
   assert.equal(sfPublicRoleScore('Remote US / Singapore'), 2, 'multi-geo with US stays eligible');
+  /* Europe was the hole. The off-geo list held Asia, the Pacific and Canada, so a London role fell
+     into the unknown tier and shipped inside a payload claiming SF Bay / LA / NYC / US-remote —
+     two of them were live on 2026-08-17. And "remote" alone used to score as a US remote role,
+     which is how "Remote, UK" got in: the word says nothing about a country. */
+  assert.equal(sfPublicRoleScore('London'), 0, 'a London office is not SF Bay, LA, NYC or US-remote');
+  assert.equal(sfPublicRoleScore('Remote, UK'), 0, 'remote somewhere else is not remote here');
+  assert.equal(sfPublicRoleScore('Berlin'), 0, 'nor is Berlin');
+  assert.equal(sfPublicRoleScore('Remote, Canada'), 0, 'nor Canada, comma or no comma');
+  assert.equal(sfPublicRoleScore('Toronto'), 0, 'nor a Canadian city on its own');
+  assert.equal(sfPublicRoleScore('New York, NY or Toronto, Canada'), 3, 'but a US metro in the same row still counts');
+  assert.equal(sfPublicRoleScore('Remote'), 1, 'a bare "Remote" is unknown, not American');
+  assert.equal(sfPublicRoleScore('Remote - US'), 2, 'and a US remote role stays eligible whatever the separator');
+  assert.equal(sfPublicRoleScore('Remote (US)'), 2, 'including parenthesised');
+  const multi = {
+    schema: 'demigod.roles-feed/8',
+    windowDays: 3,
+    roles: [
+      { company: 'SfCo', title: 'Eng', url: 'https://jobs.ashbyhq.com/sf/1', firstObservedAt: '2026-08-10', location: 'San Francisco, CA' },
+      { company: 'LaCo', title: 'Designer', url: 'https://jobs.ashbyhq.com/la/1', firstObservedAt: '2026-08-11', location: 'Los Angeles, CA' },
+      { company: 'NycCo', title: 'PM', url: 'https://jobs.ashbyhq.com/nyc/1', firstObservedAt: '2026-08-12', location: 'New York, NY' },
+      { company: 'IndiaCo', title: 'QA', url: 'https://jobs.ashbyhq.com/i/2', firstObservedAt: '2026-08-13', location: 'Gurugram' },
+    ],
+  };
+  const multiPub = publicRolesFromFeed(multi, { limit: 10, profiles: {} });
+  assert.equal(multiPub.roles.length, 3, 'three core-metro startups keep off-geo out');
+  assert.ok(multiPub.roles.every((r) => r.metro === 'sf-bay' || r.metro === 'la' || r.metro === 'nyc'));
+  assert.match(multiPub.basis, /Los Angeles|NYC|SF Bay/i);
+  assert.ok(!/SF\/Bay preferred when available/i.test(multiPub.basis), 'basis must not claim SF-only prefer');
   const pub = publicRolesFromFeed(feed, { limit: 10 });
   assert.equal(pub.roles.length, 1);
   assert.equal(pub.roles[0].company, 'Acme');
+  assert.equal(pub.roles[0].metro, 'sf-bay');
   assert.ok(embedScript(pub).includes('window.__dgPublicRoles='));
   assert.ok(!embedScript(pub).includes('</script'));
   // Known large "Growth" firm must not beat a small startup on the homepage rail.
