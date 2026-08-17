@@ -1256,11 +1256,19 @@ if (rolesFeed && (!rolesFeedAsset?.url || rolesFeedAsset.sha256 !== rolesFeedSha
   throw new Error('attested CDN bundle is missing the canonical startup roles-feed identity');
 }
 const headBefore = fs.readFileSync(HEAD, 'utf8');
+const headCssSri = await (async () => {
+  const pin = `sha384-${crypto.createHash('sha384').update(Buffer.from(headCss, 'utf8')).digest('base64')}`;
+  const raw = await fetch(headAsset.url).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
+  if (!raw) throw new Error(`cannot confirm head CSS SRI: ${headAsset.url} did not serve bytes to hash`);
+  const rawPin = `sha384-${crypto.createHash('sha384').update(Buffer.from(raw)).digest('base64')}`;
+  if (rawPin !== pin) throw new Error(`head CSS SRI disagrees with the served bytes (text=${pin} raw=${rawPin})`);
+  return pin;
+})();
 const headAfter = headWithDirectoryAssets(
-  // headCss is byte-attested equal to the served stylesheet by fetchCssExact, which gates this
-  // publish; hashing the canonical source is therefore hashing the served bytes.
+  // Same raw-bytes confirmation as the foot: fetchCssExact attests the served CSS equals `headCss`,
+  // but the browser hashes bytes, not a decoded string, so the pin is checked against the bytes.
   headWithFootPreload(
-    headWithCdn(headBefore, headAsset.url, `sha384-${crypto.createHash('sha384').update(Buffer.from(headCss, 'utf8')).digest('base64')}`),
+    headWithCdn(headBefore, headAsset.url, headCssSri),
     cdnUrl,
   ),
   mapAsset.url,
@@ -1296,7 +1304,21 @@ const ver = (liveJs.match(/__dgFootVer\s*=\s*['"](\d+)['"]/) || [])[1] || '?';
  * The URL is already commit-pinned, so drift after this point would mean jsDelivr served different
  * bytes for an immutable ref; SRI turns that from a silent swap into a refusal, which is the
  * correct outcome for a script that runs on every page. */
-const footSri = `sha384-${crypto.createHash('sha384').update(Buffer.from(liveJs, 'utf8')).digest('base64')}`;
+const sriOf = (bytes) => `sha384-${crypto.createHash('sha384').update(bytes).digest('base64')}`;
+const footSri = sriOf(Buffer.from(liveJs, 'utf8'));
+/* A browser hashes the raw response bytes; `liveJs` came back through `.text()`, and any decoding
+ * difference — a BOM, a lone surrogate, anything not clean UTF-8 — would produce a pin the browser
+ * disagrees with and a foot it refuses to run. That is the outage this attribute is supposed to
+ * prevent, so the pin is confirmed against the raw bytes before it is written, and a mismatch stops
+ * the publish rather than shipping a hash nobody has checked. */
+{
+  const raw = await fetch(cdnUrl).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
+  if (!raw) throw new Error(`cannot confirm foot SRI: ${cdnUrl} did not serve bytes to hash`);
+  const rawSri = sriOf(Buffer.from(raw));
+  if (rawSri !== footSri) {
+    throw new Error(`foot SRI disagrees with the served bytes (text=${footSri} raw=${rawSri}) — refusing to pin a hash the browser would reject`);
+  }
+}
 const loader = `<!-- demigod-foot-cdn-loader v28 + events + foot v${ver}${temporary ? ' TEMP-litterbox-72h' : ''} -->\n${redirect}\n${publicRolesDataBlock(publicRoles)}<script id="demigod-foot-cdn-loader" src="${cdnUrl}" integrity="${footSri}" crossorigin="anonymous" defer></script>\n`;
 const manifest = JSON.stringify({
   at: new Date().toISOString(),
