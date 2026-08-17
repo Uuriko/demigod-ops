@@ -183,6 +183,124 @@ function checkSafeUrl() {
  * so the check asserts the derivation — accepted comes from the grader and is a subset of the
  * frozen set — and the document now records how it is derived rather than what it was.
  */
+/**
+ * §2 Benchmark document. Gold is pinned and the map moves under it, so the interesting rule is not
+ * "the selector reproduces gold" — it does not, today — but "when it does not, we are told which
+ * companies moved and why". Two Wikidata rows in gold are absent from the current map; the selector
+ * would admit Bugcrowd and Brave Software in their place. Re-selecting to make that agree would
+ * discard 60 graded, evidenced claims to fix a number.
+ */
+async function checkBenchmarkDoc() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.benchmark\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.benchmark/1 fence in §2 yet' };
+  if (!fs.existsSync(BENCHMARK)) return { status: 'violation', detail: `benchmark artifact missing: ${BENCHMARK}` };
+
+  const { selectBenchmarkCompanies, describeSelectionDrift } = await import('./demigod-company-research-benchmark.mjs');
+  const doc = readJson(BENCHMARK);
+  const rows = doc.companies || [];
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+
+  if (/companies\s*=\s*exactly 30/.test(fence)) {
+    say(rows.length === 30, `benchmark has ${rows.length} companies, not 30`);
+    say(new Set(rows.map((row) => row.id)).size === rows.length, 'benchmark ids are not unique');
+  }
+  if (/fields\s*=>\s*every row carries a fields object/.test(fence)) {
+    const missing = rows.filter((row) => !row.fields || typeof row.fields !== 'object' || Array.isArray(row.fields));
+    say(missing.length === 0, `${missing.length} benchmark rows carry no fields object`);
+  }
+  if (/statuses\s*=\s*supported, conflict or unknown/.test(fence)) {
+    const allowed = new Set(['supported', 'conflict', 'unknown']);
+    const strays = new Set();
+    for (const row of rows) for (const claim of Object.values(row.fields || {})) {
+      if (claim && !allowed.has(claim.status)) strays.add(String(claim.status));
+    }
+    say(strays.size === 0, `claim statuses outside the enum: ${[...strays].join(', ')}`);
+  }
+
+  const mapPath = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
+  let drift = null;
+  if (fs.existsSync(mapPath)) {
+    const map = readJson(mapPath);
+    const first = selectBenchmarkCompanies(map, doc.selectionSeed).map((row) => row.id);
+    if (/selection\s*=>\s*deterministic/.test(fence)) {
+      const second = selectBenchmarkCompanies(map, doc.selectionSeed).map((row) => row.id);
+      say(JSON.stringify(first) === JSON.stringify(second), 'the selector returned different ids for the same map');
+      say(first.length === 30, `the selector chose ${first.length} companies, not 30`);
+    }
+    if (/drift\s*=>\s*named, never silently absorbed/.test(fence)) {
+      const actual = rows.map((row) => row.id);
+      if (JSON.stringify(actual) !== JSON.stringify(first)) {
+        drift = describeSelectionDrift(actual, first, map);
+        say(Boolean(drift) && (drift.evicted.length > 0 || drift.admitted.length > 0 || drift.reorderedOnly),
+          'gold and the selector disagree and the drift description says nothing');
+      }
+    }
+  }
+
+  return bad.length
+    ? { status: 'violation', detail: `§2 fence and the benchmark disagree on ${bad.length} rule(s)`, sample: bad }
+    : {
+      status: 'pass',
+      detail: drift
+        ? `30 rows, unique, statuses clean; selection drifted and is named: ${drift.evicted.length} gold-only, ${drift.admitted.length} selector-only`
+        : '30 rows, unique, statuses clean; selection reproduces gold exactly',
+    };
+}
+
+/** §3 Operational catalog. Private overrides that must never touch the gold or its grades. */
+async function checkOperationalCatalog() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.operational-catalog\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.operational-catalog/1 fence in §3 yet' };
+  if (!fs.existsSync(BENCHMARK)) return { status: 'violation', detail: `benchmark artifact missing: ${BENCHMARK}` };
+
+  const evidence = await import('./demigod-evidence.mjs');
+  const { projectCompanyResearch, gradeResearchBenchmark } = evidence;
+  const benchmark = readJson(BENCHMARK);
+  const id = (benchmark.companies || [])[0]?.id;
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+  const claim = { value: 'Acme Inc', status: 'supported', url: 'https://example.com/', quote: 'Exact source text.' };
+
+  if (/row-researchedAt\s*=>\s*overrides the root/.test(fence)) {
+    const projected = projectCompanyResearch({
+      companyId: id,
+      benchmark,
+      catalog: { version: 1, researchedAt: '2026-01-01', companies: [{ id, researchedAt: '2026-08-17', fields: { canonicalCompany: claim } }] },
+    });
+    say(projected?.researchedAt === '2026-08-17', `row date must win, got ${projected?.researchedAt}`);
+  }
+  if (/duplicate-id\s*=>\s*fails closed/.test(fence)) {
+    const dup = projectCompanyResearch({
+      companyId: id,
+      benchmark,
+      catalog: { version: 1, researchedAt: null, companies: [{ id, fields: {} }, { id, fields: {} }] },
+    });
+    say(dup === null, 'two catalog rows for one company must project null, never a winner');
+  }
+  if (/grading-unaffected\s*=>\s*a catalog row changes no accepted field/.test(fence)) {
+    // The grader takes the gold document alone. Proven by grading twice and comparing, so that a
+    // future signature change that starts accepting a catalog is caught here.
+    const before = JSON.stringify(gradeResearchBenchmark(benchmark));
+    projectCompanyResearch({ companyId: id, benchmark, catalog: { version: 1, researchedAt: null, companies: [{ id, fields: { canonicalCompany: claim } }] } });
+    say(JSON.stringify(gradeResearchBenchmark(benchmark)) === before, 'projecting a catalog row changed the benchmark grade');
+    // Arity introspection was tried here and is useless: a default parameter makes .length 0, so
+    // the check reported the grader taking no arguments at all. Grading twice is the real proof.
+    const withCatalogShaped = JSON.stringify(gradeResearchBenchmark({ ...benchmark, catalog: { companies: [{ id, fields: { canonicalCompany: claim } }] } }));
+    say(withCatalogShaped === before, 'a catalog-shaped key on the gold document moved the grade');
+  }
+  if (/no-writer\s*=>\s*no export writes the catalog/.test(fence)) {
+    const writers = Object.keys(evidence).filter((name) => typeof evidence[name] === 'function' && /^(write|save|persist|update|upsert)/i.test(name));
+    say(writers.length === 0, `a catalog-writing export exists: ${writers.join(', ')}`);
+  }
+
+  return bad.length
+    ? { status: 'violation', detail: `§3 fence and the projector disagree on ${bad.length} rule(s)`, sample: bad }
+    : { status: 'pass', detail: `all ${fence.trim().split('\n').length - 1} catalog rules hold; a catalog row moves no grade and no writer exists` };
+}
+
 async function checkFrozenFields() {
   const md = fs.readFileSync(CONTRACTS, 'utf8');
   const fence = /```text\s*\n(demigod\.frozen-fields\/1[\s\S]*?)```/.exec(md)?.[1];
@@ -1015,7 +1133,7 @@ async function checkBoardPay() {
 }
 
 /** Sections with a working executor today. Raise it when you wire one; never lower it. */
-export const ENFORCED_FLOOR = 18;
+export const ENFORCED_FLOOR = 20;
 
 export const EXECUTORS = {
   5: { name: 'demigod-evidence.mjs (claim shape)', run: checkClaim },
@@ -1025,6 +1143,8 @@ export const EXECUTORS = {
   10: { name: 'demigod-company-packet.mjs (quarantine projection)', run: checkQuarantine },
   11: { name: 'demigod-evidence.mjs safeResearchUrl', run: checkSafeUrl },
   1: { name: 'demigod-company-identity.mjs resolveEntities', run: checkCompanyIdentity },
+  2: { name: 'demigod-company-research-benchmark.mjs selection + gold shape', run: checkBenchmarkDoc },
+  3: { name: 'demigod-evidence.mjs operational catalog', run: checkOperationalCatalog },
   4: { name: 'demigod-evidence.mjs company-row projection', run: checkCompanyRow },
   6: { name: 'demigod-evidence.mjs COMPANY_RESEARCH_FIELDS', run: checkFrozenFields },
   7: { name: 'demigod-evidence.mjs gradeResearchBenchmark', run: checkAcceptedFields },

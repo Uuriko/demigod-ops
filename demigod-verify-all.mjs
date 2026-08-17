@@ -139,6 +139,9 @@ if (ship || wizard) {
     // ...and the checker can still go red. The green run above only means something because these
     // feed it a broken document, a throwing executor, and a status ladder that trusts a date alone.
     ['demigod-die-contracts-check.poison.test.mjs'],
+    // Gold is pinned and the map moves under it: when the selector stops reproducing gold, the
+    // drift must name which companies moved rather than being absorbed into a re-selection.
+    ['demigod-benchmark-selection-drift.test.mjs'],
     // The activity list every DIE surface projects through — shape only, never a score.
     ['demigod-die-activity-shape.test.mjs'],
     // Public brief: founder compensation stays a required, reviewable wizard step
@@ -188,7 +191,7 @@ if (ship || wizard) {
      floor is a volume floor, not a target: a bad merge or a truncated array drops entries silently,
      and 95 steps becoming 12 is the failure mode worth catching. Raise it deliberately when steps
      are added; never lower it to make a run green. */
-  const MIN_STEPS = 90;
+  const MIN_STEPS = 91;
 
   let failed = 0;
   let ran = 0;

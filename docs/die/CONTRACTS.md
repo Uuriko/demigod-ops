@@ -66,7 +66,20 @@ Invariants:
 - non-unknown claims have value, public URL, and quote;
 - unknown claims have null value, URL, and quote.
 
-The benchmark is evaluation gold, not the operational write target.
+The benchmark is evaluation gold, not the operational write target. Gold is pinned; the map moves
+under it. When the deterministic selector no longer reproduces the gold set — because a company left
+the map, or a board appeared and changed a stratum — that is drift, and drift is described rather
+than absorbed. It is deliberately non-blocking: re-selecting gold to silence it would discard graded,
+evidenced claims to make a number agree.
+
+```text
+demigod.benchmark/1
+  companies               = exactly 30, all ids unique
+  fields                  => every row carries a fields object
+  statuses                = supported, conflict or unknown, and nothing else
+  selection               => deterministic: the same map selects the same ids twice
+  drift                   => named, never silently absorbed
+```
 
 ## 3. Operational catalog
 
@@ -89,6 +102,14 @@ Rules:
 - catalog rows may override benchmark rows for private projection;
 - catalog rows do not affect benchmark grading or accepted fields;
 - no automatic writer exists in Phase 1.
+
+```text
+demigod.operational-catalog/1
+  row-researchedAt        => overrides the root researchedAt for that company
+  duplicate-id            => fails closed for that company (see §8)
+  grading-unaffected      => a catalog row changes no accepted field and no benchmark grade
+  no-writer               => no export writes the catalog
+```
 
 ## 4. Company row
 
