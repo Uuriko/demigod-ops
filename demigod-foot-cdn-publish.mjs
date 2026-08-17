@@ -203,14 +203,34 @@ function writeFileAtomic(file, contents) {
   }
 }
 
-function headWithCdn(html, cdnUrl) {
+/**
+ * @param {string} sri Optional `sha384-…` for the stylesheet. Omitted, this behaves exactly as it
+ * did before — every existing caller and fixture passes two arguments and must not change meaning.
+ *
+ * A stylesheet that fails SRI is dropped, so the cost of being wrong here is an unstyled site
+ * rather than a dead one; the tag's existing onerror marker still fires. That is a smaller blast
+ * radius than the foot's, which is why the foot got this first.
+ */
+function headWithCdn(html, cdnUrl, sri = '') {
   if (!/^https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/head-latest)\.css$/i.test(cdnUrl)) {
     throw new Error(`unapproved head CSS URL: ${cdnUrl}`);
   }
+  if (sri && !/^sha384-[A-Za-z0-9+/]+=*$/.test(sri)) throw new Error(`unapproved head CSS integrity: ${sri}`);
   const old = /https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/head-latest)\.css/gi;
   const matches = String(html || '').match(old) || [];
   if (matches.length !== 1) throw new Error(`expected one canonical head CSS URL, found ${matches.length}`);
   let next = html.replace(old, cdnUrl);
+  if (sri) {
+    // Rewrite the one tag carrying that URL, stripping any previous pin so a republish cannot leave
+    // yesterday's hash on today's bytes — the exact way an SRI pin turns into an outage.
+    const tag = new RegExp(`<link\\b[^>]*href="${cdnUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*>`, 'i');
+    next = next.replace(tag, (found) => {
+      const stripped = found
+        .replace(/\sintegrity="[^"]*"/gi, '')
+        .replace(/\scrossorigin="[^"]*"/gi, '');
+      return `${stripped.slice(0, -1)} integrity="${sri}" crossorigin="anonymous">`;
+    });
+  }
   const origin = new URL(cdnUrl).origin;
   if (!next.includes(`rel="preconnect" href="${origin}"`)) {
     next = next.replace(/(<link rel="preconnect" href="https:\/\/cdn\.jsdelivr\.net" crossorigin>)/, `$1\n<link rel="preconnect" href="${origin}" crossorigin>`);
@@ -436,6 +456,26 @@ if (SELFTEST) {
     ).includes('@456def/head-latest.css'),
     'patches exactly one approved immutable head CSS URL',
   );
+  {
+    const pinned = headWithCdn(
+      '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@123abc/head-latest.css" onerror="mark()">',
+      'https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@456def/head-latest.css',
+      'sha384-AAAA',
+    );
+    checkSelf(
+      pinned.includes('integrity="sha384-AAAA"') && pinned.includes('crossorigin="anonymous"'),
+      'pins the head stylesheet when given an integrity hash',
+    );
+    checkSelf(pinned.includes('onerror="mark()"'), 'and leaves the existing failure marker on the tag');
+    const republished = headWithCdn(pinned, 'https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@789fed/head-latest.css', 'sha384-BBBB');
+    checkSelf(
+      republished.includes('integrity="sha384-BBBB"') && !republished.includes('sha384-AAAA'),
+      "a republish replaces yesterday's pin — carrying it onto today's bytes is how an SRI pin becomes an outage",
+    );
+    let refused = false;
+    try { headWithCdn(pinned, 'https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@789fed/head-latest.css', 'md5-nope'); } catch { refused = true; }
+    checkSelf(refused, 'refuses an integrity value that is not a sha384 pin');
+  }
   checkSelf(
     headWithDirectoryAssets(
       '<meta name="dg-startup-map-script" content="https://files.catbox.moe/old.js">\n<meta name="dg-startup-map-data" content="https://files.catbox.moe/old.json">\n<meta name="dg-startup-roles-feed" content="https://files.catbox.moe/old-feed.json">',
@@ -780,6 +820,7 @@ async function fetchCssExact(cdnUrl) {
       ok: response.ok && body === headCss && isCssMime(contentType),
       status: response.status,
       contentType,
+      body,
     };
   } catch (error) {
     return { ok: false, error: String(error?.message || error) };
@@ -1216,7 +1257,12 @@ if (rolesFeed && (!rolesFeedAsset?.url || rolesFeedAsset.sha256 !== rolesFeedSha
 }
 const headBefore = fs.readFileSync(HEAD, 'utf8');
 const headAfter = headWithDirectoryAssets(
-  headWithFootPreload(headWithCdn(headBefore, headAsset.url), cdnUrl),
+  // headCss is byte-attested equal to the served stylesheet by fetchCssExact, which gates this
+  // publish; hashing the canonical source is therefore hashing the served bytes.
+  headWithFootPreload(
+    headWithCdn(headBefore, headAsset.url, `sha384-${crypto.createHash('sha384').update(Buffer.from(headCss, 'utf8')).digest('base64')}`),
+    cdnUrl,
+  ),
   mapAsset.url,
   mapDataAsset.url,
   rolesFeedAsset.url,
