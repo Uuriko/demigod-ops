@@ -27,12 +27,31 @@ import {
 } from './demigod-recruitai-seed-pack.mjs';
 import { findCompanyPeers } from './demigod-company-peers.mjs';
 import { hiringShape } from './demigod-hiring-shape.mjs';
+import { LAST_ATTEMPTS } from './demigod-role-mission-kernel.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = process.env.DEMIGOD_BUSY || process.env.DG_BUSY || '/tmp/dg-busy';
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 export const PACKET_SCHEMA = 'demigod.company-packet/1';
+
+/** Derive lastAttempt from the map row. Never invent `ok` for a missing or stale count. */
+export function projectLastAttempt(company = {}) {
+  if (LAST_ATTEMPTS.includes(company.lastAttempt)) {
+    return {
+      lastAttempt: company.lastAttempt,
+      lastAttemptAt: company.lastAttemptAt || null,
+    };
+  }
+  if (company.openRolesStale) return { lastAttempt: 'error', lastAttemptAt: null };
+  if (Number.isInteger(company.openRoles) && company.openRolesAt) {
+    return { lastAttempt: 'ok', lastAttemptAt: company.lastAttemptAt || company.openRolesAt };
+  }
+  if (company.openRolesAt && company.openRoles == null) {
+    return { lastAttempt: 'missing', lastAttemptAt: company.openRolesAt };
+  }
+  return {};
+}
 const ROLE_LIMIT = 25;
 const JOURNAL_LIMIT = 20;
 const JOURNAL_WINDOW_DAYS = 14;
@@ -301,6 +320,7 @@ export function buildCompanyPacket({
     source: company.source || null,
     sourceUrl: company.sourceUrl || null,
   };
+  const attempt = projectLastAttempt(company);
   const hiring = {
     // `openRolesAt` alone used to mean "we watched this board". It no longer does: a count carried
     // across an unreadable read keeps its ORIGINAL openRolesAt, which is honest as a date and
@@ -318,6 +338,7 @@ export function buildCompanyPacket({
             : 'unknown',
     openRoles,
     openRolesAt: quarantined ? null : (company.openRolesAt || null),
+    ...attempt,
     atsSource: quarantined ? null : (company.atsSource || null),
     jobsUrl: quarantined ? null : (company.jobsUrl || null),
     roleMix: quarantined ? null : (isRecord(company.roleMix) ? company.roleMix : null),
@@ -650,6 +671,12 @@ function selftest() {
   assert(stalePacket.hiring.status === 'board_stale', 'a carried count reports stale, never freshly observed');
   assert(stalePacket.hiring.openRoles === 2, 'the carried count itself survives — stale is not absent');
   assert(stalePacket.hiring.openRolesAt === '2026-08-14', 'and keeps the date it was actually verified');
+  assert(known.hiring.lastAttempt === 'ok', 'integer count + date is a successful read');
+  assert(stalePacket.hiring.lastAttempt === 'error', 'a carried stale count is not lastAttempt=ok');
+  const missingAttempt = projectLastAttempt({ openRolesAt: '2026-08-17', openRoles: null });
+  assert(missingAttempt.lastAttempt === 'missing', 'a date without a count is a missing read');
+  const explicit = projectLastAttempt({ lastAttempt: 'rate_limited', lastAttemptAt: 't' });
+  assert(explicit.lastAttempt === 'rate_limited' && explicit.lastAttemptAt === 't', 'explicit attempt wins');
   assert(Array.isArray(known.roles) && known.roles.length === 2 && known.roles.length <= 25, 'roles bound');
   assert(
     known.roles[0].employerDepartment === 'Engineering'

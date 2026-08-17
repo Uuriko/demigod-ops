@@ -108,6 +108,11 @@ const independent = saveScorecardDraft(reviewed, otherNote, { at: '2026-08-17T10
 assert.deepEqual(projectSurfaces(independent).ats.applications[0].pendingReviewers, ['reviewer-kai']);
 assert.ok(!JSON.stringify(projectSurfaces(independent)).includes('Hidden draft evidence'));
 
+expectThrow(
+  () => advanceApplication(applied, { candId: 'cand-ada', to: 'screen' }),
+  /advance_scorecard_required/,
+  'advance_scorecard_required',
+);
 const screening = advanceApplication(reviewed, { candId: 'cand-ada', to: 'screen', at: '2026-08-17T10:15:00.000Z' });
 assert.equal(projectNextAction(screening).kind, 'hold_or_book');
 assert.throws(
@@ -474,10 +479,32 @@ const built = buildCompanyPacket({
   catalog: {},
 });
 assert.equal(built.hiring.status, 'board_observed');
-assert.equal(built.hiring.lastAttempt, undefined);
+assert.equal(built.hiring.lastAttempt, 'ok');
 const projected = toMissionCompany(built);
-assert.equal(projected.hiring.lastAttempt, null);
-assert.equal(projectSurfaces(attachCompany(open, projected)).crm.company.presentation.countIsCurrent, false);
+assert.equal(projected.hiring.lastAttempt, 'ok');
+assert.equal(projectSurfaces(attachCompany(open, projected)).crm.company.presentation.countIsCurrent, true);
+console.log('packet with a dated integer count is current');
+
+const noAttempt = buildCompanyPacket({
+  companyId: 'yc:acme',
+  map: {
+    generatedAt: '2026-08-14T12:00:00.000Z',
+    companies: [{
+      id: 'yc:acme',
+      name: 'Acme',
+      website: 'https://www.acme.example/',
+      hiring: 'yes',
+    }],
+  },
+  ledger: { schema: 'demigod.role-ledger/1', updatedAt: '2026-08-14', roles: {} },
+  catalog: {},
+});
+assert.equal(noAttempt.hiring.lastAttempt, undefined);
+assert.equal(toMissionCompany(noAttempt).hiring.lastAttempt, null);
+assert.equal(
+  projectSurfaces(attachCompany(open, toMissionCompany(noAttempt))).crm.company.presentation.countIsCurrent,
+  false,
+);
 console.log('packet without lastAttempt is not current');
 
 const verified = toMissionCompany({
@@ -493,12 +520,21 @@ const stillStale = toMissionCompany({
 });
 assert.equal(projectSurfaces(attachCompany(open, stillStale)).crm.company.presentation.countIsCurrent, false);
 
+// A zero is only a zero when we actually finished reading the board. Drop the attempt and the
+// count goes with it; keep the attempt and the zero is real.
 const strippedZero = toMissionCompany({
   ...built,
-  hiring: { ...built.hiring, openRoles: 0 },
+  hiring: { ...built.hiring, openRoles: 0, lastAttempt: undefined, lastAttemptAt: undefined },
 });
 assert.equal(strippedZero.hiring.openRoles, null);
 assert.equal(strippedZero.hiring.lastAttempt, null);
+
+const readZero = toMissionCompany({
+  ...built,
+  hiring: { ...built.hiring, openRoles: 0 },
+});
+assert.equal(readZero.hiring.lastAttempt, 'ok');
+assert.equal(readZero.hiring.openRoles, 0);
 
 try {
   const inputs = loadPacketInputs();

@@ -75,7 +75,10 @@ const sum = (mix, keys) => keys.reduce((n, k) => n + (Number(mix[k]) || 0), 0);
  * "eng-only" and "first commercial hires" are the two a recruiter actually acts on.
  */
 export function hiringShape(company = {}) {
-  const mix = company && typeof company.roleMix === 'object' && company.roleMix ? company.roleMix : {};
+  const mix = company && typeof company.roleMix === 'object' && company.roleMix && !Array.isArray(company.roleMix)
+    ? company.roleMix
+    : {};
+  const hasMix = Object.keys(mix).length > 0;
   const total = Object.values(mix).reduce((n, v) => n + (Number(v) || 0), 0);
   const other = Number(mix.other) || 0;
   const tech = sum(mix, TECH);
@@ -83,8 +86,18 @@ export function hiringShape(company = {}) {
   const ops = Number(mix.operations) || 0;
   const people = Number(mix.people) || 0;
   const functions = Object.keys(mix).filter((k) => k !== 'other' && (Number(mix[k]) || 0) > 0);
-  const evidence = { openRoles: total, functions: functions.length, mix, teamSize: company.teamSize ?? null, stage: company.stage ?? null };
+  const knownCount = Number.isInteger(company.openRoles) ? company.openRoles : null;
+  const evidence = {
+    openRoles: hasMix ? total : knownCount,
+    functions: functions.length,
+    mix,
+    teamSize: company.teamSize ?? null,
+    stage: company.stage ?? null,
+  };
 
+  if (!hasMix) {
+    return { shape: 'insufficient-signal', why: 'no classified role mix on record — no shape', evidence };
+  }
   if (total < MIN_ROLES_FOR_SHAPE) {
     return { shape: 'insufficient-signal', why: `only ${total} open role${total === 1 ? '' : 's'} — no shape at this size`, evidence };
   }
@@ -157,6 +170,11 @@ if (isMain && process.argv.includes('--selftest')) {
   // Abstention comes first, because a confident label on two roles is the failure mode here.
   assert(sh({ roleMix: { engineering: 2 } }) === 'insufficient-signal', 'two roles is not a shape');
   assert(sh({ roleMix: {} }) === 'insufficient-signal' && sh({}) === 'insufficient-signal', 'no mix is not a shape');
+  assert(hiringShape({}).why.includes('no classified role mix'), 'missing mix is not a counted zero');
+  assert(hiringShape({ roleMix: {} }).why.includes('no classified role mix'), 'empty mix is not a counted zero');
+  assert(hiringShape({}).evidence.openRoles === null, 'unknown count stays null');
+  assert(hiringShape({ openRoles: 5 }).evidence.openRoles === 5, 'declared count survives a missing mix');
+  assert(hiringShape({ roleMix: { engineering: 1 } }).why.includes('only 1'), 'a one-role mix still names the count');
   assert(sh({ roleMix: { other: 6, engineering: 2 } }) === 'insufficient-signal', 'an unclassifiable board withholds the label');
   assert(
     hiringShape({ roleMix: { other: 6, engineering: 2 } }).why.includes('bucketer'),
