@@ -503,6 +503,21 @@ The rule is to check the ceiling before doing the work. Three checked, one acted
   whole-corpus totals honest, and asserts all of that in its selftest. Pagination is the upgrade
   when the listing must be complete; nothing to fix today.
 
+## Where things stand at the end of 2026-08-17
+
+- `node demigod-verify-all.mjs` — **248 steps, 0 failed**, floor 239.
+- `node demigod-die-contracts-check.mjs` — **30 enforced, 0 violated, 0 unwired of 30**, ratcheted.
+- `npm run demigod:verify:source` — pass. `bin/dg ship prepare` — nine checks, all green.
+- `bin/dg truth` — PASS, disk v1104 / live v1101, prepare-only, publish unauthorized.
+
+`lastAttempt` immediately earned its place: the 73 rows now marked `error` all have no verified ATS
+board, so the failure happened while probing candidate slugs rather than on a known board. Before
+tonight that was unanswerable — those rows were indistinguishable from companies with no roles.
+
+**Still needing an authorized publish, and nothing else:** the /startups over-claim (501 vs 471),
+per-route canonicals and og:url, the CDN SRI pins, the blog JSON-LD URL, the `/graph`-style nav
+audit, foot v1104, and the corrected public-roles geography.
+
 ## Learned (append, never rewrite)
 
 - **2026-08-17** `openRolesAt` was doing double duty as a date and as a claim. Any field that is
