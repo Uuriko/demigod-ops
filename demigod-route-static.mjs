@@ -145,6 +145,25 @@ export function routeStaticFragment(key, { pages, maxBytes = DEPLOYABLE_BYTES } 
   return { key, title, html, bytes, headroom: maxBytes - bytes };
 }
 
+/**
+ * PURE. The Q&A a reader actually sees, out of the `<details><summary>` markup the FAQ page uses.
+ *
+ * demigod-seo-audit already has faqPairsFromHtml for the SCHEMA side and faqPairsMatch to compare
+ * the two, but the visible side has only ever been extracted from a rendered DOM. That is why the
+ * schema generator has sat exported and uncalled: nothing could produce the other half of the
+ * comparison without a browser. This is that half, from source.
+ */
+export function faqPairsFromDetails(html) {
+  const pairs = [];
+  for (const [, question, answer] of String(html || '')
+    .matchAll(/<details\b[^>]*>\s*<summary\b[^>]*>([\s\S]*?)<\/summary>([\s\S]*?)<\/details>/gi)) {
+    const q = crawlableText(question);
+    const a = crawlableText(answer);
+    if (q && a) pairs.push({ q, a });
+  }
+  return pairs;
+}
+
 /** Visible text a crawler would read, so a fragment can be measured the way site-health measures live. */
 export function crawlableText(html) {
   return String(html || '')
@@ -156,11 +175,31 @@ export function crawlableText(html) {
     .trim();
 }
 
-function selftest() {
+/**
+ * The FAQ page as a crawler should receive it: the visible answers, plus FAQPage schema generated
+ * from those same answers.
+ *
+ * Generated from the visible pairs rather than maintained beside them, because seo-audit enforces
+ * that the two match exactly and the cheapest way to keep two things identical is to derive one
+ * from the other.
+ */
+export async function faqStaticBundle({ pages, maxBytes = DEPLOYABLE_BYTES } = {}) {
+  const { faqJsonLdScript } = await import('./demigod-faq-schema.mjs');
+  const fragment = routeStaticFragment('faq', { pages, maxBytes });
+  const pairs = faqPairsFromDetails(pages.faq.html);
+  if (!pairs.length) throw new Error('route-static: faq page carries no <details> Q&A to describe');
+  const schema = faqJsonLdScript(pairs);
+  const html = `${fragment.html}${schema}\n`;
+  const bytes = Buffer.byteLength(html);
+  if (bytes > maxBytes) {
+    throw new Error(`route-static: faq fragment plus schema is ${bytes} bytes, over the ${maxBytes} ceiling`);
+  }
+  return { ...fragment, html, bytes, headroom: maxBytes - bytes, pairs: pairs.length };
+}
+
+function selftestPages(pages) {
   const assert = (cond, msg) => { if (!cond) throw new Error(`route-static selftest: ${msg}`); };
-  // Against the REAL foot, not a fixture. A fixture would prove the wrapper works while the
-  // extraction quietly returned nothing, which is the failure that matters.
-  const { pages, paths } = loadFootPages();
+  const paths = {};
   const keys = routeKeysWithProse(pages);
   assert(keys.length >= 10, `expected many routes with standalone prose, got ${keys.length}`);
   assert(keys.includes('faq') && keys.includes('how'), `faq and how must carry prose, got ${keys.join(',')}`);
@@ -198,11 +237,35 @@ function selftest() {
   assert(threw, 'a fragment over the ceiling must fail rather than truncate an argument');
 
   assert(typeof paths === 'object', 'DG_PAGE_PATHS should come back with the pages');
+  return { keys, faqText };
+}
+
+async function faqSelftest(pages) {
+  const assert = (cond, msg) => { if (!cond) throw new Error(`route-static selftest: ${msg}`); };
+  const { faqPairsFromHtml, faqPairsMatch } = await import('./demigod-seo-audit.mjs');
+  const visible = faqPairsFromDetails(pages.faq.html);
+  assert(visible.length === 17, `expected the 17 documented Q&A pairs, got ${visible.length}`);
+  const bundle = await faqStaticBundle({ pages });
+  // The round trip seo-audit checks against a live page, checked here against the source instead:
+  // generate the schema, parse it back out of the HTML, and require an exact pair-for-pair match.
+  const schemaPairs = faqPairsFromHtml(bundle.html);
+  assert(schemaPairs.length === visible.length, `schema carries ${schemaPairs.length} pairs, visible has ${visible.length}`);
+  assert(faqPairsMatch(visible, schemaPairs), 'visible FAQ answers and the schema they generate must match exactly');
+  assert(bundle.bytes <= DEPLOYABLE_BYTES, `faq bundle ${bundle.bytes} over the ceiling`);
+  return bundle;
+}
+
+async function runSelftest() {
+  const { pages } = loadFootPages();
+  const { keys, faqText } = selftestPages(pages);
+  const bundle = await faqSelftest(pages);
   console.log(JSON.stringify({
     ok: true,
     selftest: 'route-static',
     routes: keys.length,
     faqCrawlableChars: faqText.length,
+    faqPairs: bundle.pairs,
+    faqBundleBytes: bundle.bytes,
   }));
 }
 
@@ -210,7 +273,7 @@ if (isMain) {
   const args = process.argv.slice(2);
   const flag = (name) => args.find((a) => a.startsWith(`--${name}=`))?.split('=')[1];
   if (args.includes('--selftest')) {
-    selftest();
+    await runSelftest();
   } else if (args.includes('--list')) {
     const { pages } = loadFootPages();
     const rows = routeKeysWithCopy(pages).map((key) => {
