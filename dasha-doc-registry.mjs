@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 const root = dirname(fileURLToPath(import.meta.url));
 const write = process.argv.includes('--write');
 const registryName = 'DASHA-DOC-REGISTRY.md';
-const canonical = new Set(['DASHA-DOCS.md', 'DASHA-WORKFLOW.md', 'DASHA-PRODUCT-BRIEF.md', 'DASHA-ROADMAP.md', 'DASHA-BIBLE.md']);
+const canonical = new Set(['DASHA-DOCS.md', 'DASHA-RULES.md', 'DASHA-WORKFLOW.md', 'DASHA-PRODUCT-BRIEF.md', 'DASHA-ROADMAP.md', 'DASHA-BIBLE.md']);
 const retired = new Set(['DASHA-PRODUCT-STRATEGY.md', 'DASHA-DISCORD-BLUEPRINT.md', 'DASHA-SPEC-GAMIFICATION.md', 'DASHA-SPEC-SETTLEMENT.md']);
 
 const files = readdirSync(root).filter(name => /^DASHA.*\.md$/.test(name) && name !== registryName).sort();

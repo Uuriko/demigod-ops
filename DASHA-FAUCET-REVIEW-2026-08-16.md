@@ -1,6 +1,5 @@
 ---
-status: review
-canonical_for: nothing
+status: working
 generated_by: claude
 generated_at: 2026-08-16
 subject: dasha-faucet (live, deployed from .grok/worktrees/potter/dasha-2)

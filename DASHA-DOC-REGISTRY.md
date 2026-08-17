@@ -9,7 +9,7 @@ generated_from: top-level DASHA-*.md metadata
 
 | Document | Lifecycle | Owner / disposition |
 |---|---|---|
-| [DASHA-ART-DIRECTION.md](DASHA-ART-DIRECTION.md) | reference | — |
+| [DASHA-ART-DIRECTION.md](DASHA-ART-DIRECTION.md) | canonical | visual |
 | [DASHA-BIBLE.md](DASHA-BIBLE.md) | canonical | culture-and-claims |
 | [DASHA-CHARACTER.md](DASHA-CHARACTER.md) | reference | — |
 | [DASHA-CLAIMS.md](DASHA-CLAIMS.md) | reference | — |
@@ -20,16 +20,19 @@ generated_from: top-level DASHA-*.md metadata
 | [DASHA-COMPLETION-AUDIT-2026-08-11.md](DASHA-COMPLETION-AUDIT-2026-08-11.md) | working | — |
 | [DASHA-CRYPTO-MARKETING-BOUNDARY-2026-08-09.md](DASHA-CRYPTO-MARKETING-BOUNDARY-2026-08-09.md) | reference | crypto-marketing-boundary-2026-08-09 |
 | [DASHA-CULTURE-STUDIO-PRODUCT.md](DASHA-CULTURE-STUDIO-PRODUCT.md) | canonical | culture-studio-product |
+| [DASHA-DEMIGOD-BACKLOG-2026-08-16.md](DASHA-DEMIGOD-BACKLOG-2026-08-16.md) | working | — |
 | [DASHA-DEX-SUBMISSION.md](DASHA-DEX-SUBMISSION.md) | reference | — |
 | [DASHA-DISCORD-BLUEPRINT.md](DASHA-DISCORD-BLUEPRINT.md) | historical | DASHA-PRODUCT-BRIEF.md |
 | [DASHA-DOC-REGISTRY.md](DASHA-DOC-REGISTRY.md) | generated | top-level DASHA-*.md metadata |
 | [DASHA-DOCS.md](DASHA-DOCS.md) | canonical | documentation-map |
 | [DASHA-DOMAIN-WEBFLOW-LAUNCH.md](DASHA-DOMAIN-WEBFLOW-LAUNCH.md) | reference | — |
+| [DASHA-FAUCET-REVIEW-2026-08-16.md](DASHA-FAUCET-REVIEW-2026-08-16.md) | working | — |
 | [DASHA-GROK-PERFORMANCE-REDTEAM-2026-08-11.md](DASHA-GROK-PERFORMANCE-REDTEAM-2026-08-11.md) | working | — |
 | [DASHA-GROK-TRANSMISSION-REDTEAM-2026-08-11.md](DASHA-GROK-TRANSMISSION-REDTEAM-2026-08-11.md) | historical | — |
 | [DASHA-HORIZON.md](DASHA-HORIZON.md) | reference | — |
 | [DASHA-ITERATIVE-QUALITY-PLAN.md](DASHA-ITERATIVE-QUALITY-PLAN.md) | working | iterative-quality-loop |
 | [DASHA-KIT-LICENSE.md](DASHA-KIT-LICENSE.md) | reference | — |
+| [DASHA-LIVE-CONTEXT.md](DASHA-LIVE-CONTEXT.md) | generated | dasha-context-refresh.mjs |
 | [DASHA-LOVE-SPEC.md](DASHA-LOVE-SPEC.md) | canonical | dasha-love-spec |
 | [DASHA-NOW.md](DASHA-NOW.md) | generated | DASHA-SHIP-MANIFEST.json |
 | [DASHA-OPEN-SOURCE.md](DASHA-OPEN-SOURCE.md) | reference | — |
@@ -47,4 +50,5 @@ generated_from: top-level DASHA-*.md metadata
 | [DASHA-THREAT-MODEL.md](DASHA-THREAT-MODEL.md) | reference | — |
 | [DASHA-TRANSMISSION-001.md](DASHA-TRANSMISSION-001.md) | working | — |
 | [DASHA-WEBFLOW-SITE-CODE.md](DASHA-WEBFLOW-SITE-CODE.md) | reference | webflow-site-level-custom-code |
+| [DASHA-WORKER-MERGE-PLAN-2026-08-16.md](DASHA-WORKER-MERGE-PLAN-2026-08-16.md) | working | — |
 | [DASHA-WORKFLOW.md](DASHA-WORKFLOW.md) | canonical | operations |

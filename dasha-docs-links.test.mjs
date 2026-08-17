@@ -17,9 +17,19 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = dirname(fileURLToPath(import.meta.url));
-const SKIP_DIRS = new Set(['node_modules', '.git', '.tmp-dasha-ship', 'dist', 'archive']);
+/* `demigod-ops-*`, `work` and `tmp-die-c` are stale checkouts of this same repo, not part of it. Their
+   docs link relative to their own root, so scanning them reports our own files as missing and buries
+   the real breakage — 24 of 24 failures on 2026-08-17 came from mirrors. The ship-bound source of
+   record is `/home/potter` itself (AGENTS.md); a copy's dead link is the copy's problem. */
+const SKIP_DIRS = new Set([
+  'node_modules', '.git', '.tmp-dasha-ship', 'dist', 'archive', '.grok', 'src',
+  'demigod-ops-23', 'demigod-ops-255', 'work', 'tmp-die-c',
+  /* Vendored skill copies: their `references/` live beside the plugin source, not here. */
+  'agent-tools',
+]);
 const CANONICAL_FILES = [
   'DASHA-DOCS.md',
+  'DASHA-RULES.md',
   'DASHA-WORKFLOW.md',
   'DASHA-PRODUCT-BRIEF.md',
   'DASHA-ROADMAP.md',
@@ -91,7 +101,13 @@ for (const file of files) {
     const path = decodeURIComponent(target.split('#')[0]);
     if (!path) continue;
     checked++;
-    const abs = path.startsWith('/') ? join(root, path) : resolve(dirname(file), path);
+    /* A leading `/` normally means repo-root-relative. But the exchange docs agents write to each
+       other quote real absolute paths, and re-rooting those produced `/home/potter/home/potter/…`
+       and reported three files that exist as missing. If it already starts at the root, it IS the
+       path. */
+    const abs = path.startsWith(root + '/') ? path
+      : path.startsWith('/') ? join(root, path)
+        : resolve(dirname(file), path);
     try { await stat(abs); }
     catch { broken.push(`${file.replace(root + '/', '')} → ${path}   [${label.slice(0, 40)}]`); }
   }

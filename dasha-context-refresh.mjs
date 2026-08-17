@@ -129,7 +129,15 @@ const blocked = soft.includes('live-www-robots') || soft.includes('robots-empty'
     ? hard.map((h) => `- ${h}`)
     : ['- (none)'];
 
-const body = `# DASHA NOW
+/* Frontmatter is part of the template, not something to hand-add: this file is rewritten whole on
+   every refresh, so a hand-added header would vanish and `dasha-doc-registry --check` would fail
+   again the next time anyone ran a refresh. */
+const body = `---
+status: generated
+generated_from: dasha-context-refresh.mjs
+---
+
+# DASHA NOW
 
 **Rewrite in place after meaningful work.** All agents (Grok / Claude / Codex) read this first for Dasha; keep NOW short. No secrets.
 
