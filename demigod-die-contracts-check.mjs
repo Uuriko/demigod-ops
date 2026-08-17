@@ -134,10 +134,6 @@ function checkSafeUrl() {
 }
 
 /**
- * §10 Hiring quarantine. The document lists exactly which fields go null when quarantined, which
- * is a real trap: quarantine must null the count, never zero it. Calls the packet builder.
- */
-/**
  * §13 Company packet. The most-read artifact in DIE, and until now the section with the most
  * recent bugs and no executor at all.
  *
@@ -154,6 +150,67 @@ function checkSafeUrl() {
  * the row still validates and the projection still returns something. Comparing the serialized
  * projection with and without the extra keys is the only form of that claim that can fail.
  */
+/**
+ * §1 Company identity. The section the rest of DIE is keyed on, and the one where being wrong is
+ * expensive in a way no gate would otherwise show: two companies merged into one identity produce
+ * a packet, a table row and a match that all look perfectly well-formed.
+ *
+ * The no-fuzzy-merge rule is the load-bearing one. It is a rule about what the code must NOT do,
+ * so the check builds the exact input a merge would be tempting on — same display name, different
+ * domains — and asserts two clusters survive.
+ */
+async function checkCompanyIdentity() {
+  const md = fs.readFileSync(CONTRACTS, 'utf8');
+  const fence = /```text\s*\n(demigod\.company-identity\/1[\s\S]*?)```/.exec(md)?.[1];
+  if (!fence) return { status: 'unwired', detail: 'no demigod.company-identity/1 fence in §1 yet' };
+
+  const { identityFromRow, resolveEntities, findResolvedCluster } = await import('./demigod-company-identity.mjs');
+  const bad = [];
+  const say = (cond, msg) => { if (!cond) bad.push(msg); };
+
+  if (/key\s*=\s*registrable domain/.test(fence)) {
+    const ident = identityFromRow({ id: 'yc:acme', name: 'Acme', website: 'https://acme.io/' });
+    say(ident.domain === 'acme.io', `the registrable domain must be the key, got ${ident.domain}`);
+  }
+  if (/ats-host\s*=>\s*not an identity/.test(fence)) {
+    // A board host as identity would merge every tenant of that ATS into one company.
+    const ident = identityFromRow({ id: 'yc:acme', name: 'Acme', website: 'https://jobs.lever.co/acme' });
+    say(ident.domain === null && ident.reason === 'ats_host', `an ATS host resolved to ${ident.domain}`);
+  }
+  if (/dummy-host\s*=>\s*not an identity/.test(fence)) {
+    const ident = identityFromRow({ id: 'yc:acme', name: 'Acme', website: 'https://example.com/' });
+    say(ident.domain === null && ident.reason === 'dummy_host', `a placeholder host resolved to ${ident.domain}`);
+  }
+  if (/same-name-diff-domain\s*=>\s*stay split/.test(fence)) {
+    const rows = [
+      { id: 'yc:acme-one', name: 'Acme', website: 'https://acme.io/' },
+      { id: 'yc:acme-two', name: 'Acme', website: 'https://acme.dev/' },
+    ];
+    const resolved = resolveEntities(rows);
+    say(resolved.clusters.length === 2, `one display name over two domains merged into ${resolved.clusters.length} cluster(s)`);
+  }
+  if (/duplicate-id\s*=>\s*throws duplicate_company_id/.test(fence)) {
+    let code = null;
+    try { resolveEntities([{ id: 'yc:dup', website: 'https://a.example/' }, { id: 'yc:dup', website: 'https://b.example/' }]); }
+    catch (error) { code = error?.code; }
+    say(code === 'duplicate_company_id', `two rows with one id must fail closed, got ${code}`);
+  }
+  if (/unknown-id\s*=>\s*status unknown/.test(fence)) {
+    const miss = findResolvedCluster([{ id: 'yc:acme', name: 'Acme', website: 'https://acme.io/' }], 'yc:not-here');
+    say(miss.status === 'unknown' && miss.cluster === null, 'an unmatched id must resolve to unknown with no cluster');
+  }
+  if (/resolution\s*=>\s*reads rows, mutates none/.test(fence)) {
+    const rows = [{ id: 'yc:acme', name: 'Acme', website: 'https://acme.io/' }];
+    const before = JSON.stringify(rows);
+    resolveEntities(rows);
+    say(JSON.stringify(rows) === before, 'resolution mutated its input rows — research must never rewrite a map identity');
+  }
+
+  return bad.length
+    ? { status: 'violation', detail: `§1 fence and demigod-company-identity disagree on ${bad.length} rule(s)`, sample: bad.slice(0, 5) }
+    : { status: 'pass', detail: `all ${fence.trim().split('\n').length - 1} identity rules hold; no shared host is a key and no name merges` };
+}
+
 async function checkCompanyRow() {
   const md = fs.readFileSync(CONTRACTS, 'utf8');
   const fence = /```text\s*\n(demigod\.company-row\/1[\s\S]*?)```/.exec(md)?.[1];
@@ -277,6 +334,10 @@ async function checkCompanyPacket() {
     : { status: 'pass', detail: `packet honours all ${fence.trim().split('\n').length - 1} fenced rules; no contact or authority field survives the boundary` };
 }
 
+/**
+ * §10 Hiring quarantine. The document lists exactly which fields go null when quarantined, which
+ * is a real trap: quarantine must null the count, never zero it. Calls the packet builder.
+ */
 async function checkQuarantine() {
   const { buildCompanyPacket } = await import('./demigod-company-packet.mjs');
   if (!fs.existsSync(BENCHMARK)) {
@@ -626,7 +687,7 @@ async function checkBoardPay() {
 }
 
 /** Sections with a working executor today. Raise it when you wire one; never lower it. */
-export const ENFORCED_FLOOR = 10;
+export const ENFORCED_FLOOR = 11;
 
 export const EXECUTORS = {
   5: { name: 'demigod-evidence.mjs (claim shape)', run: checkClaim },
@@ -635,6 +696,7 @@ export const EXECUTORS = {
   9: { name: 'demigod-matching-engine.mjs resolveCompanyEvidence', run: checkEvidenceResolver },
   10: { name: 'demigod-company-packet.mjs (quarantine projection)', run: checkQuarantine },
   11: { name: 'demigod-evidence.mjs safeResearchUrl', run: checkSafeUrl },
+  1: { name: 'demigod-company-identity.mjs resolveEntities', run: checkCompanyIdentity },
   4: { name: 'demigod-evidence.mjs company-row projection', run: checkCompanyRow },
   13: { name: 'demigod-company-packet.mjs buildCompanyPacket', run: checkCompanyPacket },
   29: { name: 'demigod-role-mission-kernel.mjs attachCompany (grok)', run: checkMissionCompany },

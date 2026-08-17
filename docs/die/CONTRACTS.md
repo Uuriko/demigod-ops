@@ -22,6 +22,23 @@ Rules:
 - no ATS-board-name ownership assumption;
 - no company research row may create or rewrite a map identity.
 
+The key is the registrable domain; the display name is a label. On 2026-08-16, ten of fourteen
+"obviously the same company" name pairs were different companies, which is why same-name-different-
+domain rows stay split and no fuzzy merge exists to be tuned. A shared host — an ATS board, a
+placeholder domain — is never an identity: it would merge every tenant of that platform into one
+company.
+
+```text
+demigod.company-identity/1
+  key                     = registrable domain; a display name is never a key
+  ats-host                => not an identity (reason ats_host)
+  dummy-host              => not an identity (reason dummy_host)
+  same-name-diff-domain   => stay split; there is no fuzzy merge
+  duplicate-id            => throws duplicate_company_id
+  unknown-id              => status unknown, never a guess
+  resolution              => reads rows, mutates none of them
+```
+
 ## 2. Benchmark document
 
 Path: `DEMIGOD-COMPANY-RESEARCH-BENCHMARK.json`

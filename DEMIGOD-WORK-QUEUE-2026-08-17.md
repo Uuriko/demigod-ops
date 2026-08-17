@@ -45,7 +45,7 @@ add features, improve, research online where research actually decides something
 
 ## Wave 1 — make the checker able to fail (in flight)
 
-- [ ] **W1-1 Poison the §29 board-observed rule.** `demigod-die-contracts-check.poison.test.mjs`
+- [x] **W1-1 Poison the §29 board-observed rule.** `demigod-die-contracts-check.poison.test.mjs`
   proves the checker's red path is reachable. The new `board-observed` fence line has no poison
   case, so nothing proves it can fail.
   *Do:* add a test that stubs a kernel whose `hiringStatusOf` returns `board_observed` for a date
@@ -53,16 +53,16 @@ add features, improve, research online where research actually decides something
   *Done when:* the poison suite fails if the executor's new branch is deleted.
   *Gate:* `node --test demigod-die-contracts-check.poison.test.mjs`
 
-- [ ] **W1-2 Wire the poison suite into `demigod-verify-all.mjs`.** It is referenced by no runner.
+- [x] **W1-2 Wire the poison suite into `demigod-verify-all.mjs`.** It is referenced by no runner.
   A poison suite nobody runs proves nothing.
   *Gate:* `node demigod-verify-all.mjs` names it in the run list.
 
-- [ ] **W1-3 Full `verify-all` run after the kernel/packet/enrich changes.** The two new entries
+- [x] **W1-3 Full `verify-all` run after the kernel/packet/enrich changes.** The two new entries
   (`demigod-role-mission-kernel.test.mjs`, `demigod-hiring-shape.mjs --selftest`) have never run
   inside it.
   *Done when:* the whole suite is green, or every failure is triaged into a task below.
 
-- [ ] **W1-4 Gate-integrity check for `verify-all`.** `verify-source` asserts its checks actually
+- [x] **W1-4 Gate-integrity check for `verify-all`.** `verify-source` asserts its checks actually
   ran (`checks.length > 0`); `verify-all` does not. A suite that silently runs zero entries reports
   success.
   *Gate:* deleting the run list makes `verify-all` fail, not pass.
@@ -74,12 +74,12 @@ add features, improve, research online where research actually decides something
 The 2026-08-17 finding: `openRolesAt` was stamped on rows nobody read a board for, and the packet
 called them `board_observed`. Producer and consumer are both fixed; the *data* is not.
 
-- [ ] **W2-1 Count the damage in the live map.** How many rows in `DEMIGOD-STARTUP-MAP.json` carry
+- [x] **W2-1 Count the damage in the live map.** How many rows in `DEMIGOD-STARTUP-MAP.json` carry
   `openRolesAt` with no integer `openRoles`? How many carry no `lastAttempt`?
   *Do:* a one-shot read-only script or `node -e`; write the numbers into this file. No repair yet.
   *Done when:* the two counts are recorded here with the map's `generatedAt`.
 
-- [ ] **W2-2 Repair mode for the bad stamps.** `--repair-denied` is the precedent: a surgical pass
+- [x] **W2-2 Repair mode for the bad stamps.** `--repair-denied` is the precedent: a surgical pass
   that fixes rows without hammering 2,754 ATS boards.
   *Do:* `--repair-stamps` that drops `openRolesAt` from any row with no integer count, leaves every
   other field alone, and reports what it touched.
@@ -92,7 +92,7 @@ called them `board_observed`. Producer and consumer are both fixed; the *data* i
   *Done when:* the packet's inference path (`projectLastAttempt`) becomes dead weight for live rows
   because the producer records it, and the inference is documented as legacy-only.
 
-- [ ] **W2-4 Assert the invariant at the map level.** Add to `demigod-startup-map-data.mjs --selftest`
+- [x] **W2-4 Assert the invariant at the map level.** Add to `demigod-startup-map-data.mjs --selftest`
   (or the map integrity gate): no row may carry `openRolesAt` without an integer `openRoles`.
   *Done when:* injecting one such row fails the gate.
 
@@ -109,10 +109,10 @@ section is prose no executor answers for. Wire them in dependency order; each on
 and its own commit. A section whose rules cannot be expressed as a fence gets its prose rewritten
 until they can — that rewrite is the work, not a detour.
 
-- [ ] **W3-1 §13 Company packet** — the packet is the most-read artifact in DIE and has the most
+- [x] **W3-1 §13 Company packet** — the packet is the most-read artifact in DIE and has the most
   recent bugs. Fence: quarantine nulls, `board_observed` needs a count, roles bound to 25, journal
   window 14 days, `shape` never a score.
-- [ ] **W3-2 §4 Company row** — the map row shape every producer writes and every consumer reads.
+- [x] **W3-2 §4 Company row** — the map row shape every producer writes and every consumer reads.
 - [ ] **W3-3 §1 Company identity** — one identity per company; the 10-of-14 wrong-pair finding from
   2026-08-16 belongs here as enforced rules.
 - [ ] **W3-4 §14 Company table** · **W3-5 §15 Company waterfall** · **W3-6 §17 Writeback preview** —
@@ -126,7 +126,7 @@ until they can — that rewrite is the work, not a detour.
 - [ ] **W3-14 §2 Benchmark document** · **W3-15 §3 Operational catalog** · **W3-16 §6 Frozen fields**
   · **W3-17 §7 Accepted-field policy** · **W3-18 §18 Supported command surface** ·
   **W3-19 §19 Decision rehearsal**.
-- [ ] **W3-20 Make the unwired count a gate.** Today it can grow silently. Pin the current number as
+- [x] **W3-20 Make the unwired count a gate.** Today it can grow silently. Pin the current number as
   a floor that may only go down; a new prose-only section fails until it is wired or the floor is
   deliberately raised in the same commit.
 
@@ -264,6 +264,24 @@ actually reached — that is what the marker is for. Check the ceiling before do
 - [ ] **W9-8** Push. Commits survive `git clean`; they do not survive disk loss.
 
 ---
+
+## Closed 2026-08-17
+
+- **W1-1** — done cf5a935 — hiringStatusComplaints takes the status function so the poison suite can hand it a broken one
+- **W1-2** — done c58664e — poison suite + die-activity-shape now in verify-all
+- **W1-3** — done c58664e — 95 ran, 0 failed
+- **W1-4** — done c58664e — MIN_STEPS floor at 90, reports {ran, floor}
+- **W2-1** — done cf5a935 — 2,917 companies; 1,068 dated; 597 dated with no count (all YC links); 0 rows carried lastAttempt, because the map was written 08-16 22:03 and the feature landed 23:52
+- **W2-2** — done 04ea6a9 — --repair-stamps, 597 rows, one key each, nothing else moved
+- **W2-4** — done 04ea6a9 — assertMapFloors refuses any dated row with no count; fail-capability asserted
+- **W3-1** — done cd73c8a — §13 wired, 5 rules
+- **W3-2** — done 5d0a77e — §4 wired, 4 rules, plus the ENFORCED_FLOOR ratchet (W3-20)
+- **W3-20** — done 5d0a77e — floor at 10, only applies to our own CONTRACTS.md, proven fail-capable
+
+**Deferred with reason:**
+- **W2-3 / W2-5** — `lastAttempt` backfill and the enrich re-run wait for the next real enrich. A full
+  run re-reads ~2,900 companies across seven providers and one such run already cost 90 Ashby boards
+  to rate limiting; the stamp repair removed the reason to rush it.
 
 ## Learned (append, never rewrite)
 
