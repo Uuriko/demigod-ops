@@ -193,6 +193,26 @@ async function checkQuarantine() {
  * Pinned to the fence block, never to a hash of the file: §19–29 are actively authored and must
  * stay editable without turning this red for cosmetic reasons.
  */
+/**
+ * The §29 `board-observed` rule, asked of any status function.
+ *
+ * Takes the function rather than reading the kernel directly so the poison suite can hand it a
+ * broken one and prove this branch can actually go red. An executor whose failure path has never
+ * been exercised is a green light with no bulb behind it.
+ */
+export function hiringStatusComplaints(hiringStatusOf) {
+  const dated = { openRolesAt: '2026-08-14' };
+  const says = (got, want, why) => (got === want ? null : `hiringStatusOf said ${got}, not ${want}: ${why}`);
+  return [
+    says(hiringStatusOf({ ...dated, openRoles: 3 }), 'board_observed', 'a date with a count is an observation'),
+    says(hiringStatusOf({ ...dated, openRoles: 0 }), 'board_observed', 'zero is a count — a board read and found empty'),
+    says(hiringStatusOf({ ...dated, hiring: 'yes' }), 'company_reported', 'a date with no count is a stamp, not an observation'),
+    says(hiringStatusOf({ ...dated, openRoles: 3, openRolesStale: true }), 'board_stale', 'a carried count reports stale'),
+    says(hiringStatusOf({ ...dated, openRoles: 3 }, { quarantined: true }), 'quarantined', 'quarantine outranks every other status'),
+    says(hiringStatusOf(dated, { openRoles: 2 }), 'board_observed', "the caller's projected count is the one that decides"),
+  ].filter(Boolean);
+}
+
 async function checkMissionCompany() {
   const md = fs.readFileSync(CONTRACTS, 'utf8');
   const fence = /```text\s*\n(demigod\.mission-company\/1[\s\S]*?)```/.exec(md)?.[1];
@@ -232,6 +252,9 @@ async function checkMissionCompany() {
   }
   if (/observedLifetimeUsable\s*=\s*false/.test(fence)) {
     bad.push(refuses({ postings: { ...base.postings, observedLifetimeUsable: true } }, 'observedLifetimeUsable true'));
+  }
+  if (/board-observed\s*=>\s*requires openRolesAt AND an integer count/.test(fence)) {
+    bad.push(...hiringStatusComplaints(kernel.hiringStatusOf));
   }
   if (/next-action\s*=>\s*never blocked/.test(fence)) {
     const stale = attach({ hiring: { ...base.hiring, status: 'board_stale', openRoles: 3, lastAttempt: 'rate_limited' } });

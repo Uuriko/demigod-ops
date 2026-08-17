@@ -600,6 +600,72 @@ export function withoutJobEvidence(company) {
   return rest;
 }
 
+/**
+ * One company row's job evidence after this run's board read.
+ *
+ * Exported because every honesty rule in this file lives in these five branches — a count only from
+ * a real read, a zero only from a verified-empty board, a carried count keeping its ORIGINAL date,
+ * a YC link carrying no date at all, and `ok` never appearing as a default — and none of them were
+ * reachable by a test while they sat inside `if (isMain)`. The one that got out was the YC link,
+ * which stamped the run's date onto a row it had read nothing for.
+ *
+ * Returns the row plus the two facts the run summary counts, so the caller stays a loop.
+ */
+export function projectJobRow(company, board, { at, attemptAt }) {
+  // `ok` is never a default. A row we did not probe this run keeps whatever it already carried, and
+  // a row we probed but could not read says so. The kernel reads a null attempt as unknown.
+  const stamp = (row, lastAttempt) => (lastAttempt
+    ? { ...row, lastAttempt, lastAttemptAt: attemptAt }
+    : row);
+  const rest = withoutJobEvidence(company);
+  if (board?.count != null && !board.unreachable) {
+    return {
+      row: stamp({
+        ...rest,
+        jobsUrl: board.jobsUrl,
+        openRoles: board.count,
+        atsSource: board.ats,
+        roleMix: board.roleMix,
+        openRolesAt: at,
+      }, 'ok'),
+    };
+  }
+  // Read the board we had already verified, and it genuinely had no US-posted roles. Zero is a
+  // FACT here, not an absence — and it is the only path that may write one. Everything else
+  // leaves the count off entirely, because null means "we do not know".
+  if (board?.verifiedEmpty) {
+    return {
+      row: stamp({ ...rest, jobsUrl: board.jobsUrl, openRoles: 0, atsSource: board.ats,
+        roleMix: {}, openRolesAt: at }, 'ok'),
+      verifiedEmpty: true,
+    };
+  }
+  // Could not read the board this run. A previously verified count is still the best evidence we
+  // have, so keep it with its ORIGINAL openRolesAt — the row reads as stale, which is true, rather
+  // than as empty, which is not. Deliberately NOT restamped to `at`: that would launder an old
+  // count as fresh. Bounded by STALE_BOARD_MAX_DAYS so a board that really went away drains out
+  // instead of advertising roles forever; this codebase under-claims on purpose.
+  if (board?.unreachable && Number(company.openRoles) > 0 && company.atsSource &&
+      withinStaleWindow(company.openRolesAt, at)) {
+    return {
+      row: stamp({ ...rest, jobsUrl: company.jobsUrl, openRoles: company.openRoles, atsSource: company.atsSource,
+        roleMix: company.roleMix, openRolesAt: company.openRolesAt, openRolesStale: true }, board.lastAttempt),
+      carriedUnreachable: true,
+    };
+  }
+  // No verified ATS board: link the YC jobs page for YC-self-reported hiring companies.
+  const ycJobs = ycJobsUrl(rest);
+  if (ycJobs) {
+    // No `openRolesAt`. A YC jobs link is a link, not an observation: we found no board and read no
+    // count, so there is no day on which we observed one. Stamping today's date here made the packet
+    // call the row `board_observed` — live yc:10x read as a watched board with no roles and no
+    // successful attempt, three claims a directory link cannot support.
+    return { row: stamp({ ...rest, jobsUrl: ycJobs, jobsSource: 'YC' }, board?.lastAttempt) };
+  }
+  // No board and not YC-hiring — but say why we know that.
+  return { row: stamp(rest, board?.lastAttempt) };
+}
+
 export function updateJobsCoverage(map, at, collapsed = map?.coverage?.boardDupesCollapsed || 0) {
   const globalMix = {};
   let hits = 0;
@@ -1405,6 +1471,38 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || cliMode === '
   assert(!withinStaleWindow('2026-07-01', '2026-08-16'), 'a count past the window is dropped, not carried');
   assert(!withinStaleWindow(null, '2026-08-16') && !withinStaleWindow('2026-08-10', null),
     'a count with no confirmed date is never carried');
+  // The five row projections. Until 2026-08-17 these lived inside `if (isMain)` and only the run
+  // itself could reach them, so the YC branch stamped a date onto a row it had read nothing for and
+  // no assertion existed to notice. `openRolesAt` is what downstream reads as "we watched this
+  // board", so which branches may write it is the whole contract.
+  const stamps = { at: '2026-08-17', attemptAt: '2026-08-17T08:00:00.000Z' };
+  const ycRow = {
+    id: 'yc:linkonly',
+    name: 'LinkOnly',
+    website: 'https://linkonly.example/',
+    hiring: 'yes',
+    sourceUrl: 'https://www.ycombinator.com/companies/linkonly',
+    tags: ['yc'],
+  };
+  const linked = projectJobRow(ycRow, null, stamps).row;
+  assert(linked.jobsSource === 'YC' && /ycombinator\.com/.test(linked.jobsUrl), 'a YC-hiring company still gets its directory link');
+  assert(linked.openRolesAt === undefined, 'but a link is not an observation — no date is written');
+  assert(linked.openRoles === undefined && linked.lastAttempt === undefined, 'and no count, and no attempt we did not make');
+  const read = projectJobRow(ycRow, { count: 4, ats: 'Lever', jobsUrl: 'https://jobs.lever.co/linkonly', roleMix: { engineering: 4 } }, stamps).row;
+  assert(read.openRoles === 4 && read.openRolesAt === '2026-08-17' && read.lastAttempt === 'ok', 'a real read writes count, date and ok');
+  const emptied = projectJobRow(ycRow, { verifiedEmpty: true, ats: 'Lever', jobsUrl: 'https://jobs.lever.co/linkonly', lastAttempt: 'ok' }, stamps);
+  assert(emptied.verifiedEmpty && emptied.row.openRoles === 0 && emptied.row.lastAttempt === 'ok', 'a board read empty is the only path that writes a zero');
+  const carried = projectJobRow(
+    { ...ycRow, openRoles: 7, atsSource: 'Lever', jobsUrl: 'https://jobs.lever.co/linkonly', openRolesAt: '2026-08-14' },
+    { unreachable: true, lastAttempt: 'rate_limited' },
+    stamps,
+  );
+  assert(carried.carriedUnreachable && carried.row.openRoles === 7, 'an unreadable run keeps the last verified count');
+  assert(carried.row.openRolesAt === '2026-08-14' && carried.row.openRolesStale === true,
+    'with the date it was actually verified, marked stale — never restamped as fresh');
+  assert(carried.row.lastAttempt === 'rate_limited', 'and says what actually happened on the read');
+  const nothing = projectJobRow({ id: 'yc:quiet', name: 'Quiet', website: 'https://quiet.example/' }, { lastAttempt: 'error' }, stamps).row;
+  assert(nothing.openRolesAt === undefined && nothing.lastAttempt === 'error', 'no board and not YC-hiring still records the failed attempt');
   assert(!withinStaleWindow('2026-08-20', '2026-08-16'), 'a future stamp is not evidence');
   console.log(JSON.stringify({ ok: true, selftest: 'location-gate + slug-honesty + import-safe' }));
   process.exit(0);
@@ -1438,49 +1536,11 @@ if (isMain) {
   let carriedUnreachable = 0;
   let verifiedEmpty = 0;
   const attemptAt = new Date().toISOString();
-  // `ok` is never a default. A row we did not probe this run keeps whatever it already carried, and
-  // a row we probed but could not read says so. The kernel reads a null attempt as unknown.
-  const stamp = (row, lastAttempt) => (lastAttempt
-    ? { ...row, lastAttempt, lastAttemptAt: attemptAt }
-    : row);
   map.companies = map.companies.map((c, idx) => {
-    const board = results[idx];
-    const rest = withoutJobEvidence(c);
-    if (board?.count != null && !board.unreachable) {
-      return stamp({
-        ...rest,
-        jobsUrl: board.jobsUrl,
-        openRoles: board.count,
-        atsSource: board.ats,
-        roleMix: board.roleMix,
-        openRolesAt: at,
-      }, 'ok');
-    }
-    // Read the board we had already verified, and it genuinely had no US-posted roles. Zero is a
-    // FACT here, not an absence — and it is the only path that may write one. Everything else
-    // leaves the count off entirely, because null means "we do not know".
-    if (board?.verifiedEmpty) {
-      verifiedEmpty++;
-      return stamp({ ...rest, jobsUrl: board.jobsUrl, openRoles: 0, atsSource: board.ats,
-        roleMix: {}, openRolesAt: at }, 'ok');
-    }
-    // Could not read the board this run. A previously verified count is still the best evidence we
-    // have, so keep it with its ORIGINAL openRolesAt — the row reads as stale, which is true, rather
-    // than as empty, which is not. Deliberately NOT restamped to `at`: that would launder an old
-    // count as fresh. Bounded by STALE_BOARD_MAX_DAYS so a board that really went away drains out
-    // instead of advertising roles forever; this codebase under-claims on purpose.
-    if (board?.unreachable && Number(c.openRoles) > 0 && c.atsSource &&
-        withinStaleWindow(c.openRolesAt, at)) {
-      carriedUnreachable++;
-      return stamp({ ...rest, jobsUrl: c.jobsUrl, openRoles: c.openRoles, atsSource: c.atsSource,
-        roleMix: c.roleMix, openRolesAt: c.openRolesAt, openRolesStale: true }, board.lastAttempt);
-    }
-    // No verified ATS board: link the YC jobs page for YC-self-reported hiring companies.
-    const ycJobs = ycJobsUrl(rest);
-    if (ycJobs) {
-      return stamp({ ...rest, jobsUrl: ycJobs, jobsSource: 'YC', openRolesAt: at }, board?.lastAttempt);
-    }
-    return stamp(rest, board?.lastAttempt); // no board and not YC-hiring — but say why we know that
+    const projected = projectJobRow(c, results[idx], { at, attemptAt });
+    if (projected.carriedUnreachable) carriedUnreachable++;
+    if (projected.verifiedEmpty) verifiedEmpty++;
+    return projected.row;
   });
   // Collapse same-board duplicates BEFORE tallying, so totals never double-count (Wikidata multi-QID).
   const beforeDedup = map.companies.length;

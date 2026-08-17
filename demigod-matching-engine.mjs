@@ -23,6 +23,7 @@ import {
   listPairs,
 } from './demigod-pairs-lib.mjs';
 import { listAcceptedRoles } from './demigod-accepted-role.mjs';
+import { hiringStatusOf } from './demigod-role-mission-kernel.mjs';
 
 const EVIDENCE_ROOT = process.env.DEMIGOD_ROOT || ROOT;
 const STARTUP_MAP_PATH = path.join(EVIDENCE_ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
@@ -182,17 +183,9 @@ export function resolveCompanyEvidence(
       mapGeneratedAt: map.generatedAt || null,
     },
     hiring: {
-      // A carried count keeps its original openRolesAt, so openRolesAt alone no longer proves a
-      // fresh observation. Say stale rather than observed; see demigod-startup-jobs-enrich.mjs.
-      status: hiringQuarantined
-        ? 'quarantined'
-        : company.openRolesStale
-          ? 'board_stale'
-          : company.openRolesAt
-            ? 'board_observed'
-            : company.hiring === 'yes'
-              ? 'company_reported'
-              : 'unknown',
+      // One ladder, shared with the company packet: a date alone never proves an observation, and
+      // this surface used to have to be told that separately. See hiringStatusOf.
+      status: hiringStatusOf(company, { quarantined: hiringQuarantined }),
       openRoles: hiringQuarantined ? null : Number.isSafeInteger(company.openRoles) ? company.openRoles : null,
       atsSource: hiringQuarantined ? null : company.atsSource || null,
       jobsUrl: hiringQuarantined ? null : company.jobsUrl || null,

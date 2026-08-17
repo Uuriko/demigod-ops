@@ -13,6 +13,7 @@ import {
   bookSlot,
   closeMission,
   detachCompany,
+  hiringStatusOf,
   holdSlot,
   markNoShow,
   openNextMission,
@@ -522,6 +523,20 @@ assert.equal(projectSurfaces(attachCompany(open, stillStale)).crm.company.presen
 
 // A zero is only a zero when we actually finished reading the board. Drop the attempt and the
 // count goes with it; keep the attempt and the zero is real.
+// The status ladder both the packet and the matching engine now read from. `board_observed` is the
+// strongest thing this enum says, and a date alone used to be enough to earn it — which is how a YC
+// directory link with no count read as a watched board on live.
+assert.equal(hiringStatusOf({ openRolesAt: '2026-08-14', openRoles: 3 }), 'board_observed');
+assert.equal(hiringStatusOf({ openRolesAt: '2026-08-14', openRoles: 0 }), 'board_observed');
+assert.equal(hiringStatusOf({ openRolesAt: '2026-08-14', hiring: 'yes' }), 'company_reported');
+assert.equal(hiringStatusOf({ openRolesAt: '2026-08-14' }), 'unknown');
+assert.equal(hiringStatusOf({ openRolesAt: '2026-08-14', openRoles: 3, openRolesStale: true }), 'board_stale');
+assert.equal(hiringStatusOf({ openRolesAt: '2026-08-14', openRoles: 3 }, { quarantined: true }), 'quarantined');
+// The caller's projected count wins: the packet counts open roles from the ledger, not the map row.
+assert.equal(hiringStatusOf({ openRolesAt: '2026-08-14' }, { openRoles: 2 }), 'board_observed');
+assert.equal(hiringStatusOf({ openRolesAt: '2026-08-14', openRoles: 9 }, { openRoles: null }), 'unknown');
+console.log('hiring status needs a date AND a count');
+
 const strippedZero = toMissionCompany({
   ...built,
   hiring: { ...built.hiring, openRoles: 0, lastAttempt: undefined, lastAttemptAt: undefined },

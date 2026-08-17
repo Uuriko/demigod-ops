@@ -41,6 +41,27 @@ export const APPLY_SOURCES = ['inbound', 'referral', 'prior', 'applied'];
 export const MISSION_COMPANY_SCHEMA = 'demigod.mission-company/1';
 export const HIRING_STATUSES = ['quarantined', 'board_stale', 'board_observed', 'company_reported', 'unknown'];
 export const LAST_ATTEMPTS = ['ok', 'rate_limited', 'error', 'missing'];
+
+/**
+ * The one hiring-status ladder. It lived in two places — the company packet and the matching
+ * engine — and both had to be told separately that `openRolesAt` alone stopped meaning "we watched
+ * this board". A count carried across an unreadable read keeps its ORIGINAL date, and a YC
+ * directory link used to be stamped with a date for a board nobody read; either one read as
+ * `board_observed`, the strongest status in the enum, off a date the row did not earn.
+ *
+ * `board_observed` therefore requires a date AND a count. Zero is a count — a board we read and
+ * found empty stays observed — so this tests the integer, not the truthiness.
+ *
+ * `openRoles` is passed separately because callers project it from more than the map row (the
+ * role ledger, quarantine). The status must describe the count the caller actually reports.
+ */
+export function hiringStatusOf(company = {}, { quarantined = false, openRoles } = {}) {
+  if (quarantined) return 'quarantined';
+  if (company.openRolesStale) return 'board_stale';
+  const count = openRoles === undefined ? company.openRoles : openRoles;
+  if (company.openRolesAt && Number.isSafeInteger(count)) return 'board_observed';
+  return company.hiring === 'yes' ? 'company_reported' : 'unknown';
+}
 const FORBIDDEN_COMPANY_KEYS = new Set(['score', 'fitScore', 'email', 'phone', 'candId', 'verdict', 'rank']);
 export const AUTHORITY = {
   review: 'human',
@@ -311,6 +332,9 @@ export function advanceApplication(mission, { candId, to, at } = {}) {
   const allowed = APPLICATION_TRANSITIONS[app.stage] || [];
   if (!allowed.includes(to)) throw new Error(`application_forbidden:${app.stage}->${to}`);
   if (optedOut(mission, id) && to !== 'withdrawn') throw new Error('application_opt_out');
+  if (app.stage === 'applied' && to === 'screen' && !(app.scorecards || []).length) {
+    throw new Error('advance_scorecard_required');
+  }
   const next = bump(mission, { at, action: `advance:${to}`, candId: id });
   const row = applicationOf(next, id);
   row.stage = to;

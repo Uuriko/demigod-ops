@@ -498,6 +498,13 @@ status other than `board_stale`. Quarantine requires a null count and does not p
 `lastAttempt` when present and never invents `ok`. A live `0` without `lastAttempt=ok` becomes
 `null` (unknown), not an empty board.
 
+`hiringStatusOf(company, { quarantined, openRoles })` is the one status ladder, read by both
+`demigod.company-packet/1` and the matching engine so the two surfaces cannot drift. `board_observed`
+requires a date **and** a count: `openRolesAt` alone is a stamp, not an observation, and a YC
+directory link that carried one read as a watched board with no roles until 2026-08-17. Zero is a
+count, so a board read and found empty stays observed. The caller's projected count wins, because
+the packet counts open roles from the role ledger rather than the map row.
+
 ```text
 demigod.mission-company/1
   null-openRoles          = unknown, never zero
@@ -506,6 +513,7 @@ demigod.mission-company/1
   carry                   => original openRolesAt, never restamped
   observedLifetimeUsable  = false
   next-action             => never blocked by observation
+  board-observed          => requires openRolesAt AND an integer count, never a date alone
 ```
 
 ## 30. Board pay visibility
