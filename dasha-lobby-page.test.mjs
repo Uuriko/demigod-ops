@@ -9,28 +9,50 @@
  * button by string and was testing something that could never appear either way.
  *
  * So this runs a browser. Local by default, because the page must be right before it is published.
+ * Local mode serves the co-shipped LOBBY_CLIENT_JS under the same SRI pin so a live CDN lag cannot
+ * make a correct disk shell look empty (SRI mismatch → script never runs).
  *
- *   node dasha-lobby-page.test.mjs           # local source
+ *   node dasha-lobby-page.test.mjs           # local source + co-shipped client
  *   node dasha-lobby-page.test.mjs --live    # production
  */
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import puppeteer from 'puppeteer-core';
+import { LOBBY_CLIENT_JS, LOBBY_CLIENT_SRI } from './dasha-lobby-static-gen.mjs';
 
 const live = process.argv.includes('--live');
 const source = await readFile(new URL('./dasha-lobby-page.html', import.meta.url), 'utf8');
 assert.match(source, /lobby\.js';s\.integrity='sha384-[A-Za-z0-9+/=]+';s\.crossOrigin='anonymous'/,
   'Lobby client must be cross-origin pinned');
+assert.ok(source.includes(LOBBY_CLIENT_SRI),
+  'Lobby page SRI must match co-shipped LOBBY_CLIENT_SRI (run dasha-lobby-assets-build --write)');
 assert.doesNotMatch(source, /plugin\.jup\.ag|window\.Jupiter|Jupiter\.init/,
   'Lobby must keep the exact Jupiter link instead of executing a mutable swap plugin');
 
 let server, target = 'https://www.getdasha.com/lobby';
 if (!live) {
+  // Rewrite CDN script src to local so SRI is checked against co-shipped bytes, not live lag.
+  const localSource = source.replace(
+    /s\.src='https:\/\/lobby\.getdasha\.com\/client\/lobby\.js'/,
+    "s.src='/client/lobby.js'",
+  );
   const page = `<!doctype html><html lang="en"><head><meta charset="utf-8">`
     + `<meta name="viewport" content="width=device-width,initial-scale=1"><title>$dasha lobby</title>`
-    + `<style>body{margin:0}</style></head><body>${source}</body></html>`;
-  server = createServer((_, res) => { res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end(page); });
+    + `<style>body{margin:0}</style></head><body>${localSource}</body></html>`;
+  server = createServer((req, res) => {
+    if (req.url === '/client/lobby.js') {
+      res.writeHead(200, {
+        'Content-Type': 'application/javascript; charset=utf-8',
+        'Cache-Control': 'no-store',
+        'Access-Control-Allow-Origin': '*',
+      });
+      res.end(LOBBY_CLIENT_JS);
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(page);
+  });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   target = `http://127.0.0.1:${server.address().port}/`;
 }

@@ -9,14 +9,17 @@ import { fileURLToPath } from 'node:url';
 import * as ed from '@noble/ed25519';
 import {
   FAUCET_MINT,
+  FAUCET_SIWS_DOMAIN,
   FAUCET_TREASURY_DEFAULT,
   alreadyClaimedResponse,
   buildStatus,
   claimAllowed,
   clearPendingClaim,
   destShapeError,
+  donateFailClosed,
   faucetConfig,
   faucetSignerSecret,
+  faucetSiwsInput,
   checkRateLimits,
   checkXEligibility,
   humanError,
@@ -24,10 +27,12 @@ import {
   noteSuccessfulClaim,
   recordClaim,
   reserveClaim,
+  siwsMessageError,
 } from './dasha-faucet.mjs';
 import {
   associatedTokenAddress,
   base58Encode,
+  buildSignedTipTx,
   buildTipInstructions,
   keypairFromSecret,
   publicKeyFromSecret,
@@ -42,9 +47,29 @@ assert.ok(FAUCET_TREASURY_DEFAULT.startsWith('DwpCrg5'));
 assert.equal(destShapeError('not-a-wallet'), 'dest_not_wallet');
 assert.equal(destShapeError(MINT), 'dest_mint');
 assert.equal(destShapeError('https://t.me/spam'), 'dest_not_wallet');
-const sample = 'DwpCrg5qfCMW11a9FYFsAR9ZYQUYKNhfLdnzpci7sYgb';
+assert.equal(destShapeError(FAUCET_TREASURY_DEFAULT), 'dest_treasury');
+assert.equal(destShapeError(FAUCET_TREASURY_DEFAULT, FAUCET_TREASURY_DEFAULT.slice(-4)), 'dest_treasury');
+const sample = 'So11111111111111111111111111111111111111112';
 assert.equal(destShapeError(sample, sample.slice(-4)), '');
 assert.equal(destShapeError(sample, 'xxxx'), 'last-4 does not match');
+assert.equal(destShapeError(sample, '', { treasury: sample }), 'dest_treasury');
+assert.equal(claimAllowed({ byX: {}, byWallet: {} }, { xId: '1', wallet: FAUCET_TREASURY_DEFAULT }).error, 'dest_treasury');
+assert.equal(FAUCET_SIWS_DOMAIN, 'lobby.getdasha.com');
+
+{
+  const well = donateFailClosed({
+    signature: '5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW',
+  });
+  assert.deepEqual(donateFailClosed({ sig: 'nope' }), { error: 'sig miss' });
+  assert.deepEqual(well, { error: 'sig miss' });
+  assert.equal(well.ok, undefined);
+  assert.equal(well.awarded, undefined);
+  assert.equal(well.funded, undefined);
+  const mintTx = await buildSignedTipTx({}, { destOwner: MINT, skipBalanceChecks: true });
+  assert.equal(mintTx.error, 'dest_mint');
+  const treasTx = await buildSignedTipTx({}, { destOwner: FAUCET_TREASURY_DEFAULT, skipBalanceChecks: true });
+  assert.equal(treasTx.error, 'dest_treasury');
+}
 
 assert.match(humanError('treasury_empty'), /empty|treasury/i);
 assert.match(humanError('link X first'), /X/i);
@@ -212,7 +237,7 @@ assert.equal(
 const oldEnough = Date.now() - 10 * 24 * 60 * 60 * 1000;
 assert.equal(checkXEligibility({ xId: '1', xCreatedAt: oldEnough }, { minXAgeDays: 7 }).ok, true);
 assert.equal(checkXEligibility({ xId: '1', xCreatedAt: Date.now() }, { minXAgeDays: 7 }).error, 'x_too_new');
-assert.equal(checkXEligibility({ xId: '1' }, { minXAgeDays: 7 }).ok, true); // soft open without created_at
+assert.equal(checkXEligibility({ xId: '1' }, { minXAgeDays: 7 }).error, 'x_reauth');
 assert.match(humanError('daily_cap'), /daily/i);
 assert.match(humanError('x_too_new'), /new/i);
 
@@ -221,7 +246,7 @@ assert.match(humanError('x_too_new'), /new/i);
    and lock the owner out for the whole 30-day cooldown while the payout left the treasury to an
    address nobody proved. See DASHA-FAUCET-REVIEW-2026-08-16.md. */
 {
-  const victim = 'DwpCrg5qfCMW11a9FYFsAR9ZYQUYKNhfLdnzpci7sYgb';
+  const victim = 'So11111111111111111111111111111111111111112';
   // an attacker claims to a pasted (unproven) address
   let store = recordClaim({ byX: {}, byWallet: {} }, { xId: 'attacker', wallet: victim, signature: 'sig1', proven: false });
   assert.equal(store.byX.attacker.wallet, victim, 'unproven claim still recorded against the claiming X id');
@@ -232,7 +257,7 @@ assert.match(humanError('x_too_new'), /new/i);
   assert.equal(claimAllowed(store, { xId: 'owner', wallet: victim, proven: true }).ok, true, 'owner is not locked out by someone else pasting their address');
 
   // the attacker cannot double-dip: their own X id is still spent
-  assert.equal(claimAllowed(store, { xId: 'attacker', wallet: 'So11111111111111111111111111111111111111112', proven: false }).error, 'already claimed', 'unproven claims still dedup by X id');
+  assert.equal(claimAllowed(store, { xId: 'attacker', wallet: 'So11111111111111111111111111111111111111112', proven: false }).error, 'prove wallet', 'unproven dest cannot claim');
 
   // a proven claim does take the wallet slot, and blocks a second X id on the same wallet
   const proven = recordClaim({ byX: {}, byWallet: {} }, { xId: 'owner', wallet: victim, signature: 'sig2', proven: true });
@@ -254,7 +279,7 @@ assert.match(humanError('x_too_new'), /new/i);
    and a stranger's pasted one. A failed send from the stranger must not delete the owner's in-flight
    guard, and no caller may clear a row another X id placed. */
 {
-  const w = 'DwpCrg5qfCMW11a9FYFsAR9ZYQUYKNhfLdnzpci7sYgb';
+  const w = 'So11111111111111111111111111111111111111112';
   // owner has a proven reservation in flight for w
   let store = reserveClaim({ byX: {}, byWallet: {} }, { xId: 'owner', wallet: w, proven: true });
   assert.equal(store.byWallet[w].pending, true, 'owner holds the wallet slot while sending');
@@ -276,4 +301,49 @@ assert.match(humanError('x_too_new'), /new/i);
   assert.equal(own.byX.owner, undefined, 'owner rolls back their own X slot');
 }
 
-console.log('dasha-faucet: PASS (helpers, ledger, ATA, rate limits, X age, routes, unproven-dest isolation, rollback ownership)');
+{
+  const now = Date.now();
+  const siws = faucetSiwsInput({
+    domain: FAUCET_SIWS_DOMAIN,
+    publicKey: sample,
+    nonce: 'n0nce',
+    issuedAt: now,
+    expirationTime: now + 60_000,
+  });
+  const good = `${siws.domain} wants you to sign in with your Solana account:\n${siws.address}\n\n${siws.statement}\nNonce: ${siws.nonce}`;
+  assert.equal(siwsMessageError(good, { publicKey: sample, domain: FAUCET_SIWS_DOMAIN, nonce: 'n0nce' }), '');
+  assert.equal(
+    siwsMessageError(good.replace(FAUCET_SIWS_DOMAIN, 'evil.example'), {
+      publicKey: sample,
+      domain: FAUCET_SIWS_DOMAIN,
+      nonce: 'n0nce',
+    }),
+    'siws_domain',
+  );
+}
+
+{
+  const destCheck = worker.slice(worker.indexOf("path === '/faucet/dest-check'"), worker.indexOf("path === '/faucet/wallet/challenge'"));
+  assert.ok(destCheck.includes("link X first"), 'dest-check requires X');
+  assert.ok(destCheck.includes('destShapeError'), 'dest-check uses destShapeError');
+  assert.ok(!/kind:\s*['"]IS_WALLET['"]/.test(destCheck), 'dest-check success never labels IS_WALLET');
+  assert.ok(worker.includes("siwsMessageError"), 'SIWS verify binds domain/nonce');
+  assert.ok(worker.includes('FAUCET_SIWS_DOMAIN'), 'SIWS domain is the helper constant');
+  assert.ok(worker.includes("path === '/faucet/donate'"), 'donate route exists so a later deploy does not 404');
+  assert.ok(worker.includes('donateFailClosed'), 'donate is fail-closed helper');
+  assert.ok(worker.includes('inspectDonateTx'), 'donate verify inspects the chain');
+  assert.ok(worker.includes('creditDonateToBoard'), 'verified donate credits the Simp board');
+  assert.ok(worker.includes('/simp/internal/donate'), 'faucet asks lobby to award donate points');
+  assert.ok(worker.includes('creditDonate'), 'lobby awards via creditDonate');
+}
+
+assert.ok(client.includes("kind || 'PASTED'"), 'paste defaults PASTED');
+assert.doesNotMatch(client, /function bindPaste[\s\S]*kind \|\| 'IS_WALLET'/);
+assert.ok(client.includes('dest_treasury'), 'client rejects treasury');
+{
+  const destCheck = client.slice(client.indexOf("'/faucet/dest-check'"), client.indexOf('function claim'));
+  assert.ok(destCheck.includes("showDestError(err || 'dest_not_wallet')"), 'dest-check fail-closed shows error');
+  assert.ok(destCheck.includes('link X first') || client.includes("showDestError('link X first')"), 'link X is not swallowed');
+}
+
+console.log('dasha-faucet: PASS (helpers, ledger, ATA, rate limits, X age, routes, unproven-dest isolation, rollback ownership, dest-check kind, SIWS)');

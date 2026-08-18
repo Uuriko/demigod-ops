@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 
 const board = JSON.parse(await readFile(new URL('./dasha-simp-board.json', import.meta.url), 'utf8'));
 const landing = await readFile(new URL('./dasha-landing.html', import.meta.url), 'utf8');
-const client = await readFile(new URL('./.grok/worktrees/potter/dasha/dasha-simp-board-client.js', import.meta.url), 'utf8');
+const client = await readFile(new URL('./dasha-simp-board-client.js', import.meta.url), 'utf8');
 
 assert.equal(board.schema, 'dasha-simp-board/v1');
 assert.equal(board.mode, 'opt-in');
@@ -27,7 +27,7 @@ assert.match(board.rules.automatic_only, /never submit evidence URLs/i);
 assert(!/"(?:balance|amount|usd_value|pct_supply)"\s*:/.test(JSON.stringify(board)), 'board stores a financial ranking field');
 for (const value of ['id="simp"', '#1', 'Simp board.', 'Contribute ↗', '/client/simp-board.js']) assert(landing.includes(value), `landing missing ${value}`);
 for (const removed of ['Transmission 001', 'Make me an alibi.', 'Answer →']) assert(!landing.includes(removed), `removed Board preamble returned: ${removed}`);
-for (const value of ['@PerryALPHA', 'Founding simp']) assert(client.includes(value), `board client missing ${value}`);
+assert(client.includes('@PerryALPHA'), 'board client missing the editorial Perry row');
 for (const stale of ['editorial, not a measured', 'only merged, reviewed', 'Points are recognition', 'A nomination is not entry', 'No X accounts are connected yet', 'balances will never be public']) assert(!landing.includes(stale), `verbose board copy returned: ${stale}`);
 assert(!/Claim a seat|posting a claim|Real ranks start with real linked activity/i.test(landing), 'board promises an unavailable claim or scoring loop');
 assert(!/href="\/simp/.test(landing), 'landing links an unpublished /simp route');
@@ -35,4 +35,4 @@ assert(!/<nav[^>]*>[\s\S]*?(?:Simp|Leaderboard)[\s\S]*?<\/nav>/.test(landing), '
 assert(/x\.com\/intent\/post\?text=/.test(client), 'share path is not an X intent');
 assert(/<h2[^>]*id="simp-title"[^>]*>Simp board\.<\/h2>\s*<div id="dasha-simp-board"/.test(landing), 'Board must follow its heading without campaign chrome');
 assert(!/top holder|portfolio value|airdrop points/i.test(landing + client), 'board implies financial rewards');
-console.log('dasha simp board: opt-in automatic contract, Perry founding spot, and holder privacy checks passed');
+console.log('dasha simp board: opt-in automatic contract, editorial Perry row, and holder privacy checks passed');

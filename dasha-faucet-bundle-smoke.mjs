@@ -20,6 +20,8 @@ assert.ok(existsSync(noblePath), 'noble ed25519 missing');
 // 2) Faucet modules load
 const faucet = await import('./dasha-faucet.mjs');
 const solana = await import('./dasha-faucet-solana.mjs');
+await import('./dasha-lobby-static-gen.mjs');
+await import('./dasha-lobby-worker.mjs');
 assert.equal(typeof faucet.buildStatus, 'function');
 assert.equal(typeof solana.sendTipTransfer, 'function');
 assert.equal(typeof solana.buildSignedTipTx, 'function');

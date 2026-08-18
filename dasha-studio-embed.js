@@ -1,112 +1,307 @@
 (() => {
   const host = document.currentScript.previousElementSibling;
   if (!host || !host.classList.contains('dasha-studio-embed')) return;
+  while (host.firstChild) host.removeChild(host.firstChild);
   const root = host.attachShadow({ mode: 'open' });
-  root.innerHTML = `<style>:host{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--violet:#7c4dff;--line:rgba(244,237,219,.32);--muted:#e6dcc4}
-  *{box-sizing:border-box}:host{margin:0;background:var(--ink);color:var(--paper);font-family:Arial,Helvetica,sans-serif;
-    background-image:radial-gradient(circle at 82% 4%,rgba(124,77,255,.32),transparent 30rem),radial-gradient(circle at 4% 70%,rgba(255,59,129,.18),transparent 26rem)}
+  root.innerHTML = `<style>:host{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--violet:#7c4dff;--line:rgba(244,237,219,.22);--muted:#c9c2b2;--ship-h:68px}
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}:host{margin:0;background:#0b0a0c;color:var(--paper);font-family:Arial,Helvetica,sans-serif}
   main.wrap h1,main.wrap .eyebrow,main.wrap label{color:var(--paper)!important}
-  .wrap{width:min(1080px,calc(100% - 32px));margin:0 auto;padding:34px 0 64px}
-  .topbar{width:min(1080px,calc(100% - 32px));min-height:64px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px;border-bottom:1px solid var(--line);padding:8px 0}
-  .topbar .brand{margin-right:auto;min-height:44px;display:inline-flex;align-items:center;color:var(--paper);font-size:18px;font-weight:900;letter-spacing:-.03em;text-decoration:none;text-transform:uppercase}.topbar .brand span{color:var(--acid)}
+  .wrap{width:min(1040px,calc(100% - 24px));margin:0 auto;padding:12px 0 calc(24px + env(safe-area-inset-bottom,0px))}
+  .topbar{width:min(1040px,calc(100% - 24px));min-height:48px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;border-bottom:1px solid var(--line)}
+  .topbar .brand{margin-right:auto;min-height:44px;display:inline-flex;align-items:center;color:var(--paper);font-size:17px;font-weight:900;letter-spacing:-.03em;text-decoration:none;text-transform:uppercase}.topbar .brand span{color:var(--acid)}
   .topbar>a:not(.brand){color:var(--paper);font-size:12px;font-weight:900;letter-spacing:.06em;text-decoration:none;text-transform:uppercase;min-width:44px;min-height:44px;padding-inline:6px;display:inline-flex;align-items:center;justify-content:center}
-  h1{margin:14px 0 10px;font-size:clamp(40px,8vw,76px);line-height:.82;letter-spacing:-.055em;text-transform:uppercase;font-weight:900}
+  .title-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:10px 0 12px}
+  h1{margin:0;font-size:clamp(24px,4vw,34px);line-height:1;letter-spacing:-.04em;text-transform:uppercase;font-weight:900}
   .stroke{color:var(--acid);-webkit-text-stroke:0}
-  .lede{margin:0 0 28px;max-width:56ch;font-size:clamp(15px,2vw,18px);line-height:1.5;color:var(--muted)}
-  .remix-note{margin:0 0 20px;padding:12px 14px;border-left:4px solid var(--acid);background:rgba(223,255,0,.1);font-size:14px;font-weight:800;color:var(--paper)}
-  .lineage{margin:-8px 0 20px;font-size:13px;color:var(--muted)}.lineage a{color:var(--paper);font-weight:900;text-underline-offset:3px}
-  .studio{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:26px;align-items:start}
-  canvas{width:100%;max-width:100%;height:auto;display:block;border:1px solid var(--line);background:var(--ink);touch-action:none;cursor:grab}
-  .panel{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;min-width:0}
-  .gallery{display:grid;grid-auto-flow:column;grid-auto-columns:74px;gap:8px;overflow-x:auto;padding:2px 2px 9px;scroll-snap-type:x proximity}
+  .title-hint{margin:0;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+  .handoff{display:grid;gap:8px;margin:0 0 14px}
+  .remix-note{margin:0;padding:10px 12px;border-left:4px solid var(--acid);background:rgba(223,255,0,.1);font-size:14px;font-weight:800;color:var(--paper)}
+  .lineage{margin:0;font-size:13px;color:var(--muted)}.lineage a{color:var(--paper);font-weight:900;text-underline-offset:3px}
+  .diff-note{margin:0;padding:10px 12px;border-left:4px solid var(--acid);background:rgba(223,255,0,.08);font-size:13px;font-weight:800;color:var(--paper);line-height:1.45}
+  .diff-note[hidden],.remix-note[hidden],.lineage[hidden],.first-export[hidden],.photo-block[hidden],#edit[hidden]{display:none}
+  .diff-note .relay{color:var(--acid);text-transform:uppercase;letter-spacing:.06em;font-size:11px}
+  .diff-note .was{display:block;margin-top:4px;color:var(--muted);font-weight:700}
+  .first-export{margin:0 0 14px;padding:10px 12px;border:1px solid rgba(244,237,219,.22);list-style:none;display:grid;gap:6px}
+  .first-export li{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:800;color:var(--muted)}
+  .first-export li::before{content:"";width:12px;height:12px;border:2px solid var(--muted);flex:0 0 auto}
+  .first-export li.done{color:var(--paper)}
+  .first-export li.done::before{border-color:var(--acid);background:var(--acid)}
+  .first-export .fe-label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 2px;font-weight:900}
+  .studio{display:grid;grid-template-columns:minmax(0,1fr) minmax(270px,310px);gap:16px;align-items:start;min-width:0}
+  .stage{min-width:0;max-width:100%;position:sticky;top:8px;display:grid;gap:10px}
+  .stage-frame{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:var(--ink);transition:border-color .18s,box-shadow .18s}
+  .stage-frame.pulse{border-color:var(--acid);box-shadow:0 0 0 1px var(--acid),0 12px 40px rgba(223,255,0,.08)}
+  .stage-frame[data-format=story]{border-color:rgba(223,255,0,.55)}
+  .stage-frame[data-format=banner]{border-color:rgba(124,77,255,.65)}
+  canvas{width:100%;max-width:100%;height:auto;display:block;border:0;background:var(--ink);touch-action:pan-y;cursor:grab}
+  .relay-seal{position:absolute;top:10px;right:10px;z-index:2;min-height:28px;padding:4px 10px;border:1px solid var(--acid);
+    background:rgba(7,6,8,.88);color:var(--acid);font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;
+    pointer-events:none}
+  .relay-seal[data-kind=same]{border-color:var(--line);color:var(--muted)}
+  .relay-seal[hidden]{display:none}
+  .variants{display:flex;flex-wrap:wrap;gap:8px;max-width:100%;min-width:0}
+  .variants[hidden]{display:none}
+  .variant{min-height:40px;padding:6px 12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--paper);
+    font:inherit;font-size:11px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;text-align:left;
+    display:inline-flex;flex-direction:column;align-items:flex-start;gap:2px}
+  .variant:hover,.variant:focus-visible{border-color:var(--acid);color:var(--acid)}
+  .variant .v-kicker{display:block;font-size:9px;letter-spacing:.1em;color:var(--muted);margin-bottom:0}
+  .variant .v-row{display:inline-flex;align-items:center;gap:8px}
+  .variant .v-thumb,.strip-thumb{width:40px;height:40px;object-fit:cover;border:1px solid var(--line);flex:0 0 auto;background:var(--ink);display:block}
+  .strip.label-look label{padding:6px 10px}
+  .strip-thumb{width:36px;height:36px;margin-right:2px}
+  .stage-frame.need-photo::after{content:"Pick a photo or paste one";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;
+    padding:10px 14px;border:1px solid var(--acid);background:rgba(7,6,8,.88);color:var(--acid);font-size:12px;font-weight:900;
+    letter-spacing:.06em;text-transform:uppercase;pointer-events:none;text-align:center;max-width:90%}
+  .swatch{width:10px;height:10px;border-radius:1px;flex:0 0 auto;box-shadow:0 0 0 1px rgba(244,237,219,.35);background:var(--paper)}
+  .swatch[data-look=photo]{background:var(--hot)}
+  .swatch[data-look=poster]{background:var(--violet)}
+  .swatch[data-look=ticket]{background:var(--hot)}
+  .swatch[data-look=print]{background:var(--acid)}
+  .swatch[data-look=marquee]{background:var(--acid)}
+  .swatch[data-look=signal]{background:var(--violet)}
+  .swatch[data-look=face]{background:var(--acid)}
+  .swatch[data-effect=clean]{background:var(--paper)}
+  .swatch[data-effect=fry]{background:#ff9f1c}
+  .swatch[data-effect=xerox]{background:#cfcfcf}
+  .swatch[data-effect=angel]{background:#b8a0ff}
+  .swatch[data-effect=cursed]{background:#5ad1ff}
+  .swatch[data-effect=surveillance]{background:#8a7a55}
+  .stage-frame.ship-flash{border-color:var(--acid);box-shadow:0 0 0 2px var(--acid),0 18px 48px rgba(223,255,0,.28)}
+  .strip.label-look label,.strip.label-effect label,.strip.label-sticker label{gap:8px}
+  .strip .swatch{margin-right:2px}
+  .strip.label-format label{gap:8px}
+  .strip.label-format label::before{content:"";flex:0 0 auto;border:1px solid var(--line);background:rgba(223,255,0,.12)}
+  .strip.label-format label:has(input[value=square])::before{width:12px;height:12px}
+  .strip.label-format label:has(input[value=story])::before{width:9px;height:16px}
+  .strip.label-format label:has(input[value=banner])::before{width:16px;height:8px}
+  .v-aspect{display:inline-block;border:1px solid var(--line);background:rgba(223,255,0,.15);flex:0 0 auto}
+  .v-aspect[data-format=square]{width:12px;height:12px}
+  .v-aspect[data-format=story]{width:9px;height:16px}
+  .v-aspect[data-format=banner]{width:16px;height:8px}
+  .after-share .alt{font-size:11px;font-weight:700;color:var(--muted);line-height:1.4}
+  .moods{display:flex;flex-wrap:wrap;gap:8px;max-width:100%}
+  .moods button,.tool-row button.ghost-chip{min-height:40px;padding:6px 12px;border:1px solid var(--line);background:rgba(255,255,255,.04);
+    color:var(--paper);font:inherit;font-size:11px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
+  .moods button:hover,.moods button:focus-visible,.tool-row button.ghost-chip:hover{border-color:var(--acid);color:var(--acid)}
+  .moods button[aria-pressed=true]{border-color:var(--acid);background:rgba(223,255,0,.12);color:var(--acid)}
+  .tool-row button.ghost-chip.invite{border-color:var(--line);color:var(--paper);box-shadow:none}
+  .tool-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .line-meta{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;margin-top:6px}
+  .line-count{font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--muted)}
+  .line-count.hot{color:var(--acid)}
+  .duet{display:flex;gap:0;border:1px solid var(--line);width:fit-content;max-width:100%}
+  .duet button{min-height:36px;padding:6px 14px;border:0;background:transparent;color:var(--muted);font:inherit;font-size:11px;
+    font-weight:900;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+  .duet button[aria-pressed=true]{background:var(--acid);color:var(--ink)}
+  .duet[hidden]{display:none}
+  .history{display:flex;flex-wrap:wrap;gap:6px;max-width:100%}
+  .history button{min-height:36px;padding:4px 10px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--muted);
+    font:inherit;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;max-width:100%}
+  .history button:hover{border-color:var(--acid);color:var(--paper)}
+  .after-share{display:grid;gap:10px;padding:12px;border:1px solid var(--acid);background:rgba(223,255,0,.08);margin-top:4px}
+  .after-share[hidden]{display:none}
+  .after-share p{margin:0;font-size:13px;font-weight:800;color:var(--paper)}
+  .after-share .go{gap:8px}
+  .keys-help{font-size:11px;line-height:1.5;color:var(--muted);margin:0}
+  .keys-help kbd{display:inline-block;min-width:1.2em;padding:1px 5px;border:1px solid var(--line);color:var(--paper);font-weight:800}
+  body.inbound .topbar{opacity:.72}
+  body.inbound .title-row{opacity:.55}
+  body.inbound .handoff{margin-bottom:16px}
+  body.inbound .remix-note{font-size:15px;padding:12px 14px;background:rgba(223,255,0,.14)}
+  body.inbound .first-export{opacity:.85}
+  body.inbound #share{letter-spacing:.04em}
+  body.view-before .stage-frame{outline:1px dashed rgba(223,255,0,.45);outline-offset:2px}
+  .panel{display:grid;gap:12px;min-width:0;max-width:100%;padding:14px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.025)}
+  .panel>*{min-width:0;max-width:100%}
+  .field-label{display:block;margin:0 0 6px;font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--paper)}
+  .gallery{display:grid;grid-auto-flow:column;grid-auto-columns:72px;gap:8px;overflow-x:auto;padding:2px 2px 8px;scroll-snap-type:x proximity;max-width:100%;min-width:0;width:100%}
   .gallery label{position:relative;display:block;aspect-ratio:1;cursor:pointer;scroll-snap-align:start;border:2px solid transparent;background:rgba(255,255,255,.06);overflow:hidden}
   .gallery img{width:100%;height:100%;display:block;object-fit:cover}
-  .gallery input{position:absolute;opacity:0;pointer-events:none}
-  .gallery label:has(input:checked){border-color:var(--acid)}
-  .gallery label:has(input:focus-visible){outline:3px solid var(--acid);outline-offset:2px}
+  .gallery input,.strip input,.sr-only{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+  .gallery label:has(input:checked),.strip label:has(input:checked){border-color:var(--acid)}
+  .gallery label:has(input:focus-visible),.strip label:has(input:focus-visible){outline:3px solid var(--acid);outline-offset:2px}
   .gallery .upload{display:grid;place-items:center;text-align:center;padding:6px;color:var(--paper);font-size:10px;line-height:1.15;background:rgba(223,255,0,.09)}
-  label{display:grid;gap:8px;font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
-  textarea{width:100%;min-height:96px;padding:13px;resize:vertical;border:1px solid var(--line);border-radius:0;
+  .strip{display:flex;flex-wrap:wrap;gap:8px;max-width:100%}
+  .strip label{min-height:44px;padding:8px 10px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--paper);font:inherit;font-size:11px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;display:inline-flex;align-items:center;max-width:100%}
+  .strip.label-look label{min-width:0;justify-content:center}
+  .strip.label-format label{flex:1 1 calc(33% - 8px);justify-content:center;min-width:4.5rem}
+  label.block{display:grid;gap:8px;font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+  textarea{width:100%;min-height:84px;padding:12px;resize:vertical;border:1px solid var(--line);border-radius:8px;
     background:rgba(255,255,255,.04);color:var(--paper);font:inherit;font-size:16px}
-  select{width:100%;min-height:48px;padding:0 12px;border:1px solid var(--line);border-radius:0;background:var(--ink);color:var(--paper);font:inherit;font-size:14px;font-weight:900;text-transform:uppercase}
+  select{width:100%;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--ink);color:var(--paper);font:inherit;font-size:13px;font-weight:900;text-transform:uppercase}
+  .basic-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.basic-grid>*{min-width:0}
   .go{display:flex;gap:10px;flex-wrap:wrap}
   .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
   .chip{min-height:44px;max-width:100%;padding:8px 12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--paper);font:inherit;font-size:12px;font-weight:800;line-height:1.25;text-align:left;cursor:pointer}
   .chip:hover{border-color:var(--acid);color:var(--acid)}
-  details{border-top:1px solid var(--line);padding-top:14px}summary{min-height:44px;cursor:pointer;font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between}summary::after{content:'+';font-size:20px}details[open] summary::after{content:'−'}
-  .advanced{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;padding-top:14px}.advanced .btn{min-height:44px;font-size:12px;box-shadow:none}
+  .secondary{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .text-action{min-height:40px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--paper);font:inherit;font-size:11px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
+  .text-action:hover{color:var(--acid)}
+  details{border-top:1px solid var(--line);padding-top:8px}summary{min-height:40px;cursor:pointer;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between}summary::after{content:'+';font-size:18px}details[open] summary::after{content:'−'}
+  .advanced{display:grid;gap:12px;padding-top:12px}.advanced .btn{min-height:44px;font-size:12px;box-shadow:none}.advanced input[type=range]{min-height:44px}
   .kit-links{display:flex;gap:10px;flex-wrap:wrap}.kit-links a{color:var(--paper);font-size:12px;font-weight:900;text-transform:uppercase;text-underline-offset:4px}
-  .btn{flex:1 1 auto;min-height:52px;padding:0 20px;cursor:pointer;font:inherit;font-weight:900;font-size:14px;letter-spacing:.06em;
+  .btn{flex:1 1 auto;min-height:48px;padding:0 16px;cursor:pointer;font:inherit;font-weight:900;font-size:13px;letter-spacing:.05em;
     text-transform:uppercase;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;
-    border:1px solid var(--paper);background:transparent;color:var(--paper);box-shadow:4px 4px 0 var(--paper);
+    border:1px solid var(--paper);border-radius:8px;background:transparent;color:var(--paper);box-shadow:none;
     transition:transform .18s,box-shadow .18s}
-  .btn:hover{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--paper)}
-  .btn.primary{background:var(--acid);border-color:var(--acid);color:var(--ink);box-shadow:4px 4px 0 var(--hot)}
-  .micro{margin:0;font-size:13px;line-height:1.55;color:var(--muted)}
-  .status{margin:0;min-height:1.4em;font-size:14px;font-weight:700;color:var(--acid)}
-  .undo{position:fixed;left:50%;bottom:22px;z-index:5;transform:translateX(-50%);min-height:44px;padding:0 20px;border:0;background:var(--paper);color:var(--ink);font:inherit;font-weight:900;text-transform:uppercase;cursor:pointer}
-  footer{border-top:1px solid var(--line);margin-top:44px;padding:24px 0 0}
+  .btn:hover{transform:translateY(-1px);box-shadow:none}
+  .btn.primary{background:var(--acid);border-color:var(--acid);color:var(--ink);box-shadow:none}
+  .btn.ghost{box-shadow:none;min-height:44px;font-size:12px}
+  .ship-bar{display:grid;gap:8px;padding-top:4px}
+  .status{margin:0;min-height:1.35em;font-size:13px;font-weight:700;color:var(--acid)}
+  .undo{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));z-index:6;transform:translateX(-50%);min-height:44px;padding:0 20px;border:0;background:var(--paper);color:var(--ink);font:inherit;font-weight:900;text-transform:uppercase;cursor:pointer}
+  footer{border-top:1px solid var(--line);margin-top:36px;padding:20px 0 0}
   footer p{margin:.5em 0;font-size:13px;line-height:1.55;color:var(--muted)}
-  footer a{color:var(--paper);font-weight:800}
+  footer a{display:inline-flex;align-items:center;min-height:44px;color:var(--paper);font-weight:800}
   :focus-visible{outline:3px solid var(--acid);outline-offset:3px}
-  @media(max-width:860px){.studio{grid-template-columns:minmax(0,1fr)}}
-  @media(max-width:520px){.topbar{gap:10px}.topbar .brand{font-size:15px}.topbar>a:not(.brand){font-size:11px}.wrap{padding-top:26px}}
-  @media(prefers-reduced-motion:reduce){.btn{transition:none}}@media(forced-colors:active){.btn.primary{border:2px solid ButtonText}}@media(prefers-contrast:more){.stroke{color:var(--paper);-webkit-text-stroke:0}.micro,.lineage,footer p{color:var(--paper)}}
+  @media(max-width:860px){
+    .studio{grid-template-columns:minmax(0,1fr);gap:16px}
+    .stage{position:relative;top:auto;order:-1}
+    .wrap{padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}
+    .title-hint{display:none}
+    h1{font-size:clamp(26px,8vw,40px)}
+    .ship-bar{position:static;width:100%;padding:0;background:none;border:0;backdrop-filter:none}
+    .ship-bar .btn.primary{width:100%;max-width:100%;box-shadow:none}
+    .undo{bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+    .panel{padding:12px}
+  }
+  @media(max-width:520px){.topbar{gap:8px}.topbar .brand{font-size:15px}.topbar>a:not(.brand){font-size:11px}.wrap{padding-top:14px;width:min(1120px,calc(100% - 24px))}.topbar{width:min(1120px,calc(100% - 24px))}}
+  @media(prefers-reduced-motion:reduce){.btn,.stage-frame,.stage-frame.ship-flash{transition:none}}
+  @media(forced-colors:active){.btn.primary,.strip label:has(input:checked),.variant{border:2px solid ButtonText}}
+  @media(prefers-contrast:more){.stroke{color:var(--paper);-webkit-text-stroke:0}.micro,.lineage,footer p,.title-hint,.status,.variant .v-kicker{color:var(--paper)}}
 
     :host{display:block}
     .wrap{padding-top:0}
   </style>
   <main class="wrap">
-  <h1>$dasha <span class="stroke">Studio.</span></h1>
-  <p class="remix-note" id="remix-note" hidden>Your turn.</p>
-  <p class="lineage" id="lineage" hidden>From <a id="parent" href="/studio"></a></p>
+  <div class="title-row">
+    <h1><span class="stroke">Studio</span></h1>
+    <p class="title-hint">Make an image</p>
+  </div>
+
+  <div class="handoff">
+    <p class="remix-note" id="remix-note" hidden>Your turn.</p>
+    <p class="lineage" id="lineage" hidden>From <a id="parent" href="/studio"></a></p>
+    <p class="diff-note" id="diff-note" hidden></p>
+  </div>
+
+  <div class="first-export" id="first-export" aria-label="First export" hidden>
+    <p class="fe-label">First export</p>
+    <ol class="first-export-steps" style="list-style:none;margin:0;padding:0;display:grid;gap:6px">
+      <li id="fe-line" data-step="line">Write a line</li>
+      <li id="fe-export" data-step="export">Share or save</li>
+      <li id="fe-link" data-step="link">Copy editable link</li>
+    </ol>
+  </div>
 
   <div class="studio">
-    <canvas id="canvas" width="1080" height="1080" role="img" aria-label="Preview of the image you are making"></canvas>
+    <div class="stage">
+      <div class="duet" id="duet" hidden role="group" aria-label="Compare with parent">
+        <button type="button" id="view-now" aria-pressed="true">Now</button>
+        <button type="button" id="view-before" aria-pressed="false">Before</button>
+      </div>
+      <div class="stage-frame" id="stage-frame" data-format="square">
+        <canvas id="canvas" width="1080" height="1080" role="img" aria-label="Preview of the image you are making"></canvas>
+        <div class="relay-seal" id="relay-seal" hidden aria-live="polite"></div>
+      </div>
+    </div>
 
     <div class="panel">
       <div>
-        <label for="line">Your line</label>
-        <textarea id="line" maxlength="120" spellcheck="false"></textarea>
-        <div class="chips" id="chips" role="group" aria-label="Suggested lines"></div>
+        <label class="field-label" for="line">Your line</label>
+        <textarea id="line" maxlength="120" spellcheck="false" placeholder="Type something…"></textarea>
+        <div class="line-meta">
+          <span class="line-count" id="line-count">0/120</span>
+          <div class="tool-row"><button type="button" class="ghost-chip" id="surprise">New idea</button></div>
+        </div>
       </div>
 
-      <div>
-        <label>Image</label>
+      <div class="basic-grid">
+        <label class="block" for="looks">Look<select id="looks"></select></label>
+        <label class="block" for="formats">Size<select id="formats"></select></label>
+      </div>
+      <div class="strip label-look" id="look-strip" role="radiogroup" aria-label="Look" hidden></div>
+      <div class="strip label-format" id="format-strip" role="radiogroup" aria-label="Size" hidden></div>
+
+      <div class="photo-block" id="photo-block" hidden>
+        <span class="field-label">Photo</span>
         <div class="gallery" id="gallery" role="radiogroup" aria-label="Choose a Dasha image"></div>
+        <button class="btn ghost" id="edit" type="button" hidden>Randomize</button>
       </div>
 
-      <label for="looks">Look<select id="looks"></select></label>
-
-      <button class="btn" id="edit" type="button">Edit</button>
-
-      <div class="go">
-        <button class="btn primary" id="share" type="button">Share</button>
-        <button class="btn" id="download" type="button">Save PNG</button>
+      <div class="secondary">
+        <button class="text-action" id="download" type="button">Save image</button>
       </div>
-      <details>
-        <summary>More options</summary>
-        <div class="advanced">
-          <label for="formats">Format<select id="formats"></select></label>
-          <label for="effects">Effect<select id="effects"></select></label>
-          <label for="stickers">Sticker<select id="stickers"></select></label>
-          <label for="zoom">Zoom<input id="zoom" type="range" min="1" max="2.5" step="0.05" value="1"></label>
-          <label for="tilt">Tilt<input id="tilt" type="range" min="-15" max="15" step="1" value="0"></label>
+
+      <div class="ship-bar">
+        <button class="btn primary" id="share" type="button">Share image</button>
+        <div class="after-share" id="after-share" hidden>
+          <p id="after-share-copy">Shipped.</p>
+          <p class="alt" id="after-share-alt" hidden></p>
           <div class="go">
+            <button class="btn ghost" id="after-copy" type="button">Copy editable link</button>
+            <button class="btn ghost" id="after-text" type="button">Copy post text</button>
+            <a class="btn ghost" id="after-open" href="/studio" target="_blank" rel="noopener noreferrer">Open what they get</a>
+            <button class="text-action" id="after-dismiss" type="button">Make another</button>
+          </div>
+        </div>
+        <p class="status" id="status" role="status"></p>
+      </div>
+
+      <details>
+        <summary>More</summary>
+        <div class="advanced">
+          <div>
+            <span class="field-label">Versions</span>
+            <div class="variants" id="variants" role="group" aria-label="Quick variants"></div>
+            <div class="history" id="history" role="list" aria-label="Recent states"></div>
+          </div>
+          <div>
+            <span class="field-label" id="moods-label">Mood</span>
+            <div class="moods" id="moods" role="group" aria-labelledby="moods-label"></div>
+          </div>
+          <div class="tool-row" id="idea-tools">
+            <button type="button" class="ghost-chip" id="caps-line" aria-pressed="false">Caps</button>
+            <button type="button" class="ghost-chip" id="shuffle-line">Shuffle line</button>
+          </div>
+          <div class="chips" id="chips" role="group" aria-label="Suggested lines"></div>
+          <div class="strip label-effect" id="effect-strip" role="radiogroup" aria-label="Effect" hidden></div>
+          <div class="strip label-sticker" id="sticker-strip" role="radiogroup" aria-label="Sticker" hidden></div>
+          <label class="block" for="effects">Effect<select id="effects"></select></label>
+          <label class="block" for="stickers">Sticker<select id="stickers"></select></label>
+          <label class="block" for="zoom">Zoom<input id="zoom" type="range" min="1" max="2.5" step="0.05" value="1"></label>
+          <label class="block" for="tilt">Tilt<input id="tilt" type="range" min="-15" max="15" step="1" value="0"></label>
+          <div class="go">
+            <button class="btn" id="copy-link" type="button">Copy editable link</button>
             <button class="btn" id="copy" type="button">Copy image</button>
             <button class="btn" id="gif" type="button">Save GIF</button>
             <button class="btn" id="kit" type="button">Prepare 3 sizes</button>
           </div>
+          <div class="go">
+            <button class="btn" id="batch-looks" type="button">Cook 3 looks</button>
+            <button class="btn" id="oco-export" type="button">Save object</button>
+            <button class="btn" id="oco-import" type="button">Open object</button>
+          </div>
+          <input id="oco-file" type="file" accept="application/json,.json" hidden>
+          <details>
+            <summary>Keyboard</summary>
+            <p class="keys-help" id="keys-help">
+              <kbd>1</kbd>–<kbd>7</kbd> looks · <kbd>F</kbd> format · <kbd>E</kbd> effect ·
+              <kbd>R</kbd> surprise · <kbd>T</kbd> today · <kbd>S</kbd> share ·
+              <kbd>C</kbd> copy link · <kbd>Z</kbd> undo · <kbd>?</kbd> this list
+            </p>
+          </details>
         </div>
       </details>
       <div class="kit-links" id="kit-links" hidden></div>
-      <p class="status" id="status" role="status"></p>
     </div>
   </div>
 
   <footer>
     <p>Graphics are <a href="https://creativecommons.org/publicdomain/zero/1.0/" target="_blank" rel="noopener noreferrer">CC0 1.0</a> — copy, change, sell. Gallery photos are not. Not permission to pass work off as official, or to use Dasha Nekrasova’s name or likeness.</p>
-    <p><a href="https://github.com/Uuriko/dasha-desk/contribute" target="_blank" rel="noopener noreferrer" aria-label="Contribute to Dasha on GitHub">Source ↗</a></p>
+    <p><a href="https://github.com/Uuriko/dasha-desk/contribute" target="_blank" rel="noopener noreferrer" aria-label="Source — contribute to Dasha on GitHub">Source ↗</a></p>
   </footer>
   <button class="undo" id="undo" type="button" hidden>Undo</button>
 </main>`;
@@ -116,10 +311,23 @@ const $ = (id) => root.querySelector('#'+id);
 const canvas = $('canvas'), ctx = canvas.getContext('2d');
 const INK = '#070608', PAPER = '#f4eddb', ACID = '#dfff00', HOT = '#ff3b81', VIOLET = '#7c4dff';
 const MARK = 'getdasha.com';
+const trackedStudioEvents = new Set();
+function trackStudio(event) {
+  if (trackedStudioEvents.has(event)) return;
+  trackedStudioEvents.add(event);
+  fetch('https://lobby.getdasha.com/studio/event', { method: 'POST', mode: 'cors', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event, source: metricSource }) })
+    .then((response) => { if (!response.ok) trackedStudioEvents.delete(event); })
+    .catch(() => trackedStudioEvents.delete(event));
+}
 
-
+/* Every look is drawn here from the site's own palette and type. Nothing is loaded from disk or
+   the network: no photograph, no likeness, no third-party asset, so there is no image whose reuse
+   rights would have to be established before this can ship. */
 const LOOKS = [
-
+  /* Every default line is a real public @dash_eats post (docs/X-RESEARCH-DASHA-2026-08-08.md). Two
+     had been replaced with invented slogans — "Stay weird. Verify the mint." and "Nobody is coming
+     to save the timeline." — which read like any crypto account and are the one thing this tool
+     cannot afford to sound like. The voice is borrowed, not written; that is the whole point. */
   { id: 'photo', name: 'Photo',     line: 'How u crying at the casino and u can’t even get in' },
   { id: 'poster', name: 'Poster',   line: 'It’s time $dasha' },
   { id: 'ticket', name: 'Ticket',   line: 'You’re not gonna believe this' },
@@ -127,8 +335,20 @@ const LOOKS = [
   { id: 'marquee', name: 'Marquee', line: 'Go ahead and doubt me see what happens' },
   { id: 'signal',  name: 'Signal',  line: 'Cmon' },
   { id: 'face',    name: 'Cherry',  line: 'They are angels actually' },
+  /* CT-native formats. Each one bakes in a joke structure (a store receipt, caught-in-4K evidence,
+     a one-sided scoreboard, a price-chart dunk, a hazard sign) so the look itself lands the
+     punchline instead of just placing a line on brand chrome. Same palette, same type, same mark. */
+  { id: 'receipt',  name: 'Receipt',  line: 'Friday in the 4HL you can really feel the pull of the weekend' },
+  { id: 'caught',   name: 'Caught',   line: 'Cmon' },
+  { id: 'score',    name: 'Scoreboard', line: 'They are angels actually' },
+  { id: 'chart',    name: 'Chart',    line: 'It’s time $dasha' },
+  { id: 'warning',  name: 'Warning',  line: 'You’re not gonna believe this' },
+  { id: 'delulu',   name: 'Delulu',   line: 'They are angels actually' },
+  { id: 'rip',      name: 'RIP',      line: 'Well Im still alive' },
+  { id: 'panels',   name: 'Panels',   line: 'How u crying at the casino and u can’t even get in' },
 ];
-let look = LOOKS[0];
+/* Cold open defaults to Poster: full graphic without needing a photo. Photo stays first in the strip for gallery makers. */
+let look = LOOKS.find((option) => option.id === 'poster') || LOOKS[0];
 const FORMATS = [
   { id: 'square', name: 'Post', width: 1080, height: 1080 },
   { id: 'story', name: 'Story', width: 1080, height: 1920 },
@@ -168,68 +388,831 @@ let undoState = null, undoTimer;
 
 const fragmentParams = new URLSearchParams(location.hash.slice(1));
 const queryParams = new URLSearchParams(location.search);
-const fragmentHasState = fragmentParams.has('look') || fragmentParams.has('line') || fragmentParams.has('format') || fragmentParams.has('photo');
+const fragmentHasState = fragmentParams.has('look') || fragmentParams.has('line') || fragmentParams.has('format')
+  || fragmentParams.has('photo') || fragmentParams.has('effect') || fragmentParams.has('sticker');
 const params = fragmentHasState ? fragmentParams : queryParams;
+/* Campaign src may arrive in the query (ads, home CTA) while look/line live in the fragment.
+   Read allowlisted src from both; fragment wins when both are present. */
+const pickSrc = (raw) => (['home', 'quiz', 'transmission-001'].includes(raw) ? raw : null);
+const campaignSource = pickSrc(fragmentParams.get('src')) || pickSrc(queryParams.get('src'));
+const metricSource = campaignSource || (document.referrer && new URL(document.referrer).origin === location.origin ? 'home' : 'direct');
 const imageOnly = params.get('arm') === 'flat';
 const requestedLook = LOOKS.find((option) => option.id === params.get('look'));
 const requestedFormat = FORMATS.find((option) => option.id === params.get('format'));
 const requestedPhoto = PHOTOS.find(([id]) => id === params.get('photo'));
+const requestedEffect = EFFECTS.find(([id]) => id === params.get('effect'));
 if (requestedLook) look = requestedLook;
 if (requestedFormat) format = requestedFormat;
 if (requestedPhoto) photoId = requestedPhoto[0];
+if (requestedEffect) effect = requestedEffect;
+if (params.has('sticker')) {
+  const hit = STICKERS.find(([id]) => id === params.get('sticker'));
+  if (hit) sticker = hit[0];
+}
 if (params.has('line')) $('line').value = params.get('line').slice(0, 120);
-const inbound = Boolean(requestedLook || requestedFormat || params.has('line'));
-if (inbound) $('remix-note').hidden = false;
-if (imageOnly) { $('remix-note').hidden = false; $('remix-note').textContent = 'Image only.'; }
+const inbound = Boolean(requestedLook || requestedFormat || params.has('line') || requestedPhoto
+  || requestedEffect || params.has('sticker'));
+if (inbound) {
+  document.body.classList.add('inbound');
+  $('remix-note').hidden = false;
+  $('remix-note').textContent = imageOnly
+    ? 'Image only — ship the picture, no editable link.'
+    : 'Your turn — change one thing, then Share.';
+  const lineField = $('line');
+  if (lineField && !imageOnly) {
+    try { lineField.focus({ preventScroll: true }); } catch { /* ignore */ }
+  }
+} else if (imageOnly) {
+  $('remix-note').hidden = false;
+  $('remix-note').textContent = 'Image only — ship the picture, no editable link.';
+}
 
-const currentState = () => ({ look: look.id, format: format.id, line: $('line').value.trim() || look.line });
+/* Material handoff fields. Zoom/tilt stay session-local — too noisy for short remix URLs. */
+const STATE_KEYS = ['look', 'format', 'line', 'photo', 'effect', 'sticker'];
+const currentState = () => ({
+  look: look.id,
+  format: format.id,
+  line: $('line').value.trim() || look.line,
+  photo: photoId || '',
+  effect: effect[0],
+  sticker: sticker || '',
+});
 const sourceState = inbound ? currentState() : null;
 const parentLook = LOOKS.find((option) => option.id === params.get('pLook'));
 const parentFormat = FORMATS.find((option) => option.id === params.get('pFormat'));
 const parentLine = (params.get('pLine') || '').trim();
+const parentPhotoRaw = params.get('pPhoto');
+const parentPhoto = parentPhotoRaw && PHOTOS.some(([id]) => id === parentPhotoRaw) ? parentPhotoRaw : '';
+const parentEffectRaw = params.get('pEffect');
+const parentEffect = parentEffectRaw && EFFECTS.some(([id]) => id === parentEffectRaw) ? parentEffectRaw : 'clean';
+const parentStickerRaw = params.get('pSticker');
+const parentSticker = parentStickerRaw != null && STICKERS.some(([id]) => id === parentStickerRaw) ? parentStickerRaw : '';
 const parentState = parentLook && parentFormat && parentLine && parentLine.length <= 120
-  ? { look: parentLook.id, format: parentFormat.id, line: parentLine } : null;
+  ? { look: parentLook.id, format: parentFormat.id, line: parentLine, photo: parentPhoto, effect: parentEffect, sticker: parentSticker }
+  : null;
+/* Mutable parent for OCO import (URL parent stays in parentState). */
+let liveParent = parentState;
+
+function encodeStateParams(state) {
+  const next = new URLSearchParams({ look: state.look, format: state.format, line: state.line });
+  if (state.photo) next.set('photo', state.photo);
+  if (state.effect && state.effect !== 'clean') next.set('effect', state.effect);
+  if (state.sticker) next.set('sticker', state.sticker);
+  return next;
+}
 
 function stateURL(state) {
   const url = new URL(location.href);
   url.search = '';
-  url.hash = new URLSearchParams(state).toString();
+  url.hash = encodeStateParams(state).toString();
   return url.href;
 }
 
-if (parentState) {
-  $('parent').href = stateURL(parentState);
-  $('parent').textContent = `“${parentState.line.length > 54 ? parentState.line.slice(0, 53) + '…' : parentState.line}”`;
+if (parentState) showParentLineage(parentState);
+
+/* First-export checklist: hide forever once all three steps done (local only). */
+const FE_KEY = 'dasha-studio-first-export-v1';
+const feDone = (() => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(FE_KEY) || '{}');
+    return raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  } catch { return {}; }
+})();
+function feSave() {
+  try { localStorage.setItem(FE_KEY, JSON.stringify(feDone)); } catch { /* private mode */ }
+}
+function feMark(step) {
+  if (feDone[step]) return;
+  feDone[step] = true;
+  feSave();
+  refreshFirstExport();
+}
+function refreshFirstExport() {
+  const box = $('first-export');
+  if (!box) return;
+  for (const step of ['line', 'export', 'link']) {
+    const el = $(`fe-${step}`);
+    if (el) el.classList.toggle('done', !!feDone[step]);
+  }
+  if (feDone.line && feDone.export && feDone.link) box.hidden = true;
+}
+function materialChangedKeys(base) {
+  if (!base) return [];
+  const cur = currentState();
+  return STATE_KEYS.filter((key) => base[key] !== cur[key]);
+}
+/** Immediate comparison base: inbound source if edited, else parent / OCO parent. */
+function relayBase() {
+  if (sourceState && materialChangedKeys(sourceState).length) return sourceState;
+  return liveParent || parentState;
+}
+function showParentLineage(parent) {
+  if (!parent) return;
+  $('parent').href = stateURL(parent);
+  $('parent').textContent = `“${parent.line.length > 54 ? parent.line.slice(0, 53) + '…' : parent.line}”`;
   $('lineage').hidden = false;
 }
+/** Relay: material change vs same (for seasons / honest handoff). */
+function relayCheck() {
+  const base = relayBase();
+  const keys = materialChangedKeys(base);
+  return { material: keys.length > 0, keys, base };
+}
+function refreshDiffNote() {
+  const note = $('diff-note');
+  if (!note) return;
+  const { material, keys, base } = relayCheck();
+  if (!base) { note.hidden = true; note.replaceChildren(); refreshRelaySeal(); return; }
+  note.hidden = false;
+  note.replaceChildren();
+  const relay = document.createElement('span');
+  relay.className = 'relay';
+  if (material) {
+    relay.textContent = `Relay: material · ${keys.join(', ')}`;
+    note.append(relay);
+    if (keys.includes('line') && base.line) {
+      const was = document.createElement('span');
+      was.className = 'was';
+      const short = base.line.length > 72 ? `${base.line.slice(0, 71)}…` : base.line;
+      was.textContent = `Was “${short}”`;
+      note.append(was);
+    }
+  } else {
+    relay.textContent = 'Relay: same';
+    note.append(relay);
+    const was = document.createElement('span');
+    was.className = 'was';
+    was.textContent = 'Change look, line, format, photo, effect, or sticker for a material edit.';
+    note.append(was);
+  }
+  refreshRelaySeal();
+}
+function refreshRelaySeal() {
+  const seal = $('relay-seal');
+  if (!seal) return;
+  const { material, base } = relayCheck();
+  if (!base) { seal.hidden = true; seal.textContent = ''; return; }
+  seal.hidden = false;
+  seal.dataset.kind = material ? 'material' : 'same';
+  seal.textContent = material ? 'Material' : 'Same';
+}
+/** Craft status: quiet readiness line; leave error/export copy alone. */
+function craftStatus() {
+  return `${format.name} · ${look.name} · ready`;
+}
+function setStatus(message, { craft = false } = {}) {
+  const el = $('status');
+  if (!el) return;
+  el.textContent = craft ? craftStatus() : message;
+}
+function isBusyStatus(text) {
+  return /attach it|Rendering|Could not|Couldn’t|Saved |Shared|copied|sizes ready|Object loaded|editable link copied|Link copied|Image only|Choose |need a dasha|Surprise|mood ·|Restored|Long for Story|Cooked|Shipped|Pasted|Caps |Line shuffled|Showing before|Cooking|Keyboard list|Image copied|Post text|Make another|Change one thing|try Today|tap Surprise|Today’s /i.test(text || '');
+}
+function exportAlt() {
+  const line = ($('line').value.trim() || look.line).replace(/\s+/g, ' ').trim();
+  return `$dasha ${look.name}: ${line}`.slice(0, 140);
+}
+function maybeCraftStatus() {
+  const el = $('status');
+  if (!el) return;
+  const text = el.textContent || '';
+  /* Only fill empty status, or refresh an existing craft line when look/format change.
+     Never wipe feedback (paste, share, caps, etc.). */
+  if (!text || / · ready$/.test(text)) el.textContent = craftStatus();
+}
+function flashStage() {
+  const frame = $('stage-frame');
+  if (!frame) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  frame.classList.remove('ship-flash');
+  void frame.offsetWidth;
+  frame.classList.add('ship-flash');
+  clearTimeout(flashStage.timer);
+  flashStage.timer = setTimeout(() => frame.classList.remove('ship-flash'), 420);
+}
+function pulseFormatFrame() {
+  const frame = $('stage-frame');
+  if (!frame) return;
+  frame.dataset.format = format.id;
+  frame.classList.remove('pulse');
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  void frame.offsetWidth;
+  frame.classList.add('pulse');
+  clearTimeout(pulseFormatFrame.timer);
+  pulseFormatFrame.timer = setTimeout(() => frame.classList.remove('pulse'), 280);
+}
+const variantThumbCache = new Map();
+let suppressAfterPaint = false;
+let variantPaintGen = 0;
+function bakeLookThumbUrl(lookId) {
+  const lineText = ($('line').value.trim() || look.line).slice(0, 64);
+  const cacheKey = `${lookId}|${lineText}|${effect[0]}|${sticker}`;
+  if (variantThumbCache.has(cacheKey)) return variantThumbCache.get(cacheKey);
+  const nextLook = LOOKS.find((option) => option.id === lookId);
+  if (!nextLook || !draw[lookId]) return '';
+  const prevLook = look;
+  const prevW = canvas.width;
+  const prevH = canvas.height;
+  suppressAfterPaint = true;
+  try {
+    look = nextLook;
+    canvas.width = 1080;
+    canvas.height = 1080;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    draw[lookId](lineText || nextLook.line, 0);
+    ctx.restore();
+    const thumb = document.createElement('canvas');
+    thumb.width = thumb.height = 80;
+    thumb.getContext('2d').drawImage(canvas, 0, 0, 80, 80);
+    const url = thumb.toDataURL('image/jpeg', 0.62);
+    if (variantThumbCache.size > 36) variantThumbCache.clear();
+    variantThumbCache.set(cacheKey, url);
+    return url;
+  } finally {
+    look = prevLook;
+    canvas.width = prevW;
+    canvas.height = prevH;
+    suppressAfterPaint = false;
+  }
+}
+function restoreMainCanvasAfterThumbs() {
+  suppressAfterPaint = true;
+  try {
+    const drawLook = look;
+    const drawLine = $('line').value.trim() || look.line;
+    const drawFn = draw[drawLook.id];
+    canvas.width = 1080;
+    canvas.height = 1080;
+    if (drawFn) {
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      drawFn(drawLine, 0);
+      ctx.restore();
+    }
+    if (format.id !== 'square') {
+      const square = document.createElement('canvas');
+      square.width = square.height = 1080;
+      square.getContext('2d').drawImage(canvas, 0, 0);
+      canvas.width = format.width;
+      canvas.height = format.height;
+      ctx.fillStyle = INK;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (format.id === 'story') ctx.drawImage(square, 0, 420, 1080, 1080);
+      else ctx.drawImage(square, 0, 0, 628, 628);
+    }
+  } finally {
+    suppressAfterPaint = false;
+  }
+}
+function paintVariants() {
+  const root = $('variants');
+  if (!root) return;
+  const gen = ++variantPaintGen;
+  root.replaceChildren();
+  const ideas = [];
+  for (const option of LOOKS) {
+    if (option.id === look.id) continue;
+    ideas.push({
+      kicker: 'Look',
+      label: option.name,
+      lookId: option.id,
+      swatch: { look: option.id },
+      apply: () => {
+        $('looks').value = option.id;
+        $('looks').dispatchEvent(new Event('change', { bubbles: true }));
+      },
+    });
+    if (ideas.filter((item) => item.kicker === 'Look').length >= 3) break;
+  }
+  for (const option of FORMATS) {
+    if (option.id === format.id) continue;
+    ideas.push({
+      kicker: 'Format',
+      label: option.name,
+      formatId: option.id,
+      apply: () => {
+        $('formats').value = option.id;
+        $('formats').dispatchEvent(new Event('change', { bubbles: true }));
+      },
+    });
+  }
+  if (effect[0] === 'clean') {
+    ideas.push({
+      kicker: 'Effect',
+      label: 'Deep fried',
+      swatch: { effect: 'fry' },
+      apply: () => {
+        $('effects').value = 'fry';
+        $('effects').dispatchEvent(new Event('change', { bubbles: true }));
+      },
+    });
+  } else if (effect[0] !== 'clean') {
+    ideas.push({
+      kicker: 'Effect',
+      label: 'Clean',
+      swatch: { effect: 'clean' },
+      apply: () => {
+        $('effects').value = 'clean';
+        $('effects').dispatchEvent(new Event('change', { bubbles: true }));
+      },
+    });
+  }
+  if (!sticker) {
+    ideas.push({
+      kicker: 'Sticker',
+      label: 'Cherries',
+      apply: () => {
+        $('stickers').value = '🍒';
+        $('stickers').dispatchEvent(new Event('change', { bubbles: true }));
+      },
+    });
+  } else {
+    ideas.push({
+      kicker: 'Sticker',
+      label: 'None',
+      apply: () => {
+        $('stickers').value = '';
+        $('stickers').dispatchEvent(new Event('change', { bubbles: true }));
+      },
+    });
+  }
+  const seen = new Set();
+  for (const idea of ideas) {
+    const key = `${idea.kicker}:${idea.label}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (root.children.length >= 6) break;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'variant';
+    if (idea.lookId) button.dataset.lookThumb = idea.lookId;
+    const kicker = document.createElement('span');
+    kicker.className = 'v-kicker';
+    kicker.textContent = idea.kicker;
+    const row = document.createElement('span');
+    row.className = 'v-row';
+    if (idea.lookId) {
+      const thumb = document.createElement('img');
+      thumb.className = 'v-thumb';
+      thumb.alt = '';
+      thumb.width = 40;
+      thumb.height = 40;
+      thumb.setAttribute('aria-hidden', 'true');
+      row.append(thumb);
+    }
+    if (idea.formatId) {
+      const aspect = document.createElement('span');
+      aspect.className = 'v-aspect';
+      aspect.dataset.format = idea.formatId;
+      aspect.setAttribute('aria-hidden', 'true');
+      row.append(aspect);
+    }
+    if (idea.swatch && !idea.lookId) {
+      const swatch = document.createElement('span');
+      swatch.className = 'swatch';
+      swatch.setAttribute('aria-hidden', 'true');
+      if (idea.swatch.look) swatch.dataset.look = idea.swatch.look;
+      if (idea.swatch.effect) swatch.dataset.effect = idea.swatch.effect;
+      row.append(swatch);
+    }
+    row.append(document.createTextNode(idea.label));
+    button.append(kicker, row);
+    button.addEventListener('click', () => {
+      trackStudio('first_edit');
+      idea.apply();
+    });
+    root.append(button);
+  }
+  root.hidden = root.children.length === 0;
+  if (root.querySelector('[data-look-thumb]')) {
+    requestAnimationFrame(() => {
+      if (gen === variantPaintGen) fillVariantThumbs(gen);
+    });
+  }
+}
+function fillVariantThumbs(gen) {
+  const root = $('variants');
+  if (!root || gen !== variantPaintGen) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const buttons = [...root.querySelectorAll('button[data-look-thumb]')];
+  if (!buttons.length) return;
+  try {
+    for (const button of buttons) {
+      if (gen !== variantPaintGen) break;
+      const url = bakeLookThumbUrl(button.dataset.lookThumb);
+      const img = button.querySelector('img.v-thumb');
+      if (img && url) img.src = url;
+    }
+  } finally {
+    restoreMainCanvasAfterThumbs();
+  }
+}
+function fillLookStripThumbs() {
+  const strip = $('look-strip');
+  if (!strip || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const labels = [...strip.querySelectorAll('label[data-look-thumb]')];
+  if (!labels.length) return;
+  try {
+    for (const label of labels) {
+      const url = bakeLookThumbUrl(label.dataset.lookThumb);
+      const img = label.querySelector('img.strip-thumb');
+      if (img && url) img.src = url;
+    }
+  } finally {
+    restoreMainCanvasAfterThumbs();
+  }
+}
+const MOODS = [
+  { id: 'casino', name: 'Casino', look: 'photo', format: 'square', effect: 'fry', sticker: '' },
+  { id: 'soft', name: 'Soft', look: 'print', format: 'square', effect: 'angel', sticker: '' },
+  { id: 'broadcast', name: 'Broadcast', look: 'signal', format: 'story', effect: 'clean', sticker: '' },
+  { id: 'flyer', name: 'Flyer', look: 'poster', format: 'square', effect: 'clean', sticker: '✦' },
+];
+const HISTORY_KEY = 'dasha-studio-history-v1';
+const HISTORY_MAX = 5;
+let viewMode = 'now';
+let activeMood = '';
+let capsOn = false;
+let historyQuiet = false;
+
+function applyLookFormatEffect(nextLookId, nextFormatId, nextEffectId, nextSticker) {
+  const nextLook = LOOKS.find((option) => option.id === nextLookId);
+  const nextFormat = FORMATS.find((option) => option.id === nextFormatId);
+  const nextEffect = EFFECTS.find(([id]) => id === (nextEffectId || 'clean')) || EFFECTS[0];
+  if (nextLook) {
+    look = nextLook;
+    $('looks').value = look.id;
+    syncChipStrip('look-strip', look.id);
+    $('line').placeholder = look.line;
+  }
+  if (nextFormat) {
+    format = nextFormat;
+    $('formats').value = format.id;
+    syncChipStrip('format-strip', format.id);
+  }
+  effect = nextEffect;
+  $('effects').value = effect[0];
+  syncChipStrip('effect-strip', effect[0]);
+  if (nextSticker != null && STICKERS.some(([id]) => id === nextSticker)) {
+    sticker = nextSticker;
+    $('stickers').value = sticker;
+    syncChipStrip('sticker-strip', sticker);
+  }
+  refreshPhotoUi();
+}
+
+function pushHistory() {
+  if (historyQuiet || viewMode === 'before') return;
+  const entry = {
+    ...currentState(),
+    line: $('line').value.trim() || look.line,
+    at: Date.now(),
+  };
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { list = []; }
+  if (!Array.isArray(list)) list = [];
+  const sig = STATE_KEYS.map((key) => entry[key]).join('|');
+  if (list[0] && STATE_KEYS.map((key) => list[0][key]).join('|') === sig) return;
+  list = [entry, ...list.filter((item) => STATE_KEYS.map((key) => item[key]).join('|') !== sig)].slice(0, HISTORY_MAX);
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); } catch { /* private */ }
+  paintHistory();
+}
+function paintHistory() {
+  const root = $('history');
+  if (!root) return;
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { list = []; }
+  if (!Array.isArray(list)) list = [];
+  root.replaceChildren();
+  list.forEach((entry, index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.setAttribute('role', 'listitem');
+    const lookName = LOOKS.find((option) => option.id === entry.look)?.name || entry.look;
+    const formatName = FORMATS.find((option) => option.id === entry.format)?.name || entry.format;
+    const short = (entry.line || '').slice(0, 18);
+    button.textContent = `${lookName} · ${formatName}${short ? ` · ${short}` : ''}`;
+    button.title = entry.line || '';
+    button.addEventListener('click', () => {
+      trackStudio('first_edit');
+      historyQuiet = true;
+      viewMode = 'now';
+      syncDuetUi();
+      applyCultureState(entry);
+      historyQuiet = false;
+      setStatus(`Restored recent #${index + 1}`);
+      afterStatePaint();
+    });
+    root.append(button);
+  });
+}
+function paintMoods() {
+  const root = $('moods');
+  if (!root || root.dataset.ready) return;
+  root.dataset.ready = '1';
+  for (const mood of MOODS) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = mood.name;
+    button.dataset.mood = mood.id;
+    button.setAttribute('aria-pressed', 'false');
+    button.addEventListener('click', () => {
+      trackStudio('first_edit');
+      activeMood = mood.id;
+      for (const node of root.querySelectorAll('button')) node.setAttribute('aria-pressed', node === button ? 'true' : 'false');
+      applyLookFormatEffect(mood.look, mood.format, mood.effect, mood.sticker);
+      if (!$('line').value.trim()) $('line').value = LOOKS.find((option) => option.id === mood.look)?.line || '';
+      pushHistory();
+      syncURL();
+      render();
+      afterStatePaint({ pulseFormat: true });
+      setStatus(`${mood.name} mood · ready`);
+    });
+    root.append(button);
+  }
+}
+function linePool() {
+  const fromLooks = LOOKS.map((option) => option.line).filter(Boolean);
+  const fromChips = typeof CAPTIONS !== 'undefined' ? CAPTIONS : [];
+  return [...new Set([...fromChips, ...fromLooks])];
+}
+/* Day ritual DNA — keep arrays/formula aligned with dasha-today-ritual.mjs (enforced by tests). */
+function daySeed() {
+  const d = new Date();
+  return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
+}
+function todaysRitual() {
+  const seed = daySeed();
+  const pool = linePool();
+  return {
+    look: LOOKS[seed % LOOKS.length].id,
+    format: FORMATS[seed % FORMATS.length].id,
+    effect: EFFECTS[seed % Math.min(3, EFFECTS.length)][0],
+    sticker: STICKERS[(seed >> 3) % STICKERS.length][0],
+    line: pool[seed % pool.length] || LOOKS[0].line,
+  };
+}
+function surpriseMe() {
+  trackStudio('first_edit');
+  const lookPool = LOOKS.filter((option) => option.id !== look.id);
+  const nextLook = (lookPool.length ? lookPool : LOOKS)[Math.floor(Math.random() * (lookPool.length || LOOKS.length))];
+  const formatPool = FORMATS.filter((option) => option.id !== format.id);
+  const nextFormat = (formatPool.length ? formatPool : FORMATS)[Math.floor(Math.random() * (formatPool.length || FORMATS.length))];
+  const nextEffect = EFFECTS[Math.floor(Math.random() * Math.min(4, EFFECTS.length))];
+  /* Prefer a costume sticker ~70% of surprises so it feels like a new outfit. */
+  const stickerRoll = Math.random() < 0.7
+    ? STICKERS.filter(([id]) => id)[Math.floor(Math.random() * (STICKERS.length - 1))][0]
+    : '';
+  const nextSticker = stickerRoll;
+  applyLookFormatEffect(nextLook.id, nextFormat.id, nextEffect[0], nextSticker);
+  const pool = linePool().filter((text) => text !== ($('line').value || '').trim());
+  const pick = (pool.length ? pool : linePool())[Math.floor(Math.random() * (pool.length || linePool().length))] || look.line;
+  $('line').value = capsOn ? pick.toUpperCase() : pick;
+  updateLineCount();
+  activeMood = '';
+  const moods = $('moods');
+  if (moods) for (const node of moods.querySelectorAll('button')) node.setAttribute('aria-pressed', 'false');
+  pushHistory();
+  syncURL();
+  render();
+  afterStatePaint({ pulseFormat: true });
+  const stickerBit = nextSticker ? ` · ${nextSticker}` : '';
+  setStatus(`Surprise · ${nextLook.name} · ${nextFormat.name}${stickerBit}`);
+}
+function paintRitual() {
+  const row = $('idea-tools');
+  if (!row || row.dataset.ritual) return;
+  row.dataset.ritual = '1';
+  const ritual = todaysRitual();
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'ghost-chip';
+  button.id = 'ritual-today';
+  button.textContent = 'Today';
+  button.title = ritual.line;
+  button.addEventListener('click', () => {
+    trackStudio('first_edit');
+    activeMood = '';
+    const moods = $('moods');
+    if (moods) for (const node of moods.querySelectorAll('button')) node.setAttribute('aria-pressed', 'false');
+    applyLookFormatEffect(ritual.look, ritual.format, ritual.effect, ritual.sticker);
+    $('line').value = capsOn ? ritual.line.toUpperCase() : ritual.line;
+    updateLineCount();
+    pushHistory();
+    syncURL();
+    render();
+    afterStatePaint({ pulseFormat: true });
+    const lookName = LOOKS.find((option) => option.id === ritual.look)?.name || ritual.look;
+    setStatus(`Today · ${lookName} · ready`);
+  });
+  row.append(button);
+}
+function syncDuetUi() {
+  const duet = $('duet');
+  const base = relayBase();
+  if (!duet) return;
+  duet.hidden = !base;
+  document.body.classList.toggle('view-before', viewMode === 'before' && Boolean(base));
+  const nowBtn = $('view-now');
+  const beforeBtn = $('view-before');
+  if (nowBtn) nowBtn.setAttribute('aria-pressed', viewMode === 'now' ? 'true' : 'false');
+  if (beforeBtn) beforeBtn.setAttribute('aria-pressed', viewMode === 'before' ? 'true' : 'false');
+}
+function updateLineCount() {
+  const el = $('line-count');
+  if (!el) return;
+  const n = ($('line').value || '').length;
+  el.textContent = `${n}/120`;
+  el.classList.toggle('hot', n >= 100);
+}
+function storySafeHint() {
+  if (format.id !== 'story') return;
+  const text = $('line').value.trim() || look.line;
+  if (text.length > 70 && !isBusyStatus($('status')?.textContent)) {
+    setStatus('Long for Story — still readable?');
+  }
+}
+function showAfterShare(kind) {
+  const tray = $('after-share');
+  if (!tray) return;
+  tray.hidden = false;
+  const copy = $('after-share-copy');
+  if (copy) {
+    const handoffLive = Boolean(handoffCache?.url && String(handoffCache.url).includes('/h/'));
+    if (kind === 'saved') copy.textContent = 'Image saved.';
+    else if (imageOnly) copy.textContent = kind === 'native' ? 'Shipped image.' : 'Image ready — attach it on X.';
+    else if (kind === 'native') copy.textContent = handoffLive ? 'Shipped. Pass-it-on link is ready.' : 'Shipped.';
+    else copy.textContent = handoffLive
+      ? 'Image ready — pass-it-on card is on the X post.'
+      : 'Image ready — editable link is on the X post.';
+  }
+  const alt = $('after-share-alt');
+  if (alt) {
+    alt.hidden = false;
+    alt.textContent = `Alt: ${exportAlt()}`;
+  }
+  const open = $('after-open');
+  if (open) {
+    open.hidden = Boolean(imageOnly);
+    open.href = handoffCache?.url || remixURL();
+    if (!imageOnly && !handoffCache?.url) {
+      ensureHandoffUrl().then((url) => { if (open && url) open.href = url; }).catch(() => {});
+    }
+  }
+  const afterCopy = $('after-copy');
+  if (afterCopy) afterCopy.hidden = Boolean(imageOnly);
+  const afterText = $('after-text');
+  if (afterText) afterText.hidden = false;
+}
+function hideAfterShare() {
+  const tray = $('after-share');
+  if (tray) tray.hidden = true;
+}
+async function copyPostText() {
+  const text = shareText();
+  try {
+    if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
+    else {
+      const ta = Object.assign(document.createElement('textarea'), { value: text });
+      document.body.append(ta); ta.select(); document.execCommand('copy'); ta.remove();
+    }
+    if (navigator.clipboard?.readText) {
+      const got = await navigator.clipboard.readText();
+      if (!handoffCopiedOk(got, text)) {
+        setStatus('Could not copy post text.');
+        return;
+      }
+    }
+    setStatus('Post text copied.');
+  } catch {
+    setStatus('Could not copy post text.');
+  }
+}
+function refreshShareLabel() {
+  const btn = $('share');
+  if (!btn) return;
+  btn.textContent = inbound && !imageOnly ? 'Pass it on' : 'Share image';
+}
+function afterStatePaint({ pulseFormat = false } = {}) {
+  if (pulseFormat) pulseFormatFrame();
+  else if ($('stage-frame')) $('stage-frame').dataset.format = format.id;
+  refreshRelaySeal();
+  paintVariants();
+  syncDuetUi();
+  updateLineCount();
+  refreshShareLabel();
+  paintHistory();
+  maybeCraftStatus();
+  storySafeHint();
+}
+refreshFirstExport();
+if (feDone.line && feDone.export && feDone.link) { /* already hidden */ }
+else if (($('line').value || '').trim()) feMark('line');
 
 function remixURL() {
   const url = new URL(location.href);
   url.search = '';
   const current = currentState();
-  const state = new URLSearchParams({ look: current.look, format: current.format });
-  const line = $('line').value.trim();
-  if (line) state.set('line', line);
-  if (photoId) state.set('photo', photoId);
+  const state = encodeStateParams(current);
+  if (campaignSource) state.set('src', campaignSource);
   if (imageOnly) state.set('arm', 'flat');
-  const changed = sourceState && ['look', 'format', 'line'].some((key) => sourceState[key] !== current[key]);
-  const parent = changed ? sourceState : parentState;
+  /* encodeStateParams always sets line; drop empty-default only when user left the field blank
+     so legacy short links stay short when using the look default. */
+  if (!$('line').value.trim()) state.delete('line');
+  const changed = sourceState && materialChangedKeys(sourceState).length > 0;
+  const parent = changed ? sourceState : (liveParent || parentState);
   if (parent && !imageOnly) {
     state.set('pLook', parent.look);
     state.set('pFormat', parent.format);
     state.set('pLine', parent.line);
+    if (parent.photo) state.set('pPhoto', parent.photo);
+    if (parent.effect && parent.effect !== 'clean') state.set('pEffect', parent.effect);
+    if (parent.sticker) state.set('pSticker', parent.sticker);
   }
   url.hash = state.toString();
   return url.href;
 }
 
-function syncURL() {
-  if (location.protocol.startsWith('http')) history.replaceState(null, '', remixURL());
+/* Path-based handoff (Love Spec P0): mint on share/copy so Discord/X can unfurl.
+   Fragment remixURL stays the offline fallback and Studio DNA source of truth. */
+const HANDOFF_API = 'https://lobby.getdasha.com/studio/handoff';
+let handoffCache = null;
+function handoffPayload() {
+  const current = currentState();
+  const line = (current.line || look.line || '').trim().slice(0, 120);
+  const body = {
+    look: current.look,
+    format: current.format,
+    line: line || look.line,
+    effect: current.effect || 'clean',
+  };
+  if (current.photo) body.photo = current.photo;
+  if (current.sticker) body.sticker = current.sticker;
+  if (campaignSource) body.src = campaignSource;
+  const changed = sourceState && materialChangedKeys(sourceState).length > 0;
+  const parent = changed ? sourceState : (liveParent || parentState);
+  if (parent && !imageOnly) {
+    body.parent = {
+      look: parent.look,
+      format: parent.format,
+      line: parent.line,
+      effect: parent.effect || 'clean',
+    };
+    if (parent.photo) body.parent.photo = parent.photo;
+    if (parent.sticker) body.parent.sticker = parent.sticker;
+  }
+  return body;
+}
+function handoffSig(body) {
+  return [body.look, body.format, body.line, body.photo || '', body.effect || '', body.sticker || '', body.src || ''].join('|');
+}
+async function ensureHandoffUrl() {
+  if (imageOnly) return remixURL();
+  const body = handoffPayload();
+  const sig = handoffSig(body);
+  if (handoffCache && handoffCache.sig === sig && handoffCache.url) return handoffCache.url;
+  const fragment = remixURL();
+  try {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), 1200) : 0;
+    const response = await fetch(HANDOFF_API, {
+      method: 'POST',
+      mode: 'cors',
+      keepalive: true,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller?.signal,
+    });
+    if (timer) clearTimeout(timer);
+    if (!response.ok) throw new Error('mint failed');
+    const data = await response.json();
+    if (!data?.url || typeof data.url !== 'string') throw new Error('no url');
+    handoffCache = { sig, url: data.url };
+    trackStudio('handoff_mint');
+    return data.url;
+  } catch {
+    return fragment;
+  }
 }
 
-if (!fragmentHasState && (queryParams.has('look') || queryParams.has('line') || queryParams.has('format'))) syncURL();
+function syncURL() {
+  if (location.protocol.startsWith('http')) history.replaceState(null, '', remixURL());
+  if (($('line').value || '').trim()) feMark('line');
+  refreshDiffNote();
+  afterStatePaint();
+}
 
+if (!fragmentHasState && (queryParams.has('look') || queryParams.has('line') || queryParams.has('format')
+  || queryParams.has('photo') || queryParams.has('effect') || queryParams.has('sticker'))) syncURL();
+refreshDiffNote();
+afterStatePaint();
 
+/** Largest size at or below `start` where the wrapped text fits `maxH`. */
 function fit(text, font, start, maxW, maxH, lineRatio) {
   for (let size = start; size > 12; size -= 2) {
     ctx.font = font(size);
@@ -240,7 +1223,7 @@ function fit(text, font, start, maxW, maxH, lineRatio) {
   return { size: 14, lines: wrap(text, maxW) };
 }
 
-
+/** Split a word with no break opportunity into chunks that each fit. */
 function breakWord(word, maxW) {
   const chunks = [];
   let chunk = '';
@@ -251,7 +1234,9 @@ function breakWord(word, maxW) {
   return chunk ? [...chunks, chunk] : chunks;
 }
 
-
+/* Greedy word wrap against the CURRENT ctx.font. Over-wide words are broken by character, so
+   every line returned fits maxW — otherwise one long unspaced word (a URL, a name, a held-down
+   key) runs off the canvas and the image is unpostable, which shrinking the font never fixes. */
 function wrap(text, maxW) {
   const lines = [];
   for (const paragraph of text.split('\n')) {
@@ -268,11 +1253,17 @@ function wrap(text, maxW) {
   return lines;
 }
 
-
+/* First baseline that leaves a block of `count` lines optically centred between top and bottom.
+   Anchoring the block at a fixed y instead leaves a large void under short text — which is most
+   text — and a void is what makes an image look unfinished rather than designed. */
 const blockStart = (top, bottom, count, size, ratio, cap = 0.72) =>
   top + ((bottom - top) - ((count - 1) * size * ratio + cap * size)) / 2 + cap * size;
 
-
+/* The cherries, drawn from the same 64-unit geometry as dasha-favicon.svg so the exported image
+   carries the actual mark and not just the wordmark. One function, called by every look — five
+   hand-placed copies would drift apart within a week, which is exactly how a system stops being
+   one. Recognition comes from the same shape appearing everywhere, so it is never recoloured:
+   `colour` picks the ink or paper version for the surface it sits on, nothing else. */
 function drawMark(x, y, size, colour) {
   const u = size / 64;
   ctx.save();
@@ -289,7 +1280,9 @@ function drawMark(x, y, size, colour) {
   ctx.restore();
 }
 
-
+/* The character is one of the mark's cherries with a face on it. Same 64-unit grid, same stroke
+   minimum, same no-leaf rule — so the vocabulary never grows: anyone who can draw the logo can draw
+   the character, and the character teaches the logo. Drawn in coordinates, not generated. */
 function drawFace(x, y, size, mood, body, face) {
   const u = size / 64;
   ctx.save();
@@ -398,7 +1391,8 @@ const draw = {
     drawMark(116, 150, 62, INK);
   },
 
-
+  /* The site's own scrolling ticker, turned into the whole picture. Short lines read best, which
+     is why its default is two words — the band count adapts so a long line still lands. */
   marquee(text, t = 0) {
     ctx.fillStyle = INK; ctx.fillRect(0, 0, 1080, 1080);
     const phrase = `${text.toUpperCase().replace(/\s+/g, ' ').trim()} · `;
@@ -427,7 +1421,9 @@ const draw = {
   signal(text, t = 0) {
     ctx.fillStyle = INK; ctx.fillRect(0, 0, 1080, 1080);
     ctx.lineWidth = 3;
-
+    /* Rings travel outward by exactly one ring-spacing per loop, so at t = 1 the field is
+       identical to t = 0 with each ring one slot further out. Colour keys off the ring's slot
+       rather than its index, or the alternation would flip when the loop wrapped. */
     for (let radius = 120 + t * 96; radius < 1500; radius += 96) {
       ctx.strokeStyle = Math.round((radius - 120) / 96) % 2 ? `rgba(223,255,0,.30)` : `rgba(124,77,255,.34)`;
       ctx.beginPath(); ctx.arc(1010, 150, radius, 0, Math.PI * 2); ctx.stroke();
@@ -451,7 +1447,9 @@ const draw = {
     drawMark(936, 968, 66, ACID);
   },
 
-
+  /* Character look: the cherry is the hero, the line is the caption. The blink is a short window of
+     the loop rather than a smooth tween — an eye is either open or shut, and a fading eyelid reads
+     as a bug. */
   face(text, t = 0) {
     ctx.fillStyle = INK; ctx.fillRect(0, 0, 1080, 1080);
     const glow = ctx.createRadialGradient(540, 330, 0, 540, 330, 470);
@@ -502,27 +1500,252 @@ const draw = {
     ctx.fillText('DASHA STUDIO', 960, 940); ctx.textAlign = 'left';
     drawMark(896, 112, 58, ACID);
   },
+
+  /* A thermal receipt. The line becomes line-items when the writer separates them with · or /, so
+     one field carries the "receipts, line-itemized" grammar. Mono is the machine costume, same as
+     print. */
+  receipt(text, t = 0) {
+    ctx.fillStyle = PAPER; ctx.fillRect(0, 0, 1080, 1080);
+    const mono = (s) => `700 ${s}px ui-monospace,Menlo,Consolas,monospace`;
+    ctx.fillStyle = INK; ctx.font = mono(30);
+    ctx.fillText('DASHA MART', 120, 132);
+    ctx.textAlign = 'right'; ctx.font = mono(22);
+    ctx.fillText('ORD #0001', 960, 132); ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(7,6,8,.58)'; ctx.font = mono(20);
+    ctx.fillText('THANK YOU FOR SHOPPING', 120, 172);
+    ctx.strokeStyle = 'rgba(7,6,8,.5)'; ctx.setLineDash([8, 8]); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(120, 202); ctx.lineTo(960, 202); ctx.stroke(); ctx.setLineDash([]);
+
+    const parts = String(text).split(/[·/]+/).map((s) => s.trim()).filter(Boolean);
+    ctx.font = mono(26);
+    const items = parts.length > 1 ? parts : wrap(text.toUpperCase(), 720).slice(0, 8);
+    let y = 274;
+    for (let i = 0; i < items.length && y < 760; i++) {
+      ctx.fillStyle = INK; ctx.fillText(String(items[i] || '').toUpperCase().slice(0, 44), 120, y);
+      ctx.textAlign = 'right'; ctx.fillText('$' + String(4 + i * 7), 960, y); ctx.textAlign = 'left';
+      y += 56;
+    }
+    ctx.strokeStyle = 'rgba(7,6,8,.5)'; ctx.setLineDash([8, 8]);
+    ctx.beginPath(); ctx.moveTo(120, y + 6); ctx.lineTo(960, y + 6); ctx.stroke(); ctx.setLineDash([]);
+    y += 66;
+    ctx.fillStyle = INK; ctx.font = '900 42px Arial,Helvetica,sans-serif';
+    ctx.fillText('TOTAL: PRICELESS', 120, y);
+    ctx.save(); ctx.translate(750, y + 46); ctx.rotate(-0.1);
+    ctx.fillStyle = ACID; ctx.fillRect(-132, -40, 264, 80);
+    ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.strokeRect(-132, -40, 264, 80);
+    ctx.fillStyle = INK; ctx.font = '900 34px Arial,Helvetica,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('PAID', 0, 14); ctx.restore(); ctx.textAlign = 'left';
+
+    y += 130;
+    ctx.fillStyle = INK;
+    for (let x = 120, i = 0; x < 960; x += 6, i++) if (i % 3) ctx.fillRect(x, y, 3, 96);
+    ctx.fillStyle = 'rgba(7,6,8,.6)'; ctx.font = mono(20);
+    ctx.fillText('A RECEIPT IS NOT AN ENDORSEMENT', 120, y + 138);
+    ctx.fillStyle = INK; ctx.font = '900 26px Arial,Helvetica,sans-serif';
+    ctx.fillText('$DASHA', 196, y + 190);
+    drawMark(120, y + 186, 56, INK);
+  },
+
+  /* Caught-in-4K evidence card: violet arc (depth), hot REC dot, acid stamp, the line as the
+     incriminating quote. The timestamp advances so the GIF reads as a live recording. */
+  caught(text, t = 0) {
+    ctx.fillStyle = INK; ctx.fillRect(0, 0, 1080, 1080);
+    ctx.strokeStyle = VIOLET; ctx.lineWidth = 2;
+    for (let r = 60; r < 520; r += 40) { ctx.beginPath(); ctx.arc(1000, 120, r, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.strokeStyle = 'rgba(244,237,219,.35)'; ctx.lineWidth = 3; ctx.strokeRect(88, 88, 904, 904);
+    ctx.fillStyle = HOT; ctx.beginPath(); ctx.arc(150, 150, 18, 0, Math.PI * 2); ctx.fill();
+    if (t < 0.5) { ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(150, 150, 6, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = PAPER; ctx.font = '900 24px Arial,Helvetica,sans-serif';
+    ctx.fillText('REC · 4K · 00:00:' + String(Math.floor(t * 59)).padStart(2, '0'), 196, 160);
+    ctx.save(); ctx.translate(540, 320); ctx.rotate(-0.05);
+    ctx.fillStyle = ACID; ctx.fillRect(-330, -62, 660, 124);
+    ctx.strokeStyle = INK; ctx.lineWidth = 4; ctx.strokeRect(-330, -62, 660, 124);
+    ctx.fillStyle = INK; ctx.font = '900 74px Arial,Helvetica,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('CAUGHT IN 4K', 0, 26); ctx.restore(); ctx.textAlign = 'left';
+    const { size, lines } = fit(text.toUpperCase(), (s) => `900 ${s}px Arial,Helvetica,sans-serif`, 96, 820, 380, 0.94);
+    ctx.font = `900 ${size}px Arial,Helvetica,sans-serif`; ctx.fillStyle = PAPER;
+    let y = blockStart(420, 900, lines.length, size, 0.94);
+    for (const line of lines) { ctx.fillText(line, 130, y); y += size * 0.94; }
+    ctx.fillStyle = 'rgba(244,237,219,.6)'; ctx.font = '700 24px ui-monospace,Menlo,Consolas,monospace';
+    ctx.fillText('EXHIBIT A · THE TIMELINE', 130, 962);
+    drawMark(936, 968, 62, ACID);
+  },
+
+  /* A one-sided scoreboard. The line is the winning play; the timeline always loses. Hot is the
+     risk/losing side, acid the win — matching art direction, not a coin-flip. */
+  score(text, t = 0) {
+    ctx.fillStyle = INK; ctx.fillRect(0, 0, 1080, 1080);
+    ctx.fillStyle = 'rgba(244,237,219,.06)'; ctx.fillRect(88, 88, 904, 420);
+    ctx.strokeStyle = PAPER; ctx.lineWidth = 3; ctx.strokeRect(88, 88, 904, 420);
+    ctx.font = '900 40px Arial,Helvetica,sans-serif';
+    ctx.fillStyle = HOT; ctx.fillText('THE TIMELINE', 140, 196);
+    ctx.fillStyle = ACID; ctx.textAlign = 'right'; ctx.fillText('$DASHA', 940, 196); ctx.textAlign = 'left';
+    ctx.font = '900 240px Arial,Helvetica,sans-serif';
+    ctx.fillStyle = HOT; ctx.fillText('0', 196, 428);
+    ctx.fillStyle = ACID; ctx.fillText('1', 800, 428);
+    ctx.fillStyle = PAPER; ctx.fillRect(526, 130, 6, 330);
+    const { size, lines } = fit(text.toUpperCase(), (s) => `900 ${s}px Arial,Helvetica,sans-serif`, 104, 880, 340, 0.92);
+    ctx.font = `900 ${size}px Arial,Helvetica,sans-serif`; ctx.fillStyle = PAPER;
+    let y = blockStart(600, 936, lines.length, size, 0.92);
+    for (const line of lines) { ctx.fillText(line, 100, y); y += size * 0.92; }
+    ctx.fillStyle = ACID; ctx.fillRect(100, 964, 120, 6);
+    ctx.fillStyle = 'rgba(244,237,219,.6)'; ctx.font = '900 24px Arial,Helvetica,sans-serif';
+    ctx.fillText('FINAL · NOT CLOSE', 100, 1016);
+    drawMark(940, 1018, 58, ACID);
+  },
+
+  /* A fake price chart. The punchline is the direction: a line ending in ! moons, anything else
+     tanks past the bottom of the frame. Hot is the risk line by art-direction law. */
+  chart(text, t = 0) {
+    ctx.fillStyle = INK; ctx.fillRect(0, 0, 1080, 1080);
+    ctx.strokeStyle = 'rgba(244,237,219,.12)'; ctx.lineWidth = 2;
+    for (let x = 140; x <= 960; x += 120) { ctx.beginPath(); ctx.moveTo(x, 200); ctx.lineTo(x, 760); ctx.stroke(); }
+    for (let y = 200; y <= 760; y += 90) { ctx.beginPath(); ctx.moveTo(140, y); ctx.lineTo(960, y); ctx.stroke(); }
+    ctx.fillStyle = 'rgba(244,237,219,.55)'; ctx.font = '700 22px ui-monospace,Menlo,Consolas,monospace';
+    ctx.fillText('$DASHA', 140, 180); ctx.textAlign = 'right'; ctx.fillText('TIME', 960, 800); ctx.textAlign = 'left';
+    const moon = /!$/.test(String(text).trim());
+    ctx.strokeStyle = HOT; ctx.lineWidth = 8; ctx.beginPath();
+    for (let i = 0; i <= 40; i++) {
+      const x = 140 + i * (820 / 40);
+      const p = i / 40;
+      const y = moon
+        ? 760 - p * 300 - (p > 0.72 ? (p - 0.72) * 1400 : 0)
+        : 400 + p * 260 + (p > 0.78 ? (p - 0.78) * 2600 : 0);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    const { size, lines } = fit(text.toUpperCase(), (s) => `900 ${s}px Arial,Helvetica,sans-serif`, 92, 860, 180, 0.92);
+    ctx.font = `900 ${size}px Arial,Helvetica,sans-serif`; ctx.fillStyle = PAPER;
+    let y = blockStart(840, 978, lines.length, size, 0.92);
+    for (const line of lines) { ctx.fillText(line, 100, y); y += size * 0.92; }
+    ctx.fillStyle = HOT; ctx.fillRect(100, 986, 60, 6);
+    drawMark(936, 156, 58, ACID);
+  },
+
+  /* A hazard sign. Diagonal hot/ink stripes ring a hard ink panel; the line is the warning. */
+  warning(text, t = 0) {
+    ctx.fillStyle = INK; ctx.fillRect(0, 0, 1080, 1080);
+    ctx.save(); ctx.beginPath(); ctx.rect(60, 60, 960, 960); ctx.clip();
+    ctx.strokeStyle = HOT; ctx.lineWidth = 60;
+    for (let x = -1080; x < 2160; x += 120) { ctx.beginPath(); ctx.moveTo(x, 1020); ctx.lineTo(x + 1020, 60); ctx.stroke(); }
+    ctx.restore();
+    ctx.fillStyle = INK; ctx.fillRect(120, 120, 840, 840);
+    ctx.strokeStyle = PAPER; ctx.lineWidth = 4; ctx.strokeRect(120, 120, 840, 840);
+    ctx.fillStyle = ACID; ctx.font = '900 108px Arial,Helvetica,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('WARNING', 540, 306); ctx.textAlign = 'left';
+    const { size, lines } = fit(text.toUpperCase(), (s) => `900 ${s}px Arial,Helvetica,sans-serif`, 90, 700, 420, 0.94);
+    ctx.font = `900 ${size}px Arial,Helvetica,sans-serif`; ctx.fillStyle = PAPER; ctx.textAlign = 'center';
+    let y = blockStart(360, 760, lines.length, size, 0.94);
+    for (const line of lines) { ctx.fillText(line, 540, y); y += size * 0.94; }
+    ctx.textAlign = 'left';
+    ctx.fillStyle = HOT; ctx.fillRect(0, 1008, 1080, 72);
+    ctx.fillStyle = INK; ctx.font = '900 26px Arial,Helvetica,sans-serif';
+    ctx.fillText('PROCEED AT YOUR OWN RISK · $DASHA', 40, 1054);
+    drawMark(980, 156, 60, ACID);
+  },
+
+  /* A delulu affirmation card. The line is the mantra; the joke is the header/footer around it. */
+  delulu(text, t = 0) {
+    ctx.fillStyle = INK; ctx.fillRect(0, 0, 1080, 1080);
+    const glow = ctx.createRadialGradient(540, 460, 0, 540, 460, 520);
+    glow.addColorStop(0, VIOLET + '44'); glow.addColorStop(1, VIOLET + '00');
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, 1080, 1080);
+    ctx.fillStyle = ACID; ctx.font = '900 30px Arial,Helvetica,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('DAILY AFFIRMATION', 540, 180); ctx.textAlign = 'left';
+    const { size, lines } = fit(text.toUpperCase(), (s) => `900 ${s}px Arial,Helvetica,sans-serif`, 120, 840, 520, 0.94);
+    ctx.font = `900 ${size}px Arial,Helvetica,sans-serif`; ctx.fillStyle = PAPER; ctx.textAlign = 'center';
+    let y = blockStart(240, 760, lines.length, size, 0.94);
+    for (const line of lines) { ctx.fillText(line, 540, y); y += size * 0.94; }
+    ctx.textAlign = 'left';
+    ctx.fillStyle = ACID; ctx.fillRect(0, 1008, 1080, 72);
+    ctx.fillStyle = INK; ctx.font = '900 26px Arial,Helvetica,sans-serif';
+    ctx.fillText('SAY IT WITH YOUR CHEST · $DASHA', 40, 1054);
+    drawMark(940, 156, 60, ACID);
+  },
+
+  /* An obit for the bags. The line is the epitaph; the dates and footer keep it a
+     joke rather than a promise. */
+  rip(text, t = 0) {
+    ctx.fillStyle = INK; ctx.fillRect(0, 0, 1080, 1080);
+    ctx.fillStyle = 'rgba(244,237,219,.06)';
+    ctx.beginPath();
+    ctx.moveTo(300, 900); ctx.lineTo(300, 520);
+    ctx.arc(540, 520, 240, Math.PI, Math.PI * 2);
+    ctx.lineTo(780, 900); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = PAPER; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = ACID; ctx.font = '900 88px Arial,Helvetica,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('R.I.P.', 540, 336); ctx.textAlign = 'left';
+    ctx.fillStyle = HOT; ctx.font = '900 24px Arial,Helvetica,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('MY BAGS', 540, 376); ctx.textAlign = 'left';
+    const { size, lines } = fit(text.toUpperCase(), (s) => `900 ${s}px Arial,Helvetica,sans-serif`, 66, 520, 300, 0.98);
+    ctx.font = `900 ${size}px Arial,Helvetica,sans-serif`; ctx.fillStyle = PAPER; ctx.textAlign = 'center';
+    let y = blockStart(430, 760, lines.length, size, 0.98);
+    for (const line of lines) { ctx.fillText(line, 540, y); y += size * 0.98; }
+    ctx.textAlign = 'left';
+    ctx.fillStyle = ACID; ctx.fillRect(0, 1008, 1080, 72);
+    ctx.fillStyle = INK; ctx.font = '900 26px Arial,Helvetica,sans-serif';
+    ctx.fillText('BUILT FOR THE TIMELINE · $DASHA', 40, 1054);
+    drawMark(940, 156, 60, ACID);
+  },
+
+  /* The two-panel setup → beat. A · or / in the line splits it into the two panels; otherwise the
+     words split down the middle so a single field still lands a punchline. */
+  panels(text, t = 0) {
+    ctx.fillStyle = INK; ctx.fillRect(0, 0, 1080, 1080);
+    const parts = String(text).split(/[·/]+/).map((s) => s.trim()).filter(Boolean);
+    let setup, beat;
+    if (parts.length >= 2) { setup = parts[0]; beat = parts.slice(1).join(' '); }
+    else {
+      const words = String(text || '').trim().split(/\s+/).filter(Boolean);
+      const mid = Math.ceil(words.length / 2);
+      setup = words.slice(0, mid).join(' ');
+      beat = words.slice(mid).join(' ');
+    }
+    const s = fit(setup.toUpperCase(), (f) => `900 ${f}px Arial,Helvetica,sans-serif`, 96, 900, 340, 0.94);
+    ctx.font = `900 ${s.size}px Arial,Helvetica,sans-serif`; ctx.fillStyle = PAPER;
+    let y = blockStart(96, 500, s.lines.length, s.size, 0.94);
+    for (const line of s.lines) { ctx.fillText(line, 90, y); y += s.size * 0.94; }
+    ctx.fillStyle = ACID; ctx.fillRect(0, 540, 1080, 8);
+    ctx.fillStyle = 'rgba(223,255,0,.06)'; ctx.fillRect(0, 548, 1080, 532);
+    const b = fit(beat.toUpperCase(), (f) => `900 ${f}px Arial,Helvetica,sans-serif`, 96, 900, 340, 0.94);
+    ctx.font = `900 ${b.size}px Arial,Helvetica,sans-serif`; ctx.fillStyle = ACID;
+    let y2 = blockStart(560, 1000, b.lines.length, b.size, 0.94);
+    for (const line of b.lines) { ctx.fillText(line, 90, y2); y2 += b.size * 0.94; }
+    drawMark(936, 60, 56, ACID);
+  },
 };
 
-
+/* phase runs 0 -> 1 over one loop of the animation. Every look is drawn as a pure function of it,
+   so frame N of a GIF is just render(N / frames) — there is no timer, no state, and the still
+   export is simply phase 0. Each look's motion is periodic over exactly one phase so the GIF
+   loops without a seam. */
 function render(phase = 0) {
+  const base = viewMode === 'before' ? relayBase() : null;
+  const drawLook = base ? (LOOKS.find((option) => option.id === base.look) || look) : look;
+  const drawFormat = base ? (FORMATS.find((option) => option.id === base.format) || format) : format;
+  const drawLine = base ? base.line : ($('line').value.trim() || look.line);
+  const drawFn = draw[drawLook.id] || draw[look.id];
+
   canvas.width = 1080;
   canvas.height = 1080;
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  draw[look.id]($('line').value.trim() || look.line, phase);
+  drawFn(drawLine, phase);
   ctx.restore();
 
-  if (format.id === 'square') return;
+  if (drawFormat.id === 'square') {
+    if (phase === 0 && !suppressAfterPaint) afterStatePaint();
+    return;
+  }
   const square = document.createElement('canvas');
   square.width = square.height = 1080;
   square.getContext('2d').drawImage(canvas, 0, 0);
-  canvas.width = format.width;
-  canvas.height = format.height;
+  canvas.width = drawFormat.width;
+  canvas.height = drawFormat.height;
   ctx.fillStyle = INK;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  if (format.id === 'story') {
+  if (drawFormat.id === 'story') {
     ctx.drawImage(square, 0, 420, 1080, 1080);
     ctx.fillStyle = ACID; ctx.fillRect(0, 0, 1080, 18);
     ctx.fillStyle = PAPER; ctx.font = '900 34px Arial,Helvetica,sans-serif';
@@ -545,9 +1768,19 @@ function render(phase = 0) {
     ctx.fillStyle = ACID; ctx.font = '900 26px Arial,Helvetica,sans-serif';
     ctx.fillText(MARK, 690, 540);
   }
+  if (phase === 0 && !suppressAfterPaint) afterStatePaint();
 }
 
+/* ---- GIF export ------------------------------------------------------------------------
+   Written here rather than pulled in, because the Studio ships as one file with no dependencies
+   and no network. canvas.captureStream + MediaRecorder would give animation for free, but it
+   produces WebM, which X will not accept on upload — GIF is what actually loops in a timeline,
+   so the encoder is the price of animated output.
 
+   Palette: these looks are flat brand colour plus a couple of gradients. When a clip uses 256 or
+   fewer distinct colours the table is exact and the GIF is lossless. Past that it keeps the 256
+   most common colours and maps the rest to the nearest, memoised per 5-bit RGB bucket so the
+   256-way search runs about 32k times instead of once per pixel. */
 
 function buildPalette(frames) {
   const counts = new Map();
@@ -580,7 +1813,7 @@ function paletteIndex(palette, r, g, b) {
   return best;
 }
 
-
+/** GIF's variable-code-width LZW. Codes widen as the dictionary fills and reset at 4095. */
 function lzwEncode(indices, minCodeSize) {
   const bytes = [];
   let bitBuffer = 0, bitCount = 0;
@@ -598,7 +1831,10 @@ function lzwEncode(indices, minCodeSize) {
     const found = dictionary.get(key);
     if (found !== undefined) { prefix = found; continue; }
     put(prefix, width);
-
+    /* Widen BEFORE assigning the code that needs the extra bit, not after. Assigning first and
+       widening after switches one code too early, and the decoder — which builds its table one
+       entry behind — then reads every subsequent code at the wrong width. It only goes wrong past
+       511 entries, so small images encode fine and large ones come out as garbage. */
     if (next === 4096) {
       put(clearCode, width);
       dictionary = new Map(); next = endCode + 1; width = minCodeSize + 1;
@@ -649,7 +1885,8 @@ function encodeGIF(frames, width, height, delayCentiseconds) {
   return new Blob([new Uint8Array(out)], { type: 'image/gif' });
 }
 
-
+/* 480px on the long edge and 16 frames. Full 1080 would produce a file too large for X to accept
+   on mobile, and GIF is a palette format, so the size costs far less than it would on a photo. */
 const GIF_FRAMES = 16, GIF_LONG_EDGE = 480, GIF_DELAY_CS = 7;
 
 async function captureGIF() {
@@ -670,11 +1907,23 @@ async function captureGIF() {
   return encodeGIF(frames, width, height, GIF_DELAY_CS);
 }
 
-const png = () => new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+const blobFromCanvas = (type, quality) => new Promise((resolve, reject) => {
+  canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Image unavailable')), type, quality);
+});
+const png = () => blobFromCanvas('image/png');
+const shareImage = async () => {
+  const blob = await png();
+  if (blob.size <= 5_000_000) return { blob, type: 'image/png', ext: 'png' };
+  const jpeg = await blobFromCanvas('image/jpeg', 0.9);
+  return { blob: jpeg, type: 'image/jpeg', ext: 'jpg' };
+};
 const fileName = () => `dasha-${look.id}-${format.id}.png`;
 // The cherry travels with the share text. It is the one piece of the mark that survives a platform
 // stripping images, and it is why the gate checks for it rather than for the word.
 const shareText = () => `${$('line').value.trim() || look.line}\n\n$dasha \u{1F352}`;
+function handoffCopiedOk(got, want) {
+  return String(got || '') === String(want || '');
+}
 
 function save(blob, name = fileName()) {
   const link = document.createElement('a');
@@ -684,44 +1933,117 @@ function save(blob, name = fileName()) {
   URL.revokeObjectURL(link.href);
 }
 
-
+/* X's intent URL cannot carry an image, so a download followed by "now go find that file and
+   attach it" is where sharing dies. Where the browser can hand the actual PNG to the share sheet
+   we do that instead, and the post is one gesture. Everywhere else we fall back to the two-step
+   and say so, rather than pretending the image travelled. */
+let shareBusy = false;
 $('share').addEventListener('click', async () => {
-  const blob = await png();
-  const file = new File([blob], fileName(), { type: 'image/png' });
-  const shareData = { files: [file], text: shareText(), ...(imageOnly ? {} : { url: remixURL() }) };
-  if (navigator.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share(shareData);
-      $('status').textContent = imageOnly ? 'Shared image.' : 'Shared.';
-      return;
-    } catch (error) {
-      if (error.name === 'AbortError') { $('status').textContent = ''; return; }
+  if (shareBusy) return;
+  shareBusy = true; $('share').disabled = true; trackStudio('share_intent');
+  try {
+    const image = await shareImage();
+    const file = new File([image.blob], fileName().replace(/png$/, image.ext), { type: image.type });
+    const handoff = imageOnly ? '' : await ensureHandoffUrl();
+    const shareData = { files: [file], text: shareText(), ...(imageOnly ? {} : { url: handoff }) };
+    /* canShare({files}) does not guarantee share({files,url}) works. Abort stays silent;
+       any other share failure falls through to download + X intent (the path that always works). */
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share(shareData);
+        trackStudio('share_success'); trackStudio('completion');
+        feMark('export');
+        setStatus(imageOnly ? 'Shared image.' : 'Shared — editable link went with it.');
+        flashStage();
+        showAfterShare('native');
+        return;
+      } catch (error) {
+        if (error.name === 'AbortError') { setStatus(''); return; }
+      }
     }
+    save(image.blob, file.name);
+    const intent = new URL('https://x.com/intent/post');
+    intent.searchParams.set('text', shareText());
+    if (!imageOnly) intent.searchParams.set('url', handoff || remixURL());
+    const xTab = window.open(intent, '_blank', 'noopener');
+    /* X fallthrough always downloads the PNG — count as export so public export≠share is honest. */
+    trackStudio('export');
+    trackStudio('completion');
+    feMark('export');
+    if (xTab) {
+      setStatus(imageOnly
+        ? 'Image saved — attach it in the X tab that just opened.'
+        : 'Image saved — attach it in the X tab that just opened. The editable link is already there.');
+      showAfterShare('x');
+    } else {
+      setStatus('Image saved. X did not open — attach the PNG there yourself.');
+      showAfterShare('saved');
+    }
+    flashStage();
+  } catch {
+    setStatus('Could not export this image. Try another.');
+  } finally {
+    shareBusy = false; $('share').disabled = false;
   }
-  save(blob);
-  const intent = new URL('https://x.com/intent/post');
-  intent.searchParams.set('text', shareText());
-  if (!imageOnly) intent.searchParams.set('url', remixURL());
-  window.open(intent, '_blank', 'noopener');
-  $('status').textContent = 'Image saved — attach it in the X tab that just opened. The editable link is already there.';
 });
 
 $('download').addEventListener('click', async () => {
-  save(await png());
-  $('status').textContent = `Saved ${fileName()}.`;
+  try {
+    save(await png());
+    trackStudio('export'); trackStudio('completion');
+    feMark('export');
+    setStatus(`Saved ${fileName()}.`);
+  } catch {
+    setStatus('Could not save this image. Try another look or photo.');
+  }
+});
+
+$('copy-link').addEventListener('click', async () => {
+  const url = await ensureHandoffUrl();
+  try {
+    if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(url);
+    else {
+      const ta = Object.assign(document.createElement('textarea'), { value: url });
+      document.body.append(ta); ta.select(); document.execCommand('copy'); ta.remove();
+    }
+    if (navigator.clipboard?.readText) {
+      const got = await navigator.clipboard.readText();
+      if (!handoffCopiedOk(got, url)) {
+        setStatus('Could not copy the link. Select the address bar after Share.');
+        return;
+      }
+    }
+    trackStudio('copy_editable_link');
+    feMark('link');
+    setStatus(imageOnly
+      ? 'Link copied (image-only arm — parent lineage off).'
+      : (url.includes('/h/')
+        ? 'Pass-it-on link copied — opens with a preview card.'
+        : 'Editable link copied — anyone can open and change it.'));
+  } catch {
+    setStatus('Could not copy the link. Select the address bar after Share.');
+  }
 });
 
 $('copy').addEventListener('click', async () => {
-  const blob = await png();
   try {
-    if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': Promise.resolve(blob) })]);
-      $('status').textContent = 'Image copied.';
-      return;
-    }
-  } catch {  }
-  save(blob);
-  $('status').textContent = 'Couldn’t copy — PNG saved instead.';
+    const blob = await png();
+    try {
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': Promise.resolve(blob) })]);
+        $('status').textContent = 'Image copied.';
+        trackStudio('export'); trackStudio('completion');
+        feMark('export');
+        return;
+      }
+    } catch { /* fall through to save */ }
+    save(blob);
+    trackStudio('export'); trackStudio('completion');
+    feMark('export');
+    $('status').textContent = 'Couldn’t copy — PNG saved instead.';
+  } catch {
+    $('status').textContent = 'Could not copy this image. Try another look or photo.';
+  }
 });
 
 $('gif').addEventListener('click', async () => {
@@ -732,9 +2054,13 @@ $('gif').addEventListener('click', async () => {
     const blob = await captureGIF();
     const name = `dasha-${look.id}-${format.id}.gif`;
     save(blob, name);
+    trackStudio('export'); trackStudio('completion');
+    feMark('export');
     // X caps GIF uploads well below its image limit, and the cap is lower on mobile than desktop,
     // so the size is stated rather than left for the upload to reject.
     $('status').textContent = `Saved ${name} — ${(blob.size / 1e6).toFixed(1)} MB. Attach it on X like any image.`;
+  } catch {
+    $('status').textContent = 'Could not render the GIF. Try a simpler look or shorter line.';
   } finally {
     button.disabled = false;
   }
@@ -742,33 +2068,234 @@ $('gif').addEventListener('click', async () => {
 
 $('kit').addEventListener('click', async () => {
   const original = format, files = [];
-  for (const option of FORMATS) {
-    format = option;
+  try {
+    for (const option of FORMATS) {
+      format = option;
+      render();
+      files.push([fileName(), await png()]);
+    }
+    format = original;
     render();
-    files.push([fileName(), await png()]);
+    for (const link of $('kit-links').children) URL.revokeObjectURL(link.href);
+    $('kit-links').replaceChildren(...files.map(([name, blob]) => {
+      const link = document.createElement('a');
+      link.download = name;
+      link.href = URL.createObjectURL(blob);
+      link.textContent = name.match(/-(square|story|banner)\.png$/)[1].replace('square', 'post') + ' ↓';
+      return link;
+    }));
+    $('kit-links').hidden = false;
+    trackStudio('export'); trackStudio('completion');
+    feMark('export');
+    $('status').textContent = 'Three sizes ready.';
+  } catch {
+    format = original;
+    render();
+    $('status').textContent = 'Could not prepare all sizes. Try again.';
   }
-  format = original;
+});
+
+/* Open Culture Object (lite): portable JSON for the same DNA the remix URL carries.
+   Not a network protocol — a downloadable handoff when URLs get long or offline. */
+const OCO_SCHEMA = 'dasha-oco/v0';
+function toOco() {
+  const state = currentState();
+  const { material, keys, base } = relayCheck();
+  return {
+    schema: OCO_SCHEMA,
+    tool: { name: 'dasha-studio', version: 1 },
+    state,
+    parent: base || null,
+    relay: { material, keys },
+    rights: {
+      drawn: 'CC0-1.0',
+      likeness: 'not-granted',
+      photos: 'third-party-not-cc0',
+    },
+    mark: MARK,
+  };
+}
+function applyCultureState(next) {
+  if (!next || typeof next !== 'object') throw new Error('invalid state');
+  const nextLook = LOOKS.find((option) => option.id === next.look);
+  const nextFormat = FORMATS.find((option) => option.id === next.format);
+  if (!nextLook || !nextFormat) throw new Error('unknown look or format');
+  const line = String(next.line || '').slice(0, 120);
+  if (!line) throw new Error('missing line');
+  const nextEffect = EFFECTS.find(([id]) => id === (next.effect || 'clean')) || EFFECTS[0];
+  const nextSticker = STICKERS.some(([id]) => id === (next.sticker || '')) ? (next.sticker || '') : '';
+  const nextPhoto = next.photo && PHOTOS.some(([id]) => id === next.photo) ? next.photo : '';
+  look = nextLook;
+  format = nextFormat;
+  effect = nextEffect;
+  sticker = nextSticker;
+  photoId = nextPhoto;
+  $('looks').value = look.id;
+  $('formats').value = format.id;
+  $('line').value = line;
+  $('line').placeholder = look.line;
+  $('effects').value = effect[0];
+  $('stickers').value = sticker;
+  syncChipStrip('look-strip', look.id);
+  syncChipStrip('format-strip', format.id);
+  if (photoId) {
+    const radio = $('gallery').querySelector(`input[value="${CSS.escape(photoId)}"]`);
+    if (radio) radio.checked = true;
+    const entry = PHOTOS.find(([id]) => id === photoId);
+    if (entry) loadPhoto(...entry, false, { keepLook: true, note: '' });
+  } else {
+    for (const radio of $('gallery').querySelectorAll('input[type=radio]')) radio.checked = false;
+    photo = null;
+  }
+  refreshPhotoUi();
+  syncURL();
   render();
-  for (const link of $('kit-links').children) URL.revokeObjectURL(link.href);
-  $('kit-links').replaceChildren(...files.map(([name, blob]) => {
-    const link = document.createElement('a');
-    link.download = name;
-    link.href = URL.createObjectURL(blob);
-    link.textContent = name.match(/-(square|story|banner)\.png$/)[1].replace('square', 'post') + ' ↓';
-    return link;
-  }));
-  $('kit-links').hidden = false;
-  $('status').textContent = 'Three sizes ready.';
+}
+function readOco(raw) {
+  const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  if (!data || data.schema !== OCO_SCHEMA || !data.state) throw new Error('not a Dasha culture object');
+  return data;
+}
+function normalizeParent(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const nextLook = LOOKS.find((option) => option.id === raw.look);
+  const nextFormat = FORMATS.find((option) => option.id === raw.format);
+  const line = String(raw.line || '').trim();
+  if (!nextLook || !nextFormat || !line || line.length > 120) return null;
+  const photo = raw.photo && PHOTOS.some(([id]) => id === raw.photo) ? raw.photo : '';
+  const nextEffect = EFFECTS.some(([id]) => id === (raw.effect || 'clean')) ? (raw.effect || 'clean') : 'clean';
+  const nextSticker = STICKERS.some(([id]) => id === (raw.sticker || '')) ? (raw.sticker || '') : '';
+  return { look: nextLook.id, format: nextFormat.id, line, photo, effect: nextEffect, sticker: nextSticker };
+}
+$('oco-export').addEventListener('click', () => {
+  try {
+    const blob = new Blob([`${JSON.stringify(toOco(), null, 2)}\n`], { type: 'application/json' });
+    const name = `dasha-${look.id}-${format.id}.oco.json`;
+    save(blob, name);
+    trackStudio('export');
+    $('status').textContent = `Saved ${name} — open it later with Open object.`;
+  } catch {
+    $('status').textContent = 'Could not save the object.';
+  }
+});
+$('oco-import').addEventListener('click', () => $('oco-file').click());
+$('oco-file').addEventListener('change', async () => {
+  const file = $('oco-file').files?.[0];
+  $('oco-file').value = '';
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const data = readOco(text);
+    applyCultureState(data.state);
+    const importedParent = normalizeParent(data.parent);
+    if (importedParent) {
+      liveParent = importedParent;
+      showParentLineage(importedParent);
+    }
+    trackStudio('first_edit');
+    $('remix-note').hidden = false;
+    $('remix-note').textContent = 'Opened object.';
+    refreshDiffNote();
+    $('status').textContent = data.relay?.material
+      ? 'Object loaded — Relay was material when saved.'
+      : 'Object loaded.';
+  } catch {
+    $('status').textContent = 'Could not open that file. Need a dasha-oco/v0 JSON object.';
+  }
 });
 
 
 function fillSelect(id, options, selected) {
   $(id).append(...options.map((option) => new Option(option.name, option.id, false, option === selected)));
 }
+function paintChipStrip(stripId, name, options, selectedId, onPick, { swatchAttr, lookThumbs } = {}) {
+  const strip = $(stripId);
+  if (!strip || strip.dataset.ready) return;
+  strip.dataset.ready = '1';
+  for (const option of options) {
+    const label = document.createElement('label');
+    const input = Object.assign(document.createElement('input'), {
+      type: 'radio', name, value: option.id, checked: option.id === selectedId,
+    });
+    input.addEventListener('change', () => { if (input.checked) onPick(option.id); });
+    if (lookThumbs) {
+      label.dataset.lookThumb = option.id;
+      const thumb = document.createElement('img');
+      thumb.className = 'strip-thumb';
+      thumb.alt = '';
+      thumb.width = 36;
+      thumb.height = 36;
+      thumb.setAttribute('aria-hidden', 'true');
+      label.append(input, thumb, document.createTextNode(option.name));
+    } else if (swatchAttr) {
+      const swatch = document.createElement('span');
+      swatch.className = 'swatch';
+      swatch.setAttribute('aria-hidden', 'true');
+      swatch.dataset[swatchAttr] = option.id;
+      label.append(input, swatch, document.createTextNode(option.name));
+    } else {
+      label.append(input, document.createTextNode(option.name));
+    }
+    strip.append(label);
+  }
+}
+function syncChipStrip(stripId, selectedId) {
+  const strip = $(stripId);
+  if (!strip) return;
+  const radio = strip.querySelector(`input[value="${CSS.escape(selectedId)}"]`);
+  if (radio) radio.checked = true;
+}
+function refreshPhotoUi() {
+  const block = $('photo-block');
+  const editBtn = $('edit');
+  if (!block) return;
+  const isPhoto = look.id === 'photo';
+  block.hidden = !isPhoto;
+  if (editBtn) editBtn.hidden = !(isPhoto && photo);
+  const frame = $('stage-frame');
+  if (frame) frame.classList.toggle('need-photo', isPhoto && !photo);
+  if (isPhoto && !photo && !isBusyStatus($('status')?.textContent)) {
+    setStatus('Photo look · pick or paste an image');
+  }
+}
 fillSelect('looks', LOOKS, look);
 fillSelect('formats', FORMATS, format);
+paintChipStrip('look-strip', 'look-chip', LOOKS, look.id, (id) => {
+  $('looks').value = id;
+  $('looks').dispatchEvent(new Event('change', { bubbles: true }));
+}, { lookThumbs: true });
+requestAnimationFrame(() => fillLookStripThumbs());
+paintChipStrip('format-strip', 'format-chip', FORMATS, format.id, (id) => {
+  $('formats').value = id;
+  $('formats').dispatchEvent(new Event('change', { bubbles: true }));
+});
 for (const option of EFFECTS) $('effects').add(new Option(option[1], option[0]));
 for (const option of STICKERS) $('stickers').add(new Option(option[1], option[0]));
+$('effects').value = effect[0];
+$('stickers').value = sticker;
+/* Surface the first four effects + stickers as strips (radios, not buttons — keeps embed budget honest). */
+paintChipStrip(
+  'effect-strip',
+  'effect-chip',
+  EFFECTS.slice(0, 4).map(([id, name]) => ({ id, name })),
+  effect[0],
+  (id) => {
+    $('effects').value = id;
+    $('effects').dispatchEvent(new Event('change', { bubbles: true }));
+  },
+  { swatchAttr: 'effect' },
+);
+paintChipStrip(
+  'sticker-strip',
+  'sticker-chip',
+  STICKERS.map(([id, name]) => ({ id, name: id ? `${id} ${name}` : name })),
+  sticker,
+  (id) => {
+    $('stickers').value = id;
+    $('stickers').dispatchEvent(new Event('change', { bubbles: true }));
+  },
+);
+refreshPhotoUi();
 
 const snapshot = () => ({
   effect, sticker, zoom, tilt, offsetX, offsetY,
@@ -784,29 +2311,38 @@ function restore(state) {
   ({ effect, sticker, zoom, tilt, offsetX, offsetY, photoId, photo } = state);
   look = LOOKS.find((option) => option.id === state.lookId) || look;
   $('looks').value = look.id;
+  $('formats').value = format.id;
   $('line').value = state.line;
   $('line').placeholder = look.line;
   if (photoId) {
     const radio = $('gallery').querySelector(`input[value="${CSS.escape(photoId)}"]`);
     if (radio) radio.checked = true;
+  } else {
+    for (const radio of $('gallery').querySelectorAll('input[type=radio]')) radio.checked = false;
   }
   $('effects').value = effect[0]; $('stickers').value = sticker;
   $('zoom').value = zoom; $('tilt').value = tilt;
+  syncChipStrip('look-strip', look.id);
+  syncChipStrip('format-strip', format.id);
+  syncChipStrip('effect-strip', effect[0]);
+  syncChipStrip('sticker-strip', sticker);
+  refreshPhotoUi();
   syncURL(); render();
 }
 $('undo').addEventListener('click', () => { if (undoState) restore(undoState); $('undo').hidden = true; });
 
 let editIndex = 0;
 $('edit').addEventListener('click', () => {
-  if (!photo) { $('status').textContent = 'Choose an image first.'; return; }
+  if (!photo || look.id !== 'photo') { $('status').textContent = 'Choose a photo first.'; return; }
   remember(); editIndex = editIndex % (EFFECTS.length - 1) + 1;
+  trackStudio('first_edit');
   effect = EFFECTS[editIndex]; sticker = STICKERS[(editIndex % (STICKERS.length - 1)) + 1][0];
   zoom = 1.05 + (editIndex % 3) * .12; tilt = [-6, 4, -2][editIndex % 3];
   $('effects').value = effect[0]; $('stickers').value = sticker; $('zoom').value = zoom; $('tilt').value = tilt;
-  render();
+  syncURL(); render();
 });
 
-
+/* Public @dash_eats lines (culture-seeds gate). One tap kills blank-line friction. */
 const CAPTIONS = [
   'How u crying at the casino and u can’t even get in',
   'It’s time $dasha',
@@ -820,6 +2356,7 @@ $('chips').append(...CAPTIONS.map((text) => {
   chip.textContent = text.length > 42 ? text.slice(0, 41) + '…' : text;
   chip.title = text;
   chip.addEventListener('click', () => {
+    trackStudio('first_edit');
     $('line').value = text;
     $('status').textContent = '';
     syncURL();
@@ -828,17 +2365,26 @@ $('chips').append(...CAPTIONS.map((text) => {
   return chip;
 }));
 
+let photoLoadVersion = 0;
 function loadPhoto(id, src, local = false, opts = {}) {
+  const version = ++photoLoadVersion;
   const image = new Image();
   if (!local) image.crossOrigin = 'anonymous';
   image.onload = () => {
+    if (version !== photoLoadVersion) { if (local) URL.revokeObjectURL(src); return; }
     photo = image; photoId = local ? '' : id;
-    if (!opts.keepLook) { look = LOOKS[0]; $('looks').value = look.id; }
+    if (!opts.keepLook) {
+      look = LOOKS[0];
+      $('looks').value = look.id;
+      syncChipStrip('look-strip', look.id);
+    }
     if (local) URL.revokeObjectURL(src);
-    $('status').textContent = opts.note || '';
+    refreshPhotoUi();
     syncURL(); render();
+    if (opts.note) setStatus(opts.note);
+    else maybeCraftStatus();
   };
-  image.onerror = () => { $('status').textContent = 'That image could not be opened.'; };
+  image.onerror = () => { if (local) URL.revokeObjectURL(src); if (version === photoLoadVersion) setStatus('That image could not be opened.'); };
   image.src = src;
 }
 
@@ -846,23 +2392,39 @@ $('gallery').append(...PHOTOS.map(([id, src], index) => {
   const label = document.createElement('label');
   const input = Object.assign(document.createElement('input'), { type: 'radio', name: 'photo', value: id, checked: id === photoId });
   const image = Object.assign(document.createElement('img'), { src, alt: `Dasha image ${index + 1}`, loading: 'lazy', crossOrigin: 'anonymous' });
-  input.addEventListener('change', () => loadPhoto(id, src));
+  input.addEventListener('change', () => { trackStudio('first_edit'); loadPhoto(id, src); });
   label.append(input, image); return label;
 }));
-const uploadLabel = document.createElement('label'); uploadLabel.className = 'upload'; uploadLabel.textContent = 'ADD YOURS';
-const upload = Object.assign(document.createElement('input'), { type: 'file', accept: 'image/*' });
-upload.addEventListener('change', () => {
-  const file = upload.files[0];
-  if (!file) return;
-  if (!file.type.startsWith('image/')) { $('status').textContent = 'Choose an image file.'; return; }
-  if (file.size > 20_000_000) { $('status').textContent = 'Choose an image under 20 MB.'; return; }
-  const url = URL.createObjectURL(file); loadPhoto('local', url, true);
+const LOCAL_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
+function useLocalImage(file, note = '') {
+  if (!file || !LOCAL_IMAGE_TYPES.has(file.type)) { $('status').textContent = 'Choose a PNG, JPEG, WebP, or GIF image.'; return false; }
+  if (file.size > 20_000_000) { $('status').textContent = 'Choose an image under 20 MB.'; return false; }
+  trackStudio('first_edit'); loadPhoto('local', URL.createObjectURL(file), true, { note }); return true;
+}
+const uploadLabel = document.createElement('label'); uploadLabel.className = 'upload'; uploadLabel.textContent = 'ADD / PASTE';
+const upload = Object.assign(document.createElement('input'), { type: 'file', accept: [...LOCAL_IMAGE_TYPES].join(',') });
+upload.addEventListener('change', () => useLocalImage(upload.files[0]));
+document.addEventListener('paste', event => {
+  const file = [...(event.clipboardData?.files || [])].find(item => item.type.startsWith('image/'));
+  if (file && useLocalImage(file, 'Pasted image.')) event.preventDefault();
 });
 uploadLabel.append(upload); $('gallery').append(uploadLabel);
 if (requestedPhoto) loadPhoto(...requestedPhoto);
 
-$('effects').addEventListener('change', () => { remember(); effect = EFFECTS.find(([id]) => id === $('effects').value); render(); });
-$('stickers').addEventListener('change', () => { remember(); sticker = $('stickers').value; render(); });
+$('effects').addEventListener('change', () => {
+  trackStudio('first_edit'); remember();
+  effect = EFFECTS.find(([id]) => id === $('effects').value) || EFFECTS[0];
+  syncChipStrip('effect-strip', effect[0]);
+  pushHistory();
+  syncURL(); render();
+});
+$('stickers').addEventListener('change', () => {
+  trackStudio('first_edit'); remember();
+  sticker = STICKERS.some(([id]) => id === $('stickers').value) ? $('stickers').value : '';
+  syncChipStrip('sticker-strip', sticker);
+  pushHistory();
+  syncURL(); render();
+});
 $('zoom').addEventListener('focus', remember);
 $('zoom').addEventListener('input', () => { zoom = Number($('zoom').value); render(); });
 $('tilt').addEventListener('focus', remember);
@@ -872,6 +2434,7 @@ const pointers = new Map();
 let gesture = null;
 canvas.addEventListener('pointerdown', (event) => {
   if (!photo || look.id !== 'photo') return;
+  trackStudio('first_edit');
   canvas.setPointerCapture(event.pointerId); pointers.set(event.pointerId, event); remember();
   gesture = { state: snapshot(), points: [...pointers.values()] };
 });
@@ -895,20 +2458,234 @@ const endPointer = (event) => { pointers.delete(event.pointerId); gesture = poin
 canvas.addEventListener('pointerup', endPointer); canvas.addEventListener('pointercancel', endPointer);
 canvas.addEventListener('dblclick', () => { if (photo) { remember(); zoom = 1; tilt = offsetX = offsetY = 0; restore(snapshot()); } });
 $('looks').addEventListener('change', () => {
-  look = LOOKS.find((option) => option.id === $('looks').value);
+  trackStudio('first_edit');
+  look = LOOKS.find((option) => option.id === $('looks').value) || look;
   $('line').placeholder = look.line;
-  $('status').textContent = '';
+  setStatus('', { craft: true });
+  syncChipStrip('look-strip', look.id);
+  refreshPhotoUi();
+  pushHistory();
   syncURL();
   render();
+  if (look.id === 'photo' && !photo) setStatus('Photo look · pick or paste an image');
 });
 $('formats').addEventListener('change', () => {
-  format = FORMATS.find((option) => option.id === $('formats').value);
-  $('status').textContent = '';
+  trackStudio('first_edit');
+  format = FORMATS.find((option) => option.id === $('formats').value) || format;
+  setStatus('', { craft: true });
+  syncChipStrip('format-strip', format.id);
+  pushHistory();
+  syncURL();
+  render();
+  afterStatePaint({ pulseFormat: true });
+});
+
+$('line').placeholder = look.line;
+$('line').addEventListener('input', () => {
+  trackStudio('first_edit');
+  if (capsOn) {
+    const start = $('line').selectionStart;
+    const end = $('line').selectionEnd;
+    $('line').value = $('line').value.toUpperCase();
+    try { $('line').setSelectionRange(start, end); } catch { /* ignore */ }
+  }
+  updateLineCount();
+  hideAfterShare();
+  pushHistory();
   syncURL();
   render();
 });
 
-$('line').placeholder = look.line;
-$('line').addEventListener('input', () => { syncURL(); render(); });
+paintMoods();
+paintRitual();
+paintHistory();
+refreshShareLabel();
+updateLineCount();
+if ($('surprise')) $('surprise').addEventListener('click', surpriseMe);
+if ($('caps-line')) $('caps-line').addEventListener('click', () => {
+  capsOn = !capsOn;
+  $('caps-line').setAttribute('aria-pressed', capsOn ? 'true' : 'false');
+  if (capsOn) {
+    $('line').value = ($('line').value || '').toUpperCase();
+    trackStudio('first_edit');
+    syncURL();
+    render();
+  }
+  setStatus(capsOn ? 'Caps on' : 'Caps off');
+});
+if ($('shuffle-line')) $('shuffle-line').addEventListener('click', () => {
+  trackStudio('first_edit');
+  const pool = (typeof CAPTIONS !== 'undefined' ? CAPTIONS : LOOKS.map((option) => option.line));
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  $('line').value = capsOn ? pick.toUpperCase() : pick;
+  updateLineCount();
+  syncURL();
+  render();
+  setStatus('Line shuffled');
+});
+if ($('view-now')) $('view-now').addEventListener('click', () => {
+  viewMode = 'now';
+  syncDuetUi();
+  render();
+  setStatus('', { craft: true });
+});
+if ($('view-before')) $('view-before').addEventListener('click', () => {
+  if (!relayBase()) return;
+  viewMode = 'before';
+  syncDuetUi();
+  render();
+  setStatus('Showing before');
+});
+if ($('after-copy')) $('after-copy').addEventListener('click', () => $('copy-link').click());
+if ($('after-text')) $('after-text').addEventListener('click', () => { copyPostText(); });
+if ($('after-dismiss')) $('after-dismiss').addEventListener('click', () => {
+  hideAfterShare();
+  surpriseMe();
+});
+if ($('batch-looks')) $('batch-looks').addEventListener('click', async () => {
+  const original = look;
+  const picks = LOOKS.filter((option) => option.id !== look.id).slice(0, 3);
+  if (!picks.length) return;
+  setStatus('Cooking looks…');
+  try {
+    for (const option of picks) {
+      look = option;
+      $('looks').value = look.id;
+      syncChipStrip('look-strip', look.id);
+      render();
+      save(await png(), `dasha-${look.id}-${format.id}.png`);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    look = original;
+    $('looks').value = look.id;
+    syncChipStrip('look-strip', look.id);
+    render();
+    trackStudio('export');
+    feMark('export');
+    setStatus(`Cooked ${picks.length} looks — check downloads.`);
+  } catch {
+    look = original;
+    render();
+    setStatus('Could not cook looks. Try again.');
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  const tag = (event.target && event.target.tagName) || '';
+  if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') {
+    if (event.key === 'Escape') event.target.blur();
+    return;
+  }
+  if (event.metaKey || event.ctrlKey || event.altKey) return;
+  if (event.key >= '1' && event.key <= '7') {
+    const option = LOOKS[Number(event.key) - 1];
+    if (!option) return;
+    event.preventDefault();
+    $('looks').value = option.id;
+    $('looks').dispatchEvent(new Event('change', { bubbles: true }));
+    return;
+  }
+  const key = event.key.toLowerCase();
+  if (key === 'f') {
+    event.preventDefault();
+    const index = Math.max(0, FORMATS.findIndex((option) => option.id === format.id));
+    const next = FORMATS[(index + 1) % FORMATS.length];
+    $('formats').value = next.id;
+    $('formats').dispatchEvent(new Event('change', { bubbles: true }));
+  } else if (key === 'e') {
+    event.preventDefault();
+    const index = Math.max(0, EFFECTS.findIndex(([id]) => id === effect[0]));
+    const next = EFFECTS[(index + 1) % EFFECTS.length];
+    $('effects').value = next[0];
+    $('effects').dispatchEvent(new Event('change', { bubbles: true }));
+  } else if (key === 'r') {
+    event.preventDefault();
+    if ($('surprise')) $('surprise').click();
+  } else if (key === 't') {
+    event.preventDefault();
+    if ($('ritual-today')) $('ritual-today').click();
+  } else if (key === 's') {
+    event.preventDefault();
+    $('share').click();
+  } else if (key === 'c') {
+    event.preventDefault();
+    $('copy-link').click();
+  } else if (key === 'z') {
+    event.preventDefault();
+    if (!$('undo').hidden) $('undo').click();
+  } else if (event.key === '?' || (event.shiftKey && event.key === '/')) {
+    event.preventDefault();
+    const details = $('keys-help')?.closest('details');
+    const more = details?.parentElement?.closest('details');
+    if (more) more.open = true;
+    if (details) details.open = true;
+    setStatus('Keyboard list open under More');
+  }
+});
+
+if ($('stage-frame')) $('stage-frame').dataset.format = format.id;
+refreshPhotoUi();
+
+/* Cold open: land on today’s ritual (postable, day-specific) without counting first_edit.
+   Strangers who only Share still ship something distinct; changing anything still fires first_edit. */
+if (!inbound && !fragmentHasState && !imageOnly) {
+  const ritual = todaysRitual();
+  applyLookFormatEffect(ritual.look, ritual.format, ritual.effect, ritual.sticker);
+  if ($('line')) {
+    $('line').value = capsOn ? ritual.line.toUpperCase() : ritual.line;
+    updateLineCount();
+  }
+  syncURL();
+  render();
+  afterStatePaint({ pulseFormat: true });
+  const lookName = LOOKS.find((option) => option.id === ritual.look)?.name || ritual.look;
+  setStatus('');
+  for (const id of ['surprise', 'ritual-today']) {
+    const chip = $(id);
+    if (chip) {
+      chip.classList.add('invite');
+      const clear = () => {
+        chip.classList.remove('invite');
+        chip.removeEventListener('click', clear);
+      };
+      chip.addEventListener('click', clear, { once: true });
+    }
+  }
+}
+
+/* Press-and-hold the stage to peek at the parent (Before) when a handoff exists. */
+(() => {
+  const frame = $('stage-frame');
+  if (!frame) return;
+  let holdTimer = 0;
+  let holding = false;
+  const clearHold = () => {
+    clearTimeout(holdTimer);
+    holdTimer = 0;
+    if (!holding) return;
+    holding = false;
+    viewMode = 'now';
+    syncDuetUi();
+    render();
+    setStatus('', { craft: true });
+  };
+  frame.addEventListener('pointerdown', (event) => {
+    if (event.button && event.button !== 0) return;
+    if (!relayBase() || viewMode === 'before') return;
+    holdTimer = setTimeout(() => {
+      holding = true;
+      viewMode = 'before';
+      syncDuetUi();
+      render();
+      setStatus('Showing before');
+    }, 320);
+  });
+  frame.addEventListener('pointerup', clearHold);
+  frame.addEventListener('pointercancel', clearHold);
+  frame.addEventListener('pointerleave', clearHold);
+})();
+
 render();
+afterStatePaint();
+trackStudio('open');
 })();

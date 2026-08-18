@@ -4,6 +4,7 @@
  */
 import {
   MINT,
+  PAIR,
   PIN,
   MAX_HISTORY,
   MAX_SOCKETS,
@@ -48,6 +49,7 @@ import {
   buildPublicBoard,
   joinBoard,
   leaveBoard,
+  creditDonate,
   meStatus,
   PUBLIC_BOARD_LIMIT,
   quizPublic,
@@ -84,17 +86,36 @@ import {
   LOBBY_CLIENT_JS,
   SIMP_BOARD_JS,
   STUDIO_CLIENT_JS,
+  STUDIO_CLIENT_SRI,
   FAUCET_CLIENT_JS,
   FAUCET_PAGE_HTML,
   X_CONNECT_JS,
   X_CONNECT_SRI,
   ROBOTS_TXT,
-  SITEMAP_XML,
+  SITEMAP_XML as GENERATED_SITEMAP_XML,
   HOWTO_HTML,
   CHESS_PAGE_HTML,
   LOBBY_PAGE_HTML,
   ASSET_HASH,
 } from './dasha-lobby-static-gen.mjs';
+
+/* assets-build overwrites static-gen sitemap; live-verify and disk SoR are this set. */
+const SITEMAP_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://www.getdasha.com/</loc></url>
+  <url><loc>https://www.getdasha.com/simp</loc></url>
+  <url><loc>https://www.getdasha.com/studio</loc></url>
+  <url><loc>https://www.getdasha.com/lobby</loc></url>
+  <url><loc>https://www.getdasha.com/dasha</loc></url>
+  <url><loc>https://www.getdasha.com/bounties</loc></url>
+  <url><loc>https://www.getdasha.com/how-to-buy</loc></url>
+  <url><loc>https://www.getdasha.com/privacy</loc></url>
+  <url><loc>https://www.getdasha.com/chess</loc></url>
+  <url><loc>https://lobby.getdasha.com/forum</loc></url>
+</urlset>
+`;
+void GENERATED_SITEMAP_XML;
+
 import {
   FAUCET_MINT,
   alreadyClaimedResponse,
@@ -104,17 +125,28 @@ import {
   claimAllowed,
   clearPendingClaim,
   destShapeError,
+  donateFailClosed,
+  donateSigError,
+  inspectDonateTx,
   faucetConfig,
   faucetSignerSecret,
   faucetSiwsInput,
+  FAUCET_SIWS_DOMAIN,
   meFromSession,
+  siwsMessageError,
   noteSuccessfulClaim,
   rateLimitStatusFields,
   recordClaim,
   reserveClaim,
 } from './dasha-faucet.mjs';
-import { publicKeyFromSecret, sendTipTransfer } from './dasha-faucet-solana.mjs';
+import { publicKeyFromSecret, rpc, sendTipTransfer } from './dasha-faucet-solana.mjs';
 import { handoffOgPng } from './dasha-handoff-og.mjs';
+import {
+  challengeRedirectPath,
+  quizRedirectPath,
+  simpPageHtml,
+  simpResultHtml,
+} from './dasha-simp-share-html.mjs';
 import {
   CHESS_CLOCK_MS,
   CHESS_INCREMENT_MS,
@@ -127,6 +159,20 @@ import {
   resignChess,
   settleChessRatings,
 } from './dasha-chess.mjs';
+import {
+  addReply,
+  assertWritable,
+  deletePost,
+  editPost,
+  lockThread,
+  newThread,
+  pruneIndex,
+  publicPost,
+  publicThread,
+  searchThreads,
+  validateReport,
+} from './dasha-forum.mjs';
+
 
 const SECURITY = {
   'Cache-Control': 'no-store',
@@ -181,6 +227,38 @@ export function ensureHtmlLang(html) {
     /\blang\s*=/i.test(attrs) ? tag : `<html lang="en"${attrs}>`);
 }
 
+/** Exact tags dasha-live-verify looks for. Webflow pages often omit them. */
+/** Designer chrome still links /graph, a page that 404s. Strip it at the edge so first-visit
+ *  HTML does not fail live-verify while the Webflow symbol is mid-claim. */
+export function stripDeadNav(html) {
+  return String(html || '').replace(/\s*<a\b[^>]*href="\/graph"[^>]*>[\s\S]*?<\/a>/gi, '');
+}
+
+export function ensureCanonical(html, pageUrl) {
+  if (!html || !pageUrl) return html;
+  let out = String(html);
+  if (!/rel=["']canonical["']/i.test(out)) {
+    const tag = `<link rel="canonical" href="${pageUrl}">`;
+    out = /<\/head>/i.test(out) ? out.replace(/<\/head>/i, `${tag}</head>`) : tag + out;
+  }
+  if (!/property=["']og:url["']/i.test(out)) {
+    const tag = `<meta property="og:url" content="${pageUrl}">`;
+    out = /<\/head>/i.test(out) ? out.replace(/<\/head>/i, `${tag}</head>`) : tag + out;
+  }
+  return out;
+}
+
+/**
+ * dasha-lobby-page.html is a Webflow embed fragment (no document chrome).
+ * Worker /lobby is a first-class page — without a <title>, browsers invent one
+ * from the leading <style> block (CSS leaking into the tab).
+ */
+export function asStandaloneLobbyPage(html) {
+  const src = String(html || '');
+  if (/<title[\s>]/i.test(src)) return src;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>$dasha lobby</title><meta name="description" content="Public chat for $dasha."><link rel="canonical" href="https://www.getdasha.com/lobby"><meta name="theme-color" content="#070608"></head><body>${src}</body></html>`;
+}
+
 function securityTxt(host) {
   return `Contact: https://github.com/Uuriko/dasha-desk/security/advisories/new\nExpires: 2027-08-01T00:00:00Z\nPreferred-Languages: en\nCanonical: https://${host}/.well-known/security.txt\nPolicy: https://github.com/Uuriko/dasha-desk/security/policy\n`;
 }
@@ -221,20 +299,25 @@ function corsHeaders(origin, { credentials = false } = {}) {
   if (!origin) return {};
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     ...(credentials ? { 'Access-Control-Allow-Credentials': 'true' } : {}),
     Vary: 'Origin',
   };
 }
 
-function json(body, status, origin, { credentials = false } = {}) {
+const PRICE_TTL_MS = 30_000;
+const PRICE_STALE_MS = 10 * 60_000;
+const PRICE_SERIES_TTL_MS = 5 * 60_000;
+
+function json(body, status, origin, { credentials = false, headers: extraHeaders = {} } = {}) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       ...SECURITY,
       ...corsHeaders(origin, { credentials }),
       'Content-Type': 'application/json; charset=utf-8',
+      ...extraHeaders,
     },
   });
 }
@@ -436,9 +519,16 @@ export function solanaRpcEndpoints(env = {}) {
     .map((value) => value.trim())
     .filter(Boolean);
   const configured = [...new Set([primary, ...extras].filter(Boolean))].slice(0, 3);
-  const endpoints = configured.length
-    ? configured
-    : ['https://solana-rpc.publicnode.com', 'https://api.mainnet-beta.solana.com'];
+  // Official mainnet-beta 403s Cloudflare IPs. These two answered getTokenAccountsByOwner
+  // from this host in 2026-08-18 probes; publicnode hangs or 403s.
+  const publicPool = [
+    'https://solana.leorpc.com/?api_key=FREE',
+    'https://api.mainnet.solana.com',
+    'https://api.mainnet-beta.solana.com',
+    'https://solana-rpc.publicnode.com',
+  ];
+  // Dedicated first, then public — a 429/abort on the paid URL must not skip free fallbacks.
+  const endpoints = [...new Set([...configured, ...publicPool])].slice(0, 6);
   if (endpoints.some((endpoint) => !endpoint.startsWith('https://'))) throw new Error('Solana RPC must use HTTPS');
   return endpoints;
 }
@@ -472,7 +562,9 @@ async function tokenBalanceRaw(env, owner, mint = FAUCET_MINT) {
   for (const endpoint of solanaRpcEndpoints(env)) {
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 10_000);
+      // Keep this short: a hanging dedicated RPC must leave time for public fallbacks
+      // inside the Worker/DO request budget. 10s * N endpoints impersonated an empty jar.
+      const timer = setTimeout(() => controller.abort(), 3_500);
       let response;
       try {
         response = await fetch(endpoint, {
@@ -490,8 +582,9 @@ async function tokenBalanceRaw(env, owner, mint = FAUCET_MINT) {
         clearTimeout(timer);
       }
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(`rpc http ${response.status}`);
-      if (data.error) throw new Error(String(data.error.message || data.error.code || 'rpc error'));
+      const host = (() => { try { return new URL(endpoint).host; } catch { return 'rpc'; } })();
+      if (!response.ok) throw new Error(`rpc http ${response.status} ${host}`);
+      if (data.error) throw new Error(`${data.error.message || data.error.code || 'rpc error'} ${host}`);
       // Missing/empty value ⇒ zero balance (treasury empty is fine).
       const rows = Array.isArray(data.result?.value)
         ? data.result.value
@@ -529,6 +622,17 @@ function htmlPage(title, body) {
 <style>body{font:16px/1.45 system-ui;background:#070608;color:#f4eddb;max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:#dfff00}code{color:#c8b6ff}</style>
 <body>${body}</body></html>`;
 }
+
+const NOT_FOUND_HTML = htmlPage('Not found — $dasha', `<h1>Not this page.</h1>
+<p>Studio, Simp Board, Desk, and how to buy live on getdasha.com. This URL is not one of them.</p>
+<p><code>53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump</code></p>
+<p><a href="https://www.getdasha.com/">Home</a> · <a href="https://www.getdasha.com/studio">Studio</a> · <a href="https://www.getdasha.com/simp">Simp</a> · <a href="https://www.getdasha.com/how-to-buy">How to buy</a></p>`);
+
+const BOUNTIES_HTML = htmlPage('Bounties — $dasha', `<h1>Bounties</h1>
+<p>USDC on Solana. We don’t hold it. A Pay button only appears when a listing names a payTo address.</p>
+<p>Current listings have no payTo — nothing to send.</p>
+<p><a href="https://github.com/Uuriko/dasha-desk/issues/8">dasha-desk#8</a> · 25 USDC</p>
+<p><a href="https://www.getdasha.com/">Home</a></p>`);
 
 const PRIVACY_HTML = htmlPage('Dasha privacy', `<h1>Privacy</h1>
 <p>Updated August 10, 2026.</p>
@@ -625,6 +729,163 @@ function oauthHtmlResponse(body, status) {
   });
 }
 
+const FORUM_PAGE_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forum — $dasha</title>
+<meta name="description" content="Long-form threads for $dasha. Link X to post.">
+<link rel="canonical" href="https://lobby.getdasha.com/forum">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lobby.getdasha.com/forum">
+<meta property="og:title" content="Forum — $dasha">
+<meta property="og:description" content="Longer than chat. Same rules as chat.">
+<meta property="og:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Forum — $dasha">
+<meta name="twitter:description" content="Longer than chat. Same rules as chat.">
+<meta name="twitter:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="getdasha">
+<meta property="og:url" content="https://lobby.getdasha.com/forum">
+<meta property="og:title" content="Forum — $dasha">
+<meta property="og:description" content="Long-form threads for $dasha. Link X to post.">
+<meta property="og:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Forum — $dasha">
+<meta name="twitter:description" content="Long-form threads for $dasha. Link X to post.">
+<meta name="twitter:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
+<link rel="icon" href="https://cdn.prod.website-files.com/5f1458122ba25e70a3ff2bd0/6a767a48e1dd29d210f01235_dasha-icon-32.png">
+<style>
+:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--muted:#e6dcc4;--line:rgba(244,237,219,.32)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ink);color:var(--paper);font-family:Arial,Helvetica,sans-serif;line-height:1.5}
+.wrap{width:min(760px,calc(100% - 32px));margin:0 auto;padding:20px 0 64px}
+a{color:var(--paper)}
+.top{display:flex;align-items:center;gap:16px;border-bottom:1px solid var(--line);padding:8px 0;flex-wrap:wrap}
+.brand{margin-right:auto;min-height:44px;display:inline-flex;align-items:center;font-weight:900;font-size:17px;letter-spacing:-.03em;text-transform:uppercase;text-decoration:none}
+.brand span{color:var(--acid)}
+.top a:not(.brand){min-height:44px;display:inline-flex;align-items:center;font-size:12px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;text-decoration:none}
+h1{font-size:clamp(28px,6vw,44px);line-height:.9;letter-spacing:-.04em;text-transform:uppercase;margin:18px 0 4px}
+.lede{color:var(--muted);margin:0 0 20px}
+button{font:inherit;font-weight:900;min-height:44px;padding:0 16px;border:1px solid var(--paper);background:transparent;color:var(--paper);cursor:pointer;text-transform:uppercase;letter-spacing:.06em;font-size:12px}
+button.primary{background:var(--acid);color:var(--ink);border-color:var(--acid)}
+button[disabled]{opacity:.55;cursor:not-allowed}
+input,textarea{font:inherit;width:100%;background:#0d0b0f;color:var(--paper);border:1px solid var(--line);padding:10px;min-height:44px}
+textarea{min-height:120px;resize:vertical}
+label{display:block;font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:14px 0 4px}
+.thread{display:block;width:100%;text-align:left;border:1px solid var(--line);padding:12px;margin:0 0 8px;background:transparent;min-height:44px;text-transform:none;letter-spacing:0;font-size:16px}
+.thread .meta{display:block;color:var(--muted);font-size:12px;font-weight:400;margin-top:4px;text-transform:none;letter-spacing:0}
+.post{border-left:3px solid var(--line);padding:8px 0 8px 12px;margin:0 0 14px}
+.post .who{font-weight:900;font-size:13px}
+.post .when{color:var(--muted);font-size:12px}
+.post p{margin:6px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.note{border-left:4px solid var(--acid);background:rgba(223,255,0,.1);padding:10px 12px;margin:14px 0;font-weight:800}
+[hidden]{display:none!important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style></head><body>
+<div class="wrap">
+<div class="top"><a class="brand" href="https://www.getdasha.com/">$<span>dasha</span></a>
+<a href="https://www.getdasha.com/lobby">Lobby</a><a href="https://lobby.getdasha.com/chess">Chess</a>
+<a href="https://www.getdasha.com/">Home</a></div>
+<h1>Forum</h1>
+<p class="lede">Official $dasha room. No Telegram. No Discord. Longer than chat. Same rules as chat.</p>
+<div id="say" class="note" role="status" aria-live="polite" hidden></div>
+
+<main id="list-view">
+  <button class="primary" id="new-toggle" aria-expanded="false" aria-controls="new-form">Start a thread</button>
+  <form id="new-form" hidden>
+    <label for="new-title">Title</label><input id="new-title" maxlength="80" required>
+    <label for="new-text">Opening post</label><textarea id="new-text" maxlength="2000" required></textarea>
+    <p><button class="primary" type="submit" id="new-submit">Post thread</button>
+    <button type="button" id="new-cancel">Cancel</button></p>
+  </form>
+  <h2 class="sr">Threads</h2>
+  <div id="threads" aria-busy="true">Loading threads…</div>
+</main>
+
+<main id="thread-view" hidden>
+  <button id="back">← All threads</button>
+  <button type="button" id="copy-link">Copy link</button>
+  <h2 id="thread-title"></h2>
+  <div id="posts"></div>
+  <form id="reply-form">
+    <label for="reply-text">Reply</label><textarea id="reply-text" maxlength="2000" required></textarea>
+    <p><button class="primary" type="submit" id="reply-submit">Post reply</button></p>
+  </form>
+</main>
+</div>
+<script>
+(function(){
+var API='https://lobby.getdasha.com';
+var $=function(id){return document.getElementById(id)};
+var openId=null;
+function say(msg,ok){var s=$('say');if(!msg){s.hidden=true;return}s.hidden=false;s.textContent=msg;s.style.borderLeftColor=ok?'#dfff00':'#ff3b81'}
+function api(path,opts){return fetch(API+path,Object.assign({credentials:'include',headers:{'Content-Type':'application/json'}},opts||{}))
+  .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,data:d}})})}
+function when(ts){var d=new Date(Number(ts));return isNaN(d)?'':d.toISOString().slice(0,16).replace('T',' ')+' UTC'}
+function esc(s){var n=document.createElement('div');n.textContent=String(s==null?'':s);return n.innerHTML}
+function fail(res){ if(res.status===401){say('Link X in the lobby before posting.');return} say((res.data&&res.data.error)||'That did not go through.') }
+function threadQuery(){try{return String(new URLSearchParams(location.search).get('t')||'').trim()}catch(e){return ''}}
+function setThreadQuery(id){try{var u=new URL(location.href);if(id)u.searchParams.set('t',id);else u.searchParams.delete('t');history.replaceState(null,'',u.pathname+u.search+u.hash)}catch(e){}}
+function threadUrl(id){return 'https://lobby.getdasha.com/forum?t='+encodeURIComponent(id)}
+function linkCopiedOk(got,want){return String(got||'').replace(/\s+/g,'')===String(want||'')}
+
+function renderThreads(list){
+  var box=$('threads');box.setAttribute('aria-busy','false');
+  if(!list.length){box.textContent='No threads yet. Start the first one.';return}
+  box.innerHTML=list.map(function(t){
+    return '<button class="thread" data-id="'+esc(t.id)+'">'+esc(t.title)+
+      '<span class="meta">@'+esc(t.handle)+' · '+t.replies+' repl'+(t.replies===1?'y':'ies')+' · '+when(t.lastTs)+'</span></button>'}).join('');
+  Array.prototype.forEach.call(box.querySelectorAll('.thread'),function(b){
+    b.addEventListener('click',function(){openThread(b.dataset.id)})});
+}
+function loadThreads(){say('');return api('/forum/threads').then(function(res){
+  if(!res.ok)return fail(res); renderThreads(res.data.threads||[])}).catch(function(){$('threads').textContent='Could not reach the forum.'})}
+
+function openThread(id){
+  return api('/forum/thread/'+encodeURIComponent(id)).then(function(res){
+    if(!res.ok)return fail(res);
+    openId=id;
+    setThreadQuery(id);
+    $('list-view').hidden=true;$('thread-view').hidden=false;
+    $('thread-title').textContent=res.data.thread.title;
+    $('posts').innerHTML=(res.data.posts||[]).map(function(p){
+      return '<div class="post"><div class="who">@'+esc(p.handle)+' <span class="when">'+when(p.ts)+'</span></div><p>'+esc(p.text)+'</p></div>'}).join('');
+    $('thread-title').focus();
+  })
+}
+$('back').addEventListener('click',function(){openId=null;setThreadQuery('');$('thread-view').hidden=true;$('list-view').hidden=false;loadThreads()});
+$('copy-link').addEventListener('click',function(){
+  if(!openId)return;
+  var b=$('copy-link'),want=threadUrl(openId),label=b.textContent;
+  var done=function(t){b.textContent=t;setTimeout(function(){b.textContent=label},1800)};
+  if(!navigator.clipboard||!navigator.clipboard.writeText){done('Select');return}
+  navigator.clipboard.writeText(want).then(function(){
+    if(!navigator.clipboard.readText){done('Copied');return}
+    return navigator.clipboard.readText().then(function(got){done(linkCopiedOk(got,want)?'Copied':'Select')});
+  }).catch(function(){done('Select')});
+});
+$('new-toggle').addEventListener('click',function(){
+  var open=$('new-form').hidden; $('new-form').hidden=!open; this.setAttribute('aria-expanded',String(open));
+  if(open)$('new-title').focus()});
+$('new-cancel').addEventListener('click',function(){$('new-form').hidden=true;$('new-toggle').setAttribute('aria-expanded','false');$('new-toggle').focus()});
+$('new-form').addEventListener('submit',function(e){e.preventDefault();
+  var b=$('new-submit');b.disabled=true;
+  api('/forum/threads',{method:'POST',body:JSON.stringify({title:$('new-title').value,text:$('new-text').value})})
+    .then(function(res){ if(!res.ok)return fail(res);
+      $('new-title').value='';$('new-text').value='';$('new-form').hidden=true;
+      $('new-toggle').setAttribute('aria-expanded','false'); say('Thread posted.',true); return loadThreads()})
+    .catch(function(){say('That did not go through.')})
+    .then(function(){b.disabled=false})});
+$('reply-form').addEventListener('submit',function(e){e.preventDefault();
+  if(!openId)return; var b=$('reply-submit');b.disabled=true;
+  api('/forum/thread/'+encodeURIComponent(openId),{method:'POST',body:JSON.stringify({text:$('reply-text').value})})
+    .then(function(res){ if(!res.ok)return fail(res); $('reply-text').value='';say('Reply posted.',true); return openThread(openId)})
+    .catch(function(){say('That did not go through.')})
+    .then(function(){b.disabled=false})});
+loadThreads().then(function(){var t=threadQuery();if(t)openThread(t)});
+})();
+</script></body></html>`;
+
 export class DashaLobby {
   constructor(state, env) {
     this.state = state;
@@ -653,6 +914,8 @@ export class DashaLobby {
     this.simpReferralMetrics = { since: Date.now(), claims: 0, claimRejects: 0, expirations: 0, activations: 0, cappedActivations: 0, contributions: 0, invalidations: 0, organicEnrollments: 0, referredEnrollments: 0, organicReturns: 0, referredReturns: 0 };
     this.simpSeasons = {};
     this.chessGames = {};
+    this.forumIndex = [];
+    this.forumReports = [];
     this.chessRatings = {};
     this.chessCurrent = {};
     this.chessQueue = [];
@@ -680,6 +943,16 @@ export class DashaLobby {
           if (row?.key && row.until > now) this.mutes.set(row.key, row.until);
         }
       }
+      const forumIndex = await this.state.storage.get('forum:index');
+      if (Array.isArray(forumIndex)) {
+        this.forumIndex = pruneIndex(forumIndex, Date.now());
+        const live = new Set(this.forumIndex.map((t) => t.id));
+        for (const key of (await this.state.storage.list({ prefix: 'forum:t:' })).keys()) {
+          if (!live.has(key.slice('forum:t:'.length))) await this.state.storage.delete(key);
+        }
+      }
+      const forumReports = await this.state.storage.get('forum:reports');
+      if (Array.isArray(forumReports)) this.forumReports = forumReports.slice(0, 100);
       const flags = await this.state.storage.get('flags');
       if (flags && typeof flags === 'object') {
         this.shield = Boolean(flags.shield);
@@ -1147,17 +1420,24 @@ export class DashaLobby {
     }
 
     if (path.startsWith('/simp/r/') && (request.method === 'GET' || request.method === 'HEAD')) {
-      const id = path.slice('/simp/r/'.length);
+      const id = path.slice('/simp/r/'.length).replace(/\/$/, '');
       const result = this.simpQuizResults[id];
       const headOnly = request.method === 'HEAD';
       if (!result) return new Response(headOnly ? null : 'Result not found', { status: 404, headers: SECURITY });
       const title = storedQuizTitle(result.title, result.correct, result.total);
-      const identity = `Beat ${result.correct}/${result.total} · ${title}`;
-      const description = `${result.correct}/${result.total} on the Dasha simp quiz. Beat this score.`;
-      const resultUrl = `https://lobby.getdasha.com/simp/r/${id}`;
-      const imageUrl = 'https://lobby.getdasha.com/simp/card/quiz.png';
-      const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${identity}</title><link rel="canonical" href="${resultUrl}"><meta property="og:type" content="website"><meta property="og:site_name" content="getdasha"><meta property="og:url" content="${resultUrl}"><meta property="og:title" content="${identity}"><meta property="og:description" content="${description}"><meta property="og:image" content="${imageUrl}"><meta property="og:image:secure_url" content="${imageUrl}"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="628"><meta property="og:image:alt" content="Dasha simp quiz"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${identity}"><meta name="twitter:description" content="${description}"><meta name="twitter:image" content="${imageUrl}"><meta name="twitter:image:alt" content="Dasha simp quiz"><style>body{margin:0;background:#070608;color:#f4eddb;font:20px/1.4 system-ui;display:grid;place-items:center;min-height:100vh}.r{max-width:36rem;padding:32px}h1{font-size:clamp(42px,9vw,76px);line-height:.95}b{color:#dfff00}a{display:inline-block;background:#dfff00;color:#070608;padding:14px 20px;font-weight:900;text-decoration:none}</style></head><body><main class="r"><b>DASHA SIMP QUIZ</b><h1>${result.correct}/${result.total}<br>${title}</h1><p>${description}</p><a href="https://www.getdasha.com/?challenge=${id}#simp">Beat this score</a></main></body></html>`;
-      return new Response(headOnly ? null : html, { headers: htmlHeaders({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' }) });
+      let html;
+      try {
+        html = simpResultHtml({ id, title, correct: result.correct, total: result.total });
+      } catch {
+        return new Response(headOnly ? null : 'Result not found', { status: 404, headers: SECURITY });
+      }
+      return new Response(headOnly ? null : html, {
+        headers: htmlHeaders({
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=300',
+          'X-Dasha-Edge': 'simp-share',
+        }),
+      });
     }
 
     if (path === '/simp/board' && request.method === 'GET') {
@@ -1345,6 +1625,35 @@ export class DashaLobby {
         quiz: this.simpProfiles[xId].quiz,
         resultUrl: result.quiz.resultUrl,
         ...meStatus(this.simpProfiles, session),
+      }, 200, allowedOrigin, cred);
+    }
+
+    if (path === '/simp/internal/donate' && request.method === 'POST') {
+      const secret = request.headers.get('x-dasha-internal') || '';
+      if (!this.env.LOBBY_SESSION_SECRET || secret !== String(this.env.LOBBY_SESSION_SECRET)) {
+        return json({ error: 'forbidden' }, 403, allowedOrigin, cred);
+      }
+      const input = await requestJson(request);
+      const session = {
+        xId: input?.xId,
+        handle: input?.handle,
+        avatar: input?.avatar,
+        verifiedType: input?.verifiedType,
+      };
+      const result = creditDonate(this.simpProfiles, session, {
+        signature: input?.signature,
+        amountRaw: input?.amountRaw,
+        at: input?.at,
+        proven: input?.proven === true,
+      });
+      if (!result.ok) return json({ ok: false, awarded: false, error: result.error }, 200, allowedOrigin, cred);
+      this.simpProfiles = result.store;
+      await this.persistSimpState();
+      return json({
+        ok: true,
+        awarded: true,
+        points: result.points,
+        donate: result.donate,
       }, 200, allowedOrigin, cred);
     }
 
@@ -2148,6 +2457,264 @@ export class DashaLobby {
     return null;
   }
 
+  /**
+   * One Gecko/Dexscreener fetch per TTL for the whole site. Lives on the lobby DO so
+   * isolates cannot stampede the free API. Failure never invents a number.
+   */
+  async handlePrice(request, allowedOrigin) {
+    const now = Date.now();
+    if (!this.priceCache) this.priceCache = await this.state.storage.get('priceCache') || { at: 0, body: null };
+    const dueForRefresh = !this.priceCache.body || now - this.priceCache.at > PRICE_TTL_MS;
+    const mayAttempt = now - (this.priceAttemptAt || 0) > PRICE_TTL_MS;
+    if (dueForRefresh && mayAttempt) {
+      this.priceAttemptAt = now;
+      try {
+        const base = `https://api.geckoterminal.com/api/v2/networks/solana/pools/${PAIR}`;
+        const opts = { signal: AbortSignal.timeout(6000), headers: { accept: 'application/json', 'user-agent': 'dasha-lobby' } };
+        const previous = this.priceCache.body;
+        let a = null;
+        let snapSource = null;
+        let snapError = '';
+        try {
+          const snapRes = await fetch(base, opts);
+          if (snapRes.ok) {
+            const attrs = (await snapRes.json())?.data?.attributes;
+            if (attrs?.base_token_price_usd) {
+              a = {
+                priceUsd: Number(attrs.base_token_price_usd),
+                fdvUsd: Number(attrs.fdv_usd) || null,
+                volume24hUsd: Number(attrs.volume_usd?.h24) || null,
+                liquidityUsd: Number(attrs.reserve_in_usd) || null,
+                change: { h1: Number(attrs.price_change_percentage?.h1), h24: Number(attrs.price_change_percentage?.h24) },
+              };
+              snapSource = 'geckoterminal';
+            }
+          } else snapError = `pool ${snapRes.status}`;
+        } catch (e) { snapError = `pool ${String(e?.message || e).slice(0, 40)}`; }
+
+        if (!a) {
+          const dexRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${MINT}`, opts);
+          if (!dexRes.ok) throw new Error(`${snapError || 'pool unavailable'}; dex ${dexRes.status}`);
+          const pair = ((await dexRes.json())?.pairs || []).find((row) => row?.pairAddress === PAIR);
+          if (!pair?.priceUsd) throw new Error(`${snapError || 'pool unavailable'}; dex has no ${PAIR}`);
+          a = {
+            priceUsd: Number(pair.priceUsd),
+            fdvUsd: Number(pair.fdv) || null,
+            volume24hUsd: Number(pair.volume?.h24) || null,
+            liquidityUsd: Number(pair.liquidity?.usd) || null,
+            change: { h1: Number(pair.priceChange?.h1), h24: Number(pair.priceChange?.h24) },
+          };
+          snapSource = 'dexscreener';
+        }
+        if (!Number.isFinite(a.priceUsd) || a.priceUsd <= 0) throw new Error('no usable price');
+
+        let series = previous?.series || [];
+        if (!series.length || now - (this.seriesAt || 0) > PRICE_SERIES_TTL_MS) {
+          try {
+            const ohlcvRes = await fetch(`${base}/ohlcv/minute?aggregate=5&limit=288`, opts);
+            if (ohlcvRes.ok) {
+              const rows = (await ohlcvRes.json())?.data?.attributes?.ohlcv_list;
+              if (Array.isArray(rows) && rows.length) {
+                series = rows
+                  .map((row) => [Number(row[0]), Number(Number(row[4]).toPrecision(6))])
+                  .filter((point) => Number.isFinite(point[0]) && Number.isFinite(point[1]) && point[1] > 0)
+                  .sort((x, y) => x[0] - y[0]);
+                this.seriesAt = now;
+              }
+            }
+          } catch { /* keep previous series */ }
+        }
+        if (!series.length) throw new Error('no series yet');
+
+        this.priceCache = {
+          at: now,
+          body: {
+            ok: true,
+            mint: MINT,
+            pair: PAIR,
+            priceUsd: a.priceUsd,
+            fdvUsd: a.fdvUsd,
+            volume24hUsd: a.volume24hUsd,
+            liquidityUsd: a.liquidityUsd,
+            change: a.change,
+            series,
+            seriesAsOf: new Date(this.seriesAt || now).toISOString(),
+            source: snapSource,
+            asOf: new Date(now).toISOString(),
+          },
+        };
+        this.priceError = null;
+        await this.state.storage.put('priceCache', this.priceCache);
+      } catch (err) {
+        this.priceError = String(err?.message || err).slice(0, 120);
+        if (!this.priceCache.body || now - this.priceCache.at > PRICE_STALE_MS) {
+          return json({ ok: false, error: 'price unavailable', reason: this.priceError }, 503, allowedOrigin || '*');
+        }
+      }
+    }
+    if (this.priceCache.body) {
+      const age = now - this.priceCache.at;
+      this.priceCache.body = age > PRICE_TTL_MS
+        ? { ...this.priceCache.body, stale: true, staleForMs: age, reason: this.priceError || null }
+        : { ...this.priceCache.body, stale: false, staleForMs: undefined, reason: undefined };
+    }
+    return json(this.priceCache.body, 200, allowedOrigin || '*', {
+      headers: { 'Cache-Control': `public, max-age=${Math.floor(PRICE_TTL_MS / 1000)}` },
+    });
+  }
+
+  forumKey(id) {
+    return `forum:t:${id}`;
+  }
+
+  async forumThreadPosts(id) {
+    const posts = await this.state.storage.get(this.forumKey(id));
+    return Array.isArray(posts) ? posts : null;
+  }
+
+  /** Write the index, and delete the post keys the prune orphaned in the same breath. */
+  async persistForumIndex(evicted = []) {
+    await this.state.storage.put('forum:index', this.forumIndex);
+    for (const id of evicted) await this.state.storage.delete(this.forumKey(id));
+  }
+
+  /** Ids dropped from the index by a prune, so their posts can go too. */
+  forumPrune(next, now) {
+    const before = new Set(this.forumIndex.map((t) => t.id));
+    this.forumIndex = pruneIndex(next, now);
+    const after = new Set(this.forumIndex.map((t) => t.id));
+    return [...before].filter((id) => !after.has(id));
+  }
+
+  /**
+   * Threads and replies. Every rule the chat enforces applies here — validateTitle/validateBody in
+   * dasha-forum.mjs delegate to the same validateMessage the socket path uses, so the forum cannot
+   * become the door around the automod. Identity comes from the session cookie, never the body.
+   */
+  async handleForum(request, allowedOrigin) {
+    const url = new URL(request.url);
+    const path = url.pathname.replace(/\/$/, '');
+    const cred = { credentials: true };
+    const session = await sessionFromRequest(this.env, request);
+    const xId = session?.xId ? String(session.xId) : '';
+    const handle = session?.handle || '';
+    const avatar = session?.avatar || null;
+    const now = Date.now();
+
+    if (request.method !== 'GET' && !allowedOrigin) return json({ error: 'origin required' }, 403, null);
+
+    if (path === '/forum/threads' && request.method === 'GET') {
+      const evicted = this.forumPrune(this.forumIndex, now);
+      if (evicted.length) await this.persistForumIndex(evicted);
+      const q = url.searchParams.get('q') || '';
+      const list = q ? searchThreads(this.forumIndex, q) : this.forumIndex;
+      return json({ ok: true, threads: list.map(publicThread) }, 200, allowedOrigin, cred);
+    }
+
+    if (path === '/forum/threads' && request.method === 'POST') {
+      if (!xId) return json({ error: 'link X first' }, 401, allowedOrigin, cred);
+      const rate = simpRate(this.simpRates, `forum-post:x:${xId}`, 20);
+      if (!rate.ok) return json({ error: 'posting too fast', waitMs: rate.waitMs }, 429, allowedOrigin, cred);
+      const input = await requestJson(request);
+      const id = `t${now.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+      const created = newThread({ title: input?.title, text: input?.text, handle, avatar, now, id });
+      if (!created.ok) return json({ error: created.error }, 400, allowedOrigin, cred);
+      const evicted = this.forumPrune([created.summary, ...this.forumIndex], now);
+      await this.state.storage.put(this.forumKey(id), created.posts);
+      await this.persistForumIndex(evicted);
+      return json({ ok: true, thread: publicThread(created.summary) }, 200, allowedOrigin, cred);
+    }
+
+    const threadMatch = path.match(/^\/forum\/thread\/([A-Za-z0-9_-]{1,40})$/);
+    if (threadMatch) {
+      const id = threadMatch[1];
+      const summary = this.forumIndex.find((t) => t.id === id);
+      const posts = summary ? await this.forumThreadPosts(id) : null;
+      if (!summary || !posts) return json({ error: 'thread not found' }, 404, allowedOrigin, cred);
+
+      if (request.method === 'GET') {
+        return json({ ok: true, thread: publicThread(summary), posts: posts.map(publicPost) }, 200, allowedOrigin, cred);
+      }
+      if (request.method === 'POST') {
+        if (!xId) return json({ error: 'link X first' }, 401, allowedOrigin, cred);
+        const writable = assertWritable(summary);
+        if (!writable.ok) return json({ error: writable.error }, 403, allowedOrigin, cred);
+        const rate = simpRate(this.simpRates, `forum-post:x:${xId}`, 20);
+        if (!rate.ok) return json({ error: 'posting too fast', waitMs: rate.waitMs }, 429, allowedOrigin, cred);
+        const input = await requestJson(request);
+        const replied = addReply(posts, { text: input?.text, handle, avatar, now, id: `${id}-${posts.length}` });
+        if (!replied.ok) return json({ error: replied.error }, 400, allowedOrigin, cred);
+        posts.push(replied.post);
+        summary.replies = posts.length - 1;
+        summary.lastTs = now;
+        /* Posts first: if the index write fails the thread still has the reply, which is recoverable.
+           The other order can acknowledge a post that was never stored. */
+        await this.state.storage.put(this.forumKey(id), posts);
+        const evicted = this.forumPrune(this.forumIndex, now);
+        await this.persistForumIndex(evicted);
+        return json({ ok: true, post: publicPost(replied.post) }, 200, allowedOrigin, cred);
+      }
+    }
+
+    const postMatch = path.match(/^\/forum\/thread\/([A-Za-z0-9_-]{1,40})\/post\/([A-Za-z0-9_-]{1,48})$/);
+    if (postMatch) {
+      const id = postMatch[1];
+      const postId = postMatch[2];
+      const summary = this.forumIndex.find((t) => t.id === id);
+      const posts = summary ? await this.forumThreadPosts(id) : null;
+      if (!summary || !posts) return json({ error: 'thread not found' }, 404, allowedOrigin, cred);
+      if (!xId) return json({ error: 'link X first' }, 401, allowedOrigin, cred);
+      if (request.method === 'PATCH') {
+        const writable = assertWritable(summary);
+        if (!writable.ok) return json({ error: writable.error }, 403, allowedOrigin, cred);
+        const rate = simpRate(this.simpRates, `forum-post:x:${xId}`, 20);
+        if (!rate.ok) return json({ error: 'posting too fast', waitMs: rate.waitMs }, 429, allowedOrigin, cred);
+        const input = await requestJson(request);
+        const edited = editPost(posts, { id: postId, text: input?.text, handle, now });
+        if (!edited.ok) return json({ error: edited.error }, 400, allowedOrigin, cred);
+        await this.state.storage.put(this.forumKey(id), edited.posts);
+        return json({ ok: true, post: publicPost(edited.post) }, 200, allowedOrigin, cred);
+      }
+      if (request.method === 'DELETE') {
+        const removed = deletePost(posts, { id: postId, handle });
+        if (!removed.ok) return json({ error: removed.error }, 400, allowedOrigin, cred);
+        await this.state.storage.put(this.forumKey(id), removed.posts);
+        return json({ ok: true, post: publicPost(removed.post) }, 200, allowedOrigin, cred);
+      }
+    }
+
+    const lockMatch = path.match(/^\/forum\/thread\/([A-Za-z0-9_-]{1,40})\/lock$/);
+    if (lockMatch && request.method === 'POST') {
+      if (!modAllowed(request, this.env)) return json({ error: 'mod denied' }, 403, allowedOrigin, cred);
+      const id = lockMatch[1];
+      const summary = this.forumIndex.find((t) => t.id === id);
+      const locked = lockThread(summary, { locked: true });
+      if (!locked.ok) return json({ error: locked.error }, 404, allowedOrigin, cred);
+      Object.assign(summary, locked.summary);
+      await this.persistForumIndex([]);
+      return json({ ok: true, thread: publicThread(summary) }, 200, allowedOrigin, cred);
+    }
+
+    const reportMatch = path.match(/^\/forum\/thread\/([A-Za-z0-9_-]{1,40})\/report$/);
+    if (reportMatch && request.method === 'POST') {
+      if (!xId) return json({ error: 'link X first' }, 401, allowedOrigin, cred);
+      const id = reportMatch[1];
+      const summary = this.forumIndex.find((t) => t.id === id);
+      if (!summary) return json({ error: 'thread not found' }, 404, allowedOrigin, cred);
+      const input = await requestJson(request);
+      const reason = validateReport(input?.reason);
+      if (!reason.ok) return json({ error: reason.error }, 400, allowedOrigin, cred);
+      const postId = String(input?.postId || '').slice(0, 48);
+      const reports = Array.isArray(this.forumReports) ? this.forumReports : [];
+      reports.unshift({ id, postId, reason: reason.reason, by: handle, ts: now });
+      this.forumReports = reports.slice(0, 100);
+      await this.state.storage.put('forum:reports', this.forumReports);
+      return json({ ok: true }, 200, allowedOrigin, cred);
+    }
+
+    return json({ error: 'not found' }, 404, allowedOrigin, cred);
+  }
+
   rejectWs(code, reason) {
     const pair = new WebSocketPair();
     const client = pair[0];
@@ -2165,11 +2732,16 @@ export class DashaLobby {
     if (request.method === 'GET' && url.pathname === '/stats') {
       return json(this.roomStats(), 200, null);
     }
+    if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/price') {
+      const origin = request.headers.get('Origin');
+      return this.handlePrice(request, origin && originAllowed(origin, this.env.ALLOWED_ORIGINS || '') ? origin : null);
+    }
 
     if (
       url.pathname.startsWith('/simp/') ||
       url.pathname.startsWith('/studio/') ||
       url.pathname.startsWith('/chess/') ||
+      url.pathname.startsWith('/forum/') ||
       url.pathname.startsWith('/h/')
     ) {
       // Origin already checked by worker entry; pass through for CORS on stub responses.
@@ -2180,7 +2752,9 @@ export class DashaLobby {
           : this.env.ALLOW_ANY_ORIGIN
             ? origin || '*'
             : null;
-      return url.pathname.startsWith('/chess/') ? this.handleChess(request, allowedOrigin) : this.handleSimp(request, allowedOrigin);
+      if (url.pathname.startsWith('/chess/')) return this.handleChess(request, allowedOrigin);
+      if (url.pathname.startsWith('/forum/')) return this.handleForum(request, allowedOrigin);
+      return this.handleSimp(request, allowedOrigin);
     }
 
     const upgrade = request.headers.get('Upgrade') || '';
@@ -2587,10 +3161,10 @@ const RETIRED_SEO_PATHS = new Set([
 /** Product hosts (www/apex) only serve SEO/howto; everything else goes to Webflow origin. */
 async function productEdge(request, url, env) {
   if ((request.method === 'GET' || request.method === 'HEAD') && RETIRED_COMMERCE_PATHS.has(url.pathname)) {
-    return new Response(request.method === 'HEAD' ? null : 'Not found', {
+    return new Response(request.method === 'HEAD' ? null : NOT_FOUND_HTML, {
       status: 404,
       headers: htmlHeaders({
-        'Content-Type': 'text/plain; charset=utf-8',
+        'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'public, max-age=300',
         'X-Robots-Tag': 'noindex, nofollow',
         'X-Dasha-Edge': 'retired-commerce',
@@ -2621,6 +3195,52 @@ async function productEdge(request, url, env) {
       },
     });
   }
+  if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/' || url.pathname === '')) {
+    const dest = challengeRedirectPath(url.searchParams);
+    if (dest) return Response.redirect(`https://www.getdasha.com${dest}`, 308);
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/quiz' || url.pathname === '/quiz/')) {
+    return Response.redirect(`https://www.getdasha.com${quizRedirectPath()}`, 308);
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/simp' || url.pathname === '/simp/')) {
+    return new Response(request.method === 'HEAD' ? null : simpPageHtml(), {
+      status: 200,
+      headers: htmlHeaders({
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'public, max-age=120',
+        'X-Dasha-Edge': 'simp',
+      }),
+    });
+  }
+  const shareMatch = url.pathname.match(/^\/simp\/r\/([^/]+)\/?$/);
+  if ((request.method === 'GET' || request.method === 'HEAD') && shareMatch) {
+    const id = shareMatch[1];
+    try {
+      const stub = env?.LOBBY?.get(env.LOBBY.idFromName('public'));
+      if (!stub) return new Response(request.method === 'HEAD' ? null : 'Result not found', { status: 404, headers: SECURITY });
+      const look = await stub.fetch(new Request(`https://lobby.getdasha.com/simp/result/${encodeURIComponent(id)}`));
+      if (!look.ok) return new Response(request.method === 'HEAD' ? null : 'Result not found', { status: 404, headers: SECURITY });
+      const data = await look.json();
+      const result = data?.result;
+      if (!result) return new Response(request.method === 'HEAD' ? null : 'Result not found', { status: 404, headers: SECURITY });
+      const html = simpResultHtml({
+        id,
+        title: result.title,
+        correct: result.correct,
+        total: result.total,
+      });
+      return new Response(request.method === 'HEAD' ? null : html, {
+        status: 200,
+        headers: htmlHeaders({
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=300',
+          'X-Dasha-Edge': 'simp-share',
+        }),
+      });
+    } catch {
+      return new Response(request.method === 'HEAD' ? null : 'Result not found', { status: 404, headers: SECURITY });
+    }
+  }
   if (
     (request.method === 'GET' || request.method === 'HEAD') &&
     (url.pathname === '/how-to-buy' || url.pathname === '/how-to-buy/')
@@ -2635,12 +3255,33 @@ async function productEdge(request, url, env) {
     });
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/lobby' || url.pathname === '/lobby/')) {
-    return new Response(request.method === 'HEAD' ? null : injectXConnectPrompt(LOBBY_PAGE_HTML), {
+    return new Response(request.method === 'HEAD' ? null : injectXConnectPrompt(asStandaloneLobbyPage(LOBBY_PAGE_HTML)), {
       status: 200,
       headers: htmlHeaders({
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'public, max-age=120',
         'X-Dasha-Edge': 'lobby-page',
+      }),
+    });
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/privacy' || url.pathname === '/privacy/')) {
+    return new Response(request.method === 'HEAD' ? null : PRIVACY_HTML, {
+      status: 200,
+      headers: htmlHeaders({
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'public, max-age=300',
+        'X-Dasha-Edge': 'privacy',
+      }),
+    });
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/studio' || url.pathname === '/studio/')) {
+    const studioHtml = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dasha Meme Studio</title><link rel="canonical" href="https://www.getdasha.com/studio"><meta property="og:url" content="https://www.getdasha.com/studio"><meta name="theme-color" content="#070608"><style>@view-transition { navigation: auto; }</style></head><body style="margin:0;background:#070608"><div class="dasha-studio-embed" style="display:block;min-height:100vh;background:#070608"><div class="dasha-studio-shell" data-studio-shell style="box-sizing:border-box;margin:0 auto;padding:28px 16px 40px;max-width:40rem;color:#f4eddb;font:16px/1.45 Arial,Helvetica,sans-serif;background:#070608"><p style="margin:0 0 8px;font-size:12px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:#dfff00">Dasha Meme Studio</p><h1 style="margin:0 0 14px;font-size:clamp(28px,6vw,42px);line-height:1;font-weight:900;letter-spacing:-.04em;text-transform:uppercase">Make one. Pass it on.</h1><p style="margin:0 0 16px;color:#e6dcc4">Six looks · square, story, banner · PNG + GIF · no wallet, no account, nothing uploaded. Runs in your browser.</p><p style="margin:0 0 8px;font-size:13px;word-break:break-all"><span style="color:#dfff00;font-weight:900">CA</span> 53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump</p><p style="margin:0;font-size:13px"><a href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" style="color:#dfff00;font-weight:900" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a> · <a href="/" style="color:#f4eddb;font-weight:800">Home</a></p><p style="margin:18px 0 0;font-size:13px;color:#e6dcc4">Loading studio…</p><p style="margin:12px 0 0;font-size:12px;color:#e6dcc4;max-width:42ch">CC0 for what you make here, except Dasha's name or likeness which stays hers.</p></div></div><script src="https://lobby.getdasha.com/client/studio.js" integrity="${STUDIO_CLIENT_SRI}" crossorigin="anonymous"></script></body></html>`;
+    return new Response(request.method === 'HEAD' ? null : studioHtml, {
+      status: 200,
+      headers: htmlHeaders({
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'public, max-age=120',
+        'X-Dasha-Edge': 'studio',
       }),
     });
   }
@@ -2665,6 +3306,36 @@ async function productEdge(request, url, env) {
       }),
     });
   }
+  if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/desk' || url.pathname === '/desk/')) {
+    return Response.redirect('https://www.getdasha.com/dasha', 308);
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/how' || url.pathname === '/how/')) {
+    return Response.redirect('https://www.getdasha.com/how-to-buy', 308);
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/forum' || url.pathname === '/forum/')) {
+    const host = (url.hostname || '').toLowerCase();
+    if (host === 'www.getdasha.com' || host === 'getdasha.com') {
+      return Response.redirect('https://lobby.getdasha.com/forum', 308);
+    }
+    return new Response(request.method === 'HEAD' ? null : FORUM_PAGE_HTML, {
+      status: 200,
+      headers: htmlHeaders({
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'public, max-age=120',
+        'X-Dasha-Edge': 'forum',
+      }),
+    });
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/bounties' || url.pathname === '/bounties/')) {
+    return new Response(request.method === 'HEAD' ? null : BOUNTIES_HTML, {
+      status: 200,
+      headers: htmlHeaders({
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'public, max-age=120',
+        'X-Dasha-Edge': 'bounties',
+      }),
+    });
+  }
   // Retire SEO-trap paths that must never reappear as product pages.
   if ((request.method === 'GET' || request.method === 'HEAD') && RETIRED_SEO_PATHS.has(url.pathname)) {
     return Response.redirect('https://www.getdasha.com/', 308);
@@ -2680,6 +3351,11 @@ async function productEdge(request, url, env) {
   html = sanitizePublicJsonLd(html);
   const stripped = html !== originalHtml;
   html = ensureHtmlLang(html);
+  const pageUrl = url.pathname === '/' || url.pathname === ''
+    ? 'https://www.getdasha.com/'
+    : `https://www.getdasha.com${url.pathname.replace(/\/$/, '')}`;
+  html = ensureCanonical(html, pageUrl);
+  html = stripDeadNav(html);
   html = injectXConnectPrompt(html);
   if (stripped) {
     // Also drop any leftover plain mentions in head comments (defensive).
@@ -2705,6 +3381,9 @@ export class DashaFaucet {
     this.faucetBinds = {};
     /** @type {{ dayKey?: string, dayCount?: number, hourKey?: string, hourCount?: number, autoPausedUntil?: number }} */
     this.faucetMetrics = {};
+    /** @type {Record<string, { xId: string, dest: string, amountRaw: string, at: number }>} */
+    this.faucetDonates = {};
+    this.faucetInventory = null;
     this.state.blockConcurrencyWhile(async () => {
       const faucetClaims = await this.state.storage.get('faucetClaims');
       if (faucetClaims && typeof faucetClaims === 'object' && !Array.isArray(faucetClaims)) {
@@ -2717,6 +3396,10 @@ export class DashaFaucet {
       if (faucetBinds && typeof faucetBinds === 'object' && !Array.isArray(faucetBinds)) this.faucetBinds = faucetBinds;
       const faucetMetrics = await this.state.storage.get('faucetMetrics');
       if (faucetMetrics && typeof faucetMetrics === 'object' && !Array.isArray(faucetMetrics)) this.faucetMetrics = faucetMetrics;
+      const faucetDonates = await this.state.storage.get('faucetDonates');
+      if (faucetDonates && typeof faucetDonates === 'object' && !Array.isArray(faucetDonates)) this.faucetDonates = faucetDonates;
+      const faucetInventory = await this.state.storage.get('faucetInventory');
+      if (faucetInventory && typeof faucetInventory === 'object') this.faucetInventory = faucetInventory;
     });
   }
 
@@ -2725,7 +3408,45 @@ export class DashaFaucet {
       faucetClaims: this.faucetClaims,
       faucetBinds: this.faucetBinds,
       faucetMetrics: this.faucetMetrics,
+      faucetDonates: this.faucetDonates,
     });
+  }
+
+  /** Ask the lobby DO to enroll + award donate points. Fail closed to awarded:false. */
+  async creditDonateToBoard(session, sig, row = {}) {
+    const empty = { awarded: false, points: 0, donate: 0, error: 'award failed' };
+    if (!this.env.LOBBY || !session?.xId) return empty;
+    try {
+      const stub = this.env.LOBBY.get(this.env.LOBBY.idFromName('public'));
+      const creditRes = await stub.fetch(new Request('https://lobby.getdasha.com/simp/internal/donate', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-dasha-internal': String(this.env.LOBBY_SESSION_SECRET || ''),
+        },
+        body: JSON.stringify({
+          xId: String(session.xId),
+          handle: session.handle,
+          avatar: session.avatar,
+          verifiedType: session.verifiedType,
+          signature: sig,
+          amountRaw: String(row.amountRaw || ''),
+          at: row.at,
+          proven: true,
+        }),
+      }));
+      const credit = await creditRes.json().catch(() => ({}));
+      if (credit.ok && credit.awarded) {
+        return {
+          awarded: true,
+          points: Number(credit.points) || 0,
+          donate: Number(credit.donate) || 0,
+        };
+      }
+      return { ...empty, error: String(credit.error || 'award failed') };
+    } catch {
+      return empty;
+    }
   }
 
   async faucetStatusPayload() {
@@ -2754,8 +3475,23 @@ export class DashaFaucet {
     let inventory = { balanceRaw: 0n, rpcOk: true };
     try {
       inventory.balanceRaw = await tokenBalanceRaw(this.env, tipWallet, cfg.mint);
+      this.faucetInventory = { balanceRaw: String(inventory.balanceRaw), at: Date.now() };
+      this.state.storage.put('faucetInventory', this.faucetInventory).catch(() => {});
     } catch (e) {
-      inventory = { balanceRaw: 0n, rpcOk: false, rpcDetail: String(e?.message || e) };
+      const cached = this.faucetInventory;
+      const fresh = cached && Date.now() - Number(cached.at || 0) < 15 * 60_000;
+      if (fresh && cached.balanceRaw != null) {
+        inventory = { balanceRaw: BigInt(cached.balanceRaw), rpcOk: true };
+      } else {
+        inventory = {
+          balanceRaw: 0n,
+          rpcOk: false,
+          rpcDetail: String(e?.message || e),
+          rpcTried: solanaRpcEndpoints(this.env).map((u) => {
+            try { return new URL(u).host; } catch { return 'bad'; }
+          }),
+        };
+      }
     }
     const status = buildStatus(cfgTip, inventory);
     return { ...status, ...limits, signer: true };
@@ -2765,6 +3501,9 @@ export class DashaFaucet {
     const url = new URL(request.url);
     const path = url.pathname;
     const cred = { credentials: true };
+    if (request.method !== 'GET' && request.method !== 'HEAD' && !allowedOrigin) {
+      return json({ error: 'origin required' }, 403, null);
+    }
     const body = async () => {
       try {
         return await request.json();
@@ -2793,6 +3532,7 @@ export class DashaFaucet {
       if (err) return json({ ok: false, error: err }, 200, allowedOrigin, cred);
       const session = await sessionFromRequest(this.env, request);
       if (!session?.xId) return json({ ok: false, error: 'link X first' }, 200, allowedOrigin, cred);
+      // Shape probe only. Never persist a bind. Never label IS_WALLET.
       return json({ ok: true, dest: String(input.dest).trim() }, 200, allowedOrigin, cred);
     }
 
@@ -2800,12 +3540,13 @@ export class DashaFaucet {
       if (!this.env.LOBBY_SESSION_SECRET) return json({ error: 'not_configured' }, 501, allowedOrigin, cred);
       const input = await body();
       const publicKey = String(input.publicKey || '').trim();
-      if (!isValidSolanaAddress(publicKey)) return json({ ok: false, error: 'dest_not_wallet' }, 400, allowedOrigin, cred);
+      const shape = destShapeError(publicKey);
+      if (shape) return json({ ok: false, error: shape }, 400, allowedOrigin, cred);
       const now = Date.now();
       const nonce = randomUrlToken(12);
       const issuedAt = now;
       const expirationTime = now + 10 * 60_000;
-      const domain = 'lobby.getdasha.com';
+      const domain = FAUCET_SIWS_DOMAIN;
       const siws = faucetSiwsInput({ domain, publicKey, nonce, issuedAt, expirationTime });
       const message = `${siws.domain} wants you to sign in with your Solana account:\n${siws.address}\n\n${siws.statement}\n\nURI: ${siws.uri}\nVersion: ${siws.version}\nChain ID: ${siws.chainId}\nNonce: ${siws.nonce}\nIssued At: ${siws.issuedAt}\nExpiration Time: ${siws.expirationTime}`;
       const challenge = await signPayload(this.env.LOBBY_SESSION_SECRET, {
@@ -2839,16 +3580,23 @@ export class DashaFaucet {
       }
 
       const publicKey = String(input.publicKey || '').trim();
-      if (!isValidSolanaAddress(publicKey)) return json({ ok: false, error: 'dest_not_wallet' }, 400, allowedOrigin, cred);
+      const shape = destShapeError(publicKey);
+      if (shape) return json({ ok: false, error: shape }, 400, allowedOrigin, cred);
       const challenge = await verifyPayload(this.env.LOBBY_SESSION_SECRET, input.challenge);
       if (!challenge || challenge.kind !== 'faucet_siws' || challenge.publicKey !== publicKey) {
         return json({ ok: false, error: 'invalid faucet challenge' }, 400, allowedOrigin, cred);
       }
       if (Number(challenge.exp) < Date.now()) return json({ ok: false, error: 'invalid faucet challenge' }, 400, allowedOrigin, cred);
-      const message = String(input.signedMessage || '');
-      if (!message.includes(publicKey) || !message.includes('Dasha tip')) {
-        return json({ ok: false, error: 'invalid faucet challenge' }, 400, allowedOrigin, cred);
+      if (challenge.domain && challenge.domain !== FAUCET_SIWS_DOMAIN) {
+        return json({ ok: false, error: 'siws_domain' }, 400, allowedOrigin, cred);
       }
+      const message = String(input.signedMessage || '');
+      const msgErr = siwsMessageError(message, {
+        publicKey,
+        domain: challenge.domain || FAUCET_SIWS_DOMAIN,
+        nonce: challenge.nonce,
+      });
+      if (msgErr) return json({ ok: false, error: msgErr }, 400, allowedOrigin, cred);
       const ok = await verifyEd25519(message, publicKey, String(input.signature || ''));
       if (!ok) return json({ ok: false, error: 'invalid faucet challenge' }, 400, allowedOrigin, cred);
       this.faucetBinds[xId] = { dest: publicKey, at: Date.now(), kind: 'IS_WALLET' };
@@ -2884,6 +3632,7 @@ export class DashaFaucet {
          deduplicates by X id, so a claimer cannot double-dip; it just cannot lock out the owner
          of an address they merely typed. */
       const proven = bind.kind === 'IS_WALLET';
+      if (!proven) return json({ error: 'prove wallet' }, 403, allowedOrigin, cred);
       const allowed = claimAllowed(this.faucetClaims, { xId, wallet: bind.dest, proven });
       if (!allowed.ok) {
         if (allowed.error === 'already claimed') {
@@ -2936,6 +3685,76 @@ export class DashaFaucet {
         allowedOrigin,
         cred,
       );
+    }
+
+    if (path.startsWith('/faucet/tx/') && (request.method === 'GET' || request.method === 'HEAD')) {
+      const sig = decodeURIComponent(path.slice('/faucet/tx/'.length)).trim();
+      const row = this.faucetDonates[sig];
+      if (!row) return json({ error: 'not found' }, 404, allowedOrigin, cred);
+      return json({ ok: true, signature: sig, at: row.at, dest: row.dest }, 200, allowedOrigin, cred);
+    }
+
+    if (path === '/faucet/donate' && request.method === 'POST') {
+      const input = await body();
+      const sig = String(input.signature || input.sig || '').trim();
+      if (donateSigError(sig)) return json(donateFailClosed(input), 200, allowedOrigin, cred);
+      const session = await sessionFromRequest(this.env, request);
+      if (!session?.xId) return json({ error: 'link X first' }, 200, allowedOrigin, cred);
+      const bind = this.faucetBinds[String(session.xId)];
+      if (!bind?.dest || bind.kind !== 'IS_WALLET') return json({ error: 'dest not proven' }, 200, allowedOrigin, cred);
+      if (this.faucetDonates[sig]) {
+        const retry = await this.creditDonateToBoard(session, sig, this.faucetDonates[sig]);
+        return json({
+          ok: true,
+          awarded: retry.awarded,
+          replay: true,
+          signature: sig,
+          points: retry.points,
+          donate: retry.donate,
+          ...(retry.error ? { error: retry.error } : {}),
+        }, 200, allowedOrigin, cred);
+      }
+      let tx;
+      try {
+        tx = await rpc(this.env, 'getTransaction', [
+          sig,
+          { encoding: 'json', maxSupportedTransactionVersion: 0, commitment: 'confirmed' },
+        ]);
+      } catch {
+        return json({ error: 'sig miss' }, 200, allowedOrigin, cred);
+      }
+      let signer = '';
+      try {
+        signer = await publicKeyFromSecret(faucetSignerSecret(this.env));
+      } catch {
+        signer = '';
+      }
+      const inspected = inspectDonateTx(tx, {
+        treasury: String(this.env.FAUCET_TREASURY || '').trim() || undefined,
+        mint: String(this.env.MINT || FAUCET_MINT).trim(),
+        faucetSigner: signer,
+      });
+      if (!inspected.ok) return json({ error: inspected.error || 'sig miss' }, 200, allowedOrigin, cred);
+      if (inspected.payer !== bind.dest) return json({ error: 'dest not proven' }, 200, allowedOrigin, cred);
+      this.faucetDonates[sig] = {
+        xId: String(session.xId),
+        dest: bind.dest,
+        amountRaw: String(inspected.amountRaw),
+        at: inspected.at,
+      };
+      await this.persistFaucet();
+      const credit = await this.creditDonateToBoard(session, sig, {
+        amountRaw: inspected.amountRaw,
+        at: inspected.at,
+      });
+      return json({
+        ok: true,
+        awarded: credit.awarded,
+        signature: sig,
+        points: credit.points,
+        donate: credit.donate,
+        ...(credit.error && !credit.awarded ? { error: credit.error } : {}),
+      }, 200, allowedOrigin, cred);
     }
 
     return json({ error: 'not found' }, 404, allowedOrigin, cred);
@@ -3000,7 +3819,7 @@ export default {
       return securityTxtResponse(request, url.hostname);
     }
 
-    if (url.pathname.startsWith('/simp/photo/') || url.pathname.startsWith('/simp/card/') || url.pathname.startsWith('/og/')) {
+    if (url.pathname.startsWith('/simp/photo/') || url.pathname.startsWith('/simp/card/') || url.pathname.startsWith('/og/') || url.pathname === '/client/faucet.png' || url.pathname === '/client/faucet.avif') {
       const asset = await env.ASSETS.fetch(request);
       const headers = new Headers(asset.headers);
       headers.set('Access-Control-Allow-Origin', '*');
@@ -3021,6 +3840,7 @@ export default {
       url.pathname.startsWith('/simp/') ||
       url.pathname.startsWith('/studio/') ||
       url.pathname.startsWith('/h/') ||
+      (url.pathname.startsWith('/forum/') && url.pathname !== '/forum/') ||
       (url.pathname.startsWith('/chess/') && url.pathname !== '/chess/')
     ) {
       if (request.method !== 'GET' && request.method !== 'HEAD' && origin && !allowedOrigin && !env.ALLOW_ANY_ORIGIN) {
@@ -3115,7 +3935,7 @@ export default {
       });
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/lobby' || url.pathname === '/lobby/')) {
-      return new Response(request.method === 'HEAD' ? null : LOBBY_PAGE_HTML, {
+      return new Response(request.method === 'HEAD' ? null : injectXConnectPrompt(asStandaloneLobbyPage(LOBBY_PAGE_HTML)), {
         status: 200,
         headers: htmlHeaders({
           'Content-Type': 'text/html; charset=utf-8',
@@ -3158,6 +3978,26 @@ export default {
       const res = await stub.fetch(new Request(new URL('/stats', request.url), { method: 'GET' }));
       const data = await res.json();
       return json(data, 200, allowedOrigin);
+    }
+
+    if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/price') {
+      const room = env.LOBBY.idFromName('public');
+      return env.LOBBY.get(room).fetch(request);
+    }
+
+    if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/forum' || url.pathname === '/forum/')) {
+      const host = (url.hostname || '').toLowerCase();
+      if (host === 'www.getdasha.com' || host === 'getdasha.com') {
+        return Response.redirect('https://lobby.getdasha.com/forum', 308);
+      }
+      return new Response(request.method === 'HEAD' ? null : FORUM_PAGE_HTML, {
+        status: 200,
+        headers: htmlHeaders({
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=120',
+          'X-Dasha-Edge': 'forum',
+        }),
+      });
     }
 
     if (url.pathname === '/ws' || url.pathname === '/lobby/ws') {

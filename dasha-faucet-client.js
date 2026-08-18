@@ -43,6 +43,7 @@
     if (/t\.me|telegram/i.test(dest)) return 'dest_not_wallet';
     if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(dest)) return 'dest_not_wallet';
     if (dest === MINT) return 'dest_mint';
+    if (dest === DEFAULT_TREASURY) return 'dest_treasury';
     if (four && dest.slice(-4) !== four) return 'last-4 does not match';
     return '';
   }
@@ -53,6 +54,7 @@
       dest_not_wallet: 'That is not a Solana wallet address.',
       dest_token: 'Use a wallet address, not a token account.',
       dest_mint: 'That is the mint — paste your wallet.',
+      dest_treasury: 'That is the tip jar — paste your wallet.',
       dest_pda: 'That address cannot receive a tip.',
       'last-4 does not match': 'Last 4 characters do not match.',
       'link X first': 'Link X first.',
@@ -154,6 +156,8 @@
       var img = el('img', 'faucet-hero');
       img.src = stillUrl;
       img.alt = 'Dasha tip faucet';
+      img.width = 1024;
+      img.height = 1024;
       if (stillSri) {
         img.setAttribute('integrity', stillSri);
         img.crossOrigin = 'anonymous';
@@ -164,6 +168,16 @@
           state.card = 1;
           paint();
         });
+      }
+      var avif = String(stillUrl || '').replace(/\.png(?:\?.*)?$/i, '.avif');
+      if (avif !== stillUrl && /\.avif$/i.test(avif)) {
+        var picture = document.createElement('picture');
+        var source = document.createElement('source');
+        source.type = 'image/avif';
+        source.srcset = avif;
+        picture.appendChild(source);
+        picture.appendChild(img);
+        return picture;
       }
       return img;
     }
@@ -619,7 +633,7 @@
             return;
           }
           state.dest = res.data.dest;
-          state.kind = res.data.kind || 'IS_WALLET';
+          state.kind = res.data.kind || 'PASTED';
           state.last4Ok = false;
           state.destError = '';
           state.card = 1;
@@ -635,18 +649,18 @@
       })
         .then(function (res) {
           var err = res.data && res.data.error;
-          if (err && err !== 'link X first') {
-            showDestError(err);
+          if (err || (res.data && res.data.ok === false)) {
+            showDestError(err || 'dest_not_wallet');
             return;
           }
-          if (res.data && res.data.ok === false) {
-            showDestError(err || 'dest_not_wallet');
+          if (!res.data || res.data.ok !== true) {
+            showDestError('dest_not_wallet');
             return;
           }
           return afterWallet();
         })
         .catch(function () {
-          return afterWallet();
+          showDestError('dest_not_wallet');
         });
     }
     function claim() {

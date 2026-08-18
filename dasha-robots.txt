@@ -12,13 +12,19 @@
 User-agent: *
 Allow: /
 Allow: /studio
+Allow: /lobby
 Allow: /dasha
+Allow: /how-to-buy
 Allow: /chess
+Allow: /faucet
 Disallow: /desk-rc
 Disallow: /retired-dasha-draft
 Disallow: /checkout
 Disallow: /paypal-checkout
 Disallow: /order-confirmation
+Disallow: /airdrop
+Disallow: /earn
+Disallow: /claim
 
 Sitemap: https://www.getdasha.com/sitemap.xml
 Sitemap: https://lobby.getdasha.com/sitemap.xml

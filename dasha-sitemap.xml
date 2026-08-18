@@ -21,6 +21,9 @@
     <loc>https://www.getdasha.com/dasha</loc>
   </url>
   <url>
+    <loc>https://www.getdasha.com/bounties</loc>
+  </url>
+  <url>
     <loc>https://www.getdasha.com/how-to-buy</loc>
   </url>
   <!-- Chess answers on both hosts but declares lobby.getdasha.com canonical, so that is the URL

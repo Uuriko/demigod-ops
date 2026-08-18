@@ -130,6 +130,7 @@
     "dasha:ship:preflight": "node dasha-ship.mjs --preflight",
     "dasha:ship:status": "node dasha-ship.mjs --status",
     "dasha:release:now": "node dasha-ship.mjs --status --write-now",
+    "dasha:lobby:deploy": "npx --yes wrangler@4.120.1 deploy -c dasha-lobby-wrangler.deploy.jsonc",
     "dasha:ship:push": "node dasha-ship.mjs --prep --gate --push",
     "dasha:ship:verify": "node dasha-ship.mjs --verify",
     "dasha:ship:test": "node dasha-ship.test.mjs && node dasha-product-coherence.test.mjs",
@@ -141,7 +142,14 @@
     "dasha:test:speed": "node dasha-time-to-export.test.mjs",
     "dasha:test:surfaces": "node dasha-surfaces.test.mjs",
     "dasha:test:loop": "node dasha-loop.test.mjs",
-    "dasha:test:lobby": "node dasha-lobby-page.test.mjs"
+    "dasha:test:lobby": "node dasha-lobby-page.test.mjs",
+    "dasha:test:buy-path": "node dasha-buy-path.test.mjs",
+    "dasha:test:worker-routes": "node dasha-worker-routes.test.mjs",
+    "dasha:test:faucet": "node dasha-faucet.test.mjs",
+    "dasha:faucet:dry": "node dasha-faucet-dry-verify.mjs",
+    "dasha:faucet:parity": "node dasha-faucet-parity-probe.mjs",
+    "dasha:faucet:bundle-smoke": "node dasha-faucet-bundle-smoke.mjs",
+    "dasha:faucet:gate": "node dasha-faucet.test.mjs && node dasha-faucet-dry-verify.mjs && node dasha-faucet-parity-probe.mjs && node dasha-faucet-bundle-smoke.mjs"
   },
   "devDependencies": {
     "@axe-core/cli": "^4.12.1",
@@ -156,6 +164,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "@noble/ed25519": "^2.3.0",
     "undici": "^7.29.0",
     "ws": "^8.21.3"
   }

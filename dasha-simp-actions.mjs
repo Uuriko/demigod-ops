@@ -1,1 +1,1 @@
-/home/potter/.grok/worktrees/potter/dasha/dasha-simp-actions.mjs
+/home/potter/dasha-simp-actions.mjs
