@@ -195,14 +195,43 @@ function publicUrlFromDisk() {
   }
 }
 
+/**
+ * Is the recorded public URL actually answering?
+ *
+ * The status surface said "Public desk is up at …" because a file on disk held a URL. It was a
+ * quick tunnel that had since died, so the product asserted its own availability from the existence
+ * of a text file and was wrong for as long as nobody checked. A file is not a service.
+ *
+ * Probed at most once a minute and cached, because status is read on every page load and a status
+ * check that costs a network round trip per request is its own outage. `null` means not yet
+ * checked — reported as unknown rather than as either answer.
+ */
+let reachCache = { url: null, ok: null, at: 0 };
+const REACH_TTL_MS = 60_000;
+
+export function publicReachability({ now = Date.now() } = {}) {
+  const url = publicUrlFromDisk();
+  if (!url) return { url: null, reachable: null };
+  if (reachCache.url === url && now - reachCache.at < REACH_TTL_MS) return { url, reachable: reachCache.ok };
+  if (reachCache.url !== url) reachCache = { url, ok: null, at: 0 };
+  // Fire and forget: this request answers with what is known now, the next one gets the result.
+  if (now - reachCache.at >= REACH_TTL_MS) {
+    reachCache = { ...reachCache, at: now };
+    fetch(`${url}/healthz`, { method: 'HEAD', signal: AbortSignal.timeout(4000) })
+      .then((r) => { reachCache = { url, ok: r.ok, at: Date.now() }; })
+      .catch(() => { reachCache = { url, ok: false, at: Date.now() }; });
+  }
+  return { url, reachable: reachCache.ok };
+}
+
 function accessState(context = {}) {
-  const publicUrl = publicUrlFromDisk();
+  const { url: publicUrl, reachable } = publicReachability();
   const publicHost = PUBLIC_HOST || (publicUrl ? new URL(publicUrl).hostname : null);
   if (TUNNEL_READY) {
-    return { tunnelReady: true, gateReady: Boolean(GATE_SECRET), publicHost, publicUrl, reason: null };
+    return { tunnelReady: true, gateReady: Boolean(GATE_SECRET), publicHost, publicUrl, reachable, reason: null };
   }
   if (GATE_SECRET && context.hosted) {
-    return { tunnelReady: false, gateReady: true, publicHost, publicUrl, reason: null };
+    return { tunnelReady: false, gateReady: true, publicHost, publicUrl, reachable, reason: null };
   }
   if (GATE_SECRET) {
     return {
@@ -210,9 +239,14 @@ function accessState(context = {}) {
       gateReady: true,
       publicHost,
       publicUrl,
-      reason: publicUrl
-        ? `Public desk is up at ${publicUrl}.`
-        : 'Cloudflare Access is not enabled for this account; HTTPS stays dark. Loopback is the product.',
+      reachable,
+      /* Say what is known, not what is hoped. A recorded URL that has not answered is reported as
+         not answering, and one that has not been checked yet is reported as unchecked. */
+      reason: !publicUrl
+        ? 'Cloudflare Access is not enabled for this account; HTTPS stays dark. Loopback is the product.'
+        : reachable === true ? `Public desk is answering at ${publicUrl}.`
+        : reachable === false ? `A public URL is recorded (${publicUrl}) but it is not answering. Loopback is the product.`
+        : `A public URL is recorded (${publicUrl}); reachability not yet checked.`,
     };
   }
   return {
