@@ -991,8 +991,13 @@ export async function fetchOwnedAtsBoard(company, slug, provider) {
      the code instead of inferred. Everything except Rippling still fails closed without the strong
      form. */
   if (found.ownedBy === 'careers-page') return found;
-  if (!found.ownerWebsite || !sameWebsiteOwner(company?.website, found.ownerWebsite)) return null;
-  return found;
+  if (!found.ownerWebsite) return null;
+  if (sameWebsiteOwner(company?.website, found.ownerWebsite)) return found;
+  /* Our website field can be the stale one. Nash is listed at usenash.com, its site redirects to
+     nash.ai, and its board names nash.ai — refusing that is our own out-of-date data overruling two
+     independent observations that agree. An owner discovery already settled counts here too. */
+  if (sameWebsiteOwner(discoveredOwner(company), found.ownerWebsite)) return found;
+  return null;
 }
 
 /**
@@ -1010,9 +1015,34 @@ export async function fetchOwnedAtsBoard(company, slug, provider) {
  */
 const knownBoardSlug = (company) => {
   const url = String(company?.jobsUrl || '');
-  if (!/^https:\/\/(?:boards|job-boards)(?:\.eu)?\.greenhouse\.io\/|^https:\/\/jobs\.(?:lever\.co|ashbyhq\.com|gem\.com)\//i.test(url)) return null;
+  if (!/^https:\/\/(?:boards|job-boards)(?:\.eu)?\.greenhouse\.io\/|^https:\/\/jobs\.(?:lever\.co|ashbyhq\.com|gem\.com)\/|^https:\/\/ats\.rippling\.com\//i.test(url)) return null;
   const slug = jobBoardSlug(url);
   return slug && slug.length >= 2 ? slug : null;
+};
+
+/**
+ * A board demigod-board-discover already proved, which this run must not un-prove.
+ *
+ * Discovery and this file were quietly deleting each other's work. Discovery exists precisely to
+ * find boards whose slug the company domain cannot produce — Pave at
+ * paveakatroveinformationtechnologies, Accord at ashbyhq.com/accord from a careers page at
+ * /company/about#careers — and then the next enrich re-derived candidates from the domain, failed,
+ * and stripped exactly those. On 2026-08-18 that was 4 of 24 discovered boards in a single run,
+ * including both Rippling boards and Nash.
+ *
+ * Nash is the instructive one. Its board says nash.ai and our website field still says
+ * usenash.com, so sameWebsiteOwner is false and the board is refused — by our own stale data, about
+ * a company whose redirect we had already measured. Discovery adjudicated that and wrote down the
+ * owner it settled on. Re-adjudicating it here with the field discovery already knew was wrong just
+ * loses the board again, every run, forever.
+ *
+ * So: an owner recorded by discovery counts as the company's, and the board is still fetched and
+ * counted fresh. If it has gone away we find nothing and strip it exactly as before. This widens
+ * WHO may vouch for a board, never whether one has to be vouched for.
+ */
+const discoveredOwner = (company) => {
+  const owner = company?.boardEvidence?.owner;
+  return owner && websiteHostKey(owner) ? owner : null;
 };
 
 /**
@@ -1054,12 +1084,18 @@ async function detect(company) {
         personio,
         recruitee,
         smartrecruiters,
+        rippling,
       ]) {
-        const found = await probe(slug);
+        // The company row is passed too: Rippling publishes no owner, so its only evidence is the
+        // careers page discovery already recorded on this row. Every other probe ignores it.
+        const found = await probe(slug, company);
         if (
           found &&
           !hasDeniedAtsBoard({ ...company, atsSource: found.ats, jobsUrl: found.jobsUrl }) &&
-          (boardOwnerMatches(company, found) || idIsThisBoard(company, found))
+          (boardOwnerMatches(company, found)
+            || idIsThisBoard(company, found)
+            || sameWebsiteOwner(discoveredOwner(company), found.ownerWebsite)
+            || found.ownedBy === 'careers-page')
         ) {
           return found;
         }
@@ -1568,6 +1604,20 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || cliMode === '
   assert(!sameWebsiteOwner('https://arlo1.com/', 'https://joinarlo.com/'), 'drone tracking is not health insurance');
   assert(!sameWebsiteOwner('https://weaveos.com/', 'https://www.getweave.com/'), 'engineering metrics is not a phone platform');
   assert(!sameWebsiteOwner('https://joinminerva.ai/', 'https://minerva.io/'), 'a shared brand is not a shared company');
+  assert(knownBoardSlug({ jobsUrl: 'https://ats.rippling.com/govly-inc' }) === 'govly-inc',
+    'a Rippling board we already hold must be recognised, or every run re-derives from the domain and deletes it');
+
+  /* Discovery and this file were deleting each other's work: discovery finds boards whose slug the
+     company domain cannot produce, and the next enrich re-derived from the domain, failed, and
+     stripped exactly those. 4 of 24 discovered boards in one run on 2026-08-18. */
+  assert(discoveredOwner({ boardEvidence: { owner: 'https://www.nash.ai/' } }) === 'https://www.nash.ai/',
+    'an owner discovery already settled is usable evidence');
+  assert(discoveredOwner({ boardEvidence: { owner: 'not a url' } }) === null, 'junk is not evidence');
+  assert(discoveredOwner({ boardEvidence: {} }) === null && discoveredOwner({}) === null,
+    'no recorded owner means no shortcut — this widens who may vouch, never whether anyone must');
+  assert(sameWebsiteOwner(discoveredOwner({ boardEvidence: { owner: 'https://www.nash.ai/' } }), 'https://nash.ai'),
+    'the recorded owner is compared with the same host rule as everything else');
+
   assert(knownBoardSlug({ jobsUrl: 'https://jobs.ashbyhq.com/cursor' }) === 'cursor', 'known Ashby board slug is recovered');
   // A row whose id IS the board: the identity and the attribution are one fact, so owner evidence
   // has nothing to adjudicate. Exact host and path only.
