@@ -739,15 +739,48 @@ also no staging — editing a unit changes the machine.
 - **Per-account rate limiting** and audit records that separate `account` (who was signed in) from
   `actor` (who the record is about).
 
+### Also shipped 2026-08-18, after an enterprise-readiness audit
+
+- **The session signing key is no longer the shared login password.** `GATE_SECRET` is what a
+  submitted password is compared against, and it was also the HMAC key for account sessions —
+  anyone ever told that password could sign a cookie for any address and any role. Retiring the
+  password once accounts exist does not close that; it stops being accepted at the form while
+  remaining the key that forges what the form would issue. Sessions use
+  `DEMIGOD_DIE_SESSION_SECRET`, and the server refuses to start if the two are equal.
+- **Access mode is read-only.** `canMutate` ended `role ? … : true`, so Cloudflare Access — which
+  arrives authenticated with no account and no role, because this origin refuses to trust the
+  forwarded user header — could mutate the desk and land in the audit as `account: null`.
+- **Receipts name who acted.** Every activity row read `actor: "operator"`. Events carry `account`
+  now, kept separate from `actor` (who the record is *about*). Note the trap: `shapeActivityRow`
+  drops any row containing an address, so attribution had to be exempted explicitly or it would
+  have silently deleted the receipts it was added to label.
+- **Password change with session invalidation**, via a per-account `sessionEpoch` signed into the
+  MAC. Any password change ends open sessions; a role edit does not. API keys survive, since they
+  have their own revocation.
+- **Health that can fail.** `/healthz` returned an unconditional 200; it now reads the store and
+  returns 503 with a reason. Every 5xx writes a structured line to the journal — there was
+  previously no logging at all, so a 500 recorded nothing anywhere.
+- **Backups cover the database.** `bin/dg-backup` derived its file list from *top-level* ignored
+  files, so `~/.local/share/demigod/die-missions.sqlite` was never in it. Snapshots are taken with
+  `VACUUM INTO` and verified before being kept, because a file-level copy of a live SQLite database
+  can be torn in the middle and still open.
+
 ### What is still needed before an outside user
 
-1. **The Cloudflare account permission.** Unchanged from §12 and unchanged by any of the above:
-   Zero Trust org, an identity provider, an Access app with one allow policy, and a DNS record.
-   This is the only remaining blocker for a stable hostname, and no amount of code moves it.
-2. **Streaming export.** A full companies export builds a packet per company and takes ~20s. It
-   fits inside Cloudflare's 100s limit, but it wants streaming before it wants more datasets.
-3. **Observability.** There is no error reporting and no metrics. `/healthz` answers, which is not
-   the same as knowing the app is serving correctly.
-4. **Backup and restore** of `die-missions.sqlite`, which currently exists in one place.
-5. **Password reset and session listing.** An admin can disable an account; nobody can rotate a
-   password without the CLI.
+**Needs a human with credentials — no amount of code moves these:**
+
+1. **The Cloudflare account permission.** Unchanged from §12: Zero Trust org, identity provider, an
+   Access app with one allow policy, a DNS record. The only remaining blocker for a stable hostname.
+2. **Backup destination.** `restic` is not installed, and `DG_BACKUP_REPO` / `RESTIC_PASSWORD_FILE`
+   are unset, so `demigod-backup.timer` is inactive. The script fails closed on all three: there is
+   no backup today, only a backup that would now contain the right things once those exist.
+3. **`DEMIGOD_DIE_SESSION_SECRET`** in `~/.config/demigod/die-web.env`, then a first admin account.
+   Named accounts refuse to issue sessions until it is set, which is deliberate.
+
+**Code, and none of it blocks the above:**
+
+4. **Streaming export.** A full companies export builds a packet per company and takes ~20s. Fits
+   inside Cloudflare's 100s limit; wants streaming before it wants more datasets.
+5. **An admin surface.** Accounts and keys are managed only through the CLI.
+6. **Optimistic concurrency on mission writes.** Two operators editing one mission is currently
+   last-write-wins.
