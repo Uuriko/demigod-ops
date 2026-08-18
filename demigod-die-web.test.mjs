@@ -535,4 +535,39 @@ fs.rmSync(temp, { recursive: true, force: true });
   if (!gate({ mode: 'gated_public', authenticated: true, role: null })) throw new Error('die-web: the legacy cookie keeps working until a first account exists');
 }
 
+
+/* Rate limiting: keyed by account, never applied to the operator's own machine. */
+{
+  const web = await import('./demigod-die-web.mjs');
+  const { allowWebhookRequest } = await import('./demigod-webhook-rate-limit.mjs');
+
+  const req = { socket: { remoteAddress: '203.0.113.9' }, headers: {} };
+  if (web.rateKey({ email: 'alice@example.com' }, req) !== 'acct:alice@example.com') {
+    throw new Error('die-web: a signed-in caller is budgeted as a person, not as an address');
+  }
+  if (web.rateKey({}, req) !== 'ip:203.0.113.9') throw new Error('die-web: an anonymous caller falls back to its address');
+  /* Two people behind one NAT must not share a budget, and one person on two addresses must not
+     get two. Both are the same mistake in opposite directions. */
+  const nat = { socket: { remoteAddress: '203.0.113.9' }, headers: {} };
+  if (web.rateKey({ email: 'bob@example.com' }, nat) === web.rateKey({ email: 'alice@example.com' }, nat)) {
+    throw new Error('die-web: two accounts behind one address must have separate budgets');
+  }
+  if (web.rateKey({ email: 'alice@example.com' }, { socket: { remoteAddress: '198.51.100.4' }, headers: {} })
+      !== web.rateKey({ email: 'alice@example.com' }, nat)) {
+    throw new Error('die-web: one account on two addresses must not get two budgets');
+  }
+
+  // The window itself must actually close.
+  const hits = new Map();
+  let allowed = 0;
+  for (let i = 0; i < web.API_MAX_READS + 10; i++) {
+    if (allowWebhookRequest(hits, 'k', { windowMs: web.API_WINDOW_MS, max: web.API_MAX_READS })) allowed++;
+  }
+  if (allowed !== web.API_MAX_READS) throw new Error(`die-web: the read budget must bind, allowed ${allowed}`);
+  if (!allowWebhookRequest(hits, 'k', { now: Date.now() + web.API_WINDOW_MS + 1, windowMs: web.API_WINDOW_MS, max: web.API_MAX_READS })) {
+    throw new Error('die-web: the window must reopen, or a limit becomes a ban');
+  }
+  if (web.API_MAX_WRITES >= web.API_MAX_READS) throw new Error('die-web: writes should be scarcer than reads');
+}
+
 console.log(JSON.stringify({ ok: true, selftest: 'demigod-die-web' }));

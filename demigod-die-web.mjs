@@ -28,6 +28,7 @@ import {
   toMissionCompany,
 } from './demigod-role-mission-kernel.mjs';
 import { buildDesk } from './demigod-structured-hiring.mjs';
+import { allowWebhookRequest, webhookClientIp } from './demigod-webhook-rate-limit.mjs';
 import {
   authenticate as authenticateAccount,
   can as roleCan,
@@ -473,6 +474,34 @@ function slotIcs(mission, slot) {
  * remove. A session with no role is the legacy shared cookie, which only survives while no account
  * exists at all.
  */
+/**
+ * Per-caller request budget for the hosted surface.
+ *
+ * Keyed by ACCOUNT when one is signed in, and only by IP when there is not. Keying an authenticated
+ * app by IP punishes everyone behind one office NAT for one person's script, and lets one person
+ * with several addresses have several budgets — it measures the wrong thing in both directions.
+ *
+ * The loopback operator is never limited. Their desk is the machine they are sitting at, and a
+ * throttle there is a bug that looks like an outage.
+ */
+const apiHits = new Map();
+export const API_WINDOW_MS = 60_000;
+export const API_MAX_READS = 240;
+export const API_MAX_WRITES = 60;
+
+export function rateKey(context, req) {
+  return context?.email ? `acct:${context.email}` : `ip:${webhookClientIp(req)}`;
+}
+
+function allowApi(context, req, { write = false, now = Date.now() } = {}) {
+  if (context.mode === 'local_read_only') return true;
+  return allowWebhookRequest(apiHits, `${rateKey(context, req)}:${write ? 'w' : 'r'}`, {
+    now,
+    windowMs: API_WINDOW_MS,
+    max: write ? API_MAX_WRITES : API_MAX_READS,
+  });
+}
+
 function canMutate(context) {
   if (context.mode === 'local_read_only') return true;
   if (context.authenticated !== true) return false;
@@ -791,6 +820,12 @@ export function createDieWebServer() {
         sendLoginUi(res, { head, next: url.pathname === '/login' ? url.searchParams.get('next') : url.pathname });
       } else if (context.needsLogin) {
         sendJson(res, 401, { ok: false, error: 'login_required' }, head, noindex);
+      } else if (url.pathname.startsWith('/api/') && !allowApi(context, req, { write: method === 'POST' })) {
+        /* Retry-After is the difference between a limit and a mystery: a client that is told when
+           to come back can, and one that is not will simply retry immediately and make it worse. */
+        sendJson(res, 429, { ok: false, error: 'rate_limited', retryAfterSeconds: Math.ceil(API_WINDOW_MS / 1000) }, head, {
+          'Retry-After': String(Math.ceil(API_WINDOW_MS / 1000)),
+        });
       } else if (url.pathname === '/api/v1/session') {
         sendJson(res, 200, {
           schema: 'demigod.die-session/1',
