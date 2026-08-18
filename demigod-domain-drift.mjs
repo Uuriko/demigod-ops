@@ -98,6 +98,89 @@ export function driftVerdict(website, probe) {
   return { state: 'moved', status: probe.status, from, to };
 }
 
+/**
+ * PURE. Rows that are the same company listed twice.
+ *
+ * An acquisition or a rebrand creates a duplicate by a predictable route: the old company keeps its
+ * row under the old domain, someone later adds the acquirer under the new one, and nothing connects
+ * them. The redirect is the connection. InsideView redirects to demandbase.com and Demandbase is
+ * already its own row with 11 open roles; Survata redirects to upwave.com and Upwave is already a
+ * row. So the directory counts two companies and attributes Survata's four roles to a name that no
+ * longer exists.
+ *
+ * Never merged automatically. Merging identities moves role counts and hiring history between rows,
+ * and a wrong merge is far more expensive than a duplicate — a redirect can also mean a landing page
+ * a big company parked on a small acquisition's domain without the two being one employer.
+ */
+export function mergeCandidates(rows, companies) {
+  const byHost = new Map();
+  for (const company of companies || []) {
+    const host = hostKey(company?.website);
+    if (!host) continue;
+    if (!byHost.has(host)) byHost.set(host, []);
+    byHost.get(host).push(company);
+  }
+  const out = [];
+  for (const row of rows || []) {
+    if (row.state !== 'moved') continue;
+    for (const target of byHost.get(row.to) || []) {
+      if (target.id === row.id) continue;
+      out.push({
+        reason: 'redirects to a domain another row already occupies',
+        from: { id: row.id, name: row.name, host: row.from, openRoles: target.openRoles === undefined ? null : (companies.find((c) => c.id === row.id)?.openRoles ?? null) },
+        to: { id: target.id, name: target.name, host: row.to, openRoles: target.openRoles ?? null },
+      });
+    }
+  }
+  return out;
+}
+
+/** PURE. Company name reduced to what survives a rebrand of its suffix and punctuation. */
+export function nameKey(name) {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/\s*\((?:united states|usa|us)\)\s*$/, '')
+    .replace(/\b(?:inc|llc|corp|ltd|co)\b\.?/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * PURE. Rows sharing a name, split into the ones that are probably one company and the ones that
+ * are probably two.
+ *
+ * The discriminator is the website. Charge Robotics appears twice — once from YC with
+ * chargerobotics.com and 15 open roles, once from its Ashby board with no website at all — and those
+ * are one company whose hiring is split across two rows. Alex appears twice with alexcodes.app and
+ * alex.com, which are two companies that picked the same word.
+ *
+ * ponytail: agreeing hosts, nothing cleverer. It under-detects by design — Reddit is listed under
+ * both reddit.com and redditinc.com and reads as two companies here, because a rule loose enough to
+ * merge those would also merge Atlas (atlascard.com) with Atlas (atlas.so). Under-detecting leaves a
+ * duplicate; over-detecting fuses two real companies' hiring data, which is much worse to undo.
+ */
+export function nameDuplicates(companies) {
+  const groups = new Map();
+  for (const company of companies || []) {
+    const key = nameKey(company?.name);
+    if (!key) continue;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(company);
+  }
+  const same = [];
+  const collisions = [];
+  for (const rows of groups.values()) {
+    if (rows.length < 2) continue;
+    const hosts = [...new Set(rows.map((r) => hostKey(r.website)).filter(Boolean))];
+    const entry = {
+      name: rows[0].name,
+      rows: rows.map((r) => ({ id: r.id, website: r.website || null, openRoles: r.openRoles ?? null })),
+      hosts,
+    };
+    (hosts.length <= 1 ? same : collisions).push(entry);
+  }
+  return { same, collisions };
+}
+
 /** PURE. Counts by state, so the report leads with what was learned rather than a row dump. */
 export function summarize(rows) {
   const by = {};
@@ -149,6 +232,8 @@ export async function run(options = {}) {
     counts: summarize(rows),
     moved: rows.filter((r) => r.state === 'moved'),
     expired: rows.filter((r) => r.state === 'expired'),
+    mergeCandidates: mergeCandidates(rows, JSON.parse(fs.readFileSync(options.mapPath || MAP, 'utf8')).companies || []),
+    nameDuplicates: nameDuplicates(JSON.parse(fs.readFileSync(options.mapPath || MAP, 'utf8')).companies || []).same,
     rows,
   };
   fs.writeFileSync(OUT, `${JSON.stringify(report, null, 1)}\n`);
@@ -190,6 +275,30 @@ function selftest() {
   assert(wiki.state === 'expired' && /reference page/.test(wiki.reason), 'an encyclopedia article is not a corporate address');
   assert(driftVerdict('http://survata.com/', { ok: true, status: 200, finalUrl: 'https://upwave.com/' }).state === 'moved', 'a real rebrand still reads as moved');
 
+  // A rebrand that lands on a domain we already list is one company counted twice.
+  const companies = [{ id: 'a', name: 'Survata', website: 'http://survata.com' }, { id: 'b', name: 'Upwave', website: 'https://upwave.com', openRoles: 7 }];
+  const cands = mergeCandidates([{ id: 'a', name: 'Survata', state: 'moved', from: 'survata.com', to: 'upwave.com' }], companies);
+  assert(cands.length === 1 && cands[0].to.name === 'Upwave' && cands[0].to.openRoles === 7, 'a rebrand onto an existing row is a merge candidate');
+  assert(mergeCandidates([{ id: 'a', state: 'moved', from: 'x.com', to: 'nobody.com' }], companies).length === 0, 'a move to a domain we do not list is not a duplicate');
+  assert(mergeCandidates([{ id: 'a', state: 'expired', from: 'x.com', to: 'hugedomains.com' }], companies).length === 0, 'an expired domain is never a merge candidate');
+  assert(mergeCandidates([{ id: 'b', name: 'Upwave', state: 'moved', from: 'upwave.com', to: 'upwave.com' }], companies).length === 0, 'a row never merges with itself');
+
+  assert(nameKey('Harness Inc.') === nameKey('Harness'), 'a legal suffix is not a different company');
+  assert(nameKey('PresenceLearning (United States)') === 'presencelearning', 'the geography disambiguator is stripped');
+  assert(nameKey('') === '' && nameKey(null) === '', 'no name, no key');
+
+  const dup = nameDuplicates([
+    { id: 'yc:charge-robotics', name: 'Charge Robotics', website: 'https://chargerobotics.com', openRoles: 15 },
+    { id: 'hn:ashby/charge-robotics', name: 'Charge Robotics' },
+    { id: 'yc:alex', name: 'Alex', website: 'https://alexcodes.app' },
+    { id: 'yc:alex-com', name: 'Alex', website: 'https://alex.com' },
+    { id: 'yc:solo', name: 'Solo', website: 'https://solo.com' },
+  ]);
+  assert(dup.same.length === 1 && dup.same[0].name === 'Charge Robotics', 'one row with no website is the same company, not a second one');
+  assert(dup.collisions.length === 1 && dup.collisions[0].name === 'Alex', 'two live sites sharing a name are two companies');
+  assert(dup.same[0].rows.length === 2 && dup.same[0].rows.some((r) => r.openRoles === 15), 'the roles at stake are carried into the report');
+  assert(!dup.same.concat(dup.collisions).some((g) => g.name === 'Solo'), 'a unique name is not a group');
+
   const counts = summarize([{ state: 'live' }, { state: 'moved' }, { state: 'moved' }]);
   assert(counts.moved === 2 && counts.live === 1, 'counts by state');
 
@@ -208,5 +317,7 @@ if (isMain) {
     console.log(JSON.stringify({ schema: report.schema, checked: report.checked, scope: report.scope, counts: report.counts, moved: report.moved.length }, null, 2));
     for (const row of report.moved.slice(0, 30)) console.log(`  moved  ${row.from} -> ${row.to}   ${row.name}`);
     for (const row of report.rows.filter((r) => r.state === 'expired').slice(0, 15)) console.log(`  expired ${row.from} -> ${row.to}   ${row.name}`);
+    for (const c of report.mergeCandidates) console.log(`  SAME?  "${c.from.name}" (${c.from.host}) is probably "${c.to.name}" (${c.to.host}, roles=${c.to.openRoles}) — review, never auto-merged`);
+    for (const g of report.nameDuplicates) console.log(`  DUP?   "${g.name}" is ${g.rows.length} rows: ${g.rows.map((r) => `${r.id}[roles=${r.openRoles ?? '-'}]`).join(' + ')}`);
   }
 }
