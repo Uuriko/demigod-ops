@@ -13,6 +13,7 @@ import { projectActivityList } from './demigod-die-activity-shape.mjs';
 import { csvRow, exportFilename } from './demigod-die-export.mjs';
 import { loadHistory, signalsFrom, withWatchlist } from './demigod-die-signals.mjs';
 import { HISTORY as LIFESPAN_HISTORY, MAP as LIFESPAN_MAP, lifespans, load as loadLifespan } from './demigod-die-lifespan.mjs';
+import { provenance } from './demigod-die-provenance.mjs';
 import {
   advanceApplication,
   applyCandidate,
@@ -1324,6 +1325,16 @@ export function createDieWebServer() {
           companiesWithAClaim: feed.companiesWithAClaim ?? 0,
           overall: feed.overall ?? null,
           companies: (feed.companies || []).slice(0, limit),
+        }, head);
+      } else if (url.pathname.startsWith('/api/v1/provenance/')) {
+        /* Where each field came from and how old it is. The packet already held all of this and
+           scattered it, so it read as one uniformly-true object while its parts were observed days
+           apart and two of its sources had never run. Deliberately no confidence score: origin,
+           observation time and read outcome can be checked by the reader, a percentage cannot. */
+        const id = decodeId(url.pathname.slice('/api/v1/provenance/'.length));
+        sendJson(res, 200, {
+          schema: 'demigod.die-provenance/1',
+          ...provenance(buildCompanyPacket({ companyId: id, ...loadPacketInputs() })),
         }, head);
       } else if (url.pathname === '/api/v1/export') {
         const dataset = String(url.searchParams.get('dataset') || '');
