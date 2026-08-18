@@ -65,6 +65,26 @@ export const PARKING_HOSTS = [
  */
 export const REFERENCE_HOSTS = ['wikipedia.org', 'crunchbase.com', 'linkedin.com'];
 
+/**
+ * Hosts that are a platform, never a company's own domain.
+ *
+ * The full run proved why this needs to be its own list: "Cora" redirects to apps.apple.com, and
+ * apps.apple.com is what the map holds as TypeLess's website — so the two matched and the tool
+ * proposed merging two unrelated companies. A bad website field turned into a bad merge suggestion,
+ * which is the expensive direction to be wrong in. Neither side of a merge may rest on a platform.
+ */
+export const PLATFORM_HOSTS = [
+  'apps.apple.com', 'itunes.apple.com', 'play.google.com', 'github.com', 'medium.com',
+  'notion.so', 'substack.com', 'facebook.com', 'x.com', 'twitter.com', 'youtube.com',
+];
+
+/** PURE. Is this host a real company domain, or a platform standing in for one? */
+export function isCompanyHost(host) {
+  const h = String(host || '').toLowerCase().replace(/^www\./, '');
+  if (!h) return false;
+  return !PLATFORM_HOSTS.includes(h) && !REFERENCE_HOSTS.includes(h.split('.').slice(-2).join('.'));
+}
+
 /** PURE. Host identity the way the rest of the codebase compares it: no `www.`, lower case. */
 export function hostKey(url) {
   try { return new URL(String(url)).hostname.toLowerCase().replace(/^www\./, ''); } catch { return null; }
@@ -123,6 +143,7 @@ export function mergeCandidates(rows, companies) {
   const out = [];
   for (const row of rows || []) {
     if (row.state !== 'moved') continue;
+    if (!isCompanyHost(row.to)) continue;
     for (const target of byHost.get(row.to) || []) {
       if (target.id === row.id) continue;
       out.push({
@@ -282,6 +303,18 @@ function selftest() {
   assert(mergeCandidates([{ id: 'a', state: 'moved', from: 'x.com', to: 'nobody.com' }], companies).length === 0, 'a move to a domain we do not list is not a duplicate');
   assert(mergeCandidates([{ id: 'a', state: 'expired', from: 'x.com', to: 'hugedomains.com' }], companies).length === 0, 'an expired domain is never a merge candidate');
   assert(mergeCandidates([{ id: 'b', name: 'Upwave', state: 'moved', from: 'upwave.com', to: 'upwave.com' }], companies).length === 0, 'a row never merges with itself');
+
+  // A platform is never a company domain, on either side of a merge.
+  assert(isCompanyHost('acme.com') === true, 'a real domain is a company host');
+  assert(isCompanyHost('apps.apple.com') === false, 'the App Store is not a company');
+  assert(isCompanyHost('www.github.com') === false, 'www does not smuggle a platform through');
+  assert(isCompanyHost('en.wikipedia.org') === false, 'reference hosts are covered too');
+  assert(isCompanyHost('') === false, 'no host, no company');
+  const platformMerge = mergeCandidates(
+    [{ id: 'a', name: 'Cora', state: 'moved', from: 'corahealth.app', to: 'apps.apple.com' }],
+    [{ id: 'b', name: 'TypeLess', website: 'https://apps.apple.com/x' }],
+  );
+  assert(platformMerge.length === 0, 'two companies must never merge because both point at the App Store');
 
   assert(nameKey('Harness Inc.') === nameKey('Harness'), 'a legal suffix is not a different company');
   assert(nameKey('PresenceLearning (United States)') === 'presencelearning', 'the geography disambiguator is stripped');
