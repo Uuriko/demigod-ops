@@ -1,5 +1,7 @@
 [Unit]
 Description=Demigod multi-day company-research re-verify (CH-13; schedule-gated)
+# Without this a failing weekly job is invisible.
+OnFailure=demigod-alert@%n.service
 After=network-online.target
 Wants=network-online.target
 
