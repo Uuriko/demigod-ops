@@ -10,6 +10,7 @@ import { projectTableRow } from './demigod-company-table.mjs';
 import { createNote, loadPackets, projectForReview } from './demigod-role-packet.mjs';
 import { importJsonMissions, missionStorePath, openMissionStore } from './demigod-die-mission-store.mjs';
 import { projectActivityList } from './demigod-die-activity-shape.mjs';
+import { exportFilename, toCsv } from './demigod-die-export.mjs';
 import {
   advanceApplication,
   applyCandidate,
@@ -658,6 +659,53 @@ function activityList(searchParams) {
   return projectActivityList({ receipts, entity: entity || null, limit, cursor });
 }
 
+/**
+ * A ceiling, not a page size. The browse routes page at MAX_LIMIT because a UI shows a screenful;
+ * an export that silently handed back a screenful would be the worse failure, so this is set above
+ * the largest real dataset and the route refuses rather than truncates when something exceeds it.
+ */
+export const EXPORT_MAX_ROWS = parseInteger(process.env.DEMIGOD_DIE_EXPORT_MAX, {
+  fallback: 10_000, min: 1, max: 1_000_000, error: 'invalid_export_max',
+});
+
+/**
+ * The datasets a customer can take with them, unpaginated.
+ *
+ * Deliberately built from the same projections the API serves rather than from the files
+ * underneath: an export that reads raw disk would drift from what the product shows, and then two
+ * numbers exist for the same question. This is also why the whole corpus is not offered as one
+ * dataset — these are the four the app actually renders, and exporting a shape nobody has seen
+ * would be publishing an unreviewed schema.
+ */
+/* Each dataset answers `count` WITHOUT building `rows`. The first version checked the cap after
+   materialising everything, which meant an oversized export did the full 18 seconds of work for
+   2,912 company packets and only then refused — protecting the caller from a misleading file while
+   doing nothing to protect the server, which is the other half of why a limit exists. A cap you pay
+   for before you enforce it is not a cap. */
+const EXPORTS = {
+  companies: {
+    count: () => (Array.isArray(loadPacketInputs().map?.companies) ? loadPacketInputs().map.companies.length : 0),
+    rows: () => {
+      const inputs = loadPacketInputs();
+      const companies = Array.isArray(inputs.map?.companies) ? inputs.map.companies : [];
+      return companies.map((row) => projectTableRow(buildCompanyPacket({ companyId: row.id, ...inputs })));
+    },
+  },
+  roles: { count: () => roleList().rows.length, rows: () => roleList().rows },
+  missions: { count: () => missionList().rows.length, rows: () => missionList().rows },
+  calendar: { count: () => calendarList().slots.length, rows: () => calendarList().slots },
+  activity: {
+    count: () => STORE.list().reduce((n, m) => n + (m?.events?.length || 0), 0),
+    rows: () => {
+      const receipts = [];
+      for (const mission of STORE.list()) {
+        for (const event of mission?.events || []) receipts.push(event);
+      }
+      return receipts;
+    },
+  },
+};
+
 function missionList() {
   const rows = STORE.list().map((mission) => ({
     roleId: mission.roleId,
@@ -915,6 +963,46 @@ export function createDieWebServer() {
         });
       } else if (url.pathname === '/api/v1/activity') {
         sendJson(res, 200, activityList(url.searchParams), head);
+      } else if (url.pathname === '/api/v1/export') {
+        const dataset = String(url.searchParams.get('dataset') || '');
+        const format = String(url.searchParams.get('format') || 'csv').toLowerCase();
+        if (!EXPORTS[dataset]) {
+          sendJson(res, 400, { ok: false, error: 'unknown_dataset', datasets: Object.keys(EXPORTS) }, head);
+          return;
+        }
+        if (format !== 'csv' && format !== 'json') {
+          sendJson(res, 400, { ok: false, error: 'unknown_format', formats: ['csv', 'json'] }, head);
+          return;
+        }
+        /* A partial export must not look like a whole one. There is no field in a CSV to carry
+           "and 900 more" — the file opens in Excel looking complete, gets treated as the full
+           corpus, and every number derived from it is quietly wrong. Refusing is the only outcome
+           that cannot be mistaken for success, so an oversized export fails with the count and the
+           route that can page through it rather than handing over a truncated file. The count is
+           taken before the rows are built, so the refusal costs a length rather than the export. */
+        const total = EXPORTS[dataset].count();
+        if (total > EXPORT_MAX_ROWS) {
+          sendJson(res, 413, {
+            ok: false,
+            error: 'export_too_large',
+            rows: total,
+            max: EXPORT_MAX_ROWS,
+            hint: `page through /api/v1/${dataset} with limit and cursor instead`,
+          }, head);
+          return;
+        }
+        const rows = EXPORTS[dataset].rows();
+        const filename = exportFilename(dataset, format);
+        if (format === 'json') {
+          send(res, 200, `${JSON.stringify({ schema: `demigod.die-export/1`, dataset, total: rows.length, rows }, null, 1)}\n`,
+            'application/json; charset=utf-8', head, {
+              ...noindex, 'Content-Disposition': `attachment; filename="${filename}"`,
+            });
+        } else {
+          send(res, 200, toCsv(rows), 'text/csv; charset=utf-8', head, {
+            ...noindex, 'Content-Disposition': `attachment; filename="${filename}"`,
+          });
+        }
       } else if (uiRoute(url.pathname)) {
         sendUi(res, head, noindex);
       } else {
