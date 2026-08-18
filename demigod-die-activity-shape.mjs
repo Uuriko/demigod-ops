@@ -8,6 +8,7 @@ export const ACTIVITY_ROW_KEYS = [
   'id',
   'at',
   'actor',
+  'account',
   'entity',
   'action',
   'beforeVersion',
@@ -15,6 +16,21 @@ export const ACTIVITY_ROW_KEYS = [
   'idempotencyKey',
   'result',
 ];
+
+/**
+ * The ONE field allowed to hold an address, and the reason the rest are not.
+ *
+ * Every other field is dropped if it looks like an email, because a candidate's contact details
+ * must never end up in a receipt. `account` is the opposite case: it is the signed-in operator's
+ * own work address, and recording it is the entire point of an audit trail — "who did this" is
+ * unanswerable without it.
+ *
+ * That distinction has to be encoded rather than assumed, because the guard is indiscriminate.
+ * Stamping an account onto an event without this exemption does not fail loudly: shapeActivityRow
+ * returns null and the whole receipt disappears from /activity. Attribution would have deleted the
+ * very rows it was added to label.
+ */
+const ADDRESS_ALLOWED = new Set(['account']);
 export const ACTIVITY_POLICY =
   'Hosted workflow receipts only. Local operations, agent, ship, and machine activity are excluded.';
 
@@ -26,11 +42,15 @@ export function shapeActivityRow(receipt) {
   for (const key of ACTIVITY_ROW_KEYS) {
     if (receipt[key] == null) continue;
     const value = receipt[key];
-    if (typeof value === 'string' && EMAIL.test(value)) return null;
+    if (typeof value === 'string' && EMAIL.test(value) && !ADDRESS_ALLOWED.has(key)) return null;
     row[key] = value;
   }
   if (!row.action && !row.id) return null;
-  if (EMAIL.test(JSON.stringify(row))) return null;
+  /* The whole-row sweep runs over everything EXCEPT the allowed field, so a candidate address
+     hiding in any other value still drops the row. Removing this second pass, or letting it see
+     `account`, would undo the guard rather than narrow it. */
+  const { account, ...rest } = row;
+  if (EMAIL.test(JSON.stringify(rest))) return null;
   return row;
 }
 

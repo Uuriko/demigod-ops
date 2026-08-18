@@ -623,7 +623,7 @@ export function canMutate(context) {
   return context.mode === 'gated_public';
 }
 
-function hydrateMission(roleId) {
+function hydrateMission(roleId, { account = null } = {}) {
   const packet = loadPackets().packets?.[roleId] || null;
   if (!packet) throw Object.assign(new Error('role_not_found'), { status: 404 });
   if (packet.demo === true) {
@@ -638,7 +638,14 @@ function hydrateMission(roleId) {
   }
   let mission = STORE.get(roleId);
   if (!mission) {
+    /* `owner` stays the desk role, NOT the account address — identity travels in `account`.
+       Putting the email here looked like the obvious fix for "every receipt says operator", but
+       `actor` is `mission.owner`, and actor is not an address-allowed field: shapeActivityRow would
+       have dropped every row it appeared in. Attribution would have deleted the receipts it was
+       added to label. The two facts stay separate, which is what the audit-shape comment argued
+       for in the first place. */
     mission = openRoleMission({ packet, owner: 'operator' });
+    mission.actingAccount = account;
     if (packet.companyId) {
       try {
         const company = buildCompanyPacket({ companyId: packet.companyId, ...loadPacketInputs() });
@@ -660,9 +667,12 @@ function hydrateMission(roleId) {
 }
 
 function applyMissionAction(roleId, body = {}, { account = null } = {}) {
-  const opened = hydrateMission(roleId);
+  const opened = hydrateMission(roleId, { account });
   if (!opened.mission) throw Object.assign(new Error(opened.reason || 'mission_unavailable'), { status: 400 });
-  let mission = opened.mission;
+  /* Set once, before the action branch, so every path through the kernel stamps the same account
+     onto whatever event it pushes. Threading it through each of the eleven mutators individually
+     would mean one of them eventually forgets. */
+  let mission = { ...opened.mission, actingAccount: account };
   const action = String(body.action || '').trim();
   if (action === 'apply') mission = applyCandidate(mission, { candId: body.candId, source: body.source || 'applied' });
   else if (action === 'advance') mission = advanceApplication(mission, { candId: body.candId, to: body.to });

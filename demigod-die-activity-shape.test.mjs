@@ -68,4 +68,29 @@ assert.equal(page.rows.length, 1);
 assert.equal(page.rows[0].id, '1');
 assert.equal(page.nextCursor, 1);
 
+/* Attribution, and the exactly-one exemption that makes it possible.
+   Every field is dropped if it looks like an address, so that a candidate's contact details cannot
+   reach a receipt. `account` is the signed-in operator's own address and is the point of an audit
+   trail. Without the exemption, stamping an account onto an event does not fail loudly — the row
+   returns null and vanishes from /activity, so attribution would delete the receipts it labels. */
+{
+  const base = { id: 'e1', at: '2026-08-18T00:00:00Z', actor: 'operator', entity: 'role-1', action: 'apply', result: 'ok' };
+
+  const attributed = shapeActivityRow({ ...base, account: 'alice@demigod.test' });
+  assert.ok(attributed, 'a row carrying an operator account is kept, not silently dropped');
+  assert.equal(attributed.account, 'alice@demigod.test');
+
+  // and the allowance must stay narrow, or it is not a guard any more
+  assert.equal(shapeActivityRow({ ...base, actor: 'candidate@gmail.com' }), null,
+    'an address in actor still drops the row');
+  assert.equal(shapeActivityRow({ ...base, result: 'emailed bob@gmail.com' }), null,
+    'an address anywhere in the free-text fields still drops the row');
+  assert.equal(shapeActivityRow({ ...base, account: 'alice@demigod.test', entity: 'cand@gmail.com' }), null,
+    'an allowed account does not excuse a candidate address in another field');
+
+  const unattributed = shapeActivityRow(base);
+  assert.ok(unattributed, 'an event with no account is still a receipt');
+  assert.equal(unattributed.account, undefined, 'and does not invent one');
+}
+
 console.log('demigod-die-activity-shape: PASS');

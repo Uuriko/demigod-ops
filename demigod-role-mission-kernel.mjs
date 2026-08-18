@@ -135,6 +135,11 @@ function bump(mission, { at, action, candId = null, result = 'ok' } = {}) {
     id: newId(),
     at: clock,
     actor: next.owner,
+    /* Who was signed in when this happened, kept apart from `actor`, which is who the record is
+       ABOUT. Collapsing them would let "Priya interviewed the candidate" and "Priya typed this in"
+       become one claim, and only one of those is evidence. Null means loopback or the pre-accounts
+       shared cookie, which is itself worth being able to see in the log. */
+    account: next.actingAccount ?? null,
     entity: next.roleId,
     action,
     beforeVersion: before,
