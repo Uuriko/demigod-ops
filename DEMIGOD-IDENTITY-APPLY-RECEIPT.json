@@ -1,0 +1,65 @@
+{
+ "schema": "demigod.identity-apply-receipt/1",
+ "at": "2026-08-18T00:20:02.282Z",
+ "actor": "claude",
+ "why": "4 companies were listed twice because an HN row carried no website and therefore no dedupe key; a 5th (Harness) had two Wikidata rows sharing harness.io that survived dedupe.",
+ "steps": [
+  {
+   "step": 1,
+   "command": "demigod-identity-review.mjs --apply-websites --fill --write",
+   "effect": "filled website on 4 keyless rows from their unambiguous donor sibling; no row dropped",
+   "rows": [
+    {
+     "id": "hn:jobs.ashbyhq.com/chestnut",
+     "website": null,
+     "openRoles": 4,
+     "hiring": "yes"
+    },
+    {
+     "id": "hn:jobs.ashbyhq.com/charge-robotics",
+     "website": null,
+     "openRoles": null,
+     "hiring": "yes"
+    },
+    {
+     "id": "hn:jobs.ashbyhq.com/kiloforge",
+     "website": null,
+     "openRoles": null,
+     "hiring": "yes"
+    },
+    {
+     "id": "hn:jobs.ashbyhq.com/middesk",
+     "website": null,
+     "openRoles": null,
+     "hiring": "yes"
+    }
+   ]
+  },
+  {
+   "step": 2,
+   "command": "demigod-identity-review.mjs --collapse-same-host --write",
+   "effect": "collapsed 5 same-host groups, keeping the highest-scored row and transferring openRoles/jobsUrl/atsSource where the dropped row held more",
+   "dropped": [
+    "hn:jobs.ashbyhq.com/chestnut",
+    "hn:jobs.ashbyhq.com/charge-robotics",
+    "wd:Q140898004",
+    "hn:jobs.ashbyhq.com/kiloforge",
+    "hn:jobs.ashbyhq.com/middesk"
+   ]
+  }
+ ],
+ "before": {
+  "companies": 2917,
+  "countedRoles": 10936
+ },
+ "after": {
+  "companies": 2912,
+  "countedRoles": 10936
+ },
+ "rolesPreserved": true,
+ "reversal": "git checkout DEMIGOD-SF-STARTUP-MAP.json against the commit before this receipt; the map is tracked and both writes are a single-line diff.",
+ "notApplied": {
+  "movedWebsites": 152,
+  "reason": "company identity is keyed on the registrable domain with the TLD kept, so rewriting website is an identity change, not a refresh. gooddata.com -> gooddata.ai is a DIFFERENT key by design. The redirects are recorded in DEMIGOD-DOMAIN-DRIFT.json as observations and applied to nothing."
+ }
+}

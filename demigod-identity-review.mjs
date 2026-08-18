@@ -386,6 +386,22 @@ if (isMain && process.argv.includes('--selftest')) {
   assert(identityReview(null).groups.length === 0, 'null map -> empty');
   assert(identityReview({ companies: ['junk'] }).groups.length === 0, 'malformed rows ignored');
 
+  // Collapse drops rows; the coverage count must not keep claiming the old total.
+  {
+    const live = {
+      coverage: { namedCompanies: 2 },
+      companies: [
+        co({ id: 'yc:middesk', name: 'Middesk', website: 'https://middesk.com/' }),
+        co({ id: 'hn:jobs.ashbyhq.com/middesk', name: 'Middesk', website: null, source: 'Hacker News (Who is Hiring)' }),
+      ],
+    };
+    const collapsed = applyWebsiteProposals(live, { write: true, mode: 'collapse' });
+    assert(collapsed.map.companies.length === 1, 'collapse drops the keyless shell');
+    const filled = applyWebsiteProposals(live, { write: true, mode: 'fill' });
+    assert(filled.map.companies.length === 2, 'fill never drops a row');
+    assert(filled.map.companies.every((c) => c.website), 'fill gives the keyless row its donor website');
+  }
+
   console.log(JSON.stringify({ ok: true, selftest: 'identity-review' }));
   process.exitCode = 0;
 } else if (isMain && process.argv.includes('--collapse-same-host')) {
@@ -422,7 +438,14 @@ if (isMain && process.argv.includes('--selftest')) {
   const mode = process.argv.includes('--fill') ? 'fill' : 'collapse';
   const result = applyWebsiteProposals(live, { write: wantWrite, mode });
   if (wantWrite && result.applied.length) {
-    atomicWrite(MAP, `${JSON.stringify(result.map, null, 2)}\n`);
+    // Match the sibling --collapse-same-host path: the map is stored minified, and pretty-printing
+    // it here rewrote all 77,801 lines and grew the file 37% to change four website fields.
+    // Collapse mode drops rows, so the headline count has to follow or the map states a total it
+    // no longer holds — the same defect as /startups claiming 501 companies against 471.
+    if (result.map.coverage && typeof result.map.coverage === 'object') {
+      result.map.coverage.namedCompanies = result.map.companies.length;
+    }
+    atomicWrite(MAP, `${JSON.stringify(result.map)}\n`, { mode: 0o644 });
   }
   const out = {
     ok: true,
