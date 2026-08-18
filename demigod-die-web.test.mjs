@@ -370,8 +370,31 @@ if (port !== null) {
     assert.equal(mutation.status, 405);
     assert.equal(mutation.headers.allow, 'GET, HEAD, POST');
     assert.equal((await request('/healthz', { host: 'evil.example' })).status, 403);
+
+    /* Health must ask the store something. It returned a bare 200 for months, so it answered
+       "healthy" for a process whose database could have been deleted or corrupted underneath it —
+       the same error as reporting the desk publicly up because a text file said so. Proven by
+       corrupting a store in place under a running server: 200 with store:"ok" becomes 503 with
+       store:"unreadable: file is not a database". */
+    const health = JSON.parse((await request('/healthz')).body);
+    assert.equal(health.ok, true);
+    assert.equal(health.store, 'ok', 'healthz must report on the store it actually read');
   } finally {
     child.kill('SIGTERM');
+  }
+}
+
+
+/* A 500 must leave a trace for the operator, and must not leave the data in a log file. */
+{
+  const source = fs.readFileSync(path.join(root, 'demigod-die-web.mjs'), 'utf8');
+  assert.match(source, /if \(status >= 500\) \{\s*\n\s*logEvent\(/,
+    'a 500 is logged; it used to return internal_error and record nothing anywhere');
+  assert.match(source, /STORE\.seen\('healthz-probe-never-written'\)/,
+    'healthz reads the store rather than asserting its own health');
+  const logged = source.match(/export function logEvent[\s\S]{0,700}?\n\}/)?.[0] || '';
+  for (const forbidden of ['req.headers', 'cookie', 'body', 'searchParams']) {
+    assert.ok(!logged.includes(forbidden), `logEvent must not reach for ${forbidden} — a log is not a second copy of the corpus`);
   }
 }
 

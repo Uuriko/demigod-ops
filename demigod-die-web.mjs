@@ -71,6 +71,24 @@ const GATE_MS = 12 * 60 * 60 * 1000;
 const PUBLIC_URL_FILE = path.join(process.env.HOME || '', '.config/demigod/die-public-url');
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
+/**
+ * One structured line to stderr, which systemd puts in the journal.
+ *
+ * There was no logging at all: a 500 sent `{"error":"internal_error"}` to the caller and left
+ * nothing anywhere. The person who could fix it learned neither that it happened nor what it was,
+ * and "it broke once, I don't know why" is where an outage lives when nobody can look.
+ *
+ * Deliberately NOT logged: request bodies, cookies, headers, and query VALUES. A search on this
+ * corpus is a company someone is looking at, and a log is a place data goes to be forgotten about.
+ * Path and status say where; the message says what. That is enough to find a bug and not enough to
+ * become a second copy of the data.
+ */
+export function logEvent(fields) {
+  try {
+    process.stderr.write(`${JSON.stringify({ at: new Date().toISOString(), service: 'die-web', ...fields })}\n`);
+  } catch { /* logging must never be the thing that takes the request down */ }
+}
+
 function validDnsHost(value) {
   return /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(value);
 }
@@ -855,7 +873,20 @@ export function createDieWebServer() {
     const noindex = context.hosted ? { 'X-Robots-Tag': 'noindex, nofollow' } : {};
     try {
       if (url.pathname === '/healthz') {
-        sendJson(res, 200, { ok: true, service: 'demigod-die-web', release: RELEASE_ID }, head);
+        /* Actually asks the database something.
+           This returned 200 unconditionally, so it answered "healthy" for a process whose store had
+           been deleted, moved, or corrupted — the same shape as the desk reporting it was publicly
+           up because a text file said so. A check that cannot fail is not a check. `seen()` is an
+           indexed lookup on a key that will never exist, so it costs nothing and still proves the
+           file is open and readable. */
+        let store = 'ok';
+        try { STORE.seen('healthz-probe-never-written'); }
+        catch (error) { store = `unreadable: ${String(error.message || error).slice(0, 120)}`; }
+        const healthy = store === 'ok';
+        if (!healthy) logEvent({ level: 'error', event: 'health_degraded', store });
+        sendJson(res, healthy ? 200 : 503, {
+          ok: healthy, service: 'demigod-die-web', release: RELEASE_ID, store,
+        }, head);
       } else if (url.pathname === '/robots.txt') {
         send(res, 200, 'User-agent: *\nDisallow: /\n', 'text/plain; charset=utf-8', head, noindex);
       } else if (url.pathname === '/favicon.ico') {
@@ -1080,6 +1111,20 @@ export function createDieWebServer() {
     } catch (error) {
       const known = /^(advance_|mission_|application_|slot_|offer_|conversation_|packet_|scorecard_|debrief_|outcome_|cand_|owner_|pair_)|_id$|_contact_shaped$/.test(String(error.message || ''));
       const status = Number.isInteger(error?.status) ? error.status : known ? 400 : 500;
+      /* A 500 is a bug in here; a 4xx is a caller doing something the contract refuses. Only the
+         first is worth waking anyone for, and only the first gets a stack. The caller still sees
+         `internal_error` and nothing more — the detail goes to the operator, not over the wire. */
+      if (status >= 500) {
+        logEvent({
+          level: 'error',
+          event: 'request_failed',
+          method,
+          path: url?.pathname || null,
+          status,
+          error: String(error?.message || error).slice(0, 300),
+          stack: String(error?.stack || '').split('\n').slice(1, 4).map((line) => line.trim()),
+        });
+      }
       sendJson(res, status, {
         ok: false,
         error: status === 500 ? 'internal_error' : String(error.message || 'request_failed'),
