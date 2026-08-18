@@ -61,5 +61,16 @@
  "notApplied": {
   "movedWebsites": 152,
   "reason": "company identity is keyed on the registrable domain with the TLD kept, so rewriting website is an identity change, not a refresh. gooddata.com -> gooddata.ai is a DIFFERENT key by design. The redirects are recorded in DEMIGOD-DOMAIN-DRIFT.json as observations and applied to nothing."
+ },
+ "recurrence": {
+  "selfHealing": true,
+  "why": "The generator already absorbs an ATS-only HN shell whose board key matches a primary row (demigod-startup-map-data.mjs: boardIndex). These four duplicated because the primary rows had no jobsUrl, so no board key. The collapse transferred jobsUrl/atsSource onto the survivors, which now produce exactly the board key the shell generates — e.g. board:jobs.ashbyhq.com/chestnut. The next rebuild absorbs rather than inflates.",
+  "verified": [
+   "yc:chestnut",
+   "yc:charge-robotics",
+   "hn:kiloforge.com",
+   "yc:middesk"
+  ],
+  "caveat": "Harness was two Wikidata rows sharing a host, not an ATS shell. Nothing prevents Wikidata re-emitting two entities for one company, so that one can recur and is caught by --collapse-same-host."
  }
 }
