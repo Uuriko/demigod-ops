@@ -192,27 +192,36 @@ export function buildStaticDirectory(map, generatedAt = '', feed = null, maxByte
   //      no reliable expiry date for any of them — exactly the profile that earns that penalty.
   // ItemList of Organizations describes what we actually are: a directory of companies. The
   // selftest below asserts JobPosting never appears; do not "fix" that.
+  // ponytail: 50KB Webflow footer ceiling; paginate when the schema needs every organization.
+  const listed = sorted.slice(0, 50);
   const jsonld = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
     name: 'SF startups hiring — public ATS open roles',
-    numberOfItems: verified.length,
-    // ponytail: 50KB Webflow footer ceiling; paginate when the schema needs every organization.
-    itemListElement: sorted.slice(0, 50).map((c, i) => ({
+    // Counts the list actually emitted, not the corpus. Declaring 339 items and then supplying 50
+    // is the same over-claim the page copy goes out of its way to avoid ("Listing the N of these
+    // M"), and it is bound to `listed` so a cap change cannot reintroduce the drift. The
+    // whole-corpus total stays in the <summary>, where the reader sees its caveat alongside it.
+    numberOfItems: listed.length,
+    itemListElement: listed.map((c, i) => ({
       '@type': 'ListItem', position: i + 1,
       item: { '@type': 'Organization', name: c.name, url: safeUrl(c.website) || undefined },
     })),
   };
 
+  // `noopener` is inert here — nothing in this fragment opens a new browsing context
+  // (no target="_blank"), so window.opener is never populated. At ~350 anchors it cost
+  // ~3.1KB against a 50KB ceiling that was already trimming companies off the listing.
+  // Do not re-add it without also adding target="_blank"; `nofollow` is the load-bearing half.
   const row = (c) => {
     const jobs = safeUrl(c.jobsUrl);
     const label = `${c.name} — ${c.openRoles} open role${c.openRoles === 1 ? '' : 's'} on ${c.atsSource}`;
-    return `<li><a href="${esc(jobs)}" rel="nofollow noopener">${esc(label)}</a></li>`;
+    return `<li><a href="${esc(jobs)}" rel="nofollow">${esc(label)}</a></li>`;
   };
 
   const at = generatedAt || (map?.generatedAt || '').slice(0, 10);
   const agingNote = agingRoles
-    ? ` ${agingRoles} role${agingRoles === 1 ? '' : 's'} across ${aging.length} compan${aging.length === 1 ? 'y' : 'ies'} ${agingRoles === 1 ? 'was' : 'were'} posted 90–365 days ago (Greenhouse board date).`
+    ? ` ${agingRoles} role${agingRoles === 1 ? '' : 's'} across ${aging.length} compan${aging.length === 1 ? 'y' : 'ies'} ${agingRoles === 1 ? 'was' : 'were'} posted 90–365 days ago, counted only among roles whose Greenhouse board date we can attribute — not out of the total above.`
     : '';
   // Top aging boards (by agingRoles) — crawlable filter signal; not a ghost-job rate.
   const agingTop = aging
@@ -228,7 +237,7 @@ ${agingTop.map((c) => {
       const jobs = safeUrl(c.jobsUrl);
       const n = c.agingRoles;
       const label = `${c.name} — ${n} role${n === 1 ? '' : 's'} still open after 90–365d on ${c.atsSource}`;
-      return `<li><a href="${esc(jobs)}" rel="nofollow noopener">${esc(label)}</a></li>`;
+      return `<li><a href="${esc(jobs)}" rel="nofollow">${esc(label)}</a></li>`;
     }).join('\n')}
 </ul>
 </section>`
@@ -238,7 +247,7 @@ ${agingTop.map((c) => {
 <h2 id="dg-static-recent">Open roles</h2>
 <p>First observed is Demigod's timestamp, not the employer's posting date. SF Bay / US-leaning locations preferred when boards list them; not matching inventory.</p>
 <ul>
-${recent.map((role) => (() => { const bits = [`first observed ${esc(role.observed)}`]; if (role.department) bits.push(esc(role.department)); if (role.office) bits.push(esc(role.office)); if (role.workplaceType) bits.push(esc(role.workplaceType)); if (role.employmentType) bits.push(esc(role.employmentType)); if (role.boardUpdated) bits.push(`board updated ${esc(role.boardUpdated)}`); return `<li><a href="${esc(role.url)}" rel="nofollow noopener">${esc(role.company)} — ${esc(role.title)}</a> · ${bits.join(' · ')}</li>`; })()).join('\n')}
+${recent.map((role) => (() => { const bits = [`first observed ${esc(role.observed)}`]; if (role.department) bits.push(esc(role.department)); if (role.office) bits.push(esc(role.office)); if (role.workplaceType) bits.push(esc(role.workplaceType)); if (role.employmentType) bits.push(esc(role.employmentType)); if (role.boardUpdated) bits.push(`board updated ${esc(role.boardUpdated)}`); return `<li><a href="${esc(role.url)}" rel="nofollow">${esc(role.company)} — ${esc(role.title)}</a> · ${bits.join(' · ')}</li>`; })()).join('\n')}
 </ul>
 </section>`
     : '';
@@ -322,7 +331,13 @@ if (isMain && (process.env.DEMIGOD_STATIC_SELFTEST === '1' || process.argv.inclu
   const html = buildStaticDirectory(fake, '', fakeFeed);
   // Crawlable: real company + job content is served markup, with native no-JS disclosure.
   assert(html.includes('Alpha Robotics') && html.includes('12 open roles on Ashby'), 'verified company + count in served HTML');
-  assert(html.includes('3 roles across 1 company were posted 90–365 days ago (Greenhouse board date)'), 'attributed board-aging aggregate is crawlable');
+  assert(html.includes('3 roles across 1 company were posted 90–365 days ago'), 'attributed board-aging aggregate is crawlable');
+  /* The aging count is the one figure on this page drawn from a narrower universe than the headline:
+     it counts only roles with an attributable Greenhouse first_published date (9,600 of 17,112 open
+     roles ledger-wide), while the totals above it cover every verified board. Printed bare, a reader
+     divides it by the headline and gets a rate that was never measured. Every other number here
+     states its denominator; this one has to say which denominator it is NOT. */
+  assert(/not out of the total above/.test(html), 'the aging count must refuse the denominator a reader would assume');
   assert(html.includes('dg-static-aging') && html.includes('Posted 90–365 days ago (board date)'), 'aging section heading is crawlable');
   assert(html.includes('Alpha Robotics — 3 roles still open after 90–365d on Ashby'), 'aging company rows are crawlable');
   assert(html.includes('not a fill rate or ghost-job score'), 'aging section states inference limits');
@@ -424,8 +439,9 @@ if (isMain && (process.env.DEMIGOD_STATIC_SELFTEST === '1' || process.argv.inclu
       'an unreachable budget lists every verified company and adds no truncation note');
   }
   assert(
-    realLd.numberOfItems === expected.length && realLd.itemListElement.length === Math.min(50, expected.length),
-    'JSON-LD total is honest and its embedded sample is capped',
+    realLd.itemListElement.length === Math.min(50, expected.length) &&
+      realLd.numberOfItems === realLd.itemListElement.length,
+    'JSON-LD sample is capped and numberOfItems counts what was actually emitted, not the corpus',
   );
   assert(!/<(?:!doctype|html|head|body)\b/i.test(fallback), 'output is a page-footer fragment');
   {
@@ -464,8 +480,10 @@ if (isMain) {
        it fails closed", which described a failure mode that does not exist and would have sent an
        operator to do pagination work the builder already handles. Small headroom is the fitter
        working, not a wall being approached. */
+    /* Point at where the bytes actually are. Page copy is ~1.6KB of ~50KB; the budget is ~83%
+       anchor rows and ~12% the JSON-LD ItemList. "Trim page copy" sent a reader at the 3%. */
     console.error(
-      `directory-static: ${headroomBytes} bytes headroom under the ${DEPLOYABLE_BYTES} byte Webflow ceiling — the listing is being trimmed to fit (totals stay whole-corpus). Trim page copy to list more companies.`,
+      `directory-static: ${headroomBytes} bytes headroom under the ${DEPLOYABLE_BYTES} byte Webflow ceiling — the listing is being trimmed to fit (totals stay whole-corpus). The budget is per-row anchor markup (~83%) and the JSON-LD ItemList (~12%); shorten a row or lower the ItemList cap to list more companies.`,
     );
   }
   const paste = stageStartupsPastePackage(html, { sourcePath: outPath });
