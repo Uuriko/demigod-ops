@@ -56,16 +56,18 @@ exact checks a buyer runs before buying, and we pass all of them silently.
       on `/how-to-buy`: supply, both authorities, **zero outstanding LP tokens**, and top-10 at
       42.5%, as a dated observation telling the reader to verify on Solscan rather than believe the
       page.
-- [ ] 🤖 **A2.** Add claim **C14 ONCHAIN_AUTHORITIES** to `DASHA-CLAIMS.md` in the C8 style: a dated
-      finalized observation, allowed wording, and an explicit "do not infer" list.
-- [ ] 🤖 **A3.** Write the wording so it cannot be read as an endorsement. C2 forbids "safe" and C3
+- [x] 🤖 **A2.** ✅ *Done.* **C14 ONCHAIN_AUTHORITIES** added, plus **C15 LP_CLAIM_OUTSTANDING**
+      that G4 turned up.
+- [x] 🤖 **A3.** ✅ *Done.* Verified absent from the page: locked, rug, safe token, guaranteed,
+      cannot fall, official dasha, verified mint, endorsed by. Wording so it cannot read as an endorsement. C2 forbids "safe" and C3
       makes token control unestablished. The honest form is: *no new supply can be created and no
       wallet can be frozen — that is what these two facts mean and all they mean. They say nothing
       about price, liquidity, or whether anyone will buy it.*
-- [ ] 🤖 **A4.** Gate it: extend `dasha-onchain-check.mjs` so a published authority claim fails the
-      gate if chain state ever stops matching. A claim that cannot go stale-detectably is a slogan.
-- [ ] 🤖 **A5.** State top-10 concentration (41.3%) alongside the good numbers. Publishing only the
-      flattering three is the thing that makes the other three disbelieved.
+- [x] 🤖 **A4.** ✅ *Already existed.* `dasha-onchain-check.mjs` pushes a failure the moment either
+      authority is non-null — proven against synthetic non-null states. C15 got the same treatment in
+      `dasha-token-observe.mjs`, where one outstanding LP token flips `noOutstandingClaim` to false.
+- [x] 🤖 **A5.** ✅ *Done.* Top-10 at 42.5% sits in the same table as the reassuring rows, with the
+      reason stated on the page.
 
 ## B. Wallet and aggregator metadata — the highest-traffic surface
 
@@ -93,7 +95,7 @@ exact checks a buyer runs before buying, and we pass all of them silently.
 
 ## C. Jupiter verification, described accurately
 
-- [ ] 🤖 **C1.** ✅ *Done 2026-08-18.* Corrected `DASHA-DEX-SUBMISSION.md`: pending request
+- [x] 🤖 **C1.** ✅ *Done 2026-08-18.* Corrected `DASHA-DEX-SUBMISSION.md`: pending request
       `15201` / audit `23806` is **not ours** — `senderTwitterHandle: radbrilio`,
       `twitterHandle: Dashaonsol`, neither anywhere in this tree. So "correct or supersede the
       existing request" was never an available action.
@@ -104,8 +106,7 @@ exact checks a buyer runs before buying, and we pass all of them silently.
       would not want it granted **in that wording** even though it names our mint.
 - [ ] 💰 **C4.** Express verification burns **1,000 JUP**. It is the only path independent of 23806.
       Money movement — needs its own authorization, and check the treasury actually holds JUP first.
-- [ ] 🤖 **C5.** Organic score is **0** and tags are `["launchpad","unknown"]`. Track it weekly; it
-      is the signal that moves without any submission at all.
+- [x] 🤖 **C5.** ✅ *Done, daily not weekly.* Organic score and tags are recorded every run.
 - [ ] 🤖 **C6.** Until verified, assume every buyer sees an unverified-token warning. That is an
       input to §E, not a footnote.
 
@@ -115,10 +116,10 @@ Jupiter name search for `dash_eats` returns **12 results; 11 are not ours.** Eac
 1–7 holders and ~$2,178–2,303 liquidity — automated copies, but they pollute every name search.
 Ours ranks first and holds 978 holders and $15.3k liquidity.
 
-- [ ] 🤖 **D1.** Record the 11 clone mints with first-seen dates in a tracked file, so "how many
-      are there" stops being re-derived by hand each time.
-- [ ] 🤖 **D2.** Watch for a clone gaining real liquidity or holders. One at $2.2k is noise; one at
-      $50k is an active attack and the response is different.
+- [x] 🤖 **D1 + D2.** ✅ *Done.* `dasha-token-observe.mjs` records every clone's mint, liquidity and
+      holders each run, so the census is a series rather than a hand count, and a clone gaining real
+      size shows up as a change instead of being noticed late. Largest clone today: $2,303 / 7
+      holders, against our 975.
 - [ ] 🤖 **D3.** Make the mint the most copyable thing on every surface. The research is blunt:
       the mint address is the *only* authoritative identifier, since names and tickers are trivially
       duplicated. `/how-to-buy` already does this well — carry it to home and `/simp`.
