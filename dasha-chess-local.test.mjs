@@ -18,6 +18,8 @@ import { readFile } from 'node:fs/promises';
 import puppeteer from 'puppeteer-core';
 
 const html = await readFile(new URL('./dasha-chess-page.html', import.meta.url), 'utf8');
+assert.match(html, /id="gate-action"[^>]*data-action="link"/,
+  'first HTML Link X must name the linkX branch — an unset action POSTs /chess/queue');
 const server = createServer((_, res) => { res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end(html); });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const url = `http://127.0.0.1:${server.address().port}/`;
@@ -41,11 +43,17 @@ for (const [device, width, height] of [['mobile', 390, 844], ['desktop', 1440, 9
        look-alikes make a real game read as 128. */
     realSquares: document.querySelectorAll('.sq').length,
     play: !!document.getElementById('play-local'),
+    invite: !document.getElementById('invite')?.hidden,
+    inviteUrl: document.getElementById('invite-url')?.value || '',
+    wait: /checking your seat|wait/i.test(document.getElementById('gate-title')?.textContent + document.getElementById('gate-action')?.textContent),
   }));
   check(boot.engine === 'object', `${device}: the engine did not reach the page`);
   check(boot.cells === 64, `${device}: expected 64 preview cells, got ${boot.cells}`);
   check(boot.realSquares === 0, `${device}: the preview is wearing .sq and will break the board count`);
   check(boot.play, `${device}: no way to start a game`);
+  check(boot.invite, `${device}: challenge link must be visible on first paint`);
+  check(boot.inviteUrl.includes('lobby.getdasha.com/chess'), `${device}: challenge field must hold the chess URL before anyone links X`);
+  check(!boot.wait, `${device}: first paint still says Checking your seat / Wait`);
 
   await page.click('#play-local');
   await new Promise((r) => setTimeout(r, 250));
@@ -66,10 +74,14 @@ for (const [device, width, height] of [['mobile', 390, 844], ['desktop', 1440, 9
   const moved = await page.evaluate(() => ({
     e2: (document.querySelector('[data-square="e2"]')?.textContent || '').trim(),
     e4: (document.querySelector('[data-square="e4"]')?.textContent || '').trim(),
+    /* Both sides now render the solid glyph set — the hollow white pieces were an outline in almost
+       the colour of the light square behind them. Side comes from data-side, which is also what the
+       board itself uses, so this asserts more than the glyph did: a WHITE pawn on e4. */
+    e4side: document.querySelector('[data-square="e4"]')?.dataset.side || '',
     black: [...document.querySelectorAll('.psq')].filter((c) => c.dataset.side === 'b').length,
     status: document.getElementById('local-status').textContent,
   }));
-  check(moved.e2 === '' && moved.e4 === '♙', `${device}: 1.e4 did not apply (e2="${moved.e2}" e4="${moved.e4}")`);
+  check(moved.e2 === '' && moved.e4 === '♟' && moved.e4side === 'w', `${device}: 1.e4 did not apply (e2="${moved.e2}" e4="${moved.e4}" side="${moved.e4side}")`);
   check(moved.black === 16, `${device}: black lost pieces on move one — ${moved.black}`);
   check(/your move/i.test(moved.status), `${device}: turn did not come back to the player — "${moved.status}"`);
 
@@ -80,9 +92,10 @@ for (const [device, width, height] of [['mobile', 390, 844], ['desktop', 1440, 9
   await new Promise((r) => setTimeout(r, 300));
   const illegal = await page.evaluate(() => ({
     e4: (document.querySelector('[data-square="e4"]')?.textContent || '').trim(),
+    e4side: document.querySelector('[data-square="e4"]')?.dataset.side || '',
     e3: (document.querySelector('[data-square="e3"]')?.textContent || '').trim(),
   }));
-  check(illegal.e4 === '♙' && illegal.e3 === '', `${device}: an illegal backwards pawn move was accepted`);
+  check(illegal.e4 === '♟' && illegal.e4side === 'w' && illegal.e3 === '', `${device}: an illegal backwards pawn move was accepted`);
 
   // the opponent answers: play three more and watch black's position change
   const before = await page.evaluate(() => [...document.querySelectorAll('.psq')]
@@ -246,6 +259,36 @@ for (const [device, width, height] of [['mobile', 390, 844], ['desktop', 1440, 9
   check(asAnna.files === 8, `${device}: coordinates must follow the flip, got ${asAnna.files} file labels`);
 
   check(pageErrors.length === 0, `${device}: page errors — ${pageErrors[0] || ''}`);
+  await page.close();
+}
+
+{
+  const page = await browser.newPage();
+  await page.setViewport({ width: 1440, height: 900 });
+  await page.setRequestInterception(true);
+  const queued = [];
+  page.on('request', (request) => {
+    const u = request.url();
+    if (u.includes('/chess/queue')) {
+      queued.push(u);
+      return request.respond({ status: 204, body: '' });
+    }
+    /* Hang /chess/me so loadMe cannot rewrite first-paint data-action=link to retry. */
+    if (u.includes('/chess/me')) return;
+    return request.continue();
+  });
+  await page.evaluateOnNewDocument(() => {
+    window.__opened = [];
+    window.open = (href) => { window.__opened.push(String(href || '')); return {}; };
+  });
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  const firstAction = await page.$eval('#gate-action', (el) => el.getAttribute('data-action'));
+  check(firstAction === 'link', `first-paint #gate-action data-action must be link, got ${firstAction}`);
+  await page.click('#gate-action');
+  const opened = await page.evaluate(() => window.__opened || []);
+  check(opened.some((href) => /oauth\/x\/start/.test(href)),
+    `Link X first paint must call linkX (window.open oauth) — opened ${JSON.stringify(opened)}`);
+  check(queued.length === 0, `Link X first paint must not POST /chess/queue — ${queued.join(',')}`);
   await page.close();
 }
 
