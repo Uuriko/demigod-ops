@@ -815,6 +815,24 @@ also no staging — editing a unit changes the machine.
 
 4. **Streaming export.** A full companies export builds a packet per company and takes ~20s. Fits
    inside Cloudflare's 100s limit; wants streaming before it wants more datasets.
-5. **An admin surface.** Accounts and keys are managed only through the CLI.
-6. **Optimistic concurrency on mission writes.** Two operators editing one mission is currently
-   last-write-wins.
+Done since this list was written: **optimistic concurrency** on mission writes (`expectedVersion`
+→ 409 carrying the current version), and the **admin surface** — `/access` in the app plus
+`/api/v1/accounts` and `/api/v1/keys` — so people and keys are managed from the product rather than
+from a shell on the host, which a hosted operator does not have. The last enabled admin can be
+neither demoted nor disabled, because an account store nobody can administer cannot be repaired
+through the API by anyone.
+
+### The standing check
+
+`node demigod-die-webapp-smoke.mjs` walks the whole outside-user path against a real gated host: an
+admin is created, signs in, reads, acts, is refused on stale state, gets a 4xx rather than a 500 for
+a bad field, sees their own account on the receipt, exports a CSV, administers people and keys, is
+refused when trying to lock the account store, and is finally disabled — which must kill both the
+key their program holds and the browser session they were already holding.
+
+33 steps, every permitted one paired with the refusal that belongs to it, and a final assertion that
+no 500 was logged throughout. A smoke test that only asserts 200 proves the server is listening, not
+that it is enforcing anything.
+
+It is the answer to "can somebody who is not this machine's owner actually use this", and it is
+green. What is left is not software.
