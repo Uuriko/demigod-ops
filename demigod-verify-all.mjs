@@ -350,6 +350,7 @@ if (ship || wizard) {
     ['demigod-contact-discover.mjs', ['--selftest']],
     ['demigod-board-retention.test.mjs'],
     ['demigod-board-history.mjs', ['--selftest']],
+    ['demigod-board-history-run.mjs', ['--selftest']],
     // The one Demigod test living outside the repo root, and therefore outside every glob anyone
     // has written to find these.
     ['docs/exchange/demigod-recruiting-research-pack.test.mjs'],
@@ -392,7 +393,7 @@ if (ship || wizard) {
      floor is a volume floor, not a target: a bad merge or a truncated array drops entries silently,
      and 95 steps becoming 12 is the failure mode worth catching. Raise it deliberately when steps
      are added; never lower it to make a run green. */
-  const MIN_STEPS = 250;
+  const MIN_STEPS = 251;
 
   let failed = 0;
   let ran = 0;
