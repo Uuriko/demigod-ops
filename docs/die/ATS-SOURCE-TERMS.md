@@ -75,9 +75,9 @@ before the first live board lands, not after.
    observed, and the Hiring Pulse excludes unread boards from "paused hiring" instead of publishing
    our crawl health as their business decision.
 
-## The gap
+## The gap, and how it was closed
 
-**There is no opt-out.** A company that asks to be removed from the directory has no path, and
+**There was no opt-out.** A company that asks to be removed from the directory has no path, and
 nothing in the codebase distinguishes "do not list us" from the misattribution denylists
 (`DOMAIN_ATS_BOARD_DENYLIST`, `COMPANY_ATS_BOARD_DENYLIST` in `demigod-startup-jobs-enrich.mjs`),
 which mean something different: *this board is not theirs*. Reusing those for removal requests would
@@ -103,3 +103,37 @@ Three decisions worth keeping:
 An unreadable opt-out file throws rather than defaulting to empty. Silently ignoring a request we
 were told about is the worst available outcome, and a missing file is the only absence that means
 nothing.
+
+## Rippling, added 2026-08-18
+
+Rippling was added as an eighth reader after it turned up on 14 of 120 sampled careers pages — more
+often than Lever, which we already read.
+
+**What could be verified directly.** `GET https://api.rippling.com/platform/api/ats/v1/board/{slug}/jobs`
+answers 200 with a JSON array and **no token**, tested against live boards on 2026-08-18. The payload
+carries `uuid`, `name`, `department`, `url` and `workLocation`, and **no posted date at all** — so
+Rippling roles hold `nativePostedAt: null` and can never enter the posting-age denominator, which
+requires a Greenhouse `first_published` date.
+
+**The behaviour that decided it was safe to add.** An unknown slug returns
+
+    HTTP 404 {"error_code":"RESOURCE_NOT_FOUND","message":"Job Board not found"}
+
+not a 200 with an empty array. This is the opposite of SmartRecruiters, which answers 200 with
+`{"totalFound":0,"content":[]}` for a slug belonging to nobody and forced `acceptsVerifiedEmpty()`
+into existence. Rippling cannot manufacture a verified-empty board, so a successful read is a real
+board and a failure is unambiguously a failure.
+
+**What could not be verified, stated plainly.** `developer.rippling.com` is JavaScript-rendered and
+returns an empty 2 KB shell to a plain fetch, so the primary source could not be read the way
+Greenhouse's, Ashby's and Lever's were. The documented purpose, via secondary summaries, is the same
+shape as the others — render your job board on your own careers site — and the Recruiting Pro
+subscription that is described as required appears to be a requirement on the **employer**, not on
+the reader, which is consistent with the unauthenticated GET observed here. **That reading is
+inference, not a citation.** Someone should read the rendered page and replace this paragraph.
+
+**Where that leaves us.** Same posture as the other seven: a public, unauthenticated GET whose
+documented purpose is the employer's own careers page, with no published authorization for
+third-party aggregation. Adding Rippling does not change the exposure described above; it adds one
+more vendor to it.
+

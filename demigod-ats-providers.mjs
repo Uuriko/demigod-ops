@@ -219,6 +219,34 @@ export async function personio(slug) {
  * Pure over RAW board JSON. Deliberately not added to adapter output or ledger rows — the ledger
  * enforces an exact key allowlist and this is a derived signal, not role identity.
  */
+/**
+ * Rippling — public job board feed. Array of jobs at the top level, no envelope.
+ *
+ * Verified live 2026-08-18: an unknown slug returns HTTP 404 with
+ * `{"error_code":"RESOURCE_NOT_FOUND","message":"Job Board not found"}`, NOT a 200 with an empty
+ * array. That matters more than anything else here — SmartRecruiters answers 200 with
+ * `{"totalFound":0}` for a slug belonging to nobody, which is why `acceptsVerifiedEmpty` exists.
+ * Rippling cannot manufacture a verified-empty board, so a 200 with roles is a real board.
+ *
+ * No posted date is exposed. `nativePostedAt` stays null rather than being filled from anything
+ * else, so Rippling roles never enter the attributable posting-age denominator, which requires a
+ * `first_published` date. An absent date is unknown, not today.
+ */
+export async function rippling(slug) {
+  const d = await getJson(`https://api.rippling.com/platform/api/ats/v1/board/${encodeURIComponent(slug)}/jobs`);
+  const jobs = Array.isArray(d) ? d : null;
+  if (!jobs) return { ok: false, roles: [] };
+  const roles = mapValidRoles(jobs, (j) => ({
+    jobId: normalizeAtsJobId(j.uuid),
+    title: j.name || '',
+    location: j.workLocation?.label || j.workLocation?.id || '',
+    url: j.url || '',
+    nativePostedAt: null,
+    nativeDateField: null,
+  }));
+  return { ok: Boolean(roles), roles: roles || [] };
+}
+
 export function requisitionSignal(rawJobs = []) {
   const jobs = Array.isArray(rawJobs) ? rawJobs : [];
   const postings = jobs.length;
@@ -252,7 +280,7 @@ export function requisitionSignal(rawJobs = []) {
   };
 }
 
-export const NEW_PROVIDERS = { SmartRecruiters: smartrecruiters, Workable: workable, Recruitee: recruitee, Personio: personio };
+export const NEW_PROVIDERS = { SmartRecruiters: smartrecruiters, Workable: workable, Recruitee: recruitee, Personio: personio, Rippling: rippling };
 
 if (process.argv[1] && process.argv[1].endsWith('demigod-ats-providers.mjs') && process.argv.includes('--selftest')) {
   const assert = (c, m) => { if (!c) throw new Error(m); };
@@ -346,6 +374,28 @@ if (process.argv[1] && process.argv[1].endsWith('demigod-ats-providers.mjs') && 
     assert(requisitionSignal([job('JR1'), job('')]).postings === 2, 'blank id counts as residue, not a crash');
     assert(requisitionSignal([]).usable === false, 'empty board abstains');
     assert(requisitionSignal(null).postings === 0, 'non-array input must not throw');
+  }
+
+  // Rippling — a bare array, no envelope, and no posted date anywhere in the payload.
+  {
+    const jobs = [
+      { uuid: 'bf862d9c-06f6-4221-abaf-911afb094208', name: 'Director of Customer Support', department: { id: 'Operations', label: 'Operations' }, url: 'https://ats.rippling.com/acme/jobs/bf862d9c', workLocation: { label: 'Remote (United States)' } },
+      { uuid: '', name: 'No id', url: 'https://ats.rippling.com/acme/jobs/x', workLocation: { id: 'SF' } },
+    ];
+    const mapped = mapValidRoles(jobs, (j) => ({
+      jobId: normalizeAtsJobId(j.uuid),
+      title: j.name || '',
+      location: j.workLocation?.label || j.workLocation?.id || '',
+      url: j.url || '',
+      nativePostedAt: null,
+      nativeDateField: null,
+    }));
+    if (mapped) {
+      if (mapped[0].location !== 'Remote (United States)') throw new Error('rippling: workLocation.label is the location');
+      if (mapped[0].nativePostedAt !== null) throw new Error('rippling: no posted date exists, so none may be invented');
+      if (mapped[0].nativeDateField !== null) throw new Error('rippling: an absent date field must stay absent, not become a guess');
+    }
+    if (typeof NEW_PROVIDERS.Rippling !== 'function') throw new Error('rippling is registered as a provider');
   }
 
   console.log(JSON.stringify({ ok: true, selftest: 'ats-providers' }));

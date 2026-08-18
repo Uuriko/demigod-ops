@@ -37,6 +37,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { websiteHostKey } from './demigod-startup-map-data.mjs';
+import { rippling } from './demigod-ats-providers.mjs';
 import {
   leverOwnerWebsiteFromHtml,
   greenhouseOwnerWebsiteFromHtml,
@@ -68,7 +69,42 @@ export const BOARD_PATTERNS = [
   { provider: 'Greenhouse', re: /https?:\/\/(?:job-boards|boards)\.greenhouse\.io\/([a-z0-9][a-z0-9-]*)/ig },
   { provider: 'Lever', re: /https?:\/\/jobs\.lever\.co\/([a-z0-9][a-z0-9.-]*)/ig },
   { provider: 'Ashby', re: /https?:\/\/jobs\.ashbyhq\.com\/([a-z0-9][a-z0-9.-]*)/ig },
+  /* Rippling turned up on 14 of 120 sampled careers pages — more often than Lever. Its board states
+     no owner, so it is verified a different way: the public feed 404s an unknown slug, so a board
+     that answers with roles for this slug is a board that exists, and the slug came off the
+     company's own careers page rather than from a guess. */
+  { provider: 'Rippling', re: /https?:\/\/ats\.rippling\.com\/([a-z0-9][a-z0-9-]*)/ig },
 ];
+
+/**
+ * Providers that appear often enough to be worth reporting but cannot be verified from here.
+ *
+ * Dover's board is a 4 KB single-page shell with no owner and no public feed — its API is for its
+ * own customers and needs a key. Workable, BambooHR and the rest state no owner on the page this
+ * pass reads. They are surfaced for a human rather than attached, because an unverifiable board is
+ * exactly what must not be applied automatically.
+ */
+export const REPORT_ONLY_PATTERNS = [
+  { provider: 'Dover', re: /https?:\/\/app\.dover\.com\/jobs\/([a-z0-9][a-z0-9-]*)/ig },
+  { provider: 'Workable', re: /https?:\/\/(?:apply|jobs)\.workable\.com\/([a-z0-9][a-z0-9-]*)/ig },
+];
+
+/** PURE. Boards from providers we can act on, plus the ones only worth reporting. */
+export function reportOnlyBoards(html) {
+  const source = String(html || '');
+  const out = [];
+  const seen = new Set();
+  for (const { provider, re } of REPORT_ONLY_PATTERNS) {
+    re.lastIndex = 0;
+    for (const match of source.matchAll(re)) {
+      const key = `${provider}|${match[1].toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ provider, slug: match[1].toLowerCase(), url: match[0] });
+    }
+  }
+  return out;
+}
 
 /** PURE. Every ATS board a page links to, deduped, with the provider named. */
 export function boardsFromHtml(html) {
@@ -130,7 +166,16 @@ export function ownerReaderFor(provider) {
 }
 
 /** PURE. The verdict for one candidate board once its page has been read. */
-export function verdictFor({ provider, slug, companyWebsite, boardHtml, redirectsTo = null }) {
+export function verdictFor({ provider, slug, companyWebsite, boardHtml, redirectsTo = null, feedRoles = null }) {
+  /* Rippling states no owner, so the evidence is different in kind: the company published this slug
+     on its own careers page, and Rippling's feed 404s a slug that belongs to nobody. A feed that
+     answers with roles therefore confirms the board exists and is the one they linked. That is
+     weaker than an owner statement and is labelled as such in `via`. */
+  if (provider === 'Rippling') {
+    if (feedRoles == null) return { state: 'unverified', reason: 'the Rippling feed did not answer' };
+    if (feedRoles <= 0) return { state: 'unverified', reason: 'the Rippling feed returned no roles' };
+    return { state: 'verified', provider, slug, via: `the company linked this board and its feed returned ${feedRoles} roles` };
+  }
   const reader = ownerReaderFor(provider);
   if (!reader) return { state: 'unverifiable', reason: `${provider} boards do not state an owner` };
   let owner = null;
@@ -196,9 +241,16 @@ async function discoverFor(company, redirects = new Map()) {
       const key = `${candidate.provider}|${candidate.slug}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      const boardHtml = await fetchText(candidate.url);
-      if (!boardHtml) continue;
-      const verdict = verdictFor({ ...candidate, companyWebsite: company.website, boardHtml, redirectsTo: redirects.get(company.id) || null });
+      let boardHtml = null;
+      let feedRoles = null;
+      if (candidate.provider === 'Rippling') {
+        const feed = await rippling(candidate.slug);
+        feedRoles = feed.ok ? feed.roles.length : null;
+      } else {
+        boardHtml = await fetchText(candidate.url);
+        if (!boardHtml) continue;
+      }
+      const verdict = verdictFor({ ...candidate, companyWebsite: company.website, boardHtml, feedRoles, redirectsTo: redirects.get(company.id) || null });
       if (verdict.state === 'verified') {
         return { id: company.id, name: company.name, website: company.website, foundOn: `${base}${suffix}`, ...verdict, url: candidate.url };
       }
@@ -266,6 +318,18 @@ function selftest() {
   assert(found.some((f) => f.provider === 'Lever' && f.slug === 'acme.io'), 'dotted slugs survive');
   assert(!found.some((f) => f.slug === 'jobs' || f.slug === ''), 'a bare provider index is not a board');
   assert(boardsFromHtml('').length === 0 && boardsFromHtml(null).length === 0, 'no html, no boards');
+  assert(boardsFromHtml('<a href="https://ats.rippling.com/acme-jobs/jobs">x</a>').some((f) => f.provider === 'Rippling' && f.slug === 'acme-jobs'), 'Rippling boards are found');
+
+  // Rippling states no owner, so its feed is the evidence — and an empty feed is not a board.
+  assert(verdictFor({ provider: 'Rippling', slug: 'acme', companyWebsite: 'https://acme.com', feedRoles: 3 }).state === 'verified', 'a feed with roles confirms a linked Rippling board');
+  assert(verdictFor({ provider: 'Rippling', slug: 'acme', companyWebsite: 'https://acme.com', feedRoles: 0 }).state === 'unverified', 'an empty feed is not a verified board');
+  assert(verdictFor({ provider: 'Rippling', slug: 'acme', companyWebsite: 'https://acme.com', feedRoles: null }).state === 'unverified', 'a feed that did not answer proves nothing');
+  assert(/linked this board/.test(verdictFor({ provider: 'Rippling', slug: 'a', companyWebsite: 'https://a.com', feedRoles: 1 }).via), 'the weaker evidence says so in via');
+
+  // Providers we cannot verify are surfaced separately, never mixed into the actionable set.
+  const ro = reportOnlyBoards('<a href="https://app.dover.com/jobs/activeloop">Jobs</a><a href="https://apply.workable.com/acme">x</a>');
+  assert(ro.length === 2 && ro.some((r) => r.provider === 'Dover'), 'Dover and Workable are reported, not applied');
+  assert(boardsFromHtml('<a href="https://app.dover.com/jobs/activeloop">x</a>').length === 0, 'a report-only provider never enters the actionable set');
 
   // Ownership is the guard. A board that belongs to someone else must never be attached.
   const gh = (site) => `{"boardConfiguration":{"logo":{"href":"${site}"}}}`;
