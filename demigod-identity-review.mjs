@@ -181,12 +181,20 @@ export function collapseSameWebsiteDefects(map) {
       const rRoles = Number(r.openRoles || 0);
       const kRoles = Number(patch.openRoles ?? keep.openRoles ?? 0);
       if (rRoles > kRoles) {
+        /* lastAttempt travels with the count, because they are one observation. Taking openRoles
+           and openRolesAt while leaving the survivor's own lastAttempt behind produced exactly the
+           defect this codebase exists to prevent: yc:chestnut ended up claiming 4 roles verified on
+           2026-08-17 while its attempt record still said the board read as `missing`. A count with
+           no successful read behind it is a fabricated observation, and the status ladder would
+           have published it as an observed board. */
         patch = {
           ...patch,
           openRoles: rRoles,
           atsSource: r.atsSource || keep.atsSource,
           jobsUrl: r.jobsUrl || keep.jobsUrl,
           openRolesAt: r.openRolesAt || keep.openRolesAt,
+          lastAttempt: r.lastAttempt || keep.lastAttempt,
+          lastAttemptAt: r.lastAttemptAt || keep.lastAttemptAt,
         };
       }
       const tags = new Set([...(keep.tags || []), ...(r.tags || []), ...((patch.tags) || [])]);
@@ -385,6 +393,20 @@ if (isMain && process.argv.includes('--selftest')) {
   assert(identityReview(map([co({})])).groups.length === 0, 'a unique name is not a group');
   assert(identityReview(null).groups.length === 0, 'null map -> empty');
   assert(identityReview({ companies: ['junk'] }).groups.length === 0, 'malformed rows ignored');
+
+  // A transferred count must bring its own read with it.
+  {
+    const live = { companies: [
+      co({ id: 'yc:acme', name: 'Acme', website: 'https://acme.com/', openRoles: undefined, lastAttempt: 'missing', lastAttemptAt: '2026-08-17T00:00:00.000Z' }),
+      co({ id: 'hn:acme', name: 'Acme', website: 'https://acme.com/', openRoles: 4, openRolesAt: '2026-08-17', lastAttempt: 'ok', lastAttemptAt: '2026-08-17T15:00:00.000Z', source: 'Hacker News (Who is Hiring)' }),
+    ] };
+    const out = collapseSameWebsiteDefects(live);
+    const kept = out.map.companies.find((c) => c.id === 'yc:acme');
+    assert(out.map.companies.length === 1 && kept, 'the YC row survives on source priority');
+    assert(kept.openRoles === 4, 'the count transfers');
+    assert(kept.lastAttempt === 'ok', 'and so does the read that produced it — a count with lastAttempt=missing is a fabricated observation');
+    assert(kept.lastAttemptAt === '2026-08-17T15:00:00.000Z', 'with the time of that read, not the failed one');
+  }
 
   // Collapse drops rows; the coverage count must not keep claiming the old total.
   {
