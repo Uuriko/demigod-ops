@@ -1,0 +1,15 @@
+[Unit]
+Description=Observe $dasha daily
+
+[Timer]
+# Daily rather than the weekly the checklist first proposed. Between two readings a few hours
+# apart, volume/FDV moved 6.4% -> 7.8% and top-10 concentration 41.3% -> 42.5%. At weekly
+# resolution both changes are invisible and every number in between is a guess.
+OnCalendar=daily
+# This laptop is not on at a fixed hour, so a missed reading must catch up rather than leave a
+# hole in the series.
+Persistent=true
+RandomizedDelaySec=1800
+
+[Install]
+WantedBy=timers.target

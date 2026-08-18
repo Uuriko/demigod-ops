@@ -1,0 +1,17 @@
+[Unit]
+Description=Dasha token observation — one dated reading of market, identity, chain and clones
+# Not conditioned on anything: the tool records each source's own reachability, so a run with a
+# throttled RPC is still a useful observation rather than a reason to skip. A backup-shaped unit
+# that quietly does nothing is the failure mode being avoided.
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/potter
+Environment=DEMIGOD_ROOT=/home/potter
+ExecStart=/home/potter/.nvm/versions/node/v24.17.0/bin/node /home/potter/dasha-token-observe.mjs
+UMask=0022
+NoNewPrivileges=true
+PrivateTmp=false
+
+[Install]
+WantedBy=default.target
