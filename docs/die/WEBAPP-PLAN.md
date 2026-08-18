@@ -811,11 +811,15 @@ also no staging — editing a unit changes the machine.
 3. **`DEMIGOD_DIE_SESSION_SECRET`** in `~/.config/demigod/die-web.env`, then a first admin account.
    Named accounts refuse to issue sessions until it is set, which is deliberate.
 
-**Code, and none of it blocks the above:**
+**Code: nothing outstanding.**
 
-4. **Streaming export.** A full companies export builds a packet per company and takes ~20s. Fits
-   inside Cloudflare's 100s limit; wants streaming before it wants more datasets.
-Done since this list was written: **optimistic concurrency** on mission writes (`expectedVersion`
+The last item was **streaming export**, done 2026-08-18. Time to first byte on the companies export
+went from 28.4s to 0.31s; total is unchanged, because that is packet-building cost rather than
+buffering. Columns are declared per dataset instead of inferred — a stream cannot see every row
+before it writes the header — and a test asserts the declaration still matches what each projection
+produces, so drift fails a gate rather than dropping a column from a customer's file.
+
+Also done since this list was written: **optimistic concurrency** on mission writes (`expectedVersion`
 → 409 carrying the current version), and the **admin surface** — `/access` in the app plus
 `/api/v1/accounts` and `/api/v1/keys` — so people and keys are managed from the product rather than
 from a shell on the host, which a hosted operator does not have. The last enabled admin can be
