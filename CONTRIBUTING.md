@@ -31,6 +31,16 @@ Do not add invite links or treat a third-party server as the project community.
 4. Do not add Discord/Telegram community files, people-data waterfalls, or auto-DM.
 5. Open a PR against `Uuriko/demigod-ops` with a complete-sentence description.
 
+## Website: in the repo, not the live publish path
+
+**Yes — public-safe website sources in this repo are part of the open-source tree.**
+That includes in-repo files such as `demigod-foot-core.js`, head/footer HTML/CSS, and
+related site sources that already live here.
+
+**No — live trydemigod.com / Webflow / CDN publish is not the contribution path** and is
+**not required to land a PR.** Do not send Designer state, publish tokens, or “please
+click Publish.” A merged PR can sit ahead of live; `bin/dg truth` is website truth.
+
 ## Hard boundaries
 
 No publish of trydemigod.com, no outbound DMs/forms, no invented pilots, no employment
