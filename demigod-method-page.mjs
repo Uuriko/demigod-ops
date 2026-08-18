@@ -44,6 +44,16 @@ export function methodFacts({ root = ROOT } = {}) {
   const counted = companies.filter((row) => Number.isSafeInteger(row?.openRoles));
   const attempts = {};
   for (const row of companies) if (row?.lastAttempt) attempts[row.lastAttempt] = (attempts[row.lastAttempt] || 0) + 1;
+  /* What each refusal COSTS, read from the ledger.
+     A rule nobody can price is a slogan. "We never report an unread board as empty" is worth
+     nothing to a reader until they can see it means 2,181 companies we decline to call not-hiring,
+     and that every competitor's larger number is partly those companies. The refusals are the
+     product; their price is the evidence they are real. */
+  const ledger = read('DEMIGOD-ROLE-LEDGER.json');
+  const roles = ledger?.roles ? Object.values(ledger.roles) : [];
+  const open = roles.filter((r) => !r?.closedAt);
+  const attributable = open.filter((r) => r?.nativeDateField === 'first_published' && r?.nativePostedAt);
+
   return {
     schema: 'demigod.method-page/1',
     at: map?.coverage?.openRolesAt || null,
@@ -54,6 +64,21 @@ export function methodFacts({ root = ROOT } = {}) {
     unreadable: (attempts.error || 0) + (attempts.rate_limited || 0),
     payCapableBoards: pay?.stats?.comparable ?? null,
     payUnreadableBoards: pay?.stats?.excludedUnreadable ?? null,
+    cost: {
+      // No board found: not counted, and never counted as "not hiring".
+      noBoardFound: attempts.missing || 0,
+      // Says it is hiring, publishes nothing we can read. Shown apart from the counted set.
+      reportedNotReadable: companies.filter((c) => c?.hiring === 'yes' && !c?.atsSource).length,
+      // Read failed: previous count carried as stale rather than zeroed.
+      readFailed: attempts.error || 0,
+      // Open roles with no date we can attribute — excluded from the posting-age denominator.
+      openRoles: open.length,
+      datedRoles: attributable.length,
+      undatedRoles: open.length - attributable.length,
+      // Things only observation can produce.
+      observedClosures: roles.filter((r) => r?.closedAt).length,
+      rewrittenPostedDates: roles.filter((r) => (r?.postedDateChangeCount || 0) > 0).length,
+    },
   };
 }
 
@@ -84,11 +109,27 @@ export function methodFragment(facts) {
     + `<ul>`
     + `<li><strong>A board we could not read is never reported as empty.</strong> The last verified count stays,`
     + ` marked stale, with the date it was actually verified — never restamped as fresh. Past a bounded window it`
-    + ` drains out rather than advertising roles forever.</li>`
+    + ` drains out rather than advertising roles forever.`
+    + (facts.cost?.readFailed ? ` <em>Cost today: ${num(facts.cost.readFailed)} boards failed to read and kept their previous count instead of dropping to zero.</em>` : '')
+    + `</li>`
     + `<li><strong>A count of zero requires a successful read.</strong> Zero open roles is a fact we only record`
-    + ` after opening the board and finding none. Everywhere else, absent means unknown.</li>`
+    + ` after opening the board and finding none. Everywhere else, absent means unknown.`
+    + (facts.cost?.noBoardFound ? ` <em>Cost today: ${num(facts.cost.noBoardFound)} companies where we found no board at all. They are not counted, and they are not called not-hiring either.</em>` : '')
+    + `</li>`
     + `<li><strong>A date is not an observation.</strong> A company only reads as an observed board when we hold`
-    + ` both the date and the count. A directory link with a timestamp is a link, not a sighting.</li>`
+    + ` both the date and the count. A directory link with a timestamp is a link, not a sighting.`
+    + (facts.cost?.undatedRoles ? ` <em>Cost today: ${num(facts.cost.undatedRoles)} of ${num(facts.cost.openRoles)} open roles carry no date we can attribute, so they are excluded from every posting-age figure rather than assumed recent.</em>` : '')
+    + `</li>`
+    + (facts.cost?.reportedNotReadable
+      ? `<li><strong>Saying you are hiring is not the same as showing it.</strong> ${num(facts.cost.reportedNotReadable)} companies`
+        + ` state they are hiring and publish no board we can read. They are counted nowhere above, and named as their own group,`
+        + ` because folding them in would make our coverage look like the market.</li>`
+      : '')
+    + (facts.cost?.observedClosures || facts.cost?.rewrittenPostedDates
+      ? `<li><strong>Two things only watching can produce.</strong> ${num(facts.cost.observedClosures)} roles were seen closing —`
+        + ` once a role is off a board nothing can recover it — and ${num(facts.cost.rewrittenPostedDates)} had their posted date`
+        + ` rewritten by the company itself, which is invisible to anyone who was not holding the previous value.</li>`
+      : '')
     + `<li><strong>A failed crawl is never published as a company decision.</strong> Boards we could not open are`
     + ` excluded from "paused hiring" and named separately, and when we cannot tell a recovered board from a new`
     + ` one, the started-hiring count is withheld rather than guessed.</li>`
@@ -117,6 +158,16 @@ function selftest() {
   assert(!/undefined|NaN/.test(html), 'no placeholder may reach a published fragment');
   assert(/never reported as empty/.test(html), 'the unread-board rule is the reason this page exists');
   assert(/requires a successful read/.test(html), 'the zero rule must be stated');
+
+  /* A rule nobody can price is a slogan. Every refusal on this page carries what it costs, read
+     from the ledger, because "we never report an unread board as empty" means nothing to a reader
+     until they can see it is thousands of companies we decline to call not-hiring. */
+  assert(/Cost today: [\d,]+ boards failed to read/.test(html), 'the unread-board rule states its price');
+  assert(/Cost today: [\d,]+ companies where we found no board/.test(html), 'the zero rule states its price');
+  assert(/excluded from every posting-age figure/.test(html), 'the undated roles are named as excluded');
+  assert(/only watching can produce/.test(html), 'the two unreproducible facts are claimed');
+  const priceless = methodFragment({ ...facts, cost: undefined });
+  assert(!/Cost today/.test(priceless), 'with no measured cost the page makes no cost claim rather than a zero');
 
   // Refuse rather than publish a methodology for data that is not there.
   let threw = false;
