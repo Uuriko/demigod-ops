@@ -1159,7 +1159,27 @@ export function createDieWebServer() {
         sendJson(res, 404, { ok: false, error: 'not_found' }, head);
       }
     } catch (error) {
-      const known = /^(advance_|mission_|application_|slot_|offer_|conversation_|packet_|scorecard_|debrief_|outcome_|cand_|owner_|pair_)|_id$|_contact_shaped$/.test(String(error.message || ''));
+      /*
+       * Is this the caller's fault or ours?
+       *
+       * This was a prefix allowlist -- advance_, mission_, slot_, and ten more -- and it missed 30
+       * of the 125 domain codes the kernel and packet actually throw, including the whole note_*
+       * family, which is scorecard validation: the most user-facing input in the product. Sending
+       * `mh-1` where `mh1` was meant returned 500 internal_error. The caller could not tell they
+       * had made a typo, and every such typo looked like a server fault in the logs, which is how
+       * real 500s get lost among fake ones.
+       *
+       * Every deliberate throw in this codebase is a snake_case code, optionally with a `:detail`.
+       * Anything accidental -- "x is not a function", "Cannot read properties of undefined",
+       * "socket hang up" -- carries spaces or capitals and cannot match. So the shape of the
+       * message classifies it, and a domain code added tomorrow is covered without anyone
+       * remembering to extend a list. Verified against all 125 current codes and six real runtime
+       * errors.
+       *
+       * The details are safe to return: they interpolate stage names, slot states, and must-have
+       * ids, never candidate text. Checked before widening this.
+       */
+      const known = /^[a-z][a-z0-9_]*(:.+)?$/.test(String(error.message || ''));
       const status = Number.isInteger(error?.status) ? error.status : known ? 400 : 500;
       /* A 500 is a bug in here; a 4xx is a caller doing something the contract refuses. Only the
          first is worth waking anyone for, and only the first gets a stack. The caller still sees

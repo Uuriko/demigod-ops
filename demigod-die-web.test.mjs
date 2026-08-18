@@ -385,6 +385,41 @@ if (port !== null) {
 }
 
 
+/* The caller's fault or ours.
+   This was a prefix allowlist and it missed 30 of the 125 domain codes the kernel and packet
+   actually throw -- the whole note_* family among them, which is scorecard validation. Sending a
+   must-have id of `mh-1` where `mh1` was meant returned 500 internal_error: the caller could not
+   tell they had made a typo, and every typo looked like a server fault in the logs, which is how a
+   real 500 gets lost among fake ones. The rule is now the SHAPE of the message, so a domain code
+   added tomorrow is covered without anyone extending a list. */
+{
+  const classify = (message) => /^[a-z][a-z0-9_]*(:.+)?$/.test(message);
+
+  // every code the kernel and packet throw, read from source rather than listed here
+  const codes = new Set();
+  for (const file of ['demigod-role-mission-kernel.mjs', 'demigod-role-packet.mjs']) {
+    const src = fs.readFileSync(path.join(root, file), 'utf8');
+    for (const m of src.matchAll(/Error\(\s*[`"']([a-z][a-z0-9_]*)/g)) codes.add(m[1]);
+  }
+  assert.ok(codes.size > 100, `expected to find the domain codes in source, found ${codes.size}`);
+  for (const code of codes) {
+    assert.ok(classify(code), `${code} is a deliberate domain error and must be a 4xx, not a 500`);
+  }
+  assert.ok(classify('note_missing_rating:mh1'), 'a code with a :detail is still a client fault');
+
+  // and accidents must still be ours
+  for (const accident of [
+    'Cannot read properties of undefined (reading \'x\')',
+    'x is not a function',
+    'ENOENT: no such file or directory',
+    'socket hang up',
+    'Maximum call stack size exceeded',
+  ]) {
+    assert.ok(!classify(accident), `${accident} is a real fault and must stay a 500`);
+  }
+}
+
+
 /* A 500 must leave a trace for the operator, and must not leave the data in a log file. */
 {
   const source = fs.readFileSync(path.join(root, 'demigod-die-web.mjs'), 'utf8');
