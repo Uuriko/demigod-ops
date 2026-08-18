@@ -70,10 +70,11 @@ const homeSimpDoor = home.text.includes('href="/simp"');
 const homeBoardAbsent = !home.text.includes('id="dasha-simp-board"')
   && !home.text.includes('/client/simp-board.js');
 
-/* While home still embeds the board, its pinned hash must match the bytes the Worker actually
+/* Wherever the board is embedded, that page's pinned hash must match the bytes the Worker actually
    serves. A mismatch is not cosmetic: the browser refuses the script and the board silently does
    not mount, which is exactly how it died on 2026-08-11 and again on 2026-08-16. Nothing else
-   catches it — file-hash gates compare disk to disk, and a Designer paste never passes them. */
+   catches it — file-hash gates compare disk to disk, and a Designer paste never passes them.
+   ("While home still embeds the board" until 2026-08-18, by which point it no longer did.) */
 /* Pin by nearest sha384 TOKEN to the src, not by an `integrity=` prefix and not by a page-wide
    search. Three narrower versions were wrong before this one: a page-wide scan returned another
    script's pin; a fixed ±400-char window swallowed the preceding script's; keying on /integrity=/
@@ -81,12 +82,21 @@ const homeBoardAbsent = !home.text.includes('id="dasha-simp-board"')
    drift on a board whose bytes matched. The bare token covers every shape the loader has taken —
    attribute, `s.integrity=`, named constant.
    ponytail: still wrong if another script's sha384 sits nearer this src than the board's own. */
-const boardSrc = home.text.match(/s\.src=['"]([^'"]*simp-board\.js[^'"]*)['"]/)?.[1]
-  || home.text.match(/src=['"]([^'"]*simp-board\.js[^'"]*)['"]/)?.[1]
+/* Read from the page that EMBEDS the board, which is /simp — not home.
+   This block used to parse home.text, while forty lines below a strict assertion requires
+   `homeBoardAbsent`: Home must link to /simp without embedding it. So the drift guard was reading
+   the one page guaranteed not to contain the thing it guards. boardPin was null every run,
+   boardSriOk was null every run, and /simp — which is fetched on line 25 and does carry a pin —
+   was never compared to anything. A Designer publish could have swapped the served client with no
+   check anywhere objecting, which is the exact failure this guard exists for.
+   Home is still parsed as a fallback so an accidental re-embed there is not invisible. */
+const boardHost = /simp-board\.js/.test(simp.text) ? simp : home;
+const boardSrc = boardHost.text.match(/s\.src=['"]([^'"]*simp-board\.js[^'"]*)['"]/)?.[1]
+  || boardHost.text.match(/src=['"]([^'"]*simp-board\.js[^'"]*)['"]/)?.[1]
   || null;
-const boardAt = boardSrc ? home.text.indexOf(boardSrc) : -1;
+const boardAt = boardSrc ? boardHost.text.indexOf(boardSrc) : -1;
 const boardPin = boardAt === -1 ? null
-  : [...home.text.matchAll(/(sha384-[A-Za-z0-9+/=]{40,})/g)]
+  : [...boardHost.text.matchAll(/(sha384-[A-Za-z0-9+/=]{40,})/g)]
     .map((match) => ({ pin: match[1], distance: Math.abs(match.index - boardAt) }))
     .sort((a, b) => a.distance - b.distance)[0]?.pin || null;
 const boardServed = boardPin
@@ -115,9 +125,9 @@ const homeDeadLinks = (await Promise.all(homeLinks.map(async (path) => {
 
 /* Live-marker honesty (not just file hashes): catch "manifest aligned but live wrong".
    `null` where the surface is not served — an unserved page has no markers to be wrong about. */
-const deskAaOk = served(desk)
-  ? /#5b21b6/.test(desk.text) && /linear-gradient\([^)]*#5b21b6/.test(desk.text)
-  : null;
+const deskAcidPrimary = /\.dd-btn-primary\{[^}]*background:var\(--acid\)[^}]*color:var\(--ink\)/.test(desk.text);
+const deskPurpleAa = /#5b21b6/.test(desk.text) && /linear-gradient\([^)]*#5b21b6/.test(desk.text);
+const deskAaOk = served(desk) ? (deskAcidPrimary || deskPurpleAa) : null;
 const deskLegacyGradient = /linear-gradient\([^)]*#a78bfa[^)]*#7c3aed/.test(desk.text);
 const studioThinOk = served(studio)
   ? /lobby\.getdasha\.com\/client\/studio\.js/.test(studio.text) &&
@@ -138,7 +148,7 @@ if (strict) {
   assert.ok(canonicalMetadata, 'strict: published pages lack exact canonical or Open Graph URLs');
   assert.ok(sitemapCurrent, 'strict: bounded sitemap is missing or stale');
   assert.ok(homeSimpDoor && homeBoardAbsent, 'strict: Home must link to /simp without embedding it');
-  assert.ok(deskAaOk, 'strict: desk primary CTA missing AA gradient #5b21b6');
+  assert.ok(deskAaOk, 'strict: desk primary CTA is not AA (acid-on-ink or #5b21b6)');
   assert.ok(studioThinOk, 'strict: studio is not the thin Worker loader');
   assert.ok(inkuPopAbsent, 'strict: 2020 inkuPop apple-touch icon still present');
   assert.ok(!homeDeadLinks.length, `strict: live home links to dead routes: ${homeDeadLinks.join(', ')}`);
@@ -163,7 +173,7 @@ if (!homeSimpDoor || !homeBoardAbsent) warnings.push('Home must link to /simp wi
 if (redirected.length) warnings.push(`canonical surfaces redirect away: ${redirected.join(', ')}`);
 if (sitemapMissing.length) warnings.push(`sitemap missing canonical routes: ${sitemapMissing.join(', ')}`);
 if (sitemapTraps.length) warnings.push(`sitemap advertises thin SEO traps: ${sitemapTraps.join(', ')}`);
-if (deskAaOk === false) warnings.push('desk Buy CTA missing #5b21b6 AA gradient');
+if (deskAaOk === false) warnings.push('desk Buy CTA is not AA (need acid-on-ink or #5b21b6)');
 if (deskLegacyGradient) warnings.push('desk still has legacy #a78bfa→#7c3aed primary gradient');
 if (studioThinOk === false) warnings.push('studio missing thin Worker loader (studio.js + dasha-studio-shell)');
 if (studioShadowLegacy) warnings.push('studio looks like legacy shadow embed');
@@ -198,6 +208,7 @@ console.log(JSON.stringify({
   homeBoardAbsent,
   homeDeadLinks,
   boardSriOk,
+  boardSriPage: boardSrc ? (boardHost === simp ? '/simp' : '/') : null,
   inkuPopAbsent,
   dashaTouchPresent,
   shipLag: lag,
