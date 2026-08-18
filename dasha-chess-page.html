@@ -38,15 +38,12 @@ main{padding:clamp(34px,6vw,72px) 0 72px}.hero{display:flex;align-items:end;just
    every cue below is an animation. This is the whole reason the page had one transition and no
    feedback: the tool was wrong for the DOM. */
 @keyframes sq-pop{from{transform:scale(.1);opacity:0}60%{transform:scale(1.18)}to{transform:scale(1);opacity:1}}
-@keyframes sq-ring{from{box-shadow:inset 0 0 0 14px rgba(223,255,0,0)}to{box-shadow:inset 0 0 0 5px var(--acid)}}
-@keyframes sq-last{from{box-shadow:inset 0 0 0 0 rgba(255,59,129,0)}to{box-shadow:inset 0 0 0 4px rgba(255,59,129,.72)}}
-@keyframes sq-check{0%,100%{box-shadow:inset 0 0 0 5px var(--hot)}50%{box-shadow:inset 0 0 0 9px var(--hot)}}
 @keyframes piece-in{from{transform:translateY(-14%) scale(.86);opacity:.15}to{transform:translateY(-2%) scale(1);opacity:1}}
-@keyframes turn-breathe{0%,100%{box-shadow:0 0 0 0 currentColor}50%{box-shadow:0 0 0 6px transparent}}
+@keyframes turn-breathe{0%,100%{opacity:1}50%{opacity:.28}}
 .sq.legal:after,.sq.capture:after{animation:sq-pop .17s cubic-bezier(.34,1.56,.64,1) both}
-.sq.selected{animation:sq-ring .16s ease-out both}
-.sq.last{animation:sq-last .28s ease-out both}
-.sq.check{animation:sq-check .9s ease-in-out infinite}
+.sq.selected{box-shadow:inset 0 0 0 5px var(--acid)}
+.sq.last{box-shadow:inset 0 0 0 4px rgba(255,59,129,.72)}
+.sq.check{box-shadow:inset 0 0 0 5px var(--hot)}
 .sq span{animation:piece-in .19s cubic-bezier(.34,1.4,.64,1) both}
 /* A square you can move to should feel like one. Hover only where a pointer exists. */
 @media (hover:hover){.sq.legal:hover:after,.sq.capture:hover:after{transform:scale(1.25)}.sq.legal:after,.sq.capture:after{transition:transform .12s ease-out}}
@@ -99,9 +96,9 @@ main{padding:clamp(34px,6vw,72px) 0 72px}.hero{display:flex;align-items:end;just
 /* Parity of feedback with the online board. Local practice is the first board most people touch —
    it needs no X link — so it should not be the one with less to look at. */
 .psq.ptarget{animation:sq-pop .17s cubic-bezier(.34,1.56,.64,1) both}
-.psq.psel{animation:sq-ring .16s ease-out both}
-.psq.plast{animation:sq-last .28s ease-out both}
-.psq.pcheck{animation:sq-check .9s ease-in-out infinite}
+.psq.psel{box-shadow:inset 0 0 0 5px var(--acid)}
+.psq.plast{box-shadow:inset 0 0 0 4px rgba(255,59,129,.72)}
+.psq.pcheck{box-shadow:inset 0 0 0 5px var(--hot)}
 .board-preview[data-live=true] .psq span{animation:piece-in .19s cubic-bezier(.34,1.4,.64,1) both}
 @media (prefers-reduced-motion:reduce){.psq.ptarget,.psq.psel,.psq.plast,.psq.pcheck,.board-preview .psq span{animation:none}}
 .preview-actions{margin-top:14px}
