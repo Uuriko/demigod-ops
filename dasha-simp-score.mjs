@@ -756,6 +756,42 @@ export function proposeAward(profile, award, { now = Date.now() } = {}) {
   return { ok: true, award: row, profile: next, before, after };
 }
 
+/**
+ * Credit a faucet donate onto the Simp board. Enrolls if needed. Worker must have
+ * already verified the on-chain transfer (mint, treasury, payer == SIWS dest).
+ */
+export function creditDonate(store, session, {
+  signature,
+  amountRaw,
+  at,
+  proven,
+  decimals = 6,
+} = {}) {
+  const now = Number(at) || Date.now();
+  const joined = joinBoard(store, session, { now });
+  if (!joined.ok) return { ok: false, error: joined.error };
+  const sig = String(signature || '').trim();
+  const evidenceUrl = `https://www.getdasha.com/faucet/tx/${sig}`;
+  const awarded = proposeAward(joined.profile, {
+    id: `donate:${sig}`.slice(0, 40),
+    kind: 'donate',
+    proven: proven === true,
+    amountRaw,
+    decimals,
+    evidenceUrl,
+    signature: sig,
+    at: now,
+  }, { now });
+  if (!awarded.ok) return { ok: false, error: awarded.error, store: joined.store };
+  return {
+    ok: true,
+    awarded: true,
+    points: awarded.award.points,
+    donate: awarded.after.components.donate,
+    store: { ...joined.store, [String(session.xId)]: awarded.profile },
+  };
+}
+
 /** Create enrollment record from a signed session (public fields only + internal xId for storage). */
 export function enrollmentFromSession(session, { now = Date.now() } = {}) {
   if (!session?.xId || !session?.handle) return null;

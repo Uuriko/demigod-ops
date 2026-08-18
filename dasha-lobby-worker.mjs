@@ -1929,7 +1929,7 @@ export class DashaLobby {
         const rate = simpRate(this.simpRates, `forum-post:x:${xId}`, 20);
         if (!rate.ok) return json({ error: 'posting too fast', waitMs: rate.waitMs }, 429, allowedOrigin, cred);
         const input = await requestJson(request);
-        const replied = addReply(posts, { text: input?.text, handle, avatar, now, id: `${id}-${posts.length}` });
+        const replied = addReply(posts, { text: input?.text, handle, avatar, now, id: `${id}-${posts.length}`, quoteId: input?.quoteId });
         if (!replied.ok) return json({ error: replied.error }, 400, allowedOrigin, cred);
         posts.push(replied.post);
         summary.replies = posts.length - 1;

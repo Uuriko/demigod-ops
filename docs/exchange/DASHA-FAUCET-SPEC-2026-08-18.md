@@ -38,7 +38,8 @@ Surfaces: `/faucet` and any `#dasha-faucet` mount. Same JS contract.
 ## Donate
 
 - Fail-closed: junk sig → `sig miss`, never `empty`.
-- `+simp` only after `ok && (awarded || funded)`.
+- `+simp` only after `ok && awarded` (lobby `creditDonate` wrote the board row).
+- 1 simp point per 1,000 $dasha, floor 1,000, cap 50 / 7d. SIWS-proven payer only.
 - COPY writes the **full** treasury and only says Copied if read-back matches.
 
 ## Layout (this pass)

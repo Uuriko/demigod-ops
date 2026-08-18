@@ -95,7 +95,8 @@ assert.doesNotMatch(client, /el\('p', 'faucet-ca', last4Of\(treas\)\)/);
 // G — claims
 assert.ok(/Not a farm/.test(client), 'not a farm on widget');
 assert.ok(client.includes('Not a purchase'), 'donate is not a purchase');
-assert.ok(client.includes("res.data.ok && (res.data.awarded || res.data.funded)"), '+simp only after award');
+assert.ok(client.includes("res.data.ok && res.data.awarded"), '+simp only after award');
+assert.ok(client.includes('1 simp point per 1,000'), 'donate card names the simp rate');
 assert.doesNotMatch(page, /earn free|guaranteed/i);
 assert.match(page, /Not an airdrop farm/);
 assert.doesNotMatch(page, /(?<!Not an )airdrop farm/i);

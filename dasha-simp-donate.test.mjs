@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import {
   DONATE_CAP_7D, DONATE_ROLLING_MS, donatePointsForAmount, isValidDonateEvidenceUrl, donateSigTaken,
-  proposeAward, scoreProfile, buildPublicBoard, rulesPublic, assertPublicSafe, ZERO_POINT_SOURCES,
+  proposeAward, creditDonate, scoreProfile, buildPublicBoard, rulesPublic, assertPublicSafe, ZERO_POINT_SOURCES,
 } from './dasha-simp-score.mjs';
 
 const D6 = 1_000_000n; // 6-decimal mint
@@ -66,5 +66,19 @@ assert.equal(rules.donate.cap_rolling_7d, 50);
 assert.equal(rules.donate.floor_dasha, 1000);
 for (const z of ['payments', 'bag size', 'token balances', 'purchases']) assert(ZERO_POINT_SOURCES.includes(z), z);
 for (const k of ['purchases', 'balance', 'bagSize']) assert.equal(proposeAward(profile, { kind: 'donate', proven: true, amountRaw: 1000n * D6, evidenceUrl: ev(9), [k]: 1 }, { now }).error, 'forbidden signal');
+
+{
+  const session = { xId: '9', handle: 'fresh' };
+  const miss = creditDonate({}, session, { signature: SIG(9), amountRaw: 1000n * D6, at: now, proven: false });
+  assert.equal(miss.error, 'dest not proven');
+  const first = creditDonate({}, session, { signature: SIG(9), amountRaw: 1000n * D6, at: now, proven: true });
+  assert.equal(first.ok, true);
+  assert.equal(first.awarded, true);
+  assert.equal(first.points, 1);
+  assert.equal(first.donate, 1);
+  assert.equal(first.store['9'].handle, 'fresh');
+  const again = creditDonate(first.store, session, { signature: SIG(9), amountRaw: 1000n * D6, at: now, proven: true });
+  assert.equal(again.error, 'duplicate signature');
+}
 
 console.log('dasha-simp-donate.test.mjs ok');

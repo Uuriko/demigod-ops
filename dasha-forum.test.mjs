@@ -146,4 +146,24 @@ assert(F.MAX_POST > F.FORUM_LIMITS.CHAT_MAX_TEXT,
   assert.equal(F.validateReport('scam').reason, 'scam');
 }
 
-console.log('dasha forum: PASS (titles, inherited automod, caps, session-only identity, ordering, bounded index, H2 search/edit/delete/lock)');
+// ---- quotes (reply-to) ------------------------------------------------------
+{
+  const posts = [
+    { id: 'q-0', handle: 'dash_eats', text: 'the opener', ts: 1 },
+    { id: 'q-1', handle: 'anna', text: 'the claim being answered', ts: 2 },
+  ];
+  const r = F.addReply(posts, { text: 'counterpoint', handle: 'third', now: 3, id: 'q-2', quoteId: 'q-1' });
+  assert(r.ok, 'a reply may quote an earlier post');
+  assert.equal(r.post.quote.handle, 'anna');
+  assert.equal(r.post.quote.text, 'the claim being answered');
+  assert.equal(F.publicPost(r.post).quote.handle, 'anna', 'the quote survives the public shape');
+  assert(!F.addReply(posts, { text: 'x', handle: 'third', now: 3, id: 'q-3', quoteId: 'missing' }).ok,
+    'quoting a post that is not in the thread is refused');
+  const tombstoned = [{ id: 'q-0', handle: 'a', text: 'op', ts: 1 }, { id: 'q-1', handle: 'b', text: 'hi', ts: 2, deleted: true }];
+  assert(!F.addReply(tombstoned, { text: 'x', handle: 'c', now: 3, id: 'q-2', quoteId: 'q-1' }).ok,
+    'quoting a deleted post is refused');
+  const bounded = F.attachQuote([{ id: 'q-1', handle: 'a', text: 'x'.repeat(500), ts: 1 }], 'q-1');
+  assert(bounded.ok && bounded.quote.text.length === F.QUOTE_SNIP, 'quote snippet is bounded to QUOTE_SNIP');
+}
+
+console.log('dasha forum: PASS (titles, inherited automod, caps, session-only identity, ordering, bounded index, H2 search/edit/delete/lock/quote)');

@@ -275,7 +275,7 @@
       var box = el('div', 'faucet-card faucet-door');
       box.appendChild(backTo(0));
       box.appendChild(el('p', 'faucet-q', 'Donate'));
-      box.appendChild(el('p', 'faucet-note', 'Send $dasha to this tip jar. Then paste the transaction signature. Not a purchase.'));
+      box.appendChild(el('p', 'faucet-note', 'Send $dasha to this tip jar. Then paste the transaction signature. 1 simp point per 1,000 $dasha after Check. Not a purchase.'));
       var treas = (state.status && state.status.treasury) || TREASURY;
       if (treas) {
         box.appendChild(el('p', 'faucet-ca', treas));
@@ -354,10 +354,15 @@
         })
       }).then(function(res) {
         if (btn) btn.disabled = false;
-        if (res.data && res.data.ok && (res.data.awarded || res.data.funded)) {
+        if (res.data && res.data.ok && res.data.awarded) {
           state.fillMiss = '';
           state.fillOk = '+simp';
           state.card = 0;
+          paint();
+          return;
+        }
+        if (res.data && res.data.ok && res.data.replay && !res.data.awarded && !res.data.error) {
+          state.fillMiss = fillError('already');
           paint();
           return;
         }

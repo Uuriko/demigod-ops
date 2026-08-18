@@ -168,6 +168,7 @@
     var linked = false;
     var meHandle = '';
     var lastQuery = '';
+    var pendingQuote = null;
     var say = function (msg) { status.textContent = msg || ''; };
     var base = originFromWs(root.getAttribute('data-forum-api') || root.getAttribute('data-lobby-url') || DEFAULT_WS);
     var api = function (path, opts) {
@@ -227,7 +228,7 @@
       btn.type = 'button';
       btn.textContent = t.title;
       btn.addEventListener('click', function () { openThread(t.id); });
-      var meta = el('p', 'df-meta', '@' + t.handle + ' · ' + (t.replies || 0) + (t.replies === 1 ? ' reply' : ' replies') + ' · ' + timeLabel(t.lastTs || t.ts));
+      var meta = el('p', 'df-meta', '@' + t.handle + ' · ' + (t.replies || 0) + (t.replies === 1 ? ' reply' : ' replies') + ' · ' + timeLabel(t.lastTs || t.ts) + (t.locked ? ' · locked' : ''));
       row.appendChild(btn);
       row.appendChild(meta);
       return row;
@@ -241,54 +242,68 @@
       if (p.deleted) body.textContent = 'deleted';
       else fillBody(body, p.text);
       art.appendChild(body);
-      if (meHandle && p.handle === meHandle && !p.deleted) {
+      if (!p.deleted && p.quote && p.quote.id) {
+        var quote = el('blockquote', 'df-quote');
+        quote.appendChild(el('span', 'df-quote-handle', '@' + (p.quote.handle || '')));
+        quote.appendChild(document.createTextNode(' ' + (p.quote.text || '')));
+        art.appendChild(quote);
+      }
+      if (linked && !p.deleted) {
         var tools = el('div', 'df-tools');
-        var ed = el('button', 'df-back');
-        ed.type = 'button';
-        ed.textContent = 'Edit';
-        ed.addEventListener('click', function () {
-          var next = window.prompt('Edit post', p.text || '');
-          if (next == null) return;
-          api('/forum/thread/' + encodeURIComponent(threadId) + '/post/' + encodeURIComponent(p.id), {
-            method: 'PATCH',
-            body: JSON.stringify({ text: next }),
-          }).then(function (r) {
-            if (r.status === 200 && r.body.ok) openThread(threadId);
-            else say(failWrite(r));
-          }).catch(function () { say('Network error.'); });
+        var reply = el('button', 'df-back');
+        reply.type = 'button';
+        reply.textContent = 'Reply';
+        reply.addEventListener('click', function () {
+          pendingQuote = { id: p.id, handle: p.handle, text: String(p.text || '').slice(0, 140) };
+          renderReplyComposer(threadId);
         });
-        var del = el('button', 'df-back');
-        del.type = 'button';
-        del.textContent = 'Delete';
-        del.addEventListener('click', function () {
-          if (!window.confirm('Delete this reply?')) return;
-          api('/forum/thread/' + encodeURIComponent(threadId) + '/post/' + encodeURIComponent(p.id), {
-            method: 'DELETE',
-          }).then(function (r) {
-            if (r.status === 200 && r.body.ok) openThread(threadId);
-            else say(failWrite(r));
-          }).catch(function () { say('Network error.'); });
-        });
-        tools.appendChild(ed);
-        tools.appendChild(del);
+        tools.appendChild(reply);
+        if (meHandle && p.handle === meHandle) {
+          var ed = el('button', 'df-back');
+          ed.type = 'button';
+          ed.textContent = 'Edit';
+          ed.addEventListener('click', function () {
+            var next = window.prompt('Edit post', p.text || '');
+            if (next == null) return;
+            api('/forum/thread/' + encodeURIComponent(threadId) + '/post/' + encodeURIComponent(p.id), {
+              method: 'PATCH',
+              body: JSON.stringify({ text: next }),
+            }).then(function (r) {
+              if (r.status === 200 && r.body.ok) openThread(threadId);
+              else say(failWrite(r));
+            }).catch(function () { say('Network error.'); });
+          });
+          var del = el('button', 'df-back');
+          del.type = 'button';
+          del.textContent = 'Delete';
+          del.addEventListener('click', function () {
+            if (!window.confirm('Delete this reply?')) return;
+            api('/forum/thread/' + encodeURIComponent(threadId) + '/post/' + encodeURIComponent(p.id), {
+              method: 'DELETE',
+            }).then(function (r) {
+              if (r.status === 200 && r.body.ok) openThread(threadId);
+              else say(failWrite(r));
+            }).catch(function () { say('Network error.'); });
+          });
+          tools.appendChild(ed);
+          tools.appendChild(del);
+        } else {
+          var report = el('button', 'df-back');
+          report.type = 'button';
+          report.textContent = 'Report';
+          report.addEventListener('click', function () {
+            var reason = window.prompt('Report as: scam, spam, harassment, or off-topic');
+            if (!reason) return;
+            api('/forum/thread/' + encodeURIComponent(threadId) + '/report', {
+              method: 'POST',
+              body: JSON.stringify({ postId: p.id, reason: String(reason).trim().toLowerCase() }),
+            }).then(function (r) {
+              say(r.status === 200 && r.body.ok ? 'Reported.' : failWrite(r));
+            }).catch(function () { say('Network error.'); });
+          });
+          tools.appendChild(report);
+        }
         art.appendChild(tools);
-      } else if (linked && !p.deleted) {
-        var report = el('button', 'df-back');
-        report.type = 'button';
-        report.textContent = 'Report';
-        report.addEventListener('click', function () {
-          var reason = window.prompt('Report as: scam, spam, harassment, or off-topic');
-          if (!reason) return;
-          api('/forum/thread/' + encodeURIComponent(threadId) + '/report', {
-            method: 'POST',
-            body: JSON.stringify({ postId: p.id, reason: String(reason).trim().toLowerCase() }),
-          }).then(function (r) {
-            say(r.status === 200 && r.body.ok ? 'Reported.' : failWrite(r));
-          }).catch(function () { say('Network error.'); });
-        });
-        var rtools = el('div', 'df-tools');
-        rtools.appendChild(report);
-        art.appendChild(rtools);
       }
       return art;
     }
@@ -327,6 +342,43 @@
     function failWrite(r) {
       if (r.status === 401) return 'Link X in the lobby to post.';
       return (r.body && r.body.error) || 'Could not post.';
+    }
+    function renderReplyComposer(id) {
+      var old = view.querySelector('.df-reply-wrap');
+      if (old) old.remove();
+      var wrap = el('div', 'df-reply-wrap');
+      if (pendingQuote) {
+        var chip = el('div', 'df-quote-chip');
+        chip.setAttribute('role', 'status');
+        chip.appendChild(el('span', 'df-quote-chip-label', 'Replying to @' + (pendingQuote.handle || '') + ' — ' + (pendingQuote.text || '')));
+        var dismiss = el('button', 'df-chip-x');
+        dismiss.type = 'button';
+        dismiss.textContent = '×';
+        dismiss.setAttribute('aria-label', 'Remove quote');
+        dismiss.addEventListener('click', function () {
+          pendingQuote = null;
+          renderReplyComposer(id);
+        });
+        chip.appendChild(dismiss);
+        wrap.appendChild(chip);
+      }
+      var form = composer(function (_t, text, done) {
+        var payload = { text: text };
+        if (pendingQuote) payload.quoteId = pendingQuote.id;
+        api('/forum/thread/' + encodeURIComponent(id), { method: 'POST', body: JSON.stringify(payload) })
+          .then(function (rr) {
+            if (rr.status === 200 && rr.body.ok) {
+              pendingQuote = null;
+              done(true);
+              openThread(id);
+            } else done(false, failWrite(rr));
+          })
+          .catch(function () { done(false, 'Network error.'); });
+      }, false);
+      wrap.appendChild(form);
+      view.appendChild(wrap);
+      var ta = form.querySelector('textarea');
+      if (ta) ta.focus();
     }
     function renderList(threads, q) {
       view.innerHTML = '';
@@ -374,10 +426,13 @@
     }
     function openThread(id) {
       say('Loading…');
+      pendingQuote = null;
       writeThreadQuery(id);
       api('/forum/thread/' + encodeURIComponent(id)).then(function (r) {
         if (r.status !== 200 || !r.body.ok) {
           say((r.body && r.body.error) || 'Thread not found.');
+          writeThreadQuery('');
+          load(lastQuery);
           return;
         }
         say('');
@@ -401,16 +456,7 @@
         if (r.body.thread && r.body.thread.locked) {
           view.appendChild(el('p', 'df-empty', 'This thread is locked.'));
         } else if (linked) {
-          view.appendChild(composer(function (_t, text, done) {
-            api('/forum/thread/' + encodeURIComponent(id), { method: 'POST', body: JSON.stringify({ text: text }) })
-              .then(function (rr) {
-                if (rr.status === 200 && rr.body.ok) {
-                  done(true);
-                  openThread(id);
-                } else done(false, failWrite(rr));
-              })
-              .catch(function () { done(false, 'Network error.'); });
-          }, false));
+          renderReplyComposer(id);
         }
       }).catch(function () { say('Could not load that thread.'); });
     }
