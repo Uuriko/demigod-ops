@@ -672,6 +672,30 @@ function hydrateMission(roleId, { account = null } = {}) {
 function applyMissionAction(roleId, body = {}, { account = null } = {}) {
   const opened = hydrateMission(roleId, { account });
   if (!opened.mission) throw Object.assign(new Error(opened.reason || 'mission_unavailable'), { status: 400 });
+  /*
+   * Optimistic concurrency, when the caller says what it was looking at.
+   *
+   * Two operators open the same mission, one advances a candidate, and the second submits an
+   * action decided against a screen that is now several versions stale. Nothing here was ever lost
+   * to a race -- each request re-reads the mission and the handler is synchronous between read and
+   * write -- but "not a lost update" is not the same as "acted on current information", and the
+   * second operator has no way to find out they were wrong.
+   *
+   * Optional rather than required: making it mandatory would break every existing caller, and a
+   * client that cannot say what it saw is no worse off than before. One that CAN say gets told.
+   * The current version travels in the detail, in the same `code:detail` shape the kernel already
+   * uses, so the client can refetch without a second round trip.
+   */
+  if (body.expectedVersion !== undefined && body.expectedVersion !== null) {
+    const expected = Number(body.expectedVersion);
+    const current = Number(opened.mission.version);
+    if (!Number.isSafeInteger(expected)) {
+      throw Object.assign(new Error('mission_expected_version_invalid'), { status: 400 });
+    }
+    if (expected !== current) {
+      throw Object.assign(new Error(`mission_version_conflict:${current}`), { status: 409 });
+    }
+  }
   /* Set once, before the action branch, so every path through the kernel stamps the same account
      onto whatever event it pushes. Threading it through each of the eleven mutators individually
      would mean one of them eventually forgets. */
