@@ -52,8 +52,10 @@ exact checks a buyer runs before buying, and we pass all of them silently.
 | Top 10 holders | 41.3% |
 | Metaplex metadata | **immutable** (`onchainMutable: false`) |
 
-- [ ] 🤖 **A1.** Add a "what you can check yourself" block to `/how-to-buy` stating those six facts
-      as a *dated on-chain observation*, each with a verify link. Not a safety claim — see A3.
+- [x] 🤖 **A1.** ✅ *Built 2026-08-18, waiting on H1 to ship.* A "what you can check yourself" block
+      on `/how-to-buy`: supply, both authorities, **zero outstanding LP tokens**, and top-10 at
+      42.5%, as a dated observation telling the reader to verify on Solscan rather than believe the
+      page.
 - [ ] 🤖 **A2.** Add claim **C14 ONCHAIN_AUTHORITIES** to `DASHA-CLAIMS.md` in the C8 style: a dated
       finalized observation, allowed wording, and an explicit "do not infer" list.
 - [ ] 🤖 **A3.** Write the wording so it cannot be read as an endorsement. C2 forbids "safe" and C3
@@ -131,8 +133,9 @@ Ours ranks first and holds 978 holders and $15.3k liquidity.
 `Dasha (VVAIFU)` collision. But it mentions the Jupiter unverified prompt **zero times**, and our
 tags guarantee one appears at the exact moment of purchase.
 
-- [ ] 🤖 **E1.** Say what they will see, before they see it: an unverified/unknown-token warning,
-      why it appears (not verified ≠ not real), and that the mint is the check that settles it.
+- [x] 🤖 **E1.** ✅ *Built 2026-08-18, waiting on H1 to ship.* Inside step 03, above the button, on
+      the hot rule the art direction reserves for the risk line: the flag is a status about Jupiter's
+      review queue, not a finding about the mint, and the page does not promise it will change.
 - [ ] 🤖 **E2.** Frame it as the site being straight with them. A user who hits an unexpected scare
       screen concludes the site misled them; one who was warned concludes it did not.
 - [ ] 🤖 **E3.** Add the A1 trust block directly beneath, so the reassurance is adjacent to the fear.
@@ -182,16 +185,27 @@ Nothing here is mine to act on and none of it is urgent, because §0 shows the r
       we are just above the line — worth knowing, not obviously worth acting on.
 - [ ] 🔑 **G2.** At this size *spread discipline* reportedly matters more than raw depth. Only
       relevant if a market maker is ever considered, which is a cost decision.
-- [ ] 🔑 **G3.** Decide whether LP is locked or burned, and if it is, say so — it is one of the
-      three things communities check and we do not currently state it.
-- [ ] 🤖 **G4.** Verify the LP position state on chain before any claim about it is published.
+- [x] 🤖 **G4 → G3.** ✅ *Done 2026-08-18.* Verified before claiming, which reversed the order of
+      these two items: G4 turned out to answer G3. Read at finalized commitment across three slots —
+      the Raydium LP mint has **supply 0** while the pool holds ~50 SOL of reserves. Every LP token
+      was burned at migration, so **no one holds a claim to withdraw that liquidity**.
+
+      Published as claim **C15** with a longer do-not-infer column than claim: liquidity still moves
+      with every trade so it can fall; the pool is not permanent, because Raydium's LP mint authority
+      is live and anyone adding liquidity later mints new LP they could withdraw; and none of it
+      makes the token "locked" or "safe". `dasha-token-observe.mjs` reads the LP mint every run, so a
+      supply that stops being 0 is news about a published claim rather than a later discovery.
 
 ## H. Site and infrastructure hygiene
 
 - [ ] 🔑 **H1.** **Webflow token returns 403.** Everything in §A, §D and §E ships through it.
       This is the single blocker on all site work.
-- [ ] 🤖 **H2.** `boardSriOk` reports `null` in `dasha-live-verify.mjs` — unknown, not confirmed.
-      An SRI guard that cannot report is not guarding.
+- [x] 🤖 **H2.** ✅ *Fixed 2026-08-18, and worse than filed.* The guard was not merely failing to
+      report — it parsed `home.text` while a strict assertion in the same file requires
+      `homeBoardAbsent`. It searched the one page guaranteed by design not to embed the board, so
+      `boardSriOk` was null on every run while `/simp`, which does carry a pin, was never compared to
+      anything. Now reads whichever page embeds the board: **null → true**, and the report names
+      `boardSriPage` so a future null says which page it looked at.
 - [ ] 🤖 **H3.** ✅ *Done 2026-08-18.* `dasha-onchain-check.mjs` could not complete at all; it now
       completes with the explorer marked unreachable rather than crashing, and no longer reports a
       false failure for a page nobody could load.
