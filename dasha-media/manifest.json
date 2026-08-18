@@ -1,0 +1,131 @@
+{
+ "schema": "dasha.media-build/1",
+ "maxWidth": 1400,
+ "maxRmse": 8,
+ "assets": 7,
+ "sourceBytes": 4033134,
+ "avifBytes": 432209,
+ "rejected": [],
+ "files": [
+  {
+   "name": "berlinale",
+   "source": "berlinale.jpg",
+   "sourceBytes": 1274682,
+   "width": 1400,
+   "height": 2021,
+   "avif": {
+    "bytes": 68792,
+    "rmse": 2.34,
+    "ok": true
+   },
+   "webp": {
+    "bytes": 69378,
+    "rmse": 2.68,
+    "ok": true
+   }
+  },
+  {
+   "name": "chart",
+   "source": "chart.jpg",
+   "sourceBytes": 618997,
+   "width": 1400,
+   "height": 1820,
+   "avif": {
+    "bytes": 63296,
+    "rmse": 2.19,
+    "ok": true
+   },
+   "webp": {
+    "bytes": 63774,
+    "rmse": 2.51,
+    "ok": true
+   }
+  },
+  {
+   "name": "cotton",
+   "source": "cotton.jpg",
+   "sourceBytes": 96417,
+   "width": 725,
+   "height": 810,
+   "avif": {
+    "bytes": 16921,
+    "rmse": 2.11,
+    "ok": true
+   },
+   "webp": {
+    "bytes": 16692,
+    "rmse": 2.65,
+    "ok": true
+   }
+  },
+  {
+   "name": "curbed",
+   "source": "curbed.jpg",
+   "sourceBytes": 343489,
+   "width": 1080,
+   "height": 1350,
+   "avif": {
+    "bytes": 127726,
+    "rmse": 5.81,
+    "ok": true
+   },
+   "webp": {
+    "bytes": 201782,
+    "rmse": 4.24,
+    "ok": true
+   }
+  },
+  {
+   "name": "faucet",
+   "source": "faucet.png",
+   "sourceBytes": 1176425,
+   "width": 1024,
+   "height": 1024,
+   "avif": {
+    "bytes": 59742,
+    "rmse": 4.05,
+    "ok": true
+   },
+   "webp": {
+    "bytes": 100812,
+    "rmse": 8.14,
+    "ok": false,
+    "why": "too lossy (rmse 8.14 > 8)"
+   }
+  },
+  {
+   "name": "grwm",
+   "source": "grwm.jpg",
+   "sourceBytes": 116343,
+   "width": 675,
+   "height": 1200,
+   "avif": {
+    "bytes": 32981,
+    "rmse": 3.1,
+    "ok": true
+   },
+   "webp": {
+    "bytes": 44752,
+    "rmse": 3.29,
+    "ok": true
+   }
+  },
+  {
+   "name": "scary",
+   "source": "scary.jpg",
+   "sourceBytes": 406781,
+   "width": 1219,
+   "height": 1407,
+   "avif": {
+    "bytes": 62751,
+    "rmse": 2.83,
+    "ok": true
+   },
+   "webp": {
+    "bytes": 68694,
+    "rmse": 3.07,
+    "ok": true
+   }
+  }
+ ]
+}
