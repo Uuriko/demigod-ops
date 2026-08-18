@@ -32,6 +32,8 @@ const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPat
 
 export const MINT = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
 export const LEDGER = path.join(ROOT, 'DASHA-TOKEN-OBSERVATIONS.jsonl');
+/** Raydium LP mint for the canonical pool — the claim in C15 is about this account. */
+export const LP_MINT = '8GDvsE3NbiKuo5uUFR9zgRY76mdhXuJfeDsy8hn7h3Aj';
 const RPC = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
 const DEXSCREENER = 'https://api.dexscreener.com/latest/dex/tokens';
 const JUP_SEARCH = 'https://lite-api.jup.ag/tokens/v2/search';
@@ -149,6 +151,31 @@ export function chainFrom(result) {
   };
 }
 
+/**
+ * PURE. Outstanding claim on the pooled liquidity, from the LP mint account.
+ *
+ * Supply 0 while the pool holds reserves means every LP token was burned, so nobody holds a claim
+ * to withdraw what is in there. It is the single most-checked liquidity signal and it is the reason
+ * this is monitored rather than stated once: the LP mint authority belongs to Raydium and is live,
+ * so liquidity added later mints new LP that its depositor could withdraw. A supply that stops
+ * being 0 is therefore real news about a published claim (C15), not a rounding change.
+ */
+export function lpFrom(result) {
+  const info = result?.value?.data?.parsed?.info;
+  if (!info) return unreachable('LP mint account not returned');
+  const supply = String(info.supply ?? '');
+  if (!/^\d+$/.test(supply)) return unreachable(`LP supply unparseable: ${supply.slice(0, 24)}`);
+  return {
+    ok: true,
+    mint: LP_MINT,
+    supply,
+    decimals: info.decimals ?? null,
+    /* The claim C15 rests on. False here means someone holds LP again and the published wording
+       has to change before the next publish. */
+    noOutstandingClaim: supply === '0',
+  };
+}
+
 async function observe({ at = new Date() } = {}) {
   const settle = async (fn) => { try { return await fn(); } catch (error) { return unreachable(error?.message || error); } };
 
@@ -164,7 +191,16 @@ async function observe({ at = new Date() } = {}) {
     }),
   })).result));
 
-  return { schema: 'dasha.token-observation/1', at: at.toISOString(), mint: MINT, market, jupiter: mine, clones, chain };
+  const lp = await settle(async () => lpFrom((await askJson(RPC, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0', id: 2, method: 'getAccountInfo',
+      params: [LP_MINT, { encoding: 'jsonParsed', commitment: 'finalized' }],
+    }),
+  })).result));
+
+  return { schema: 'dasha.token-observation/1', at: at.toISOString(), mint: MINT, market, jupiter: mine, clones, chain, lp };
 }
 
 export function readLedger(file = LEDGER) {
@@ -239,6 +275,15 @@ function selftest() {
   const live = chainFrom({ value: { data: { parsed: { info: { decimals: 6, supply: '1', mintAuthority: 'SomeAuthority', freezeAuthority: null } } } } });
   assert(live.mintAuthorityRevoked === false, 'a real authority reads as NOT revoked — the check can fail');
 
+  const lp = lpFrom({ value: { data: { parsed: { info: { supply: '0', decimals: 9 } } } } });
+  assert(lp.ok && lp.noOutstandingClaim === true, 'LP supply 0 means no outstanding claim on the pooled liquidity');
+  const held = lpFrom({ value: { data: { parsed: { info: { supply: '1', decimals: 9 } } } } });
+  assert(held.ok && held.noOutstandingClaim === false,
+    'a single LP token means someone CAN withdraw — the check must be able to fail, or C15 is a slogan');
+  assert(lpFrom({}).ok === false, 'an unreadable LP mint is unreachable, not a burn');
+  assert(lpFrom({ value: { data: { parsed: { info: { supply: null } } } } }).ok === false,
+    'a missing supply is unreachable, not zero — the whole claim turns on that difference');
+
   const d = deltas(
     { market: { priceUsd: 0.00009, fdv: 90000, liquidityUsd: 30000, volume24hUsd: 5800 }, jupiter: { holderCount: 978, organicScore: 0 }, clones: { count: 11, largestLiquidityUsd: 2303 } },
     { market: { priceUsd: 0.0001, fdv: 100000, liquidityUsd: 31000, volume24hUsd: 6000 }, jupiter: { holderCount: 1000, organicScore: 0 }, clones: { count: 12, largestLiquidityUsd: 2303 } },
@@ -277,7 +322,7 @@ if (isMain) {
     }
   } else {
     const row = await observe();
-    const unread = ['market', 'jupiter', 'clones', 'chain'].filter((k) => row[k]?.ok === false);
+    const unread = ['market', 'jupiter', 'clones', 'chain', 'lp'].filter((k) => row[k]?.ok === false);
     if (args.includes('--dry')) { console.log(JSON.stringify(row, null, 1)); }
     else {
       fs.appendFileSync(LEDGER, `${JSON.stringify(row)}\n`);
