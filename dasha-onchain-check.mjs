@@ -27,25 +27,73 @@ const VRFD_API = 'https://token-verify-api.jup.ag';
 const QUOTE_AMOUNT = '10000000'; // 0.01 SOL
 const RPC = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
 
-const get = async (url, init = {}) => {
+/**
+ * Retry a throttled or transient response, then give up loudly.
+ *
+ * This file asks the explorer for seven things in one Promise.all, and mainnet RPC for several
+ * more, so a 429 is the normal outcome rather than an unlucky one — on 2026-08-18 the whole check
+ * died on `explorer.solana.com returned 429` before verifying anything. Throwing was CORRECT: a
+ * throttle is not evidence that an identity is wrong, and the one thing this tool must never do is
+ * report an unverified fact as checked. But a check that cannot finish is also a check nobody runs,
+ * which is how a stale claim survives.
+ *
+ * So: back off and try again on the statuses that mean "later", and still throw when later never
+ * comes. Retry-After is honoured when the server sends one, because guessing longer than asked is
+ * rude and guessing shorter does not work.
+ */
+const RETRY_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+const withRetry = async (label, attempt, { tries = 4, baseMs = 1200 } = {}) => {
+  let last;
+  for (let n = 0; n < tries; n += 1) {
+    if (n > 0) await new Promise(r => setTimeout(r, last?.retryAfterMs ?? baseMs * 2 ** (n - 1)));
+    try {
+      return await attempt();
+    } catch (error) {
+      last = error;
+      if (!error?.retryable || n === tries - 1) throw error;
+    }
+  }
+  throw last;
+};
+
+const failure = (url, response) => {
+  const error = new Error(`${new URL(url).hostname} returned ${response.status}`);
+  error.retryable = RETRY_STATUS.has(response.status);
+  const after = Number(response.headers.get('retry-after'));
+  if (Number.isFinite(after) && after > 0) error.retryAfterMs = Math.min(after * 1000, 30_000);
+  return error;
+};
+
+const get = async (url, init = {}) => withRetry(url, async () => {
   const response = await fetch(url, { ...init, signal: AbortSignal.timeout(10_000) });
   const data = await response.json().catch(() => null);
-  if (!response.ok || !data) throw new Error(`${new URL(url).hostname} returned ${response.status}`);
+  if (!response.ok || !data) throw failure(url, response);
   return data;
-};
+});
 
-const getPage = async url => {
+const getPage = async url => withRetry(url, async () => {
   const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(10_000) });
   const text = await response.text();
-  if (!response.ok || !text) throw new Error(`${new URL(url).hostname} returned ${response.status}`);
+  if (!response.ok || !text) throw failure(url, response);
   return { url: response.url, text };
-};
+});
 
-const getBytes = async url => {
+const getBytes = async url => withRetry(url, async () => {
   const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
   const bytes = Buffer.from(await response.arrayBuffer());
-  if (!response.ok || !bytes.length) throw new Error(`${new URL(url).hostname} returned ${response.status}`);
+  if (!response.ok || !bytes.length) throw failure(url, response);
   return { bytes, contentType: response.headers.get('content-type') || '' };
+});
+
+/** Run thunks one at a time with a gap, for hosts that count concurrent requests rather than total. */
+const series = async (thunks, gapMs = 700) => {
+  const out = [];
+  for (const thunk of thunks) {
+    if (out.length) await new Promise(r => setTimeout(r, gapMs));
+    out.push(await thunk());
+  }
+  return out;
 };
 
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -275,24 +323,51 @@ if (jupiterIdentityCollisions.length) discoveryGaps.push(`Jupiter dash_eats name
 
 // Explorer direct-address identity, search discovery, and provider badges are separate surfaces.
 const explorerUrl = `${EXPLORER}/address/${MINT}`;
-const [explorerPage, explorerMintSearch, explorerNameSearch, explorerRugcheck, explorerJupiter, explorerCoinGecko, explorerBluprynt] = await Promise.all([
-  getPage(explorerUrl),
-  get(`${EXPLORER}/api/search?q=${MINT}`),
-  get(`${EXPLORER}/api/search?q=${encodeURIComponent('dash_eats')}`),
-  get(`${EXPLORER}/api/verification/rugcheck/${MINT}`),
-  get(`${EXPLORER}/api/verification/jupiter/${MINT}`),
-  get(`${EXPLORER}/api/verification/coingecko/${MINT}`),
-  get(`${EXPLORER}/api/verification/bluprynt/${MINT}`),
-]);
-const explorerIdentityMatched = explorerPage.text.includes(MINT) && explorerPage.text.includes('dash_eats');
+/* Serial, not Promise.all. Seven concurrent requests to one host is what earned the 429 that made
+   this whole check unrunnable — retrying seven parallel calls just re-throttles faster. Spaced
+   requests take a few seconds longer and actually finish, which is the only speed that counts for
+   a check that gates published claims. */
+/* One unreachable HOST must not delete every fact from the others.
+   explorer.solana.com blanket-429s some networks — including this one, for its own root page — and
+   because these seven calls sat in the critical path, a block there destroyed the whole run:
+   the mint authorities, the Raydium reserves, the metadata hashes, all of it, none of which needs
+   the explorer at all. That is the house error in its usual costume, an unanswered source read as
+   a failed check.
+
+   So the explorer becomes an OPTIONAL surface. Unreachable is recorded as unreachable and every
+   other check still reports. What must never happen — and does not — is an explorer claim being
+   counted as verified when nobody could reach it; each consumer below reads null and says so. */
+let explorerUnreachable = null;
+let [explorerPage, explorerMintSearch, explorerNameSearch, explorerRugcheck, explorerJupiter, explorerCoinGecko, explorerBluprynt] =
+  [null, null, null, null, null, null, null];
+try {
+  [explorerPage, explorerMintSearch, explorerNameSearch, explorerRugcheck, explorerJupiter, explorerCoinGecko, explorerBluprynt] =
+    await series([
+      () => getPage(explorerUrl),
+      () => get(`${EXPLORER}/api/search?q=${MINT}`),
+      () => get(`${EXPLORER}/api/search?q=${encodeURIComponent('dash_eats')}`),
+      () => get(`${EXPLORER}/api/verification/rugcheck/${MINT}`),
+      () => get(`${EXPLORER}/api/verification/jupiter/${MINT}`),
+      () => get(`${EXPLORER}/api/verification/coingecko/${MINT}`),
+      () => get(`${EXPLORER}/api/verification/bluprynt/${MINT}`),
+    ]);
+} catch (error) {
+  explorerUnreachable = String(error?.message || error);
+}
+const explorerIdentityMatched = explorerPage ? (explorerPage.text.includes(MINT) && explorerPage.text.includes('dash_eats')) : null;
 const explorerSearchHasMint = result => result?.results?.tokens?.some?.(token => token.tokenAddress === MINT) === true;
-const explorerNameTokens = explorerNameSearch?.results?.tokens || [];
+const explorerNameTokens = explorerNameSearch?.results?.tokens || [];  // empty when unreachable; guarded below
 const explorerSameImageCompetitors = explorerNameTokens.filter(token => token.tokenAddress !== MINT && token.icon === IMAGE_URI);
-if (!explorerIdentityMatched) failures.push('Solana Explorer direct token page identity mismatch');
-if (!explorerSearchHasMint(explorerMintSearch)) discoveryGaps.push('Solana Explorer exact-mint search does not surface the token');
-if (!explorerSearchHasMint(explorerNameSearch)) discoveryGaps.push('Solana Explorer dash_eats search does not surface the token');
+/* `=== false`, not `!`. explorerIdentityMatched is null when the host would not answer, and `!null`
+   is true — so making the explorer optional immediately produced a FAILURE saying its identity
+   did not match, on a page nobody had been able to load. An unanswered request is not a mismatch,
+   and the difference has to be in the operator, not in a comment. */
+if (explorerIdentityMatched === false) failures.push('Solana Explorer direct token page identity mismatch');
+if (explorerMintSearch && !explorerSearchHasMint(explorerMintSearch)) discoveryGaps.push('Solana Explorer exact-mint search does not surface the token');
+if (explorerUnreachable) discoveryGaps.push(`Solana Explorer was unreachable (${explorerUnreachable}) — its four provider badges are unknown, not absent`);
+if (explorerNameSearch && !explorerSearchHasMint(explorerNameSearch)) discoveryGaps.push('Solana Explorer dash_eats search does not surface the token');
 if (explorerSameImageCompetitors.length) discoveryGaps.push(`Solana Explorer dash_eats search contains ${explorerSameImageCompetitors.length} same-image competing mints`);
-if (explorerRugcheck.score !== rugcheck.score_normalised) discoveryGaps.push('Solana Explorer Rugcheck score disagrees with the current direct Rugcheck report');
+if (explorerRugcheck && explorerRugcheck.score !== rugcheck.score_normalised) discoveryGaps.push('Solana Explorer Rugcheck score disagrees with the current direct Rugcheck report');
 
 const phantomUrl = `https://phantom.com/tokens/solana/${MINT}`;
 const phantomPage = await getPage(phantomUrl);
@@ -406,16 +481,17 @@ const report = {
   solflare: { url: solflareUrl, identityMatched: solflareIdentityMatched, explicitlyUnverified: solflareUnverified, reportsMutable: solflareMutableYes, onchainMutable: metadata?.isMutable ?? null, rugcheckMutable: rugcheck.tokenMeta?.mutable ?? null },
   explorer: {
     url: explorerUrl,
+    unreachable: explorerUnreachable,
     identityMatched: explorerIdentityMatched,
     search: {
-      mint: { found: explorerSearchHasMint(explorerMintSearch), total: explorerMintSearch.meta?.total ?? null },
-      name: { found: explorerSearchHasMint(explorerNameSearch), total: explorerNameSearch.meta?.total ?? null, matches: explorerNameTokens.map(token => ({ tokenAddress: token.tokenAddress, name: token.name, ticker: token.ticker, isVerified: token.isVerified, sameCanonicalImage: token.icon === IMAGE_URI })) },
+      mint: { found: explorerMintSearch ? explorerSearchHasMint(explorerMintSearch) : null, total: explorerMintSearch?.meta?.total ?? null },
+      name: { found: explorerNameSearch ? explorerSearchHasMint(explorerNameSearch) : null, total: explorerNameSearch?.meta?.total ?? null, matches: explorerNameTokens.map(token => ({ tokenAddress: token.tokenAddress, name: token.name, ticker: token.ticker, isVerified: token.isVerified, sameCanonicalImage: token.icon === IMAGE_URI })) },
     },
     providers: {
-      rugcheckScore: explorerRugcheck.score ?? null,
-      jupiterVerified: explorerJupiter.verified ?? null,
-      coinGeckoVerified: explorerCoinGecko.verified ?? null,
-      blupryntVerified: explorerBluprynt.verified ?? null,
+      rugcheckScore: explorerRugcheck?.score ?? null,
+      jupiterVerified: explorerJupiter?.verified ?? null,
+      coinGeckoVerified: explorerCoinGecko?.verified ?? null,
+      blupryntVerified: explorerBluprynt?.verified ?? null,
     },
   },
   jupiter: { api: 'swap/v2/order', inputMint: order.inputMint || null, outputMint: order.outputMint || null, inAmount: order.inAmount || null, outAmount: order.outAmount || null, router: order.router || null, routes: order.routePlan?.length || 0 },
