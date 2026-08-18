@@ -20,7 +20,7 @@
       <form id="signout" method="post" action="/logout" hidden><button type="submit">Sign out</button></form>
     </div>
   </header>
-  <nav aria-label="Primary"><a href="/roles" id="navRoles">Roles</a><a href="/missions" id="navMissions">Missions</a><a href="/calendar" id="navCalendar">Calendar</a><a href="/companies" id="navCompanies">Companies</a><a href="/activity" id="navActivity">Activity</a><a href="/access" id="navAccess" hidden>Access</a></nav>
+  <nav aria-label="Primary"><a href="/roles" id="navRoles">Roles</a><a href="/missions" id="navMissions">Missions</a><a href="/calendar" id="navCalendar">Calendar</a><a href="/companies" id="navCompanies">Companies</a><a href="/signals" id="navSignals">Signals</a><a href="/activity" id="navActivity">Activity</a><a href="/access" id="navAccess" hidden>Access</a></nav>
   <main id="content" tabindex="-1"><p role="status">Loading…</p></main>
   <script nonce="__NONCE__">
     const main=document.querySelector('main');
@@ -48,6 +48,23 @@
     async function activity(){setNav('Activity');shell('Activity','Mission workflow receipts. Consent, intro, send, and money never appear here.');const data=await get('/api/v1/activity?limit=20');if(!data.rows.length){main.append(el('p',{class:'empty',role:'status',text:'No workflow receipts yet. Actions on a live mission appear here.'}));return}const list=el('div',{class:'stack'});for(const row of data.rows)list.append(el('article',{class:'card'},[el('h3',{text:label(text(row.action))}),el('div',{class:'meta'},[tag(text(row.entity)),tag(text(row.actor)),tag(when(row.at))])]));main.append(list)}
     async function missions(){setNav('Missions');shell('Missions','Writable hires stored in SQLite. Demo packets never appear here.');const data=await get('/api/v1/missions');const grid=el('div',{class:'grid'});for(const row of data.rows)grid.append(card(row.title,row.href,[el('div',{class:'meta'},[tag(label(row.closeState)),tag(text(row.companyId,'No company'))]),el('p',{class:'meta',text:when(row.updatedAt)})]));main.append(data.rows.length?grid:el('p',{class:'empty',text:'No persisted missions yet. Open a real role to start one.'}))}
     async function calendar(){setNav('Calendar');shell('Calendar','Holds and bookings inside Demigod. Download .ics — nothing is sent.');const data=await get('/api/v1/calendar');const list=el('div',{class:'stack'});for(const row of data.slots)list.append(el('article',{class:'card'},[el('h3',{text:`${text(row.title)} · ${label(text(row.moment,'slot'))}`}),el('div',{class:'meta'},[tag(label(row.state)),tag(text(row.interviewer)),tag(`${when(row.start)} → ${when(row.end)}`)]),el('a',{class:'button',href:row.href,text:'Download .ics'})]));main.append(data.slots.length?list:el('p',{class:'empty',text:'No slots yet.'}))}
+    async function signals(){setNav('Signals');shell('Signals','What changed about the companies we track — not what we did. Activity is our own receipts; this is the world moving.');const data=await get('/api/v1/signals?limit=40');
+      if(!data.ok){main.append(el('p',{class:'empty',role:'status',text:data.why||'No comparable snapshots yet.'}));if(data.basis)main.append(facts([['Snapshots recorded',data.basis.snapshots],['Latest',data.basis.after]]));return}
+      main.append(section('Basis',[facts([['Compared',`${data.basis.before} → ${data.basis.after}`],['Days apart',data.basis.gapDays],['Observed',`${data.ageDays} day(s) ago`],['Freshness',label(data.freshness)],['Companies',data.total]])]));
+      const legend=el('div',{class:'meta'},Object.entries(data.counts||{}).map(([k,n])=>tag(`${label(k)} ${n}`,k==='changed'?'good':k==='unreadable'||k==='unknown_readability'?'warn':undefined)));
+      main.append(legend);
+      const list=el('div',{class:'stack'});
+      for(const s of (data.signals||[])){
+        const move=s.delta===null?'—':(s.delta>0?`+${s.delta}`:String(s.delta));
+        list.append(el('article',{class:'card'},[
+          el('h3',{text:`${move}  ${s.companyId}`}),
+          el('div',{class:'meta'},[tag(label(s.state),s.state==='changed'?'good':s.state==='steady'?undefined:'warn'),tag(label(s.freshness)),tag(`seen ${s.observedOn}`)]),
+          el('p',{class:'empty',text:s.why}),
+        ]));
+      }
+      main.append(section('Movement',[data.signals&&data.signals.length?list:el('p',{class:'empty',text:'Nothing comparable in the two most recent snapshots.'})]));
+      main.append(el('p',{class:'empty',text:'A change needs two readable observations of the same board. A first look is not a change, and a board we could not read is unknown rather than closed — those are counted separately above and never folded into the movement figures.'}));
+    }
     async function access(){setNav('Access');shell('Access','Who can reach this desk, and with what. Adding a colleague here is the only way to do it without a shell on the host.');const err=el('p',{class:'error',role:'alert'});err.hidden=true;const reload=()=>access();const call=async(path,body)=>{err.hidden=true;try{return await post(path,body)}catch(error){err.hidden=false;err.textContent=error.message;throw error}};let data;try{data=await get('/api/v1/accounts')}catch(error){main.append(el('p',{class:'error',role:'alert',text:error.message}));return}
       const people=el('div',{class:'stack'});
       for(const u of data.users){const row=el('article',{class:'card'},[el('h3',{text:u.email}),el('div',{class:'meta'},[tag(label(u.role)),tag(u.disabled?'Disabled':'Active',u.disabled?'warn':'good'),tag(`${u.keys} key${u.keys===1?'':'s'}`)])]);
@@ -72,7 +89,7 @@
         keys.append(card)}
       main.append(section('API keys',[data.keys.length?keys:el('p',{class:'empty',text:'No keys issued.'})]))}
     function paintChrome(session){const mode=document.querySelector('#mode');mode.textContent=session.modeLabel||label(session.mode);const access=document.querySelector('#navAccess');if(access)access.hidden=!session.can?.admin;const signout=document.querySelector('#signout');if(signout)signout.hidden=!session.hosted;document.querySelectorAll('.banner').forEach((node)=>node.remove());if(!session.hosted&&session.access?.publicUrl){const note=document.createElement('p');note.className='banner';note.textContent=`Public desk: ${session.access.publicUrl}`;document.querySelector('nav').after(note)}}
-    async function boot(){const session=await get('/api/v1/session');paintChrome(session);const parts=location.pathname.split('/').filter(Boolean);if(parts[0]==='access')return access();if(parts[0]==='activity')return activity();if(parts[0]==='missions')return missions();if(parts[0]==='calendar')return calendar();if(parts[0]==='companies'&&parts[1])return company(decodeURIComponent(parts[1]));if(parts[0]==='companies')return companies();if(parts[0]==='roles'&&parts[1])return role(decodeURIComponent(parts[1]));return roles()}
+    async function boot(){const session=await get('/api/v1/session');paintChrome(session);const parts=location.pathname.split('/').filter(Boolean);if(parts[0]==='signals')return signals();if(parts[0]==='access')return access();if(parts[0]==='activity')return activity();if(parts[0]==='missions')return missions();if(parts[0]==='calendar')return calendar();if(parts[0]==='companies'&&parts[1])return company(decodeURIComponent(parts[1]));if(parts[0]==='companies')return companies();if(parts[0]==='roles'&&parts[1])return role(decodeURIComponent(parts[1]));return roles()}
     boot().catch(fail);
   </script>
 </body>

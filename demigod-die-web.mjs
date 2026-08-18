@@ -11,6 +11,7 @@ import { createNote, loadPackets, projectForReview } from './demigod-role-packet
 import { importJsonMissions, missionStorePath, openMissionStore } from './demigod-die-mission-store.mjs';
 import { projectActivityList } from './demigod-die-activity-shape.mjs';
 import { csvRow, exportFilename } from './demigod-die-export.mjs';
+import { loadHistory, signalsFrom } from './demigod-die-signals.mjs';
 import {
   advanceApplication,
   applyCandidate,
@@ -917,6 +918,7 @@ const uiRoute = (pathname) => pathname === '/'
   || pathname === '/companies'
   || pathname === '/activity'
   || pathname === '/access'
+  || pathname === '/signals'
   || pathname === '/missions'
   || pathname === '/calendar'
   || /^\/(?:roles|companies)\/[^/]+$/.test(pathname);
@@ -1273,6 +1275,21 @@ export function createDieWebServer() {
         });
       } else if (url.pathname === '/api/v1/activity') {
         sendJson(res, 200, activityList(url.searchParams), head);
+      } else if (url.pathname === '/api/v1/signals') {
+        /* What changed in the world, as opposed to what we did — /api/v1/activity is our own
+           mutations and answers a different question. The data has existed since 2026-07-24 in
+           DEMIGOD-HIRING-HISTORY.jsonl and nothing in this app had ever read it. */
+        const lines = loadHistory();
+        if (!lines) {
+          sendJson(res, 200, { schema: 'demigod.die-signals/1', ok: false, why: 'hiring history is unreadable', signals: [] }, head);
+          return;
+        }
+        const state = boundedText(url.searchParams.get('state'), 40, 'invalid_state');
+        const limit = parseInteger(url.searchParams.get('limit'), {
+          fallback: 25, min: 1, max: MAX_LIMIT, error: 'invalid_limit',
+        });
+        const feed = signalsFrom(lines, { limit, states: state ? [state] : null });
+        sendJson(res, 200, { schema: 'demigod.die-signals/1', ...feed }, head);
       } else if (url.pathname === '/api/v1/export') {
         const dataset = String(url.searchParams.get('dataset') || '');
         const format = String(url.searchParams.get('format') || 'csv').toLowerCase();
