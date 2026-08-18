@@ -108,11 +108,35 @@ export function lifespans(observations, { tolerance = ABSENCE_TOLERANCE } = {}) 
   }));
 }
 
-async function getText(url) {
-  try {
-    const res = await fetch(url, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(TIMEOUT_MS) });
-    return res.ok ? await res.text() : null;
-  } catch { return null; }
+/* The archive throttles. Twelve boards in a row without a pause got one answer and eleven empty
+   ones — and an empty CDX reply is byte-identical to "this board was never archived". That is the
+   failure this whole codebase is organised against, written into a new tool on its first outing:
+   an absent observation reported as an observation of absence. So requests are spaced, retried
+   once on a throttle, and a refusal is returned as a refusal. */
+export const POLITE_MS = Number(process.env.DEMIGOD_ARCHIVE_DELAY_MS || 3500);
+let lastCall = 0;
+async function polite() {
+  const wait = POLITE_MS - (Date.now() - lastCall);
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  lastCall = Date.now();
+}
+
+/** Returns the body, or null ONLY when the archive answered and had nothing. Throttles throw. */
+async function getText(url, { retries = 1 } = {}) {
+  for (let attempt = 0; ; attempt++) {
+    await polite();
+    let res;
+    try {
+      res = await fetch(url, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+    } catch (err) {
+      if (attempt >= retries) throw new Error(`archive unreachable: ${String(err.message).slice(0, 60)}`);
+      continue;
+    }
+    if (res.ok) return res.text();
+    if (res.status === 404) return null;
+    if (attempt >= retries) throw new Error(`archive refused: HTTP ${res.status}`);
+    await new Promise((r) => setTimeout(r, 5000 * (attempt + 1)));
+  }
 }
 
 export async function snapshots(provider, slug, { from = '2019', limit = 60 } = {}) {
@@ -122,9 +146,10 @@ export async function snapshots(provider, slug, { from = '2019', limit = 60 } = 
     + `&output=json&from=${encodeURIComponent(from)}&fl=timestamp&filter=statuscode:200`
     + `&collapse=timestamp:6&limit=${limit}`;
   const raw = await getText(cdx);
-  if (!raw) return [];
+  if (raw === null) return [];
   let rows;
-  try { rows = JSON.parse(raw); } catch { return []; }
+  // A CDX body that will not parse is a broken answer, not an empty archive.
+  try { rows = JSON.parse(raw); } catch { throw new Error('archive returned an unparseable index'); }
   return (rows.slice(1) || []).map((r) => r[0]).filter(Boolean);
 }
 
@@ -133,7 +158,9 @@ export async function history(provider, slug, options = {}) {
   const observations = [];
   for (const stamp of stamps) {
     // `id_` asks the archive for the original bytes rather than its rewritten viewer page.
-    const html = await getText(`https://web.archive.org/web/${stamp}id_/https://${boardUrl(provider, slug)}`);
+    let html = null;
+    try { html = await getText(`https://web.archive.org/web/${stamp}id_/https://${boardUrl(provider, slug)}`); }
+    catch { continue; }  // one unavailable capture is not a finding about the board
     if (!html) continue;
     const ids = jobIdsFromHtml(provider, slug, html);
     // A snapshot that parsed to nothing is far more likely a failed capture than an empty board,
