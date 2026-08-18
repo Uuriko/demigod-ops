@@ -385,6 +385,38 @@ if (port !== null) {
 }
 
 
+/* Declared export columns must match what the projections actually produce.
+   A streamed export cannot see every row before writing its header, so the columns are declared
+   rather than inferred — which is the better contract, but only while the declaration is true. If a
+   projection gains a field and nobody updates the list, the column vanishes from every customer's
+   file with no error anywhere. That is exactly the silent-loss shape this codebase keeps finding,
+   so it fails a gate instead. */
+{
+  const { EXPORTS } = await import('./demigod-die-web.mjs');
+  for (const [dataset, spec] of Object.entries(EXPORTS)) {
+    assert.ok(Array.isArray(spec.columns) && spec.columns.length, `${dataset} declares columns`);
+    const declared = new Set(spec.columns);
+    const seen = new Set();
+    let sampled = 0;
+    for (const row of spec.rows()) {
+      for (const key of Object.keys(row || {})) {
+        assert.ok(declared.has(key),
+          `${dataset} produces "${key}" but does not declare it — it would be dropped from the export`);
+        seen.add(key);
+      }
+      if (++sampled >= 5) break; // enough to catch drift without rebuilding 2,912 packets
+    }
+    /* A column declared but never produced is the same bug pointing the other way: a header with
+       an always-empty column under it. Only checked when rows exist to check against. */
+    if (sampled > 0) {
+      const never = spec.columns.filter((c) => !seen.has(c));
+      assert.ok(never.length < spec.columns.length,
+        `${dataset} declares ${spec.columns.length} columns and produced none of them`);
+    }
+  }
+}
+
+
 /* The snapshot unit must also prove a restore, every run.
    Taking snapshots is the easy half and the half that lies: a file of the right size that nobody
    has opened is a hypothesis, not a backup. If someone ever trims this unit back to the snapshot

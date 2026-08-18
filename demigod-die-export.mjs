@@ -90,6 +90,20 @@ export function toCsv(rows, { columns } = {}) {
   return `${lines.join('\r\n')}\r\n`;
 }
 
+/**
+ * PURE. One record to one CSV line, against a FIXED column list.
+ *
+ * Streaming cannot compute the union of keys up front — that needs every row in memory, which is
+ * the thing streaming exists to avoid. So a streamed export declares its columns instead of
+ * inferring them, and that is the better contract anyway: an inferred header changes shape between
+ * exports depending on which rows happened to carry which fields, so anyone building a pipeline on
+ * it gets a column that silently appears and disappears. Drift between the declared list and what
+ * the projection actually produces is caught by a test rather than by a customer.
+ */
+export function csvRow(record, columns) {
+  return `${columns.map((key) => csvCell(record ? record[key] : null)).join(',')}\r\n`;
+}
+
 /** PURE. A filename that cannot escape the download directory or carry a header. */
 export function exportFilename(dataset, ext, { at = new Date() } = {}) {
   const safe = String(dataset).replace(/[^a-z0-9-]/gi, '').slice(0, 40) || 'export';

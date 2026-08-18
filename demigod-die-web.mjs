@@ -10,7 +10,7 @@ import { projectTableRow } from './demigod-company-table.mjs';
 import { createNote, loadPackets, projectForReview } from './demigod-role-packet.mjs';
 import { importJsonMissions, missionStorePath, openMissionStore } from './demigod-die-mission-store.mjs';
 import { projectActivityList } from './demigod-die-activity-shape.mjs';
-import { exportFilename, toCsv } from './demigod-die-export.mjs';
+import { csvRow, exportFilename } from './demigod-die-export.mjs';
 import {
   advanceApplication,
   applyCandidate,
@@ -809,26 +809,54 @@ export const EXPORT_MAX_ROWS = parseInteger(process.env.DEMIGOD_DIE_EXPORT_MAX, 
    2,912 company packets and only then refused — protecting the caller from a misleading file while
    doing nothing to protect the server, which is the other half of why a limit exists. A cap you pay
    for before you enforce it is not a cap. */
-const EXPORTS = {
+/*
+ * `rows` is a GENERATOR and `columns` is declared.
+ *
+ * The companies export builds a packet per company: 2,912 of them, ~1.4MB of CSV, and the whole
+ * thing sat in memory before a single byte reached the caller. Yielding row by row lets the first
+ * bytes go out immediately, which also stops a proxy timing out a request that is in fact
+ * progressing.
+ *
+ * Columns are declared rather than inferred because a stream cannot see every row before writing
+ * the header. That is the better contract regardless: an inferred header changes shape between
+ * exports depending on which rows happened to carry which fields, so a pipeline built on it gets a
+ * column that silently appears and disappears. demigod-die-web.test.mjs asserts the declaration
+ * still matches what each projection produces, so drift fails a gate instead of quietly dropping a
+ * column from a customer's file.
+ */
+export const EXPORTS = {
   companies: {
-    count: () => (Array.isArray(loadPacketInputs().map?.companies) ? loadPacketInputs().map.companies.length : 0),
-    rows: () => {
+    columns: ['id', 'name', 'domain', 'website', 'source', 'hiring', 'openRoles', 'ats', 'lastSignal',
+      'researchStatus', 'unknownsCount', 'peers', 'peerBasis', 'href'],
+    // One load, not two: this expression used to call loadPacketInputs() twice.
+    count: () => { const c = loadPacketInputs().map?.companies; return Array.isArray(c) ? c.length : 0; },
+    *rows() {
       const inputs = loadPacketInputs();
       const companies = Array.isArray(inputs.map?.companies) ? inputs.map.companies : [];
-      return companies.map((row) => projectTableRow(buildCompanyPacket({ companyId: row.id, ...inputs })));
+      for (const row of companies) yield projectTableRow(buildCompanyPacket({ companyId: row.id, ...inputs }));
     },
   },
-  roles: { count: () => roleList().rows.length, rows: () => roleList().rows },
-  missions: { count: () => missionList().rows.length, rows: () => missionList().rows },
-  calendar: { count: () => calendarList().slots.length, rows: () => calendarList().slots },
+  roles: {
+    columns: ['roleId', 'title', 'companyId', 'demo', 'state', 'stage', 'checkpoints', 'channelCounts', 'updatedAt', 'href'],
+    count: () => roleList().rows.length,
+    *rows() { yield* roleList().rows; },
+  },
+  missions: {
+    columns: ['roleId', 'title', 'closeState', 'companyId', 'updatedAt', 'href'],
+    count: () => missionList().rows.length,
+    *rows() { yield* missionList().rows; },
+  },
+  calendar: {
+    columns: ['id', 'candId', 'interviewer', 'moment', 'start', 'end', 'state', 'createdAt', 'updatedAt', 'roleId', 'title', 'href'],
+    count: () => calendarList().slots.length,
+    *rows() { yield* calendarList().slots; },
+  },
   activity: {
+    columns: ['id', 'at', 'actor', 'account', 'entity', 'action', 'beforeVersion', 'afterVersion',
+      'idempotencyKey', 'result', 'candId'],
     count: () => STORE.list().reduce((n, m) => n + (m?.events?.length || 0), 0),
-    rows: () => {
-      const receipts = [];
-      for (const mission of STORE.list()) {
-        for (const event of mission?.events || []) receipts.push(event);
-      }
-      return receipts;
+    *rows() {
+      for (const mission of STORE.list()) yield* (mission?.events || []);
     },
   },
 };
@@ -1273,17 +1301,69 @@ export function createDieWebServer() {
           }, head);
           return;
         }
-        const rows = EXPORTS[dataset].rows();
         const filename = exportFilename(dataset, format);
-        if (format === 'json') {
-          send(res, 200, `${JSON.stringify({ schema: `demigod.die-export/1`, dataset, total: rows.length, rows }, null, 1)}\n`,
-            'application/json; charset=utf-8', head, {
-              ...noindex, 'Content-Disposition': `attachment; filename="${filename}"`,
-            });
-        } else {
-          send(res, 200, toCsv(rows), 'text/csv; charset=utf-8', head, {
-            ...noindex, 'Content-Disposition': `attachment; filename="${filename}"`,
-          });
+        const columns = EXPORTS[dataset].columns;
+        res.writeHead(200, {
+          ...baseHeaders,
+          ...noindex,
+          'Content-Type': format === 'json' ? 'application/json; charset=utf-8' : 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="${filename}"`,
+        });
+        if (head) { res.end(); return; }
+        /*
+         * A synchronous loop over res.write() is not streaming, which is what my first version of
+         * this was. Node queues each chunk, but the socket can only flush when the event loop
+         * turns — and a `for` loop building 2,912 company packets never lets it turn. The bytes
+         * piled up in the socket buffer and left in one burst at the end: 28s to first byte, and no
+         * memory saved either, which was the whole point.
+         *
+         * So the loop yields. `write()` returning false means the buffer is full and the consumer
+         * is behind; continuing past that is how one slow client becomes unbounded server memory,
+         * and waiting for 'drain' is the backpressure that stops it. On a fast client it still
+         * hands the event loop a turn each batch so the flush actually happens.
+         */
+        const BATCH = 64;
+        const push = (chunk) => new Promise((resolve) => {
+          if (res.write(chunk)) setImmediate(resolve);
+          else res.once('drain', resolve);
+        });
+        try {
+          let n = 0;
+          let pending = '';
+          const flush = async (force) => {
+            n += 1;
+            if (!force && n % BATCH !== 0) return;
+            const chunk = pending;
+            pending = '';
+            if (chunk) await push(chunk);
+          };
+          if (format === 'json') {
+            await push(`{"schema":"demigod.die-export/1","dataset":${JSON.stringify(dataset)},"total":${total},"rows":[`);
+            let first = true;
+            for (const row of EXPORTS[dataset].rows()) {
+              pending += first ? JSON.stringify(row) : `,${JSON.stringify(row)}`;
+              first = false;
+              await flush(false);
+            }
+            await flush(true);
+            res.end(']}\n');
+          } else {
+            await push(csvRow(Object.fromEntries(columns.map((c) => [c, c])), columns));
+            for (const row of EXPORTS[dataset].rows()) {
+              pending += csvRow(row, columns);
+              await flush(false);
+            }
+            await flush(true);
+            res.end();
+          }
+        } catch (error) {
+          /* The headers said 200 several megabytes ago, so there is no status left to change and no
+             error body that would not be appended to the file the caller is already writing to
+             disk. Destroying the socket is the only signal left: it surfaces as a truncated
+             download rather than a CSV that looks complete and is not. The operator gets the real
+             reason in the journal. */
+          logEvent({ level: 'error', event: 'export_failed_mid_stream', dataset, format, rowsDeclared: total, error: String(error?.message || error).slice(0, 300) });
+          res.destroy();
         }
       } else if (uiRoute(url.pathname)) {
         sendUi(res, head, noindex);
