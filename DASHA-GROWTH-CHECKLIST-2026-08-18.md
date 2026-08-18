@@ -210,8 +210,35 @@ Nothing here is mine to act on and none of it is urgent, because §0 shows the r
       cannot answer whether anything worked.
 - [ ] 🤖 **I3.** Track holders and *unique 24h wallets* separately from price. Price is the number
       we do not control and the one that will tempt us to conclude things.
-- [ ] 🤖 **I4.** Write down in advance what would count as this checklist having failed. A plan with
-      no falsifier is a wish.
+- [x] 🤖 **I4.** ✅ Written below, before the work rather than after it.
+
+### The falsifier, fixed 2026-08-18
+
+Recorded now so it cannot be quietly revised later into whatever happened. Baseline from the first
+observation: **FDV $89,816 · liq $30,411 · vol/FDV 7.8% · 975 holders · organic score 0 · 58 txns ·
+11 clones · our rank 1 · both authorities revoked.**
+
+Deliberately **no price or FDV target**, in either direction. Price is the number we do not control,
+a target would be a return claim the marketing boundary forbids, and judging this work by it would
+credit or blame the list for something it cannot move.
+
+**By 2026-11-18 (90 days), this checklist failed if:**
+
+| Test | Failed if |
+|---|---|
+| Distinct people | holders are **not above 975** |
+| Jupiter discovery | organic score is **still exactly 0** |
+| Wallet metadata (§B) | Jupiter or Phantom **still link the source post** rather than getdasha.com |
+| Attribution (§F6) | we **still cannot say** which surface brings anyone |
+| Impersonation (§D) | any clone has **passed $10,000 liquidity** or **100 holders** |
+| The discipline itself | the observation series has **gaps** — a measurement habit that lapses was never a habit |
+
+**It succeeded if** holders rose, organic score left zero, and the wallet surfaces name the canonical
+site. Those are the three the work in §A, §B and §F actually acts on.
+
+**Honest caveat:** none of these establishes causation. Holders could rise because of something
+none of this touched. The series is what makes that arguable at all, which is why §I comes before
+the conclusion rather than after it.
 
 ## J. Deliberately not doing
 
