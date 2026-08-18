@@ -150,10 +150,22 @@ inputs we could ethically move are the ones that come from more *distinct people
 
 - [ ] 🤖 **F1.** Make the free surfaces the reason to arrive. Chess, the faucet and the Simp board
       already exist and none of them require buying anything.
-- [ ] 🤖 **F2.** `/chess` still has no OG image of its own — the most shareable surface is the least
-      shareable-looking.
-- [ ] 🤖 **F3.** Audit OG/Twitter cards on every surface. A link that unfurls badly is a share that
-      did not happen.
+- [x] 🤖 **F3.** ✅ *Audited 2026-08-18.* Result below. Corrects **F2**, which I had carried from the
+      older work list without checking — `/chess` **does** have an OG image.
+
+      | Surface | og:image | Card |
+      |---|---|---|
+      | `/` · `/how-to-buy` · `/simp` · `/chess` · `/faucet` | ✅ | `dasha-social-card.png` — the same one on all five |
+      | `/dasha` | ✅ | its own desk card |
+      | `/studio` | ❌ **none** | — |
+
+- [ ] 🔑 **F2a.** `/studio` is the only surface with no card at all, and it is the most shareable
+      thing we own — a creative tool that currently unfurls as a bare link. Its `<head>` is assembled
+      from **Webflow page settings**, not a repo file, so this is a settings change behind H1 rather
+      than code.
+- [ ] 🤖 **F2b.** Five surfaces share one generic card. Page-specific cards are the real improvement
+      — a chess card that looks like chess is a different share from a logo.
+      *(First check where each `<head>` is authored; only `/how-to-buy` is a repo file.)*
 - [ ] 🤖 **F4.** `/simp` has zero visuals. It is the most linkable page we have and it looks like
       a text file.
 - [ ] 🤖 **F5.** Publish one number nobody else publishes and let it be cited. The refusal
