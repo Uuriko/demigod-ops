@@ -83,9 +83,10 @@ export function lifespans(observations, { tolerance = ABSENCE_TOLERANCE } = {}) 
   snaps.forEach((snap, index) => {
     for (const id of snap.ids) {
       if (!jobs.has(id)) {
-        jobs.set(id, { id, firstAfter: index ? snaps[index - 1].day : null, firstBy: snap.day, lastSeen: snap.day, missing: 0, gone: null });
+        jobs.set(id, { id, firstAfter: index ? snaps[index - 1].day : null, firstBy: snap.day, lastSeen: snap.day, missing: 0, gone: null, seen: 0 });
       }
       const job = jobs.get(id);
+      job.seen += 1;
       job.lastSeen = snap.day;
       job.missing = 0;
       job.gone = null;
@@ -104,6 +105,12 @@ export function lifespans(observations, { tolerance = ABSENCE_TOLERANCE } = {}) 
     lastSeen: job.lastSeen,
     closedBy: job.gone,
     predatesArchive: job.firstAfter === null,
+    /* How many captures actually contained this job. A job present in exactly ONE snapshot has an
+       unknown duration — somewhere between a day and the gap either side of that capture — and
+       reporting it as zero days is not a measurement, it is the snapshot spacing wearing a number.
+       48% of the first real collection looked like this, and counting them dropped the median from
+       51 days to 7. Callers filter on this; the span still exists so the exclusion can be counted. */
+    snapshotsSeen: job.seen,
     openDaysAtLeast: Math.max(0, Math.round((Date.parse(job.lastSeen) - Date.parse(job.firstBy)) / 86400000)),
   }));
 }
@@ -210,6 +217,10 @@ function selftest() {
   assert(b.firstAfter === '2024-01-01' && b.firstBy === '2024-02-01',
     'a job that appears is bracketed by the last look that missed it and the first that saw it');
   assert(b.openDaysAtLeast === 29, `open time is what we can see, got ${b.openDaysAtLeast}`);
+  assert(a.snapshotsSeen === 3 && b.snapshotsSeen === 2, 'each span records how many captures actually held it');
+  const once = lifespans([{ day: '2024-01-01', ids: ['a'] }, { day: '2024-02-01', ids: ['x'] }, { day: '2024-03-01', ids: ['x'] }]);
+  assert(once.find((s) => s.id === 'a').snapshotsSeen === 1,
+    'a job in exactly one capture is marked so — its duration is unknown, not zero');
   assert(!a.closedBy && !b.closedBy, 'a job still present is not closed');
 
   // One absence is noise. Two is a closure.

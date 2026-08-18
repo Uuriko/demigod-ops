@@ -67,7 +67,11 @@ export function distribution(state) {
   const spans = Object.values(state.boards || {})
     .filter((b) => b && b.ok && Array.isArray(b.spans))
     .flatMap((b) => b.spans);
-  const days = spans.filter((s) => !s.predatesArchive && s.closedBy)
+  /* A job seen in exactly one capture has an unknown duration, not a zero one — see snapshotsSeen
+     in demigod-board-history.mjs. Including them put the median at 7 days when the measured answer
+     is 51. They are excluded and counted, like the other two things we cannot measure. */
+  const seenOnce = spans.filter((s) => !s.predatesArchive && s.closedBy && (s.snapshotsSeen || 0) < 2).length;
+  const days = spans.filter((s) => !s.predatesArchive && s.closedBy && (s.snapshotsSeen || 0) >= 2)
     .map((s) => s.openDaysAtLeast).filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
   const at = (p) => (days.length ? days[Math.min(days.length - 1, Math.floor(days.length * p))] : null);
   return {
@@ -76,6 +80,7 @@ export function distribution(state) {
     measurable: days.length,
     predatingArchive: spans.filter((s) => s.predatesArchive).length,
     stillOpen: spans.filter((s) => !s.closedBy).length,
+    seenOnlyOnce: seenOnce,
     openDays: { p25: at(0.25), median: at(0.5), p75: at(0.75), p90: at(0.9), max: days[days.length - 1] ?? null },
     over30: days.filter((d) => d > 30).length,
     over90: days.filter((d) => d > 90).length,
@@ -139,11 +144,18 @@ function selftest() {
   const state = { boards: { x: { ok: true, spans: [
     { predatesArchive: true, closedBy: '2024-01-01', openDaysAtLeast: 900 },
     { predatesArchive: false, closedBy: null, openDaysAtLeast: 40 },
-    { predatesArchive: false, closedBy: '2024-06-01', openDaysAtLeast: 200 },
-    { predatesArchive: false, closedBy: '2024-02-01', openDaysAtLeast: 10 },
+    { predatesArchive: false, closedBy: '2024-06-01', openDaysAtLeast: 200, snapshotsSeen: 3 },
+    { predatesArchive: false, closedBy: '2024-02-01', openDaysAtLeast: 10, snapshotsSeen: 2 },
   ] } } };
   const d = distribution(state);
   assert(d.measurable === 2, `only bracketed-and-closed spans are measurable, got ${d.measurable}`);
+  const oneShot = distribution({ boards: { x: { ok: true, spans: [
+    { predatesArchive: false, closedBy: '2024-02-01', openDaysAtLeast: 0, snapshotsSeen: 1 },
+    { predatesArchive: false, closedBy: '2024-06-01', openDaysAtLeast: 200, snapshotsSeen: 4 },
+  ] } } });
+  assert(oneShot.measurable === 1 && oneShot.seenOnlyOnce === 1,
+    'a job seen in one capture is excluded and counted, not recorded as a zero-day role');
+  assert(oneShot.openDays.median === 200, 'the median is taken over what was actually measured');
   assert(d.predatingArchive === 1 && d.stillOpen === 1, 'the excluded ones are counted and named, not dropped silently');
   assert(d.over180 === 1 && d.over30 === 1 && d.over365 === 0, 'thresholds count only the two measurable spans, 10d and 200d');
   assert(distribution({ boards: {} }).measurable === 0, 'nothing collected yields no claims');
