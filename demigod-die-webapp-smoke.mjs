@@ -217,6 +217,25 @@ async function main() {
     step((await req(port, '/api/v1/roles', { bearer: key })).status === 401,
       'a revoked key stops working with no restart');
 
+    // --- what changed in the world, as distinct from what we did ---
+    const sig = await req(port, '/api/v1/signals?limit=5', { cookie });
+    step(sig.status === 200 && sig.json?.schema === 'demigod.die-signals/1', 'the signal feed serves');
+    step(Boolean(sig.json?.basis) || sig.json?.ok === false,
+      'it names which two days it compared, or says why it cannot compare',
+      sig.json?.basis ? `${sig.json.basis.before} → ${sig.json.basis.after}` : sig.json?.why);
+    /* The refusal that matters: a first look and an unreadable board must never be counted as
+       change. If either ever carries a delta, the feed has started inventing news. */
+    const invented = (sig.json?.signals || []).filter(
+      (s) => ['first_observation', 'unreadable', 'unknown_readability', 'not_tracked'].includes(s.state) && s.delta !== null,
+    );
+    step(invented.length === 0, 'no non-comparison is given a delta', `${invented.length} invented`);
+
+    const watched = await req(port, '/api/v1/signals?watched=1', { cookie });
+    step(watched.status === 200 && Array.isArray(watched.json?.watched),
+      'the watchlist derives from open missions', `${watched.json?.watched?.length ?? 0} watched`);
+    step((watched.json?.signals || []).length === (watched.json?.watched || []).length,
+      'every watched company is accounted for, including ones we do not track');
+
     // --- an admin can run the place without shell access to the host ---
     const listed = await req(port, '/api/v1/accounts', { cookie });
     step(listed.status === 200 && listed.json?.users?.length >= 1, 'an admin can see who has access');

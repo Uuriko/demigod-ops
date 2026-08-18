@@ -11,7 +11,7 @@ import { createNote, loadPackets, projectForReview } from './demigod-role-packet
 import { importJsonMissions, missionStorePath, openMissionStore } from './demigod-die-mission-store.mjs';
 import { projectActivityList } from './demigod-die-activity-shape.mjs';
 import { csvRow, exportFilename } from './demigod-die-export.mjs';
-import { loadHistory, signalsFrom } from './demigod-die-signals.mjs';
+import { loadHistory, signalsFrom, withWatchlist } from './demigod-die-signals.mjs';
 import {
   advanceApplication,
   applyCandidate,
@@ -1288,8 +1288,18 @@ export function createDieWebServer() {
         const limit = parseInteger(url.searchParams.get('limit'), {
           fallback: 25, min: 1, max: MAX_LIMIT, error: 'invalid_limit',
         });
-        const feed = signalsFrom(lines, { limit, states: state ? [state] : null });
-        sendJson(res, 200, { schema: 'demigod.die-signals/1', ...feed }, head);
+        const watchedOnly = url.searchParams.get('watched') === '1';
+        /* An unfiltered feed of 490 companies buries the two that matter under 488 that do not, and
+           signals decay while you scroll. The watchlist needs no new state: a company with an open
+           mission is a company someone is hiring against. */
+        const feed = signalsFrom(lines, {
+          limit: watchedOnly ? 0 : limit,
+          states: state ? [state] : null,
+        });
+        const body = watchedOnly
+          ? withWatchlist(feed, STORE.list().map((m) => m?.crm?.company?.companyId || m?.packet?.companyId).filter(Boolean))
+          : feed;
+        sendJson(res, 200, { schema: 'demigod.die-signals/1', ...body }, head);
       } else if (url.pathname === '/api/v1/export') {
         const dataset = String(url.searchParams.get('dataset') || '');
         const format = String(url.searchParams.get('format') || 'csv').toLowerCase();

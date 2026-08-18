@@ -167,6 +167,44 @@ export function signalsFrom(lines, { now = new Date(), limit = 0, states = null 
   };
 }
 
+/**
+ * PURE. Narrow a feed to the companies actually being worked, and account for every one of them.
+ *
+ * Signals decay, so an unfiltered feed of 490 companies is close to useless: the two that matter
+ * are buried under 488 that do not. The watchlist needs no new state — a company with an open
+ * mission is a company someone is hiring against.
+ *
+ * The part that is easy to get wrong: a watched company with no signal is DROPPED by a plain
+ * filter, and its absence then reads as "nothing changed about them". It is usually the opposite —
+ * we are not tracking their board at all, which is a gap worth seeing precisely because someone
+ * cared enough to open a mission. Those come back as `not_tracked` rather than vanishing.
+ */
+export function withWatchlist(feed, watchedIds) {
+  const watched = [...new Set((watchedIds || []).filter(Boolean))];
+  if (!watched.length) return { ...feed, watched: [], watchedTotal: 0, signals: [] };
+  const bySignal = new Map((feed.signals || []).map((s) => [s.companyId, s]));
+  const rows = watched.map((id) => bySignal.get(id) || {
+    companyId: id,
+    state: 'not_tracked',
+    from: null,
+    to: null,
+    delta: null,
+    why: 'no board observation on either day — we are not tracking this company, which is not the same as nothing changing',
+    observedOn: feed.observedOn ?? null,
+    ageDays: feed.ageDays ?? null,
+    freshness: feed.freshness ?? 'unknown',
+  });
+  rows.sort((a, b) => Math.abs(b.delta ?? 0) - Math.abs(a.delta ?? 0));
+  return {
+    ...feed,
+    watched,
+    watchedTotal: rows.length,
+    counts: rows.reduce((acc, s) => ({ ...acc, [s.state]: (acc[s.state] || 0) + 1 }), {}),
+    total: rows.length,
+    signals: rows,
+  };
+}
+
 /** Read the history file. Absent or unreadable is reported, never treated as an empty history. */
 export function loadHistory(file = HISTORY) {
   try {
@@ -221,6 +259,17 @@ function selftest() {
   ], { now: new Date('2026-08-18T00:00:00Z') });
   assert(closing.signals[0].companyId === 'big' && closing.signals[0].delta === -14,
     'a 14-role closure outranks a 2-role opening — ranking by signed delta would bury every closure');
+
+  // --- watchlist ---
+  const watchFeed = signalsFrom([before, after], { now: new Date('2026-08-19T00:00:00Z') });
+  const w = withWatchlist(watchFeed, ['a', 'zzz-never-seen']);
+  assert(w.watchedTotal === 2, 'every watched company is accounted for');
+  assert(w.signals.find((s) => s.companyId === 'a').state === 'changed', 'a watched company keeps its signal');
+  const missing = w.signals.find((s) => s.companyId === 'zzz-never-seen');
+  assert(missing && missing.state === 'not_tracked',
+    'a watched company with no observation comes back as not_tracked, not dropped — being dropped would read as "nothing changed"');
+  assert(missing.delta === null, 'and claims no delta');
+  assert(withWatchlist(watchFeed, []).signals.length === 0, 'an empty watchlist shows nothing rather than everything');
 
   const single = signalsFrom([after]);
   assert(!single.ok && /only one snapshot/.test(single.why),
