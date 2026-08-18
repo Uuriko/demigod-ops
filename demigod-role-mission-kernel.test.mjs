@@ -23,10 +23,13 @@ import {
   recordDebrief,
   recordOfferTerms,
   recordOutcome,
+  recordOutcomeCheck,
+  scheduleOutcomeCheck,
   recordScorecard,
   saveScorecardDraft,
   recordTouch,
   releaseSlot,
+  recordMutualYes,
   rememberPair,
   rescheduleSlot,
   sendOffer,
@@ -120,6 +123,17 @@ assert.throws(
   () => advanceApplication(screening, { candId: 'cand-ada', to: 'offer' }),
   /application_forbidden/,
 );
+{
+  const skipped = advanceApplication(
+    advanceApplication(screening, { candId: 'cand-ada', to: 'interview', at: '2026-08-17T11:00:00.000Z' }),
+    { candId: 'cand-ada', to: 'offer', at: '2026-08-17T11:05:00.000Z' },
+  );
+  expectThrow(
+    () => advanceApplication(skipped, { candId: 'cand-ada', to: 'hired', at: '2026-08-17T11:10:00.000Z' }),
+    /hire_debrief_required/,
+    'hire_debrief_required',
+  );
+}
 
 const held = holdSlot(screening, {
   candId: 'cand-ada',
@@ -152,7 +166,28 @@ assert.throws(() => holdSlot(other, {
   end: '2026-08-18T17:45:00.000Z',
 }), /slot_interviewer_busy/);
 
-const booked = bookSlot(held, { slotId: held.calendar.slots[0].id, at: '2026-08-17T10:25:00.000Z' });
+const pairedEarly = rememberPair(held, {
+  pairId: 'pair-ada-kernel',
+  roleId: packet.roleId,
+  candId: 'cand-ada',
+  sample: false,
+  state: 'review',
+  mutual: { founder: false, candidate: false },
+}, { at: '2026-08-17T10:24:00.000Z' });
+expectThrow(
+  () => bookSlot(pairedEarly, { slotId: pairedEarly.calendar.slots[0].id, at: '2026-08-17T10:25:00.000Z' }),
+  /book_requires_mutual/,
+  'book_requires_mutual',
+);
+const founderYes = recordMutualYes(pairedEarly, { candId: 'cand-ada', side: 'founder', at: '2026-08-17T10:24:10.000Z' });
+expectThrow(
+  () => bookSlot(founderYes, { slotId: founderYes.calendar.slots[0].id }),
+  /book_requires_mutual/,
+  'book_requires_both_sides',
+);
+expectThrow(() => recordMutualYes(founderYes, { candId: 'cand-ada', side: 'panel' }), /mutual_side/, 'mutual_side');
+const bothYes = recordMutualYes(founderYes, { candId: 'cand-ada', side: 'candidate', at: '2026-08-17T10:24:20.000Z' });
+const booked = bookSlot(bothYes, { slotId: bothYes.calendar.slots[0].id, at: '2026-08-17T10:25:00.000Z' });
 assert.equal(booked.calendar.slots[0].state, 'booked');
 assert.equal(projectNextAction(booked).kind, 'debrief_conversation');
 const noted = attachCallNote(booked, {
@@ -234,17 +269,10 @@ expectThrow(
   'debrief_duplicate',
 );
 
-const paired = rememberPair(debriefed, {
-  pairId: 'pair-ada-kernel',
-  roleId: packet.roleId,
-  candId: 'cand-ada',
-  sample: false,
-  state: 'review',
-  mutual: { founder: false, candidate: false },
-}, { at: '2026-08-18T18:34:00.000Z' });
-assert.equal(paired.crm.pairs[0].mutual.founder, false);
-assert.throws(() => rememberPair(paired, { pairId: 'pair-x', roleId: packet.roleId, candId: 'cand-ghost', sample: false }), /pair_application_missing/);
-const touched = recordTouch(paired, {
+assert.equal(debriefed.crm.pairs[0].mutual.founder, true);
+assert.equal(debriefed.crm.pairs[0].mutual.candidate, true);
+assert.throws(() => rememberPair(debriefed, { pairId: 'pair-x', roleId: packet.roleId, candId: 'cand-ghost', sample: false }), /pair_application_missing/);
+const touched = recordTouch(debriefed, {
   candId: 'cand-ada',
   channel: 'call',
   note: 'Screen completed; advancing to interview.',
@@ -305,17 +333,33 @@ expectThrow(() => recordOfferTerms(termed, { candId: 'cand-ada', terms: offer.te
 assert.throws(() => closeMission(termed, { state: 'filled' }), /mission_fill_requires_hire/);
 const hired = advanceApplication(termed, { candId: 'cand-ada', to: 'hired', at: '2026-08-22T10:00:00.000Z' });
 assert.equal(hired.closeState, 'filled');
-assert.equal(projectNextAction(hired).kind, 'record_outcome');
+assert.equal(hired.ats.applications[0].hiredAt, '2026-08-22T10:00:00.000Z');
+assert.equal(projectNextAction(hired).kind, 'schedule_90d_check');
+expectThrow(() => recordOutcome(hired, { learned: 'Founder-reviewed screen plus one no-show still produced a hire. Keep holds short.' }), /outcome_requires_90d_check/, 'outcome_requires_90d_check');
+expectThrow(() => scheduleOutcomeCheck(hired, { dueAt: '2026-08-23T10:00:00.000Z' }), /outcome_check_too_soon/, 'outcome_check_too_soon');
+const scheduled = scheduleOutcomeCheck(hired, { at: '2026-08-22T10:06:00.000Z' });
+assert.equal(projectNextAction(scheduled).kind, 'wait_90d_check');
+assert.match(scheduled.outcomeCheck.dueAt, /^2026-11-20/);
+expectThrow(() => recordOutcomeCheck(scheduled, { lasted: true, note: 'Still on the team and shipping the first paid loop with the founder.' }), /outcome_check_not_due/, 'outcome_check_not_due');
+expectThrow(() => recordOutcomeCheck(scheduled, { lasted: 'yes', note: 'Still on the team and shipping the first paid loop with the founder.' }), /outcome_check_lasted/, 'outcome_check_lasted');
+const checked = recordOutcomeCheck(scheduled, {
+  lasted: true,
+  note: 'Still on the team and shipping the first paid loop with the founder.',
+  at: scheduled.outcomeCheck.dueAt,
+});
+assert.equal(checked.outcomeCheck.lasted, true);
+assert.equal(projectNextAction(checked).kind, 'record_outcome');
 
-const closed = closeMission(hired, { state: 'filled', at: '2026-08-22T10:05:00.000Z' });
+const closed = closeMission(checked, { state: 'filled', at: scheduled.outcomeCheck.dueAt });
 assert.equal(projectNextAction(closed).kind, 'record_outcome');
 const done = recordOutcome(closed, {
   learned: 'Founder-reviewed screen plus one no-show still produced a hire. Keep holds short.',
   keep: ['Keep the screen hold inside Demigod'],
   avoid: ['Do not treat a no-show as a silent close'],
-  at: '2026-08-22T10:10:00.000Z',
+  at: scheduled.outcomeCheck.dueAt,
 });
 assert.equal(done.outcome.hiredCandId, 'cand-ada');
+assert.equal(done.outcome.lasted90d, true);
 assert.equal(done.outcome.predicted, null);
 assert.equal(projectNextAction(done).kind, 'next_mission');
 assert.throws(() => recordOutcome(done, { learned: 'Founder-reviewed screen plus one no-show still produced a hire. Keep holds short.' }), /outcome_already_recorded/);
@@ -332,7 +376,17 @@ const sequel = openNextMission(done, {
 });
 assert.equal(sequel.ats.applications.length, 0);
 assert.equal(sequel.learning.predicted, null);
+assert.equal(sequel.learning.lasted90d, true);
 assert.equal(sequel.learning.fromRoleId, done.roleId);
+{
+  const washed = structuredClone(done);
+  washed.outcome = { ...washed.outcome, lasted90d: false, avoid: [] };
+  expectThrow(
+    () => openNextMission(washed, { packet: sequelPacket, owner: 'founder-potter' }),
+    /next_mission_avoid_required/,
+    'next_mission_avoid_required',
+  );
+}
 assert.match(sequel.learning.learned, /Keep holds short/);
 assert.deepEqual(sequel.learning.keep, ['Keep the screen hold inside Demigod']);
 assert.deepEqual(sequel.learning.avoid, ['Do not treat a no-show as a silent close']);
@@ -344,6 +398,7 @@ console.log('next-mission keep', sequel.learning.keep.join('|'));
 console.log('next-mission avoid', sequel.learning.avoid.join('|'));
 console.log('next-mission externalAction', sequel.authority.externalAction);
 const surfaces = projectSurfaces(done);
+assert.equal(surfaces.outcomeCheck.lasted, true);
 assert.equal(surfaces.ats.counts.hired, 1);
 assert.equal(surfaces.crm.people[0].lastChannel, 'call');
 assert.equal(surfaces.calendar.load.length, 0);
@@ -596,5 +651,15 @@ const emptySurface = projectSurfaces(attachCompany(open, emptyVerified)).crm.com
 assert.equal(emptySurface.presentation.countIsCurrent, true);
 assert.match(emptySurface.presentation.qualifier, /read the board and it was empty/);
 console.log('verified empty is current', emptySurface.presentation.countIsCurrent);
+
+{
+  const stopped = closeMission(open, { state: 'closed', at: '2026-08-24T10:00:00.000Z' });
+  const learned = recordOutcome(stopped, {
+    learned: 'Paused before a hire. The 90-day check is only for filled missions.',
+    at: '2026-08-24T10:05:00.000Z',
+  });
+  assert.equal(learned.outcome.lasted90d, null);
+  assert.equal(learned.outcome.hiredCandId, null);
+}
 
 console.log('demigod-role-mission-kernel: PASS');

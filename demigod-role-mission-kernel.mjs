@@ -41,6 +41,10 @@ export const APPLY_SOURCES = ['inbound', 'referral', 'prior', 'applied'];
 export const MISSION_COMPANY_SCHEMA = 'demigod.mission-company/1';
 export const HIRING_STATUSES = ['quarantined', 'board_stale', 'board_observed', 'company_reported', 'unknown'];
 export const LAST_ATTEMPTS = ['ok', 'rate_limited', 'error', 'missing'];
+/* Employ 2025–26: time-to-fill 67.7→63.5d while 90-day retention 93.9%→84.6%.
+   A filled hire is not an observed outcome. The check is dated, not scored. */
+export const OUTCOME_CHECK_MS = 90 * 24 * 60 * 60 * 1000;
+export const OUTCOME_CHECK_SCHEMA = 'demigod.role-mission-outcome-check/1';
 
 /**
  * The one hiring-status ladder. It lived in two places — the company packet and the matching
@@ -261,7 +265,24 @@ export function assertMission(mission) {
   if (mission.crm.company != null) assertMissionCompany(mission.crm.company);
   if (!Array.isArray(mission.conversations)) throw new Error('mission_conversations');
   if (!Array.isArray(mission.debriefs)) throw new Error('mission_debriefs');
+  if (mission.outcomeCheck) assertOutcomeCheck(mission.outcomeCheck);
   if (mission.authority?.externalAction !== 'none') throw new Error('mission_authority');
+  return true;
+}
+
+function hiredApplication(mission) {
+  return (mission.ats.applications || []).find((row) => row.stage === 'hired') || null;
+}
+
+function hiredAtOf(mission) {
+  const row = hiredApplication(mission);
+  return row?.hiredAt || row?.updatedAt || null;
+}
+
+function assertOutcomeCheck(check) {
+  if (!check || check.schema !== OUTCOME_CHECK_SCHEMA) throw new Error('outcome_check_schema');
+  if (!check.dueAt || Number.isNaN(Date.parse(check.dueAt))) throw new Error('outcome_check_due');
+  if (check.lasted != null && typeof check.lasted !== 'boolean') throw new Error('outcome_check_lasted');
   return true;
 }
 
@@ -335,11 +356,18 @@ export function advanceApplication(mission, { candId, to, at } = {}) {
   if (app.stage === 'applied' && to === 'screen' && !(app.scorecards || []).length) {
     throw new Error('advance_scorecard_required');
   }
+  if (to === 'hired') {
+    if (!(app.scorecards || []).length) throw new Error('hire_scorecard_required');
+    if (!(mission.debriefs || []).some((row) => row.candId === id)) throw new Error('hire_debrief_required');
+  }
   const next = bump(mission, { at, action: `advance:${to}`, candId: id });
   const row = applicationOf(next, id);
   row.stage = to;
   row.updatedAt = next.updatedAt;
-  if (to === 'hired') next.closeState = 'filled';
+  if (to === 'hired') {
+    row.hiredAt = next.updatedAt;
+    next.closeState = 'filled';
+  }
   assertMission(next);
   return next;
 }
@@ -379,6 +407,16 @@ function assertSchedulable(mission, candId) {
   if (['declined', 'withdrawn', 'hired'].includes(app.stage)) throw new Error('slot_terminal');
   if (optedOut(mission, candId)) throw new Error('slot_opt_out');
   if (mission.closeState !== 'open' && mission.closeState !== 'paused') throw new Error('slot_mission_closed');
+}
+
+function pairOf(mission, candId) {
+  return (mission.crm.pairs || []).find((row) => row.candId === candId) || null;
+}
+
+/** Wellfound/daily.dev double opt-in: a booked slot is a conversation, not a hold. */
+function hasMutualYes(mission, candId) {
+  const pair = pairOf(mission, candId);
+  return pair?.mutual?.founder === true && pair?.mutual?.candidate === true;
 }
 
 function assertSlotFree(mission, { interviewer, start, end, exceptId = null }) {
@@ -432,6 +470,7 @@ export function bookSlot(mission, { slotId, candId, start, end, interviewer, mom
     if (!existing) throw new Error('slot_missing');
     if (existing.state !== 'hold') throw new Error(`slot_book_forbidden:${existing.state}`);
     assertSchedulable(mission, existing.candId);
+    if (!hasMutualYes(mission, existing.candId)) throw new Error('book_requires_mutual');
     const next = bump(mission, { at, action: 'book', candId: existing.candId });
     const row = slotOf(next, slotId);
     row.state = 'booked';
@@ -573,6 +612,21 @@ export function detachCompany(mission, { at } = {}) {
   assertMission(mission);
   const next = bump(mission, { at, action: 'detach_company' });
   next.crm.company = null;
+  assertMission(next);
+  return next;
+}
+
+export function recordMutualYes(mission, { candId, side, at } = {}) {
+  assertMission(mission);
+  if (side !== 'founder' && side !== 'candidate') throw new Error('mutual_side');
+  const id = requireId(candId, 'cand');
+  const existing = pairOf(mission, id);
+  if (!existing) throw new Error('mutual_pair_missing');
+  if (existing.mutual?.[side] === true) throw new Error('mutual_already');
+  const next = bump(mission, { at, action: `mutual:${side}`, candId: id });
+  const row = pairOf(next, id);
+  row.mutual = { ...row.mutual, [side]: true };
+  row.updatedAt = next.updatedAt;
   assertMission(next);
   return next;
 }
@@ -720,19 +774,70 @@ function boundList(values, label) {
   }).slice(0, 8);
 }
 
+export function scheduleOutcomeCheck(mission, { dueAt, at } = {}) {
+  assertMission(mission);
+  const hired = hiredApplication(mission);
+  if (!hired) throw new Error('outcome_check_requires_hire');
+  if (mission.outcomeCheck?.recordedAt) throw new Error('outcome_check_already');
+  if (mission.outcomeCheck?.dueAt) throw new Error('outcome_check_scheduled');
+  const hiredAt = hiredAtOf(mission);
+  const earliest = Date.parse(hiredAt) + OUTCOME_CHECK_MS;
+  const due = dueAt ? Date.parse(dueAt) : earliest;
+  if (!Number.isFinite(due) || due < earliest) throw new Error('outcome_check_too_soon');
+  const next = bump(mission, { at, action: 'schedule_90d_check', candId: hired.candId });
+  next.outcomeCheck = {
+    schema: OUTCOME_CHECK_SCHEMA,
+    candId: hired.candId,
+    hiredAt,
+    dueAt: new Date(due).toISOString(),
+    scheduledAt: next.updatedAt,
+    lasted: null,
+    note: null,
+    recordedAt: null,
+    authority: { employmentDecision: 'human', externalAction: 'none' },
+  };
+  assertMission(next);
+  return next;
+}
+
+export function recordOutcomeCheck(mission, { lasted, note, at } = {}) {
+  assertMission(mission);
+  const check = mission.outcomeCheck;
+  if (!check?.dueAt) throw new Error('outcome_check_not_scheduled');
+  if (check.recordedAt) throw new Error('outcome_check_already');
+  if (typeof lasted !== 'boolean') throw new Error('outcome_check_lasted');
+  const text = String(note || '').trim();
+  if (text.length < 20 || text.length > 2000) throw new Error('outcome_check_note');
+  const clock = now(at);
+  if (Date.parse(clock) < Date.parse(check.dueAt)) throw new Error('outcome_check_not_due');
+  const next = bump(mission, { at: clock, action: 'record_90d_check', candId: check.candId });
+  next.outcomeCheck = {
+    ...check,
+    lasted,
+    note: text,
+    recordedAt: next.updatedAt,
+  };
+  assertMission(next);
+  return next;
+}
+
 export function recordOutcome(mission, { learned, keep = [], avoid = [], at } = {}) {
   assertMission(mission);
   if (!['filled', 'closed'].includes(mission.closeState)) throw new Error('outcome_not_closed');
   if (mission.outcome) throw new Error('outcome_already_recorded');
+  if (mission.closeState === 'filled' && !mission.outcomeCheck?.recordedAt) {
+    throw new Error('outcome_requires_90d_check');
+  }
   const text = String(learned || '').trim();
   if (text.length < 20 || text.length > 2000) throw new Error('outcome_learned');
-  const hired = (mission.ats.applications || []).find((row) => row.stage === 'hired');
+  const hired = hiredApplication(mission);
   const next = bump(mission, { at, action: 'outcome' });
   next.outcome = {
     schema: 'demigod.role-mission-outcome/1',
     at: next.updatedAt,
     closeState: next.closeState,
     hiredCandId: hired?.candId || null,
+    lasted90d: mission.outcomeCheck?.lasted ?? null,
     learned: text,
     keep: boundList(keep, 'outcome_keep'),
     avoid: boundList(avoid, 'outcome_avoid'),
@@ -746,6 +851,9 @@ export function recordOutcome(mission, { learned, keep = [], avoid = [], at } = 
 export function openNextMission(prior, { packet, owner, at } = {}) {
   if (!prior?.outcome) throw new Error('next_mission_outcome_required');
   assertMission(prior);
+  if (prior.outcome.lasted90d === false && !(prior.outcome.avoid || []).length) {
+    throw new Error('next_mission_avoid_required');
+  }
   const next = openRoleMission({ packet, owner, at });
   next.priorRoleId = prior.roleId;
   next.learning = {
@@ -753,6 +861,7 @@ export function openNextMission(prior, { packet, owner, at } = {}) {
     learned: prior.outcome.learned,
     keep: [...(prior.outcome.keep || [])],
     avoid: [...(prior.outcome.avoid || [])],
+    lasted90d: prior.outcome.lasted90d ?? null,
     predicted: null,
   };
   next.authority = { ...AUTHORITY };
@@ -778,8 +887,14 @@ export function projectNextAction(mission) {
   if (mission.outcome) {
     return withObservation(mission, { kind: 'next_mission', externalAction: false, note: 'Observed outcome is on this mission. The next need starts a new one.' });
   }
+  if (mission.closeState === 'filled' && !mission.outcomeCheck?.dueAt) {
+    return withObservation(mission, { kind: 'schedule_90d_check', externalAction: false, note: 'A hire is not a 90-day outcome. Schedule the dated check.' });
+  }
+  if (mission.closeState === 'filled' && !mission.outcomeCheck?.recordedAt) {
+    return withObservation(mission, { kind: 'wait_90d_check', dueAt: mission.outcomeCheck.dueAt, externalAction: false, note: 'Do not record learning until the 90-day check is due.' });
+  }
   if (mission.closeState === 'filled') {
-    return withObservation(mission, { kind: 'record_outcome', externalAction: false, note: 'Hire is on the mission; record the observed outcome.' });
+    return withObservation(mission, { kind: 'record_outcome', externalAction: false, note: 'The 90-day check is on the mission. Record what was learned.' });
   }
   if (mission.closeState === 'closed' || mission.closeState === 'paused') {
     return withObservation(mission, { kind: 'mission_idle', externalAction: false, note: 'Mission is not open.' });
@@ -902,6 +1017,7 @@ export function projectSurfaces(mission) {
       entity: mission.roleId,
       limit: 50,
     }),
+    outcomeCheck: mission.outcomeCheck || null,
     outcome: mission.outcome || null,
     authority: mission.authority,
   };

@@ -665,7 +665,9 @@ The kernel owns:
   evidence-required scorecards via existing review notes, independent drafts hidden until submit,
   and close (`filled` requires a hire);
 - **Calendar** — hold, book, reschedule, no-show, release. One active slot per candidate. Overlapping
-  interviewer load fails closed. No invite is sent;
+  interviewer load fails closed. No invite is sent. `bookSlot` requires a pair with
+  `mutual.founder` and `mutual.candidate` (`book_requires_mutual`); a hold does not.
+  `recordMutualYes({ candId, side })` is the only writer of those flags;
 - **CRM** — owned touches, sticky opt-out, remembered pair receipts, a derived next action, and
   an optional `demigod.mission-company/1` observation record (`attachCompany` / `detachCompany`);
 - **Conversation memory** — `attachCallNote()` on a booked slot reuses `demigod.call-note/1`.
@@ -683,6 +685,17 @@ The kernel owns:
 It creates no store, HTTP route, consent, intro, employment decision, or external action. Demo
 packets, contact-shaped IDs, and opted-out advances other than `withdrawn` fail closed.
 `recordOutcome()` is allowed only after `filled` or `closed`; `predicted` stays null.
+A `filled` hire is not an observed outcome. `scheduleOutcomeCheck()` stamps a due date no
+earlier than hire + 90 days. `recordOutcomeCheck({ lasted, note })` refuses until that
+date. `recordOutcome()` on `filled` requires the recorded check and copies `lasted90d`.
+`closed` without a hire still records learning without a 90-day check. `lasted` is a
+boolean observation, not a score. Next-action kinds: `schedule_90d_check`,
+`wait_90d_check`, then `record_outcome`.
+`advanceApplication(..., hired)` requires a submitted scorecard and a debrief for that
+candidate — a hire without a debrief is the speed-without-fit path. Unknowns on the
+debrief stay visible; they do not invent a score. `openNextMission()` copies
+`lasted90d` onto `learning`. A washout (`lasted90d === false`) with an empty avoid
+list fails closed (`next_mission_avoid_required`).
 `projectSurfaces()` includes an activity list shaped by `demigod.die-activity-list/1`.
 Debrief before a booked slot, next-mission without an observed outcome, and offer send/sign fail
 closed.
