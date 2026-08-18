@@ -769,8 +769,33 @@ also no staging — editing a unit changes the machine.
 
 **Needs a human with credentials — no amount of code moves these:**
 
-1. **The Cloudflare account permission.** Unchanged from §12: Zero Trust org, identity provider, an
-   Access app with one allow policy, a DNS record. The only remaining blocker for a stable hostname.
+1. **The Cloudflare account permission.** The only remaining blocker for a stable hostname.
+
+   Diagnosed precisely on 2026-08-18 rather than left as "insufficient scope". `wrangler whoami`
+   reports the OAuth grant on `potter@trydemigod.com` holds:
+
+   ```
+   account (read) · user (read) · zone (READ) · ssl_certs (write)
+   workers/workers_kv/workers_routes/workers_scripts (write) · d1 · pages · queues · ai
+   ```
+
+   Two things are missing and nothing else is:
+
+   - **`zone (write)`** — present as read only, so no DNS record can be created for the tunnel.
+   - **Zero Trust / Access** — absent from the grant entirely, in any form. This is why the API
+     answered "Access is not enabled": the token cannot see that product, which is not the same as
+     the account lacking it.
+
+   Fastest route is the dashboard rather than re-authorising the CLI: enable Zero Trust on account
+   `5a919d6c1785d47e15e10c24450a8ff7`, create a self-hosted Access app for the chosen hostname with
+   one allow policy, then point that hostname at tunnel `demigod-die`
+   (`7eb0869e-07ac-49c6-8101-41a78a6e8bbd`). Alternatively mint an API token with
+   `Zone:DNS:Edit` + `Access: Apps and Policies:Edit`.
+
+   **Deliberately not done by an agent even once the credentials exist.** Creating a public DNS
+   record pointing at this desk is publishing, and publishing requires authorisation in the request
+   that asks for it. The tunnel interlock (`die-tunnel-ready`, absent) is the second lock on the
+   same door.
 2. **Off-device backup destination.** `restic` is not installed and `DG_BACKUP_REPO` /
    `RESTIC_PASSWORD_FILE` are unset, so `demigod-backup.timer` is inactive. No external storage is
    mounted — the only other filesystem, `/recovery`, is a 4 GB partition on the *same physical
