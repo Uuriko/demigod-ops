@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>$dasha notes</title>
+    <link>https://www.getdasha.com/notes</link>
+    <description>Short notes from getdasha.com. No price promises.</description>
+    <item>
+      <title>Crawlers do not run JavaScript</title>
+      <link>https://www.getdasha.com/notes</link>
+      <guid isPermaLink="false">dasha-notes-2026-08-17-crawlers</guid>
+      <pubDate>Mon, 17 Aug 2026 00:00:00 GMT</pubDate>
+      <description>GPTBot, ClaudeBot, and PerplexityBot read the first HTML only. Mint, rights, and buy paths belong in the page.</description>
+    </item>
+    <item>
+      <title>Bounties are not a stunt board</title>
+      <link>https://www.getdasha.com/notes</link>
+      <guid isPermaLink="false">dasha-notes-2026-08-17-bounties</guid>
+      <pubDate>Mon, 17 Aug 2026 00:00:00 GMT</pubDate>
+      <description>USDC on Solana. We don't hold it. No payTo, no Pay button.</description>
+    </item>
+  </channel>
+</rss>

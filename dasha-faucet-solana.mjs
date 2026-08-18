@@ -4,7 +4,7 @@
  */
 import * as ed from '@noble/ed25519';
 import { base58Decode, isValidSolanaAddress } from './dasha-simp-actions.mjs';
-import { FAUCET_MINT, FAUCET_AMOUNT_RAW, faucetSignerSecret } from './dasha-faucet.mjs';
+import { FAUCET_MINT, FAUCET_AMOUNT_RAW, FAUCET_TREASURY_DEFAULT, destShapeError, faucetSignerSecret } from './dasha-faucet.mjs';
 
 export const TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
 export const ASSOCIATED_TOKEN_PROGRAM_ID = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
@@ -279,10 +279,15 @@ export async function buildSignedTipTx(env, {
   skipBalanceChecks = false,
   forceCreateAta = false,
 } = {}) {
-  if (!isValidSolanaAddress(destOwner)) return { ok: false, error: 'dest_not_wallet' };
+  const shape = destShapeError(destOwner, '', {
+    mint: String(mint || FAUCET_MINT).trim(),
+    treasury: String(env?.FAUCET_TREASURY || FAUCET_TREASURY_DEFAULT).trim(),
+  });
+  if (shape) return { ok: false, error: shape };
   if (!secret) return { ok: false, error: 'not_configured' };
   const { seed } = keypairFromSecret(secret);
   const payer = await publicKeyFromSecret(secret);
+  if (destOwner === payer) return { ok: false, error: 'dest_treasury' };
   // Prefer configured treasury; if it differs from signer pubkey, pay from signer (owner of ATAs).
   const configuredTreasury = String(env.FAUCET_TREASURY || '').trim();
   if (configuredTreasury && configuredTreasury !== payer && !skipBalanceChecks) {

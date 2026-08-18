@@ -160,44 +160,57 @@ function drawText(px, text, x, y, scale, r, g, b, maxWidth) {
 }
 
 function wrapWords(text, maxChars) {
-  const words = String(text || '').toUpperCase().replace(/[^\w$.,!?' ·-]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+  const words = String(text || '')
+    .toUpperCase()
+    .replace(/[^\w$.,!?' ·-]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
   const lines = [];
   let cur = '';
   for (const w of words) {
-    const next = cur ? `${cur} ${w}` : w;
-    if (next.length > maxChars && cur) {
-      lines.push(cur);
-      cur = w;
-    } else cur = next;
+    /* Hard-split very long tokens so a single word cannot blank the card. */
+    const chunks = w.length > maxChars
+      ? w.match(new RegExp(`.{1,${maxChars}}`, 'g')) || [w.slice(0, maxChars)]
+      : [w];
+    for (const piece of chunks) {
+      const next = cur ? `${cur} ${piece}` : piece;
+      if (next.length > maxChars && cur) {
+        lines.push(cur);
+        cur = piece;
+      } else cur = next;
+    }
   }
   if (cur) lines.push(cur);
-  return lines.slice(0, 4);
+  return lines.slice(0, 5);
 }
 
 export async function handoffOgPng(state = {}) {
   const px = new Uint8Array(W * H * 3);
   // ink background
   fillRect(px, 0, 0, W, H, 7, 6, 8);
-  // violet / hot glows (block approximations)
-  fillRect(px, 700, 0, 500, 280, 40, 25, 70);
-  fillRect(px, 0, 400, 420, 228, 55, 20, 40);
-  // acid bottom bar
-  fillRect(px, 0, H - 40, W, 40, 223, 255, 0);
+  // violet / hot glows (in-bounds for 600×314)
+  fillRect(px, 380, 0, 220, 160, 40, 25, 70);
+  fillRect(px, 0, 170, 260, 120, 55, 20, 40);
+  // acid frame + bottom bar for scannable brand
+  fillRect(px, 0, 0, W, 6, 223, 255, 0);
+  fillRect(px, 0, H - 44, W, 44, 223, 255, 0);
   // kicker
-  drawText(px, 'YOUR TURN  ·  $DASHA', 24, 18, 3, 223, 255, 0, 560);
+  drawText(px, 'YOUR TURN  ·  $DASHA', 24, 20, 3, 223, 255, 0, 560);
   const look = String(state.look || 'poster').toUpperCase();
   const format = String(state.format || 'square').toUpperCase();
-  const sticker = state.sticker ? `  ${String(state.sticker)}` : '';
-  drawText(px, `${look}  ·  ${format}${sticker}`.slice(0, 40), 24, 52, 2, 230, 220, 196, 560);
-  // line
-  const lines = wrapWords(state.line || 'MAKE ONE', 16);
-  let ly = 96;
+  const sticker = state.sticker && state.sticker !== 'None' ? ` · ${String(state.sticker)}` : '';
+  drawText(px, `${look} · ${format}${sticker}`.slice(0, 42), 24, 54, 2, 230, 220, 196, 560);
+  // line — prefer fewer, larger rows for X/Discord unfurl legibility
+  const lines = wrapWords(state.line || 'MAKE ONE', 18);
+  const bodyScale = lines.length > 3 ? 4 : 5;
+  let ly = 92;
   for (const line of lines) {
-    drawText(px, line, 24, ly, 5, 244, 237, 219, 560);
-    ly += 5 * 8 + 8;
+    drawText(px, line, 24, ly, bodyScale, 244, 237, 219, 560);
+    ly += bodyScale * 8 + 6;
   }
   // footer on acid bar
-  drawText(px, 'GETDASHA.COM  ·  OPEN STUDIO  ·  CHANGE ONE THING', 20, H - 28, 2, 7, 6, 8, 560);
+  drawText(px, 'GETDASHA.COM  ·  OPEN STUDIO  ·  CHANGE ONE THING', 20, H - 30, 2, 7, 6, 8, 560);
 
   // PNG scanlines: filter 0 + RGB
   const raw = new Uint8Array((W * 3 + 1) * H);

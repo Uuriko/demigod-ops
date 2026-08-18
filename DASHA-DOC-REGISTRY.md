@@ -34,7 +34,8 @@ generated_from: top-level DASHA-*.md metadata
 | [DASHA-KIT-LICENSE.md](DASHA-KIT-LICENSE.md) | reference | — |
 | [DASHA-LIVE-CONTEXT.md](DASHA-LIVE-CONTEXT.md) | generated | dasha-context-refresh.mjs |
 | [DASHA-LOVE-SPEC.md](DASHA-LOVE-SPEC.md) | canonical | dasha-love-spec |
-| [DASHA-NOW.md](DASHA-NOW.md) | generated | DASHA-SHIP-MANIFEST.json |
+| [DASHA-META.md](DASHA-META.md) | canonical | dasha-meta |
+| [DASHA-NOW.md](DASHA-NOW.md) | generated | — |
 | [DASHA-OPEN-SOURCE.md](DASHA-OPEN-SOURCE.md) | reference | — |
 | [DASHA-PERFORMANCE-GATE-2026-08-11.md](DASHA-PERFORMANCE-GATE-2026-08-11.md) | working | — |
 | [DASHA-PIVOT-DECISION-2026-08-06.md](DASHA-PIVOT-DECISION-2026-08-06.md) | historical | DASHA-PRODUCT-BRIEF.md |

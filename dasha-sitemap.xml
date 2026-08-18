@@ -11,9 +11,9 @@
   <url>
     <loc>https://www.getdasha.com/</loc>
   </url>
-  <!-- /simp belongs here — the 2026-08-15 direction call makes it a first-class surface — but it
-       returns 404 on live as of this ship, so listing it would hand a crawler a dead URL. It goes
-       back in the same change that restores the page, not before. -->
+  <url>
+    <loc>https://www.getdasha.com/simp</loc>
+  </url>
   <url>
     <loc>https://www.getdasha.com/studio</loc>
   </url>
@@ -26,6 +26,9 @@
   <url>
     <loc>https://www.getdasha.com/how-to-buy</loc>
   </url>
+  <url>
+    <loc>https://www.getdasha.com/privacy</loc>
+  </url>
   <!-- Chess answers on both hosts. Both copies now declare https://www.getdasha.com/chess as
        canonical (verified live 2026-08-15), so www is the URL listed. A sitemap entry that
        disagrees with the page's own canonical asks a crawler to pick, and it will not pick ours.
@@ -33,7 +36,7 @@
   <url>
     <loc>https://www.getdasha.com/chess</loc>
   </url>
-  <!-- Forum: Worker-hosted, canonical on lobby; linked from home footer + lobby chrome. -->
+  <!-- Forum is Worker-hosted. Canonical is lobby; home footer links this URL. -->
   <url>
     <loc>https://lobby.getdasha.com/forum</loc>
   </url>

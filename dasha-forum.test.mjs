@@ -91,9 +91,59 @@ assert(F.MAX_POST > F.FORUM_LIMITS.CHAT_MAX_TEXT,
 // ---- the public shapes leak nothing extra ------------------------------------
 {
   const t = F.publicThread({ id: 'a', title: 'b', handle: 'c', avatar: 'd', ts: 1, lastTs: 2, replies: 3, secret: 'no' });
-  assert.deepEqual(Object.keys(t).sort(), ['avatar', 'handle', 'id', 'lastTs', 'replies', 'title', 'ts']);
+  assert.deepEqual(Object.keys(t).sort(), ['avatar', 'handle', 'id', 'lastTs', 'locked', 'replies', 'title', 'ts']);
+  assert.equal(t.locked, false);
   const p = F.publicPost({ id: 'a', handle: 'b', avatar: 'c', text: 'd', ts: 1, ip: '1.2.3.4' });
   assert.deepEqual(Object.keys(p).sort(), ['avatar', 'handle', 'id', 'text', 'ts']);
 }
 
-console.log('dasha forum: PASS (titles, inherited automod, caps, session-only identity, ordering, bounded index)');
+// ---- H2: search, edit, delete, lock, report ---------------------------------
+{
+  const idx = [
+    { id: '1', title: 'Studio remix night', handle: 'dash_eats' },
+    { id: '2', title: 'join t.me/dashacommunity', handle: 'scam' },
+    { id: '3', title: 'Chess challenge', handle: 'anna' },
+  ];
+  assert.deepEqual(F.searchThreads(idx, 'studio').map((t) => t.id), ['1']);
+  assert.deepEqual(F.searchThreads(idx, 't.me').map((t) => t.id), [], 'search must not return automod-banned titles');
+  assert.equal(F.searchThreads(idx, '').length, 3, 'empty query is the full index');
+}
+
+{
+  const now = 1_760_000_000_000;
+  const posts = [
+    { id: 'a1-0', handle: 'dash_eats', text: 'op', ts: now },
+    { id: 'a1-1', handle: 'anna', text: 'hi', ts: now },
+  ];
+  assert(!F.editPost(posts, { id: 'a1-1', text: 'yo', handle: 'dash_eats', now }).ok, 'cannot edit someone else');
+  assert(!F.editPost(posts, { id: 'a1-1', text: 'join t.me/x', handle: 'anna', now }).ok, 'edit inherits automod');
+  assert(!F.editPost(posts, { id: 'a1-1', text: 'later', handle: 'anna', now: now + F.EDIT_WINDOW_MS + 1 }).ok, 'edit window');
+  const ok = F.editPost(posts, { id: 'a1-1', text: 'hello again', handle: 'anna', now: now + 1000 });
+  assert(ok.ok && ok.post.text === 'hello again' && ok.post.editedAt === now + 1000);
+  assert.equal(posts[1].text, 'hi', 'edit returns a copy; original posts stay put');
+}
+
+{
+  const posts = [
+    { id: 'a1-0', handle: 'dash_eats', text: 'op', ts: 1 },
+    { id: 'a1-1', handle: 'anna', text: 'hi', ts: 1 },
+  ];
+  assert(!F.deletePost(posts, { id: 'a1-0', handle: 'dash_eats' }).ok, 'opener stays');
+  assert(!F.deletePost(posts, { id: 'a1-1', handle: 'dash_eats' }).ok, 'cannot delete someone else');
+  const gone = F.deletePost(posts, { id: 'a1-1', handle: 'anna' });
+  assert(gone.ok && gone.post.deleted && gone.post.text === '');
+  const pub = F.publicPost(gone.post);
+  assert.equal(pub.text, '');
+  assert.equal(pub.deleted, true);
+  assert.ok(!('ip' in pub));
+}
+
+{
+  const locked = F.lockThread({ id: 't', title: 'x', handle: 'a' }, { locked: true });
+  assert(locked.ok && locked.summary.locked);
+  assert.equal(F.assertWritable(locked.summary).error, 'thread is locked');
+  assert(!F.validateReport('ngmi').ok);
+  assert.equal(F.validateReport('scam').reason, 'scam');
+}
+
+console.log('dasha forum: PASS (titles, inherited automod, caps, session-only identity, ordering, bounded index, H2 search/edit/delete/lock)');

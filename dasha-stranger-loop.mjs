@@ -12,7 +12,9 @@ import puppeteer from 'puppeteer-core';
 import { writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-const LIVE = `${process.env.DASHA_LIVE_BASE || 'https://www.getdasha.com'}/studio`;
+const LIVE_BASE = process.env.DASHA_LIVE_BASE || 'https://www.getdasha.com';
+const LIVE = `${LIVE_BASE.replace(/\/$/, '')}/studio`;
+const HOME = LIVE_BASE.replace(/\/$/, '');
 const CDP = process.env.CDP_URL || 'http://127.0.0.1:9223';
 const OUT = process.env.DASHA_STRANGER_OUT || '/tmp/dasha-stranger-loop.json';
 
@@ -237,6 +239,92 @@ export async function runStrangerLoop() {
       today: Boolean(root.querySelector('#ritual-today')),
     }));
     step('craft', craft.surprise && craft.today, craft);
+
+    /* L8 Make another = full Surprise (after-share path already opened). */
+    await rootClick(page, '#after-dismiss').catch(async () => {
+      /* tray may already be closed — re-open via share no-op */
+      await rootEval(page, (root) => {
+        const tray = root.querySelector('#after-share');
+        if (tray) tray.hidden = false;
+      });
+      await rootClick(page, '#after-dismiss');
+    });
+    await new Promise((r) => setTimeout(r, 400));
+    const afterMake = await rootEval(page, (root) => {
+      const status = root.querySelector('#status')?.textContent || '';
+      const tray = root.querySelector('#after-share');
+      return {
+        status,
+        trayHidden: !tray || tray.hidden,
+        surpriseCopy: /^(Surprise|Make another)/i.test(status),
+      };
+    });
+    step('L8-make-another-surprise', afterMake.surpriseCopy && afterMake.trayHidden, afterMake);
+
+    /* L9 Home → Studio ritual DNA + src=home (agent path, no human). */
+    const homePage = await browser.newPage();
+    try {
+      await homePage.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
+      await homePage.goto(`${HOME}/?_=${Date.now()}`, { waitUntil: 'networkidle2', timeout: 90_000 });
+      await new Promise((r) => setTimeout(r, 400));
+      const homeLink = await homePage.evaluate(() => {
+        const make = document.querySelector('.dasha-hero .actions a.primary')
+          || document.querySelector('a[href*="/studio#"]');
+        return make ? { href: make.getAttribute('href') || '', abs: make.href || '' } : null;
+      });
+      const href = homeLink?.href || homeLink?.abs || '';
+      const hasDna = /look=/.test(href) && /format=/.test(href) && /line=/.test(href);
+      const hasSrc = /(?:[?#&]|^)src=home\b/.test(href) || /src%3Dhome/i.test(href) || /[#&]src=home/.test(href);
+      step('L9-home-ritual-link', Boolean(homeLink && hasDna), {
+        href: href.slice(0, 200),
+        hasDna,
+        hasSrc,
+      });
+
+      if (homeLink && hasDna) {
+        const target = homeLink.abs || new URL(href, HOME).href;
+        await homePage.goto(target, { waitUntil: 'networkidle2', timeout: 90_000 });
+        await homePage.waitForFunction(() => {
+          const host = document.querySelector('.dasha-studio-embed');
+          const root = host?.shadowRoot || document;
+          const c = root.querySelector('#canvas');
+          return c && c.width > 0;
+        }, { timeout: 60_000 });
+        const homeStudio = await homePage.evaluate(() => {
+          const host = document.querySelector('.dasha-studio-embed');
+          const root = host?.shadowRoot || document;
+          const line = root.querySelector('#line')?.value || '';
+          const hash = location.hash.slice(0, 220);
+          let canvasOk = false;
+          try {
+            canvasOk = root.querySelector('#canvas')?.toDataURL()?.startsWith('data:image/png');
+          } catch {
+            /* ignore */
+          }
+          return { line, hash, canvasOk, onStudio: /\/studio/i.test(location.pathname) };
+        });
+        const lineFromHash = (() => {
+          try {
+            return new URLSearchParams(homeStudio.hash.replace(/^#/, '')).get('line') || '';
+          } catch {
+            return '';
+          }
+        })();
+        const lineOk =
+          homeStudio.canvasOk &&
+          homeStudio.onStudio &&
+          (homeStudio.line.length > 0 || lineFromHash.length > 0);
+        step('L9-home-studio-dna', lineOk, {
+          ...homeStudio,
+          lineFromHash: lineFromHash.slice(0, 80),
+          srcHome: /src=home/.test(homeStudio.hash),
+        });
+      } else {
+        step('L9-home-studio-dna', false, { skipped: true });
+      }
+    } finally {
+      await homePage.close().catch(() => {});
+    }
   } catch (e) {
     step('threw', false, { error: String(e?.stack || e).slice(0, 500) });
   } finally {

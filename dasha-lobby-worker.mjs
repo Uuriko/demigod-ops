@@ -104,7 +104,19 @@ import {
   resignChess,
   settleChessRatings,
 } from './dasha-chess.mjs';
-import { addReply, newThread, pruneIndex, publicPost, publicThread } from './dasha-forum.mjs';
+import {
+  addReply,
+  assertWritable,
+  deletePost,
+  editPost,
+  lockThread,
+  newThread,
+  pruneIndex,
+  publicPost,
+  publicThread,
+  searchThreads,
+  validateReport,
+} from './dasha-forum.mjs';
 
 const SECURITY = {
   'Cache-Control': 'no-store',
@@ -205,7 +217,7 @@ label{display:block;font-size:11px;font-weight:900;letter-spacing:.1em;text-tran
 <a href="https://www.getdasha.com/lobby">Lobby</a><a href="https://lobby.getdasha.com/chess">Chess</a>
 <a href="https://www.getdasha.com/">Home</a></div>
 <h1>Forum</h1>
-<p class="lede">Longer than chat. Same rules as chat.</p>
+<p class="lede">Official $dasha room. No Telegram. No Discord. Longer than chat. Same rules as chat.</p>
 <div id="say" class="note" role="status" aria-live="polite" hidden></div>
 
 <main id="list-view">
@@ -222,6 +234,7 @@ label{display:block;font-size:11px;font-weight:900;letter-spacing:.1em;text-tran
 
 <main id="thread-view" hidden>
   <button id="back">← All threads</button>
+  <button type="button" id="copy-link">Copy link</button>
   <h2 id="thread-title"></h2>
   <div id="posts"></div>
   <form id="reply-form">
@@ -241,6 +254,10 @@ function api(path,opts){return fetch(API+path,Object.assign({credentials:'includ
 function when(ts){var d=new Date(Number(ts));return isNaN(d)?'':d.toISOString().slice(0,16).replace('T',' ')+' UTC'}
 function esc(s){var n=document.createElement('div');n.textContent=String(s==null?'':s);return n.innerHTML}
 function fail(res){ if(res.status===401){say('Link X in the lobby before posting.');return} say((res.data&&res.data.error)||'That did not go through.') }
+function threadQuery(){try{return String(new URLSearchParams(location.search).get('t')||'').trim()}catch(e){return ''}}
+function setThreadQuery(id){try{var u=new URL(location.href);if(id)u.searchParams.set('t',id);else u.searchParams.delete('t');history.replaceState(null,'',u.pathname+u.search+u.hash)}catch(e){}}
+function threadUrl(id){return 'https://lobby.getdasha.com/forum?t='+encodeURIComponent(id)}
+function linkCopiedOk(got,want){return String(got||'').replace(/\s+/g,'')===String(want||'')}
 
 function renderThreads(list){
   var box=$('threads');box.setAttribute('aria-busy','false');
@@ -258,6 +275,7 @@ function openThread(id){
   return api('/forum/thread/'+encodeURIComponent(id)).then(function(res){
     if(!res.ok)return fail(res);
     openId=id;
+    setThreadQuery(id);
     $('list-view').hidden=true;$('thread-view').hidden=false;
     $('thread-title').textContent=res.data.thread.title;
     $('posts').innerHTML=(res.data.posts||[]).map(function(p){
@@ -265,7 +283,17 @@ function openThread(id){
     $('thread-title').focus();
   })
 }
-$('back').addEventListener('click',function(){openId=null;$('thread-view').hidden=true;$('list-view').hidden=false;loadThreads()});
+$('back').addEventListener('click',function(){openId=null;setThreadQuery('');$('thread-view').hidden=true;$('list-view').hidden=false;loadThreads()});
+$('copy-link').addEventListener('click',function(){
+  if(!openId)return;
+  var b=$('copy-link'),want=threadUrl(openId),label=b.textContent;
+  var done=function(t){b.textContent=t;setTimeout(function(){b.textContent=label},1800)};
+  if(!navigator.clipboard||!navigator.clipboard.writeText){done('Select');return}
+  navigator.clipboard.writeText(want).then(function(){
+    if(!navigator.clipboard.readText){done('Copied');return}
+    return navigator.clipboard.readText().then(function(got){done(linkCopiedOk(got,want)?'Copied':'Select')});
+  }).catch(function(){done('Select')});
+});
 $('new-toggle').addEventListener('click',function(){
   var open=$('new-form').hidden; $('new-form').hidden=!open; this.setAttribute('aria-expanded',String(open));
   if(open)$('new-title').focus()});
@@ -284,7 +312,7 @@ $('reply-form').addEventListener('submit',function(e){e.preventDefault();
     .then(function(res){ if(!res.ok)return fail(res); $('reply-text').value='';say('Reply posted.',true); return openThread(openId)})
     .catch(function(){say('That did not go through.')})
     .then(function(){b.disabled=false})});
-loadThreads();
+loadThreads().then(function(){var t=threadQuery();if(t)openThread(t)});
 })();
 </script></body></html>`;
 
@@ -304,6 +332,17 @@ export function sanitizePublicJsonLd(html) {
 export function ensureHtmlLang(html) {
   return String(html || '').replace(/<html\b([^>]*)>/i, (tag, attrs) =>
     /\blang\s*=/i.test(attrs) ? tag : `<html lang="en"${attrs}>`);
+}
+
+/**
+ * dasha-lobby-page.html is a Webflow embed fragment (no document chrome).
+ * Worker /lobby is a first-class page — without a <title>, browsers invent one
+ * from the leading <style> block (CSS leaking into the tab).
+ */
+export function asStandaloneLobbyPage(html) {
+  const src = String(html || '');
+  if (/<title[\s>]/i.test(src)) return src;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>$dasha lobby</title><meta name="description" content="Public chat for $dasha."><link rel="canonical" href="https://www.getdasha.com/lobby"><meta name="theme-color" content="#070608"></head><body>${src}</body></html>`;
 }
 
 function securityTxt(host) {
@@ -346,7 +385,7 @@ function corsHeaders(origin, { credentials = false } = {}) {
   if (!origin) return {};
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     ...(credentials ? { 'Access-Control-Allow-Credentials': 'true' } : {}),
     Vary: 'Origin',
@@ -755,6 +794,7 @@ export class DashaLobby {
        their own key when that thread is opened, so no request ever loads the whole board and no
        single value can grow past the storage ceiling. */
     this.forumIndex = [];
+    this.forumReports = [];
     this.chessRatings = {};
     this.chessCurrent = {};
     this.chessQueue = [];
@@ -792,6 +832,8 @@ export class DashaLobby {
           if (!live.has(key.slice('forum:t:'.length))) await this.state.storage.delete(key);
         }
       }
+      const forumReports = await this.state.storage.get('forum:reports');
+      if (Array.isArray(forumReports)) this.forumReports = forumReports.slice(0, 100);
       const flags = await this.state.storage.get('flags');
       if (flags && typeof flags === 'object') {
         this.shield = Boolean(flags.shield);
@@ -1851,7 +1893,9 @@ export class DashaLobby {
     if (path === '/forum/threads' && request.method === 'GET') {
       const evicted = this.forumPrune(this.forumIndex, now);
       if (evicted.length) await this.persistForumIndex(evicted);
-      return json({ ok: true, threads: this.forumIndex.map(publicThread) }, 200, allowedOrigin, cred);
+      const q = url.searchParams.get('q') || '';
+      const list = q ? searchThreads(this.forumIndex, q) : this.forumIndex;
+      return json({ ok: true, threads: list.map(publicThread) }, 200, allowedOrigin, cred);
     }
 
     if (path === '/forum/threads' && request.method === 'POST') {
@@ -1880,6 +1924,8 @@ export class DashaLobby {
       }
       if (request.method === 'POST') {
         if (!xId) return json({ error: 'link X first' }, 401, allowedOrigin, cred);
+        const writable = assertWritable(summary);
+        if (!writable.ok) return json({ error: writable.error }, 403, allowedOrigin, cred);
         const rate = simpRate(this.simpRates, `forum-post:x:${xId}`, 20);
         if (!rate.ok) return json({ error: 'posting too fast', waitMs: rate.waitMs }, 429, allowedOrigin, cred);
         const input = await requestJson(request);
@@ -1895,6 +1941,62 @@ export class DashaLobby {
         await this.persistForumIndex(evicted);
         return json({ ok: true, post: publicPost(replied.post) }, 200, allowedOrigin, cred);
       }
+    }
+
+    const postMatch = path.match(/^\/forum\/thread\/([A-Za-z0-9_-]{1,40})\/post\/([A-Za-z0-9_-]{1,48})$/);
+    if (postMatch) {
+      const id = postMatch[1];
+      const postId = postMatch[2];
+      const summary = this.forumIndex.find((t) => t.id === id);
+      const posts = summary ? await this.forumThreadPosts(id) : null;
+      if (!summary || !posts) return json({ error: 'thread not found' }, 404, allowedOrigin, cred);
+      if (!xId) return json({ error: 'link X first' }, 401, allowedOrigin, cred);
+      if (request.method === 'PATCH') {
+        const writable = assertWritable(summary);
+        if (!writable.ok) return json({ error: writable.error }, 403, allowedOrigin, cred);
+        const rate = simpRate(this.simpRates, `forum-post:x:${xId}`, 20);
+        if (!rate.ok) return json({ error: 'posting too fast', waitMs: rate.waitMs }, 429, allowedOrigin, cred);
+        const input = await requestJson(request);
+        const edited = editPost(posts, { id: postId, text: input?.text, handle, now });
+        if (!edited.ok) return json({ error: edited.error }, 400, allowedOrigin, cred);
+        await this.state.storage.put(this.forumKey(id), edited.posts);
+        return json({ ok: true, post: publicPost(edited.post) }, 200, allowedOrigin, cred);
+      }
+      if (request.method === 'DELETE') {
+        const removed = deletePost(posts, { id: postId, handle });
+        if (!removed.ok) return json({ error: removed.error }, 400, allowedOrigin, cred);
+        await this.state.storage.put(this.forumKey(id), removed.posts);
+        return json({ ok: true, post: publicPost(removed.post) }, 200, allowedOrigin, cred);
+      }
+    }
+
+    const lockMatch = path.match(/^\/forum\/thread\/([A-Za-z0-9_-]{1,40})\/lock$/);
+    if (lockMatch && request.method === 'POST') {
+      if (!modAllowed(request, this.env)) return json({ error: 'mod denied' }, 403, allowedOrigin, cred);
+      const id = lockMatch[1];
+      const summary = this.forumIndex.find((t) => t.id === id);
+      const locked = lockThread(summary, { locked: true });
+      if (!locked.ok) return json({ error: locked.error }, 404, allowedOrigin, cred);
+      Object.assign(summary, locked.summary);
+      await this.persistForumIndex([]);
+      return json({ ok: true, thread: publicThread(summary) }, 200, allowedOrigin, cred);
+    }
+
+    const reportMatch = path.match(/^\/forum\/thread\/([A-Za-z0-9_-]{1,40})\/report$/);
+    if (reportMatch && request.method === 'POST') {
+      if (!xId) return json({ error: 'link X first' }, 401, allowedOrigin, cred);
+      const id = reportMatch[1];
+      const summary = this.forumIndex.find((t) => t.id === id);
+      if (!summary) return json({ error: 'thread not found' }, 404, allowedOrigin, cred);
+      const input = await requestJson(request);
+      const reason = validateReport(input?.reason);
+      if (!reason.ok) return json({ error: reason.error }, 400, allowedOrigin, cred);
+      const postId = String(input?.postId || '').slice(0, 48);
+      const reports = Array.isArray(this.forumReports) ? this.forumReports : [];
+      reports.unshift({ id, postId, reason: reason.reason, by: handle, ts: now });
+      this.forumReports = reports.slice(0, 100);
+      await this.state.storage.put('forum:reports', this.forumReports);
+      return json({ ok: true }, 200, allowedOrigin, cred);
     }
 
     return json({ error: 'not found' }, 404, allowedOrigin, cred);
@@ -3011,15 +3113,24 @@ const RETIRED_COMMERCE_PATHS = new Set(['/checkout', '/paypal-checkout', '/order
 /** Product hosts (www/apex) only serve SEO/howto; everything else goes to Webflow origin. */
 async function productEdge(request, url, env) {
   if ((request.method === 'GET' || request.method === 'HEAD') && RETIRED_COMMERCE_PATHS.has(url.pathname)) {
-    return new Response(request.method === 'HEAD' ? null : 'Not found', {
+    return new Response(request.method === 'HEAD' ? null : htmlPage('Not found — $dasha', `<h1>Not this page.</h1><p>Studio, Simp Board, Desk, and how to buy live on getdasha.com. This URL is not one of them.</p><p><code>53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump</code></p><p><a href="https://www.getdasha.com/">Home</a> · <a href="https://www.getdasha.com/studio">Studio</a> · <a href="https://www.getdasha.com/simp">Simp</a> · <a href="https://www.getdasha.com/how-to-buy">How to buy</a></p>`), {
       status: 404,
       headers: htmlHeaders({
-        'Content-Type': 'text/plain; charset=utf-8',
+        'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'public, max-age=300',
         'X-Robots-Tag': 'noindex, nofollow',
         'X-Dasha-Edge': 'retired-commerce',
       }),
     });
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/desk' || url.pathname === '/desk/')) {
+    return Response.redirect('https://www.getdasha.com/dasha', 308);
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/how' || url.pathname === '/how/')) {
+    return Response.redirect('https://www.getdasha.com/how-to-buy', 308);
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/forum' || url.pathname === '/forum/')) {
+    return Response.redirect('https://lobby.getdasha.com/forum', 308);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/.well-known/security.txt') {
     return securityTxtResponse(request, url.hostname);
@@ -3074,6 +3185,16 @@ async function productEdge(request, url, env) {
     (url.pathname === '/rally' || url.pathname === '/rally/')
   ) {
     return Response.redirect('https://www.getdasha.com/', 308);
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/lobby' || url.pathname === '/lobby/')) {
+    return new Response(request.method === 'HEAD' ? null : asStandaloneLobbyPage(LOBBY_PAGE_HTML), {
+      status: 200,
+      headers: htmlHeaders({
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'public, max-age=120',
+        'X-Dasha-Edge': 'lobby-page',
+      }),
+    });
   }
   // Pass through to Webflow (subrequest does not re-invoke this Worker for same zone).
   // Strip personal publisher branding (potterlab / John Potter) from head JSON-LD so the
@@ -3243,7 +3364,7 @@ export default {
       return Response.redirect('https://www.getdasha.com/', 308);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/lobby' || url.pathname === '/lobby/')) {
-      return new Response(request.method === 'HEAD' ? null : LOBBY_PAGE_HTML, {
+      return new Response(request.method === 'HEAD' ? null : asStandaloneLobbyPage(LOBBY_PAGE_HTML), {
         status: 200,
         headers: htmlHeaders({
           'Content-Type': 'text/html; charset=utf-8',

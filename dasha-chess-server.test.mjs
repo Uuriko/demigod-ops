@@ -2,8 +2,7 @@
 /**
  * The rated side of chess: rating settlement, the clock, and flag-fall.
  *
- * dasha-chess-rules.test.mjs proves the rules. dasha-chess-worker.test.mjs proves the routes answer
- * with the right status codes. Neither touches the arithmetic that decides what a game was worth,
+ * dasha-chess-rules.test.mjs proves the rules. Neither touches the arithmetic that decides what a game was worth,
  * which is the part a player actually keeps — and it had no test at all.
  *
  * Pure logic: no Durable Object, no network, nothing written.

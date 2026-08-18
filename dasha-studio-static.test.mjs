@@ -8,6 +8,13 @@
  * handed to, and those are the failures that actually happen:
  *
  *   node studio.test.mjs
+ *
+ * Run it from `dasha-desk/studio/`, not from here. This file is the SOURCE that
+ * dasha-studio-publish.mjs:97 copies out as `dasha-desk/studio/studio.test.mjs`, and every path in
+ * it — the `./embed-build.mjs` import, `index.html`, `embed.html`, `embed.js` — resolves only at
+ * that destination. Running it from the repo root gets ERR_MODULE_NOT_FOUND, which looks like a
+ * broken test and is not one. `npm run dasha:test:all` covers it via `dasha-studio-publish.mjs
+ * --check`, which is why nothing invokes this path directly.
  */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -19,6 +26,7 @@ const studio = await readFile(here('index.html'), 'utf8');
 const embed = await readFile(here('embed.html'), 'utf8');
 const embedScript = await readFile(here('embed.js'), 'utf8');
 const readme = await readFile(here('README.md'), 'utf8');
+const loader = await readFile(here('loader.html'), 'utf8');
 
 /* 1. Nothing loads that nobody approved.
       The tool's code, styles and drawn art are all in this one file, so the drawn looks work with
@@ -27,7 +35,7 @@ const readme = await readFile(here('README.md'), 'utf8');
       Note the pattern: it matches any absolute URL, not just src=/href=. An earlier version only
       checked attributes and waved through fifteen photographs, because they are URLs in a
       JavaScript array loaded with new Image(). Markup-shaped checks do not check a canvas app. */
-const LINKS = /^https:\/\/(creativecommons\.org|github\.com\/Uuriko|jup\.ag|x\.com)/;
+const LINKS = /^https:\/\/(creativecommons\.org|github\.com\/Uuriko|jup\.ag|x\.com|lobby\.getdasha\.com)/;
 const PHOTO_HOSTS = /^https:\/\/(pbs\.twimg\.com|static1\.squarespace\.com|www\.moviemaker\.com|m\.media-amazon\.com|br\.web\.img2\.acsta\.net|avatars\.mds\.yandex\.net|upload\.wikimedia\.org)\//;
 const external = [...studio.matchAll(/https?:\/\/[^\s"'`)<>]+/g)].map((m) => m[0]);
 assert.deepEqual([...new Set(external.filter((u) => !LINKS.test(u) && !PHOTO_HOSTS.test(u)))], [],
@@ -78,6 +86,12 @@ assert.match(readme, new RegExp(`integrity=["']${sri.replace(/[.*+?^${}()|[\]\\]
   'README integrity does not match embed.js — update the copy-paste snippet with the reviewed SHA-384');
 assert.match(readme, /crossorigin=["']anonymous["']/,
   'cross-origin SRI requires crossorigin="anonymous"');
+assert.match(loader, new RegExp(`integrity=["']${sri.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`),
+  'loader.html integrity does not match embed.js — regenerate the loader with the reviewed SHA-384');
+assert.match(loader, /embed-[a-f0-9]{12}\.js/,
+  'loader.html must pin the fingerprinted embed, not the moving embed.js URL');
+assert.match(loader, /crossorigin=["']anonymous["']/,
+  'loader.html cross-origin SRI requires crossorigin="anonymous"');
 
 /* 6. The embed cannot fight its host page. It goes into sites we do not control, where a bare
       `#canvas` or a `body { }` rule would collide with whatever is already there. */

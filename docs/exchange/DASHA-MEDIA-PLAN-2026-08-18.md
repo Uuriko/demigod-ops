@@ -91,12 +91,14 @@ almost nothing and cannot be mistaken for the real footage the page already has.
 landing page is the thing people close the tab over. Revisit only if a surface gets a genuine
 interaction loop.
 
-## What must not happen
+## Rights, resolved 2026-08-18
 
-The photographs on this site are of a real person. Adding "more images" cannot mean generating or
-sourcing likenesses — new photographic material has to come from whoever owns it. Everything
-proposed above is either a re-encode of an asset the site already ships, or drawn from data the
-site already holds.
+The photography is the project's own — Dasha is a participant, not a subject scraped from
+somewhere. So new photographic and video material is on the table, and the plan below assumes it.
+
+One line stays: **generating synthetic likenesses is still out.** Owning the footage means using
+the footage, not manufacturing more of a real person from a model. Everything is either supplied
+material, a re-encode of what the site already ships, or drawn from data the site already holds.
 
 ## Ready to hand over
 

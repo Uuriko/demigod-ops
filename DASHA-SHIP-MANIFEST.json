@@ -3,43 +3,40 @@
   "site": "5f1458122ba25e70a3ff2bd0",
   "status": "verified",
   "hashes": {
-    "home": "5beda605bb37c62dcc0e79ff39e86597cb3f47d72911cd0c08e92e7855f0086d",
-    "studio": "a9c783b141a5c149777d2b1f50314d5cf6f4c88f39712e2383eb46e8807653fd",
+    "home": "f2dcd663cb9da551ed69dc9f6d16f3f2dd6833bcf30be7e336590a3fb7940048",
+    "studio": "103c51e20033cb78bc641c3e6ce4ba7c4f9a7d606864dbb31e792a3909bd811f",
     "homeLobbyLink": "0720fefaeb48f0c3edcc80650612cb35b76acd98f4ab529890f07d4d7a96a333",
-    "lobby": "3a1e3149735e8d4a12e881807a1190664530473c5cf67696846f25fd755a35be",
+    "lobby": "518a7bfc3756faf95351c024bf51f9dba22d4c42c11ff795e47b76ac2d044e7d",
     "deskShell": "7a52438a7448b7fee15eef063c56b817498f891bb39731a3414d2002125f18ca",
     "desk": "06aef211ce936b94a825a82a8459300aa952433acd6e7cb434c82f5f69259dbc",
     "deskRetiredRepair": "b786f02445ba6c09211b1f200b508cf084e8ef144aa40dd2ba5f6fd410afcca3"
   },
   "release": {
-    "observedAt": "2026-08-12T12:22:42.779Z",
-    "workspaceCommit": "c6f3c491bdc117496327c8b53905b57d968a8787",
-    "publicRepoCommit": "7a38f3625fdead13c832ecd09e353b24ab7f51f8",
+    "observedAt": "2026-08-18T01:39:36.844Z",
+    "workspaceCommit": "077e50292cd5caaa4d7a2cba9733945f3a98c65b",
+    "publicRepoCommit": "07bde8479f1669b4060bb301401d6bf4067f08b8",
     "studioCanonical": {
       "file": "dasha-meme-studio.html",
-      "sha256": "283b6044d3ce80b62081be47f76aad8cdf727f57cac1edcbf541f25c125d10ca"
+      "sha256": "276ffd1efc0eff22e7018416cdfd64010395aa2c45a92cf5e195b1e8f9b01e8d"
     },
     "publicStudio": {
       "file": "dasha-desk/studio/index.html",
-      "sha256": "283b6044d3ce80b62081be47f76aad8cdf727f57cac1edcbf541f25c125d10ca"
+      "sha256": "4691035cf789f37201e577e4752898e6d1569376a129000068d9dc2fcb0e8662"
     },
-    "legacyWorktreeStudio": {
-      "file": ".grok/worktrees/potter/dasha/dasha-meme-studio.html",
-      "sha256": "283b6044d3ce80b62081be47f76aad8cdf727f57cac1edcbf541f25c125d10ca"
-    },
+    "legacyWorktreeStudio": null,
     "deskCanonical": {
       "file": "dasha-desk/src/app.html",
-      "sha256": "cafdabfbbc34e42203367640f609012ca6cafd8f66ca087e7b12561516190cf7"
+      "sha256": "1035d74a5d100557930de6e5fc8694426200a4cb391c5fd9db4649ee5cd8e55c"
     },
     "deskPublishArtifact": {
       "file": ".tmp-dasha-ship/publish-ready/dasha-desk-embed.html",
-      "sha256": "06aef211ce936b94a825a82a8459300aa952433acd6e7cb434c82f5f69259dbc"
+      "sha256": "6b1d8e911af3041d2f7f3a283672d87158275aca1ce8e75f664d47ac5d1023e1"
     },
     "lobby": {
       "status": "observed",
-      "assets": "c6642e2a08eba198"
+      "assets": "432f6b15d04c4a8b"
     }
   },
-  "verifiedAt": "2026-08-12T12:22:42.684Z",
+  "verifiedAt": "2026-08-18T01:39:36.778Z",
   "driftDetectedAt": null
 }

@@ -4,20 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>How to buy $dasha — getdasha.com</title>
-<meta name="description" content="SOL → match mint → swap.">
+<meta name="description" content="How to buy $dasha on Solana: fund SOL, match the full mint, swap on Jupiter. getdasha.com never opens a wallet.">
 <link rel="canonical" href="https://www.getdasha.com/how-to-buy">
 <meta name="theme-color" content="#070608">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://www.getdasha.com/how-to-buy">
 <meta property="og:title" content="How to buy $dasha">
-<meta property="og:description" content="SOL → match mint → swap.">
+<meta property="og:description" content="How to buy $dasha on Solana: fund SOL, match the full mint, swap on Jupiter. getdasha.com never opens a wallet.">
 <meta property="og:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="$dasha — getdasha.com">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="How to buy $dasha">
-<meta name="twitter:description" content="SOL → match mint → swap.">
+<meta name="twitter:description" content="How to buy $dasha on Solana: fund SOL, match the full mint, swap on Jupiter.">
 <meta name="twitter:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
 <style>
 :root{color-scheme:dark;--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--line:rgba(244,237,219,.18);--muted:rgba(244,237,219,.62);--panel:rgba(255,255,255,.04);--mono:ui-monospace,Menlo,Consolas,monospace}
@@ -25,6 +25,7 @@
 .wrap{width:min(720px,calc(100% - 32px));margin:0 auto;padding:28px 0 64px}
 nav{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:28px;flex-wrap:wrap}
 nav a{color:var(--paper);text-decoration:none;font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:13px;min-height:44px;display:inline-flex;align-items:center}
+nav a.btn{color:var(--ink);font-size:13px;padding:0 18px}
 h1{margin:0 0 12px;font-size:clamp(2.4rem,8vw,3.6rem);line-height:.9;letter-spacing:-.05em;text-transform:uppercase;font-weight:950}
 .lede{color:var(--muted);margin:0 0 22px;max-width:48ch;font-size:1.05rem}
 .step{border-top:1px solid var(--line);padding:18px 0;margin:0}
@@ -37,7 +38,8 @@ h1{margin:0 0 12px;font-size:clamp(2.4rem,8vw,3.6rem);line-height:.9;letter-spac
 .btn.ghost{background:transparent;color:var(--paper);border:1px solid var(--paper);box-shadow:3px 3px 0 var(--paper)}
 .btn:focus-visible{outline:3px solid var(--acid);outline-offset:3px}
 footer{margin-top:36px;color:var(--muted);font-size:.9rem;border-top:1px solid var(--line);padding-top:18px}
-footer a{color:var(--muted)}
+footer a{display:inline-flex;align-items:center;min-height:44px;color:var(--muted)}
+.source a{display:inline-flex;align-items:center;min-height:44px}
 .source{margin:10px 0 0;font-size:13px;color:var(--muted)}.source a{color:var(--acid);font-weight:800}
 .buy-sticky{display:none}@media(max-width:560px){.buy-sticky:not([hidden]){display:flex;position:fixed;inset:auto 0 0;z-index:10;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(7,6,8,.96);border-top:1px solid var(--line)}.buy-sticky .btn{width:100%;box-shadow:none}.wrap{padding-bottom:110px}}
 </style>
@@ -46,32 +48,40 @@ footer a{color:var(--muted)}
 <main class="wrap">
   <nav aria-label="Dasha">
     <a href="/">$dasha</a>
+    <a class="btn" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a>
   </nav>
 
   <h1>How to buy $dasha</h1>
-  <p class="lede">SOL → match mint → swap.</p>
-  <article class="step" data-n="01"><div class="n">01</div><h2>Get SOL</h2></article>
+  <p class="lede">SOL → match the full mint → swap on Jupiter. Other tokens reuse the name or ticker — the mint is the only check.</p>
+  <article class="step" data-n="01">
+    <div class="n">01</div>
+    <h2>Get SOL</h2>
+    <p>Fund any Solana wallet you control. getdasha.com never opens a wallet or runs a swap.</p>
+  </article>
 
   <article class="step" data-n="02">
     <div class="n">02</div>
     <h2>Match full mint</h2>
+    <p>Copy the whole string. On Jupiter, open the buy token and confirm it matches character-for-character. Last four characters are not enough — fakes reuse those.</p>
     <code class="ca" id="ca">53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump</code>
     <div class="actions">
       <button type="button" class="btn" id="copy">Copy CA</button>
+      <a class="btn ghost" href="https://solscan.io/token/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Solscan ↗</a>
     </div>
     <p class="source">Source: <a href="https://x.com/dash_eats/status/2085405228078432279" target="_blank" rel="noopener noreferrer">@dash_eats ↗</a></p>
   </article>
 
   <article class="step" data-n="03">
     <div class="n">03</div>
-    <h2>Swap</h2>
+    <h2>Swap SOL → $dasha</h2>
+    <p>Opens Jupiter with SOL selling into the exact mint above. Review the route there before confirming.</p>
     <div class="actions">
-      <a class="btn" id="buy2" target="_blank" rel="noopener noreferrer" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Jupiter</a>
+      <a class="btn" id="buy2" target="_blank" rel="noopener noreferrer" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Buy on Jupiter ↗</a>
     </div>
   </article>
 
   <footer>
-    <p><a href="/">Home</a> · <a href="/studio">Studio</a> · <a href="https://lobby.getdasha.com/chess">Chess</a> · <a href="/dasha">Desk</a></p>
+    <p><a href="/">Home</a> · <a href="/studio">Studio</a> · <a href="https://lobby.getdasha.com/chess">Chess</a> · <a href="/dasha">Desk</a> · <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats ↗</a></p>
   </footer>
 </main>
 <div class="buy-sticky" id="buy-sticky" hidden><a class="btn" target="_blank" rel="noopener noreferrer" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Buy $dasha</a></div>
@@ -79,16 +89,27 @@ footer a{color:var(--muted)}
 (function(){
   var CA='53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
   var BUY='https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy='+CA;
+  function mintCopiedOk(got, want){
+    return String(got || '').replace(/\s+/g, '') === String(want || '');
+  }
   function copyText(text, btn){
     function ok(){ if(btn){btn.textContent='Copied'; setTimeout(function(){btn.textContent=btn.dataset.label||'Copy'},1200);} }
-    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(ok).catch(function(){ fallback(); }); }
+    function miss(){ if(btn){btn.textContent='Select the mint'; setTimeout(function(){btn.textContent=btn.dataset.label||'Copy'},1600);} }
+    function afterWrite(){
+      if(navigator.clipboard&&navigator.clipboard.readText){
+        navigator.clipboard.readText().then(function(got){
+          if(mintCopiedOk(got, text)) ok(); else miss();
+        }).catch(ok);
+      } else ok();
+    }
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(afterWrite).catch(function(){ fallback(); }); }
     else fallback();
-    function fallback(){ var ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');ok();}catch(e){} document.body.removeChild(ta); }
+    function fallback(){ var ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');afterWrite();}catch(e){miss();} document.body.removeChild(ta); }
   }
   var copyBtn=document.getElementById('copy');
   if(copyBtn){ copyBtn.dataset.label='Copy CA'; copyBtn.addEventListener('click', function(){ copyText(CA, copyBtn); }); }
   var sticky=document.getElementById('buy-sticky');if(sticky&&window.matchMedia&&window.matchMedia('(max-width:560px)').matches)sticky.hidden=false;
-  window.DashaHowToBuy={ CA:CA, BUY:BUY };
+  window.DashaHowToBuy={ CA:CA, BUY:BUY, mintCopiedOk:mintCopiedOk };
 })();
 </script>
 </body>

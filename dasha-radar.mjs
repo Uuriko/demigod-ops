@@ -198,7 +198,7 @@ function main() {
           ok: ok || flake, // flake → soft pass with note (re-run catches real fails)
           soft: flake && !ok,
           hard: ok || flake ? [] : (body?.steps || []).filter((s) => !s.ok).map((s) => s.id).slice(0, 8),
-          note: ok ? 'L1–L7 live' : flake ? 'cdp-flake' : body?.steps?.find((s) => !s.ok)?.id || 'stranger-fail',
+          note: ok ? 'L1–L9 live' : flake ? 'cdp-flake' : body?.steps?.find((s) => !s.ok)?.id || 'stranger-fail',
           detail: body ? { steps: body.steps?.map((s) => ({ id: s.id, ok: s.ok })) } : null,
         };
       }),

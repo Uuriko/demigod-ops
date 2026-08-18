@@ -6,6 +6,7 @@ import { isValidSolanaAddress } from './dasha-simp-actions.mjs';
 
 export const FAUCET_MINT = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
 export const FAUCET_TREASURY_DEFAULT = 'DwpCrg5qfCMW11a9FYFsAR9ZYQUYKNhfLdnzpci7sYgb';
+export const FAUCET_SIWS_DOMAIN = 'lobby.getdasha.com';
 export const FAUCET_DECIMALS = 6;
 export const FAUCET_AMOUNT_UI = 100;
 export const FAUCET_AMOUNT_RAW = 100_000_000n;
@@ -16,13 +17,18 @@ export const FAUCET_HOURLY_CAP_DEFAULT = 12;
 export const FAUCET_MIN_X_AGE_DAYS_DEFAULT = 7;
 export const FAUCET_MIN_X_FOLLOWERS_DEFAULT = 0; // soft; 0 = off
 export const FAUCET_AUTO_PAUSE_MS = 60 * 60 * 1000; // after hourly trip
+/** In-flight reserve older than this is a crashed send, not a live tip. */
+export const FAUCET_PENDING_MS = 2 * 60 * 1000;
 
-export function destShapeError(dest, four = '') {
+export function destShapeError(dest, four = '', opts = {}) {
   dest = String(dest || '').trim();
   four = String(four || '').trim();
+  const mint = String(opts.mint || FAUCET_MINT).trim();
+  const treasury = String(opts.treasury || FAUCET_TREASURY_DEFAULT).trim();
   if (/t\.me|telegram/i.test(dest)) return 'dest_not_wallet';
   if (!isValidSolanaAddress(dest)) return 'dest_not_wallet';
-  if (dest === FAUCET_MINT) return 'dest_mint';
+  if (dest === mint) return 'dest_mint';
+  if (treasury && dest === treasury) return 'dest_treasury';
   if (four && dest.slice(-4) !== four) return 'last-4 does not match';
   return '';
 }
@@ -34,9 +40,11 @@ export function humanError(code) {
     dest_not_wallet: 'dest_not_wallet',
     dest_token: 'dest_token',
     dest_mint: 'dest_mint',
+    dest_treasury: 'dest_treasury',
     dest_pda: 'dest_pda',
     'last-4 does not match': 'last-4 does not match',
     'link X first': 'link X first',
+    'prove wallet': 'prove wallet',
     'already claimed': 'already claimed',
     confirming: 'confirming',
     treasury_empty: 'treasury_empty',
@@ -111,9 +119,8 @@ export function checkXEligibility(session, { minXAgeDays = 7, minXFollowers = 0,
   if (!session?.xId) return { ok: false, error: 'link X first' };
   if (minXAgeDays > 0) {
     if (!Number.isFinite(session.xCreatedAt)) {
-      // Fail open for sessions minted before we stored created_at — ask re-link only when env forces it.
-      // Prefer reauth so farms can't skip age by holding old cookies forever if we set FAUCET_REQUIRE_X_AGE=1 later.
-      return { ok: true, soft: 'no_x_created_at' };
+      // Fail closed: an old cookie without created_at must re-link X before a funded tip.
+      return { ok: false, error: 'x_reauth' };
     }
     const ageMs = now - Number(session.xCreatedAt);
     const need = minXAgeDays * 24 * 60 * 60 * 1000;
@@ -258,9 +265,15 @@ export function claimLookup(store, { xId, wallet, proven = true }) {
 export function claimAllowed(store, { xId, wallet, proven = true, now = Date.now(), cooldownMs = FAUCET_COOLDOWN_MS }) {
   if (!xId) return { ok: false, error: 'link X first' };
   if (!wallet || destShapeError(wallet)) return { ok: false, error: destShapeError(wallet) || 'dest_not_wallet' };
+  if (!proven) return { ok: false, error: 'prove wallet' };
   const prev = claimLookup(store, { xId, wallet, proven });
   // In-flight reservation (multi-tab): wait / poll.
-  if (prev?.pending) return { ok: false, error: 'confirming', prev };
+  // A reserve with no signature that is older than FAUCET_PENDING_MS is a crashed
+  // send (HackerOne-style double-claim races die here if we never expire).
+  if (prev?.pending) {
+    const age = now - Number(prev.at || 0);
+    if (age < FAUCET_PENDING_MS) return { ok: false, error: 'confirming', prev };
+  }
   if (prev?.signature) {
     const at = Number(prev.at || 0);
     if (!cooldownMs || now - at < cooldownMs) return { ok: false, error: 'already claimed', prev };
@@ -308,15 +321,19 @@ export function recordClaim(store, { xId, wallet, signature, at = Date.now(), pr
   return next;
 }
 
-export function clearPendingClaim(store, { xId, wallet }) {
+/* Rollback must only ever undo the caller's OWN reservation.
+   An unproven claim no longer consults byWallet, so two claims can be in flight for the same
+   wallet — the owner's proven one and a stranger's pasted one. Without these guards the
+   stranger's failed send would delete the owner's in-flight byWallet row. */
+export function clearPendingClaim(store, { xId, wallet, proven = true }) {
   const next = {
     byX: { ...(store?.byX || {}) },
     byWallet: { ...(store?.byWallet || {}) },
   };
   const px = xId ? next.byX[String(xId)] : null;
-  const pw = wallet ? next.byWallet[String(wallet)] : null;
+  const pw = proven && wallet ? next.byWallet[String(wallet)] : null;
   if (px?.pending) delete next.byX[String(xId)];
-  if (pw?.pending) delete next.byWallet[String(wallet)];
+  if (pw?.pending && String(pw.xId) === String(xId)) delete next.byWallet[String(wallet)];
   return next;
 }
 
@@ -350,6 +367,77 @@ export function meFromSession(session, store, bind) {
   };
 }
 
+/** Fail-closed donate: never award, never mark funded. Live junk and unverified sigs both return sig miss. */
+export function donateFailClosed(input = {}) {
+  const sig = String(input?.signature ?? input?.sig ?? '').trim();
+  if (donateSigError(sig)) return { error: 'sig miss' };
+  return { error: 'sig miss' };
+}
+
+export function donateSigError(sig) {
+  const s = String(sig || '').trim();
+  if (!s || s.length < 64 || s.length > 88 || !/^[1-9A-HJ-NP-Za-km-z]+$/.test(s)) return 'sig miss';
+  return '';
+}
+
+export const DONATE_LAUNCH_MS = Date.parse('2026-08-16T00:00:00.000Z');
+export const DONATE_MIN_RAW = 1_000_000_000n; // 1000 $dasha at 6 decimals
+
+function tokenOwnerMintAmount(balances, owner, mint) {
+  const rows = Array.isArray(balances) ? balances : [];
+  let raw = null;
+  for (const row of rows) {
+    if (String(row?.owner || '') !== owner) continue;
+    if (String(row?.mint || '') !== mint) continue;
+    const amt = row?.uiTokenAmount?.amount;
+    if (amt == null) continue;
+    try {
+      const n = BigInt(amt);
+      raw = raw == null ? n : raw + n;
+    } catch {
+      return null;
+    }
+  }
+  return raw;
+}
+
+function messagePayer(tx) {
+  const keys = tx?.transaction?.message?.accountKeys;
+  const first = Array.isArray(keys) ? keys[0] : null;
+  if (!first) return '';
+  if (typeof first === 'string') return first;
+  return String(first.pubkey || first.toString?.() || '');
+}
+
+/**
+ * Fail-closed on-chain donate inspect. Any doubt → `{ error: 'sig miss' }`.
+ * Does not award. Does not trust client amounts.
+ */
+export function inspectDonateTx(tx, {
+  treasury = FAUCET_TREASURY_DEFAULT,
+  mint = FAUCET_MINT,
+  faucetSigner = '',
+  now = Date.now(),
+  launchAt = DONATE_LAUNCH_MS,
+  minRaw = DONATE_MIN_RAW,
+  windowMs = 7 * 24 * 60 * 60 * 1000,
+} = {}) {
+  if (!tx || tx.meta?.err) return { error: 'sig miss' };
+  const blockTime = Number(tx.blockTime) * 1000;
+  if (!Number.isFinite(blockTime) || blockTime > now + 60_000) return { error: 'sig miss' };
+  if (blockTime < launchAt) return { error: 'sig miss' };
+  if (now - blockTime > windowMs) return { error: 'sig miss' };
+  const payer = messagePayer(tx);
+  if (!payer) return { error: 'sig miss' };
+  if (faucetSigner && payer === faucetSigner) return { error: 'sig miss' };
+  const pre = tokenOwnerMintAmount(tx.meta.preTokenBalances, treasury, mint);
+  const post = tokenOwnerMintAmount(tx.meta.postTokenBalances, treasury, mint);
+  if (pre == null || post == null) return { error: 'sig miss' };
+  const delta = post - pre;
+  if (delta < minRaw) return { error: 'sig miss' };
+  return { ok: true, amountRaw: delta, at: blockTime, payer };
+}
+
 export function faucetSiwsInput({ domain, publicKey, nonce, issuedAt, expirationTime }) {
   return {
     domain,
@@ -363,4 +451,14 @@ export function faucetSiwsInput({ domain, publicKey, nonce, issuedAt, expiration
     issuedAt: new Date(issuedAt).toISOString(),
     expirationTime: new Date(expirationTime).toISOString(),
   };
+}
+
+/** Signed SIWS text must name our domain, the key, the tip statement, and the issued nonce. */
+export function siwsMessageError(message, { publicKey, domain, nonce } = {}) {
+  const msg = String(message || '');
+  const key = String(publicKey || '').trim();
+  if (!key || !msg.includes(key) || !msg.includes('Dasha tip')) return 'invalid faucet challenge';
+  if (domain && !msg.includes(String(domain))) return 'siws_domain';
+  if (nonce && !msg.includes(String(nonce))) return 'invalid faucet challenge';
+  return '';
 }

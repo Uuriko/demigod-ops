@@ -82,20 +82,18 @@ for (const [route] of ROUTES) {
   check(sitemap.includes(`${ORIGIN}${route}`), `dasha-sitemap.xml is missing ${route}`);
 }
 check(!/webflow\.io/.test(sitemap), 'dasha-sitemap.xml advertises a staging URL');
-/* Chess is a real public route that lives on the lobby host and declares that host canonical, so it
-   belongs in the sitemap while sitting outside the www ROUTES table above — which checks canonicals
-   against ORIGIN and would demand chess claim a URL it deliberately does not. Listed here so the
-   count stays exact: the point of that assertion is to catch a route quietly added or dropped, and
-   it can only do that if every legitimate entry is accounted for somewhere. */
-/* Forum joined chess here on 2026-08-12, on the same terms: a real public route, served from the
-   Worker, declaring lobby.getdasha.com canonical, so that is the URL listed. It was held out of the
-   sitemap while it was unreachable — listing a route nothing links to is how a crawler finds a page
-   no visitor can — and it goes in now that the homepage links it and the page carries social meta. */
-const OFF_ORIGIN_SITEMAP_URLS = ['https://lobby.getdasha.com/chess', 'https://lobby.getdasha.com/forum'];
-for (const url of OFF_ORIGIN_SITEMAP_URLS) {
+/* Extra www routes that are real public pages but are not in ROUTES (no file-level JSON-LD
+   check here). Chess is listed at its declared www canonical, not lobby. Forum is not public. */
+const EXTRA_SITEMAP_URLS = [
+  `${ORIGIN}/simp`,
+  `${ORIGIN}/privacy`,
+  `${ORIGIN}/chess`,
+  'https://lobby.getdasha.com/forum',
+];
+for (const url of EXTRA_SITEMAP_URLS) {
   check(sitemap.includes(url), `dasha-sitemap.xml is missing ${url}`);
 }
-const expectedLocs = ROUTES.length + OFF_ORIGIN_SITEMAP_URLS.length;
+const expectedLocs = ROUTES.length + EXTRA_SITEMAP_URLS.length;
 check((sitemap.match(/<loc>/g) || []).length === expectedLocs,
   `dasha-sitemap.xml lists ${(sitemap.match(/<loc>/g) || []).length} URLs; there are ${expectedLocs} real routes`);
 

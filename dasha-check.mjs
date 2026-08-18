@@ -5,6 +5,7 @@
  *   node dasha-check.mjs              # auto from git status when possible
  *   node dasha-check.mjs home|board|desk|studio|lobby|ship|all
  */
+import { existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,6 +47,10 @@ function detectLane(paths) {
 const LANE = {
   home: () => {
     run('home', 'node', ['dasha-landing.test.mjs']);
+    if (existsSync(join(root, 'dasha-faucet.test.mjs'))) run('home', 'node', ['dasha-faucet.test.mjs']);
+    if (existsSync(join(root, 'dasha-faucet-ux.test.mjs'))) run('home', 'node', ['dasha-faucet-ux.test.mjs']);
+    if (existsSync(join(root, 'dasha-faucet-hunt.test.mjs'))) run('home', 'node', ['dasha-faucet-hunt.test.mjs']);
+    if (existsSync(join(root, 'dasha-listings-identity.test.mjs'))) run('home', 'node', ['dasha-listings-identity.test.mjs']);
   },
   board: () => {
     run('board', 'npm', ['run', 'dasha:test:simp']);

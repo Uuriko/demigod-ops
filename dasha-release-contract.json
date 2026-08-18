@@ -11,7 +11,7 @@
       "required": [
         "It\u2019s time",
         "Make something",
-        "dasha-simp-board",
+        "href=\"/simp\"",
         "href=\"/lobby\"",
         "href=\"/how-to-buy\"",
         "53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump",
@@ -27,7 +27,9 @@
         "plugin.jup.ag",
         "href=\"/rally\"",
         "wrong one",
-        "Never trust"
+        "Never trust",
+        "id=\"dasha-simp-board\"",
+        "client/simp-board.js"
       ]
     },
     "studio": {

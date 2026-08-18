@@ -25,7 +25,7 @@
  *   node dasha-surfaces.test.mjs
  *   node dasha-surfaces.test.mjs --json
  */
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 
 const ORIGIN = 'https://www.getdasha.com';
 const asJson = process.argv.includes('--json');
@@ -38,11 +38,17 @@ const OWNERS = {
   '/studio': { source: 'dasha-studio-embed.html', via: 'dasha-ship.mjs --only=studio' },
   '/dasha': { source: 'dasha-desk/src/body.html', via: 'dasha-ship.mjs --only=desk' },
   '/lobby': { source: 'dasha-lobby-page.html', via: 'dasha-ship.mjs --only=lobby' },
-  /* Source moved here on 2026-08-09. The worker tree used to read its own copy of this page, so the
-     conversion page shipped from a file no gate in this repo had ever seen — live had a stale card
-     and no structured data while the main root believed it had both. The build now reads this file;
-     the deploy still executes in the worker tree, which is why `foreign` stays true until the worker
-     itself moves. Claude holds that deploy. */
+  /* Source nominally moved here on 2026-08-09, after the worker tree shipped its own copy of this
+     page from a file no gate in this repo had ever seen — live had a stale card and no structured
+     data while the main root believed it had both.
+
+     This comment used to claim "the build now reads this file". It does not.
+     .grok/worktrees/potter/dasha/dasha-lobby-assets-build.mjs:158 reads
+     `join(root, 'dasha-how-to-buy.html')` with `root` set to its own directory (line 14), so the
+     worker-tree copy is still the one that ships. The move was never finished, and the sentence
+     saying it was is the same invented-owner failure the table above warns about — written here, in
+     the file that exists to catch it. What actually holds the two in sync is
+     dasha-how-to-buy.test.mjs, which byte-compares them and tells you to cp. `foreign` stays true. */
   '/how-to-buy': {
     source: 'dasha-how-to-buy.html',
     via: 'dasha-lobby-assets-build.mjs --write, then dasha:lobby:deploy in the worker tree',
@@ -54,11 +60,6 @@ const OWNERS = {
   '/chess': {
     source: '.grok/worktrees/potter/dasha/dasha-chess-page.html',
     via: 'dasha-lobby-assets-build.mjs --write, then dasha:lobby:deploy in the worker tree',
-    foreign: true,
-  },
-  '/rally': {
-    source: '.grok/worktrees/potter/dasha/dasha-rally.html',
-    via: 'worktree dasha-lobby-static-gen.mjs + dasha:lobby:deploy',
     foreign: true,
   },
 };
@@ -73,12 +74,26 @@ const OWNERS = {
    the items are one template publish away from being live pages on a crypto domain, and a sitemap
    cannot warn about a URL that does not exist yet. */
 const HISTORICAL = ['/capsule', '/relay-lab', '/remix-pack', '/desk-rc', '/retired-dasha-draft',
+  /* /rally was an owned route until its source was deleted from the worker tree. It now 308s to the
+     homepage on both hosts and appears in no sitemap, so it is retired, not broken — it belongs on
+     the watch list rather than in OWNERS. It sat in OWNERS naming a deleted file for as long as
+     nothing checked. */
+  '/rally',
   '/checkout', '/paypal-checkout', '/order-confirmation', '/simp', '/lobby',
   '/my-projects/earth-energy-concept-logo', '/digital-illustrations/omnis-dolor-adipisci',
   '/projects/optio', '/category/uncategorized', '/product/example'];
 
 const failures = [];
 const warnings = [];
+
+/* The table above says an owner must be "a file in a repo we control" and warns that inventing one
+   is how /how-to-buy looked fine on paper. Nothing enforced that, so the table could — and did —
+   name a source that no longer exists while this file reported zero failures. An owner nobody can
+   open is the same as no owner at all, so check the claim instead of trusting it. */
+for (const [path, owner] of Object.entries(OWNERS)) {
+  const exists = await stat(new URL(`./${owner.source}`, import.meta.url)).then(() => true, () => false);
+  if (!exists) failures.push(`${path}: OWNERS names ${owner.source}, which does not exist — the route has no real owner`);
+}
 
 async function probe(path) {
   const row = { path, get: 0, head: 0, edge: null, bytes: 0 };

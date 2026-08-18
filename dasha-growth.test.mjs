@@ -65,9 +65,9 @@ assert.ok(H, 'DashaHowToBuy export');
 assert.equal(H.CA, MINT);
 assert.ok(H.BUY.includes(MINT) && /jup\.ag/.test(H.BUY), 'howto buy route lost exact mint');
 
-// desk body links guide
+// desk body links the live how-to-buy guide (https://www.getdasha.com/how-to-buy returns 200)
 const body = read('dasha-desk/src/body.html');
-assert.ok(!body.includes('/how-to-buy'), 'desk links unpublished how-to-buy route');
+assert.ok(body.includes('/how-to-buy'), 'desk lost link to live how-to-buy route');
 assert.ok(body.includes('jup.ag/swap'), 'desk has Jupiter buy');
 
 console.log('Dasha growth gate: PASS (neutral desk + culture home + howto convert)');

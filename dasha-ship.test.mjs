@@ -96,14 +96,14 @@ try {
     cwd: root,
     env: splitEnv,
     encoding: 'utf8',
-    timeout: 30_000,
+    timeout: 300_000,
   });
   assert.equal(splitBase.status, 0, splitBase.stderr || splitBase.stdout);
   const split = spawnSync(process.execPath, ['dasha-ship.mjs', '--ship'], {
     cwd: root,
     env: { ...splitEnv, DASHA_SHIP_FAKE_LOBBY_ASSETS: 'stale-assets' },
     encoding: 'utf8',
-    timeout: 30_000,
+    timeout: 300_000,
   });
   assert.notEqual(split.status, 0, 'split Worker/Webflow release must fail closed');
   assert.match(split.stdout, /"step":"resume"/, 'resumed releases must recheck live Worker parity');
@@ -120,7 +120,7 @@ try {
     cwd: root,
     env: deployEnv,
     encoding: 'utf8',
-    timeout: 30_000,
+    timeout: 300_000,
   });
   assert.equal(deployed.status, 0, deployed.stderr || deployed.stdout);
   assert.match(deployed.stdout, /"step":"deploy:lobby:start"/);

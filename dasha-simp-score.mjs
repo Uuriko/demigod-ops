@@ -14,6 +14,16 @@ export const CONNECTOR_ACTIVATION_POINTS = 2;
 export const CONNECTOR_CONTRIBUTION_POINTS = 8;
 export const CONNECTOR_CAP_28D = 50;
 export const OSS_CAP_SEASON = 300;
+/* Donate lane (Potter 2026-08-16, last revision on the bus 18:01Z): 1 point per 1,000 $dasha sent to the
+   faucet treasury by a SIWS-proven wallet, floor 1,000, 50 points per rolling 7 days. Points are
+   computed once at verify time from the on-chain amount; the stored award carries points + tx
+   evidence only — never amount, wallet, or balance. */
+export const DONATE_UNIT_DASHA = 1000;
+export const DONATE_POINTS_PER_UNIT = 1;
+export const DONATE_CAP_7D = 50;
+export const DONATE_ROLLING_MS = 7 * 24 * 60 * 60 * 1000;
+export const DONATE_MINT = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
+export const DONATE_TREASURY = 'DwpCrg5qfCMW11a9FYFsAR9ZYQUYKNhfLdnzpci7sYgb';
 export const ROLLING_MS = 28 * 24 * 60 * 60 * 1000;
 export const PUBLIC_BOARD_LIMIT = 50;
 export const OSS_SCHEMA = 'dasha-simp-oss/v0';
@@ -232,7 +242,7 @@ export function isValidEvidenceUrl(raw) {
 }
 
 function emptyComponents() {
-  return { linked_x: 0, quiz: 0, creative: 0, community: 0, connector: 0, oss: 0, holder: 0 };
+  return { linked_x: 0, quiz: 0, creative: 0, community: 0, connector: 0, oss: 0, donate: 0, holder: 0 };
 }
 
 export const quizPublic = () => ({
@@ -322,6 +332,19 @@ export function quizTitle(correct, total = 19) {
   if (ratio >= .4) return 'Watching respectfully';
   return 'Dasha curious';
 }
+export const QUIZ_TITLE_FALLBACK = 'Dasha simp';
+const QUIZ_TITLE_PLACEHOLDERS = new Set(['still loading', 'loading', 'untitled', 'null', 'undefined', 'n/a', '—', '-', '...', '…']);
+/**
+ * Writer-side title guard: a stored result title is either a real quiz title or 'Dasha simp'.
+ * Never a placeholder, never empty, never a lane. Callers pass what they have; this decides.
+ */
+export function storedQuizTitle(title, correct, total) {
+  const t = String(title ?? '').trim();
+  const norm = t.replace(/[.…\s]+$/, '').toLowerCase();
+  if (norm && !QUIZ_TITLE_PLACEHOLDERS.has(norm) && !QUIZ_LANES.includes(t)) return t;
+  if (Number.isFinite(Number(total)) && Number(total) > 0 && Number.isFinite(Number(correct))) return quizTitle(Number(correct), Number(total));
+  return QUIZ_TITLE_FALLBACK;
+}
 
 /**
  * Soft random “vibe” delta so leaderboard quiz points are not a pure correct/total spreadsheet.
@@ -386,7 +409,7 @@ export function quizResultForAttempt(attempt, { now = Date.now(), rng = Math.ran
     basePoints,
     vibe,
     vibeNote: vibeNote(vibe),
-    title: quizTitle(attempt.correct, attempt.scorable),
+    title: storedQuizTitle(quizTitle(attempt.correct, attempt.scorable), attempt.correct, attempt.scorable),
     lane: attempt.lane,
     mode: attempt.mode === 'quick' ? 'quick' : attempt.practice ? 'practice' : 'deep',
     completedAt: now,
@@ -435,6 +458,45 @@ export function isValidOssEvidenceUrl(raw) {
   }
 }
 
+/** Donate evidence is our own tx page, one per signature: https://www.getdasha.com/faucet/tx/{sig}. */
+export function isValidDonateEvidenceUrl(raw) {
+  return typeof raw === 'string' && /^https:\/\/www\.getdasha\.com\/faucet\/tx\/[1-9A-HJ-NP-Za-km-z]{64,88}$/.test(raw);
+}
+export const donateSigFromEvidenceUrl = (url) => (isValidDonateEvidenceUrl(url) ? url.slice(url.lastIndexOf('/') + 1) : null);
+
+/** Whole units only: 999 → 0, 1000 → 1, 2999 → 2. Raw token units + mint decimals, never a UI float. */
+export function donatePointsForAmount(amountRaw, decimals = 6) {
+  const raw = BigInt(amountRaw ?? 0);
+  if (raw <= 0n) return 0;
+  return Number(raw / (BigInt(DONATE_UNIT_DASHA) * 10n ** BigInt(decimals))) * DONATE_POINTS_PER_UNIT;
+}
+
+/** Rolling 7d, per-award points, one credit per signature, hard cap. */
+function donatePoints(awards, now) {
+  let sum = 0;
+  const seen = new Set();
+  const windowStart = now - DONATE_ROLLING_MS;
+  for (const a of awards) {
+    if (a.kind !== 'donate') continue;
+    const at = Number(a.at) || 0;
+    if (at < windowStart || at > now) continue;
+    const sig = donateSigFromEvidenceUrl(a.evidenceUrl);
+    if (!sig || seen.has(sig)) continue;
+    seen.add(sig);
+    sum += Math.max(0, Math.floor(Number(a.points) || 0));
+    if (sum >= DONATE_CAP_7D) return DONATE_CAP_7D;
+  }
+  return sum;
+}
+
+/** A signature credits one profile, ever. Store is { [xId]: profile }. */
+export function donateSigTaken(store, sig) {
+  for (const p of Object.values(store || {})) {
+    for (const a of p?.awards || []) if (a.kind === 'donate' && donateSigFromEvidenceUrl(a.evidenceUrl) === sig) return true;
+  }
+  return false;
+}
+
 function ossPoints(awards) {
   let sum = 0;
   for (const a of awards) {
@@ -467,17 +529,19 @@ export function scoreProfile(profile, { now = Date.now() } = {}) {
   components.community = rollingKindPoints(awards, 'community', COMMUNITY_POINTS, COMMUNITY_CAP_28D, now);
   components.connector = Math.min(CONNECTOR_CAP_28D, Math.max(0, Number(profile.connectorPoints) || 0));
   components.oss = ossPoints(awards);
+  components.donate = donatePoints(awards, now);
   components.holder = 0; // badge only in v1
   let lastEvidenceAt = null;
   for (const a of awards) {
     const at = Number(a.at) || 0;
     if (!at || at > now) continue;
-    if (a.kind === 'oss' ? isValidOssEvidenceUrl(a.evidenceUrl) : isValidEvidenceUrl(a.evidenceUrl)) {
+    const evOk = a.kind === 'oss' ? isValidOssEvidenceUrl(a.evidenceUrl) : a.kind === 'donate' ? isValidDonateEvidenceUrl(a.evidenceUrl) : isValidEvidenceUrl(a.evidenceUrl);
+    if (evOk) {
       if (lastEvidenceAt == null || at > lastEvidenceAt) lastEvidenceAt = at;
     }
   }
   const total =
-    components.linked_x + components.quiz + components.creative + components.community + components.connector + components.oss + components.holder;
+    components.linked_x + components.quiz + components.creative + components.community + components.connector + components.oss + components.donate + components.holder;
   return { total, components, lastEvidenceAt };
 }
 
@@ -595,6 +659,13 @@ export function rulesPublic() {
       cap_per_season: OSS_CAP_SEASON,
       note: 'Externally computed merged-PR points only; Worker does not re-score GitHub.',
     },
+    donate: {
+      points_per_1000_dasha: DONATE_POINTS_PER_UNIT,
+      floor_dasha: DONATE_UNIT_DASHA,
+      cap_rolling_7d: DONATE_CAP_7D,
+      note:
+        'Sending $dasha to the faucet treasury (it is re-tipped to strangers). Only from a wallet you signed for; pasted addresses do not earn. Evidence is the public tx page. Buying or holding $dasha earns nothing.',
+    },
     holder: {
       points: 0,
       note: 'Badge only when a later signed-wallet proof exists. Zero points in v1.',
@@ -634,10 +705,20 @@ export function buildPublicBoard(profiles, { now = Date.now(), limit = PUBLIC_BO
 export function proposeAward(profile, award, { now = Date.now() } = {}) {
   if (!profile?.handle) return { ok: false, error: 'not enrolled' };
   const kind = award?.kind;
-  if (kind !== 'creative' && kind !== 'community' && kind !== 'oss') {
+  if (kind !== 'creative' && kind !== 'community' && kind !== 'oss' && kind !== 'donate') {
     return { ok: false, error: 'invalid kind' };
   }
-  if (kind === 'oss') {
+  if (kind === 'donate') {
+    /* The Worker has already verified the tx on-chain (mint, treasury owner, signer == the SIWS
+       bind, finality); this is the last gate that keeps a pasted or unproven wallet from earning. */
+    if (award.proven !== true) return { ok: false, error: 'dest not proven' };
+    if (!isValidDonateEvidenceUrl(award.evidenceUrl)) return { ok: false, error: 'invalid evidence host' };
+    const sig = donateSigFromEvidenceUrl(award.evidenceUrl);
+    if (typeof award.signature === 'string' && award.signature !== sig) return { ok: false, error: 'evidence signature mismatch' };
+    if ((profile.awards || []).some((a) => a.kind === 'donate' && donateSigFromEvidenceUrl(a.evidenceUrl) === sig)) {
+      return { ok: false, error: 'duplicate signature' };
+    }
+  } else if (kind === 'oss') {
     if (award.schema !== OSS_SCHEMA) return { ok: false, error: 'invalid oss schema' };
     if (!isValidOssEvidenceUrl(award.evidenceUrl)) return { ok: false, error: 'invalid evidence host' };
   } else if (!isValidEvidenceUrl(award.evidenceUrl)) {
@@ -651,9 +732,11 @@ export function proposeAward(profile, award, { now = Date.now() } = {}) {
     return { ok: false, error: 'forbidden signal' };
   }
   const unit =
-    kind === 'creative' ? CREATIVE_POINTS : kind === 'community' ? COMMUNITY_POINTS : Math.max(0, Number(award.points) || 0);
-  if (kind !== 'oss' && unit <= 0) return { ok: false, error: 'no points' };
-  if (kind === 'oss' && unit <= 0) return { ok: false, error: 'no points' };
+    kind === 'creative' ? CREATIVE_POINTS
+      : kind === 'community' ? COMMUNITY_POINTS
+        : kind === 'donate' ? donatePointsForAmount(award.amountRaw, award.decimals ?? 6)
+          : Math.max(0, Number(award.points) || 0);
+  if (unit <= 0) return { ok: false, error: 'no points' };
   const row = {
     id: typeof award.id === 'string' ? award.id.slice(0, 40) : `a${now}`,
     kind,

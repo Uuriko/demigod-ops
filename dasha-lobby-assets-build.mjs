@@ -164,16 +164,7 @@ function build() {
     .replace(/<!--[\s\S]*?-->\n?/g, '')
     .trim() + '\n';
   const landingRaw = readFileSync(join(root, 'dasha-landing.html'), 'utf8');
-  let landingOut = landingRaw;
-  const xTag = `<script src="https://lobby.getdasha.com/client/x-connect.js" integrity="${xConnectSri}" crossorigin="anonymous" defer></script>`;
-  if (!landingOut.includes('client/x-connect.js')) {
-    landingOut = `${landingOut.trimEnd()}\n${xTag}\n`;
-  } else {
-    landingOut = landingOut.replace(
-      /<script src="https:\/\/lobby\.getdasha\.com\/client\/x-connect\.js"[^>]*><\/script>/,
-      xTag,
-    );
-  }
+  const landingOut = landingRaw.replace(/\n?<script src="https:\/\/lobby\.getdasha\.com\/client\/x-connect\.js"[^>]*><\/script>\s*$/, '\n');
   const howto = readFileSync(join(root, 'dasha-how-to-buy.html'), 'utf8');
   const chessPage = readFileSync(join(root, 'dasha-chess-page.html'), 'utf8');
   const lobbyPage = readFileSync(join(root, 'dasha-lobby-page.html'), 'utf8');
@@ -290,14 +281,6 @@ if (args.has('--check')) {
     console.error('dasha-lobby-assets-build: dasha-lobby-static-gen.mjs OUT OF SYNC — run --write');
     process.exit(1);
   }
-  const landing = readFileSync(join(root, 'dasha-landing.html'), 'utf8');
-  const landingPinned =
-    (landing.includes(`const SIMP_SRI='${built.simpSri}'`) && landing.includes('s.integrity=SIMP_SRI')) ||
-    landing.includes(`s.integrity='${built.simpSri}'`);
-  if (!landingPinned || !landing.includes("s.crossOrigin='anonymous'")) {
-    console.error('dasha-lobby-assets-build: homepage Simp client SRI is stale');
-    process.exit(1);
-  }
   if (existsSync(join(root, 'dasha-lobby-page.html'))) {
     const lobbyPage = readFileSync(join(root, 'dasha-lobby-page.html'), 'utf8');
     if (!lobbyPage.includes(`s.integrity='${built.lobbySri}'`) || !lobbyPage.includes("s.crossOrigin='anonymous'")) {
@@ -331,15 +314,6 @@ if (args.has('--check')) {
 }
 
 if (args.has('--write') || args.size === 0) {
-  // Home SoR: s.integrity='…'. Worker-tree landing: const SIMP_SRI='…'. Accept either.
-  {
-    const landing = readFileSync(join(root, 'dasha-landing.html'), 'utf8');
-    if (/const SIMP_SRI='sha384-[A-Za-z0-9+/=]+'/.test(landing)) {
-      pinSri('dasha-landing.html', /const SIMP_SRI='sha384-[A-Za-z0-9+/=]+'/, `const SIMP_SRI='${built.simpSri}'`);
-    } else {
-      pinSri('dasha-landing.html', /s\.integrity='sha384-[A-Za-z0-9+/=]+'/, `s.integrity='${built.simpSri}'`);
-    }
-  }
   if (existsSync(join(root, 'dasha-lobby-page.html'))) {
     pinSri('dasha-lobby-page.html', /s\.integrity='sha384-[A-Za-z0-9+/=]+'/, `s.integrity='${built.lobbySri}'`);
   }

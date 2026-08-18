@@ -18,6 +18,7 @@ assert.ok(html.includes('/dasha') && html.includes('/studio'), 'nav loops to pro
 for (const step of ['data-n="01"', 'data-n="02"', 'data-n="03"']) assert.ok(html.includes(step), `missing buyer step: ${step}`);
 assert.doesNotMatch(html, /application\/ld\+json|"@type"\s*:\s*"HowTo"/, 'retired HowTo structured data returned');
 assert.ok(html.includes('user-select:all'), 'mint must remain selectable');
+assert.ok(html.includes('.source a{display:inline-flex;align-items:center;min-height:44px}'), 'source links must remain 44px touch targets');
 assert.ok(!/04 · Share|Copy share pack|Draft on X|buildSharePack/.test(html), 'promotion leaked into the four-step buy path');
 assert.ok(!html.includes('t.me/dashacommunity'), 'no disallowed telegram');
 
@@ -55,5 +56,13 @@ const H = box.window.DashaHowToBuy || box.DashaHowToBuy;
 assert.ok(H, 'DashaHowToBuy export');
 assert.equal(H.CA, MINT);
 assert.ok(H.BUY.includes(MINT) && /jup\.ag/.test(H.BUY), 'buy export lost exact Jupiter route');
+assert.equal(typeof H.mintCopiedOk, 'function', 'copy helper must be the shipped function');
+assert.equal(H.mintCopiedOk(MINT, MINT), true);
+assert.equal(H.mintCopiedOk(MINT + '\n', MINT), true, 'trailing whitespace from select-all is still our mint');
+assert.equal(H.mintCopiedOk('', MINT), false);
+assert.equal(H.mintCopiedOk(MINT.slice(0, -4) + 'XXXX', MINT), false, 'last-4 vanity is not the mint');
+assert.equal(H.mintCopiedOk(MINT.slice(0, 4) + 'xxxx' + MINT.slice(-4), MINT), false, 'first+last-4 poison is not the mint');
+assert.match(html, /Last four characters are not enough/, 'buy path must warn last-4 is not a match');
+assert.doesNotMatch(html, /verified mint|safe token/i);
 
 console.log('dasha how-to-buy: PASS [vm]');

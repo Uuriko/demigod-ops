@@ -71,6 +71,11 @@ function invocation(file) {
     if (body.includes('dasha-gate-all.mjs')) continue;
     const at = body.indexOf(file);
     if (at === -1) continue;
+    /* A bare filename must not match inside a longer path — root dasha-surfaces.test.mjs is a
+       different gate from dasha-desk/dasha-surfaces.test.mjs, and matching the latter would
+       misattribute the former to the wrong script. Only a real token boundary counts. */
+    const before = at > 0 ? body[at - 1] : '';
+    if (before && /[A-Za-z0-9._/-]/.test(before)) continue;
     // trailing args up to the next && or end of command
     const rest = body.slice(at + file.length).split('&&')[0].trim();
     return { via: `npm:${name}`, extra: rest ? rest.split(/\s+/).filter((a) => a.startsWith('-')) : [] };

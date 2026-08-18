@@ -174,7 +174,7 @@ npm run dasha:meta
 npm run dasha:audit:live:fast
 \`\`\`
 
-Refresh: \`npm run dasha:context:refresh -- --agent=${agent} --note="…"\`  
+Refresh: \`npm run dasha:context:refresh -- --agent=${agent} --note="…"\`
 Notify peers: \`npm run dasha:peer-ping -- --note="…"\`
 `;
 

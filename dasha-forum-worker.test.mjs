@@ -77,7 +77,11 @@ const post = (text) => ({ id: 'p'.repeat(12), handle: 'dash_eats', avatar: 'http
   assert.ok(handler.includes("sessionFromRequest"), 'identity comes from the session, never the body');
   assert.ok(/if \(!xId\) return json\(\{ error: 'link X first' \}/.test(handler),
     'both write paths must refuse an unlinked poster');
-  assert.equal((handler.match(/link X first/g) || []).length, 2, 'thread creation and replies both check');
+  assert.ok((handler.match(/link X first/g) || []).length >= 2, 'writes refuse an unlinked poster');
+  assert.ok(handler.includes('searchThreads'), 'GET /forum/threads?q= uses title search');
+  assert.ok(handler.includes('editPost') && handler.includes('deletePost'), 'author edit/delete are wired');
+  assert.ok(handler.includes('modAllowed'), 'lock is operator-only');
+  assert.ok(handler.includes('forum:reports'), 'reports persist off the public shape');
   assert.ok(/request\.method !== 'GET' && !allowedOrigin/.test(handler), 'writes require an allowed origin');
   assert.ok(/simpRate\(/.test(handler), 'writes are rate limited');
 }

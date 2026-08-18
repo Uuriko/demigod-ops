@@ -24,7 +24,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { stripDuplicateOgImage } from './.grok/worktrees/potter/dasha/dasha-webflow-metadata.mjs';
+import { stripDuplicateOgImage } from './dasha-webflow-metadata.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const args = new Set(process.argv.slice(2));
@@ -148,8 +148,8 @@ const receiptInputHash = hashes => digest([
     'dasha-landing.test.mjs',
     'dasha-studio-embed.test.mjs',
     'dasha-desk.test.mjs',
-    '.grok/worktrees/potter/dasha/dasha-audit-live.mjs',
-    '.grok/worktrees/potter/dasha/dasha-domain-check.mjs',
+    'dasha-audit-live.mjs',
+    'dasha-domain-check.mjs',
   ].map(read),
 ].join('\n'));
 

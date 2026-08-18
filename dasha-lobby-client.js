@@ -114,6 +114,331 @@
     if (last < s.length) node.appendChild(document.createTextNode(s.slice(last)));
   }
 
+  function originFromWs(wsUrl) {
+    try {
+      var u = new URL(wsUrl);
+      var proto = u.protocol === 'wss:' ? 'https:' : u.protocol === 'ws:' ? 'http:' : u.protocol;
+      return proto + '//' + u.host;
+    } catch (e) {
+      return 'https://lobby.getdasha.com';
+    }
+  }
+
+  function forumThreadUrl(id) {
+    return 'https://lobby.getdasha.com/forum?t=' + encodeURIComponent(id);
+  }
+
+  function linkCopiedOk(got, want) {
+    return String(got || '').replace(/\s+/g, '') === String(want || '');
+  }
+
+  function readThreadQuery() {
+    try {
+      return String(new URLSearchParams(location.search).get('t') || '').trim();
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function writeThreadQuery(id) {
+    try {
+      var u = new URL(location.href);
+      if (id) u.searchParams.set('t', id);
+      else u.searchParams.delete('t');
+      history.replaceState(null, '', u.pathname + u.search + u.hash);
+    } catch (e) {}
+  }
+
+  /**
+   * Forum column. Routes match dasha-lobby-worker handleForum, not the older live
+   * client paths that 404 on this worker.
+   */
+  function mountForum(root) {
+    if (!root) return null;
+    root.innerHTML = '';
+    root.classList.add('dasha-forum');
+    root.setAttribute('role', 'region');
+    root.setAttribute('aria-label', 'Dasha forum');
+    var status = el('p', 'df-status');
+    status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
+    var view = el('div', 'df-view');
+    root.appendChild(status);
+    root.appendChild(view);
+    var linked = false;
+    var meHandle = '';
+    var lastQuery = '';
+    var say = function (msg) { status.textContent = msg || ''; };
+    var base = originFromWs(root.getAttribute('data-forum-api') || root.getAttribute('data-lobby-url') || DEFAULT_WS);
+    var api = function (path, opts) {
+      return fetch(base + path, Object.assign({
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      }, opts || {})).then(function (r) {
+        return r.text().then(function (raw) {
+          var body = null;
+          if (raw) {
+            try { body = JSON.parse(raw); } catch (e) { body = { error: 'non-json response' }; }
+          }
+          return { status: r.status, body: body || {} };
+        });
+      });
+    };
+    function field(labelText, tag, attrs) {
+      var wrap = el('label', 'df-field');
+      wrap.appendChild(el('span', 'df-label', labelText));
+      var input = document.createElement(tag);
+      for (var k in attrs) {
+        if (Object.prototype.hasOwnProperty.call(attrs, k)) input.setAttribute(k, attrs[k]);
+      }
+      wrap.appendChild(input);
+      return { wrap: wrap, input: input };
+    }
+    function copyLink(id) {
+      var b = el('button', 'df-back df-copy');
+      b.type = 'button';
+      b.textContent = 'Copy link';
+      b.addEventListener('click', function () {
+        var want = forumThreadUrl(id);
+        var label = b.textContent;
+        var done = function (text) {
+          b.textContent = text;
+          setTimeout(function () { b.textContent = label; }, 1800);
+        };
+        if (!navigator.clipboard || !navigator.clipboard.writeText) {
+          done('Select');
+          return;
+        }
+        navigator.clipboard.writeText(want).then(function () {
+          if (!navigator.clipboard.readText) {
+            done('Copied');
+            return;
+          }
+          return navigator.clipboard.readText().then(function (got) {
+            done(linkCopiedOk(got, want) ? 'Copied' : 'Select');
+          });
+        }).catch(function () { done('Select'); });
+      });
+      return b;
+    }
+    function threadRow(t) {
+      var row = el('article', 'df-row');
+      var btn = el('button', 'df-open');
+      btn.type = 'button';
+      btn.textContent = t.title;
+      btn.addEventListener('click', function () { openThread(t.id); });
+      var meta = el('p', 'df-meta', '@' + t.handle + ' · ' + (t.replies || 0) + (t.replies === 1 ? ' reply' : ' replies') + ' · ' + timeLabel(t.lastTs || t.ts));
+      row.appendChild(btn);
+      row.appendChild(meta);
+      return row;
+    }
+    function postRow(p, threadId) {
+      var art = el('article', 'df-post');
+      var meta = '@' + p.handle + ' · ' + timeLabel(p.ts);
+      if (p.editedAt) meta += ' · edited';
+      art.appendChild(el('p', 'df-meta', meta));
+      var body = el('p', 'df-body');
+      if (p.deleted) body.textContent = 'deleted';
+      else fillBody(body, p.text);
+      art.appendChild(body);
+      if (meHandle && p.handle === meHandle && !p.deleted) {
+        var tools = el('div', 'df-tools');
+        var ed = el('button', 'df-back');
+        ed.type = 'button';
+        ed.textContent = 'Edit';
+        ed.addEventListener('click', function () {
+          var next = window.prompt('Edit post', p.text || '');
+          if (next == null) return;
+          api('/forum/thread/' + encodeURIComponent(threadId) + '/post/' + encodeURIComponent(p.id), {
+            method: 'PATCH',
+            body: JSON.stringify({ text: next }),
+          }).then(function (r) {
+            if (r.status === 200 && r.body.ok) openThread(threadId);
+            else say(failWrite(r));
+          }).catch(function () { say('Network error.'); });
+        });
+        var del = el('button', 'df-back');
+        del.type = 'button';
+        del.textContent = 'Delete';
+        del.addEventListener('click', function () {
+          if (!window.confirm('Delete this reply?')) return;
+          api('/forum/thread/' + encodeURIComponent(threadId) + '/post/' + encodeURIComponent(p.id), {
+            method: 'DELETE',
+          }).then(function (r) {
+            if (r.status === 200 && r.body.ok) openThread(threadId);
+            else say(failWrite(r));
+          }).catch(function () { say('Network error.'); });
+        });
+        tools.appendChild(ed);
+        tools.appendChild(del);
+        art.appendChild(tools);
+      } else if (linked && !p.deleted) {
+        var report = el('button', 'df-back');
+        report.type = 'button';
+        report.textContent = 'Report';
+        report.addEventListener('click', function () {
+          var reason = window.prompt('Report as: scam, spam, harassment, or off-topic');
+          if (!reason) return;
+          api('/forum/thread/' + encodeURIComponent(threadId) + '/report', {
+            method: 'POST',
+            body: JSON.stringify({ postId: p.id, reason: String(reason).trim().toLowerCase() }),
+          }).then(function (r) {
+            say(r.status === 200 && r.body.ok ? 'Reported.' : failWrite(r));
+          }).catch(function () { say('Network error.'); });
+        });
+        var rtools = el('div', 'df-tools');
+        rtools.appendChild(report);
+        art.appendChild(rtools);
+      }
+      return art;
+    }
+    function composer(onSend, withTitle) {
+      var form = el('form', 'df-composer');
+      var title = withTitle
+        ? field('Title', 'input', { type: 'text', maxlength: '80', required: 'required', placeholder: 'What is this about?' })
+        : null;
+      var body = field(withTitle ? 'First post' : 'Your reply', 'textarea', {
+        rows: '4',
+        maxlength: '2000',
+        required: 'required',
+        placeholder: 'Say it plainly.',
+      });
+      if (title) form.appendChild(title.wrap);
+      form.appendChild(body.wrap);
+      var send = el('button', 'df-send');
+      send.type = 'submit';
+      send.textContent = withTitle ? 'Post thread' : 'Reply';
+      form.appendChild(send);
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        send.disabled = true;
+        say('Sending…');
+        onSend(title ? title.input.value : null, body.input.value, function (ok, err) {
+          send.disabled = false;
+          if (ok) {
+            if (title) title.input.value = '';
+            body.input.value = '';
+            say('');
+          } else say(err || 'Could not post.');
+        });
+      });
+      return form;
+    }
+    function failWrite(r) {
+      if (r.status === 401) return 'Link X in the lobby to post.';
+      return (r.body && r.body.error) || 'Could not post.';
+    }
+    function renderList(threads, q) {
+      view.innerHTML = '';
+      var head = el('div', 'df-head');
+      head.appendChild(el('h2', 'df-title', 'Forum'));
+      head.appendChild(el(
+        'p',
+        'df-note',
+        linked
+          ? 'Official room. No Telegram. No Discord. Threads stay; chat below scrolls away.'
+          : 'Official room. No Telegram. No Discord. Read freely. Link X in the lobby to post.',
+      ));
+      view.appendChild(head);
+      var search = el('form', 'df-composer df-search');
+      var qf = field('Search', 'input', { type: 'search', maxlength: '80', placeholder: 'Title or handle' });
+      var go = el('button', 'df-send');
+      go.type = 'submit';
+      go.textContent = 'Search';
+      if (q) qf.input.value = q;
+      search.appendChild(qf.wrap);
+      search.appendChild(go);
+      search.addEventListener('submit', function (e) {
+        e.preventDefault();
+        load(qf.input.value);
+      });
+      view.appendChild(search);
+      if (linked) {
+        view.appendChild(composer(function (title, text, done) {
+          api('/forum/threads', { method: 'POST', body: JSON.stringify({ title: title, text: text }) })
+            .then(function (r) {
+              if (r.status === 200 && r.body.ok) {
+                done(true);
+                load();
+              } else done(false, failWrite(r));
+            })
+            .catch(function () { done(false, 'Network error.'); });
+        }, true));
+      }
+      var list = el('div', 'df-list');
+      if (!threads.length) {
+        list.appendChild(el('p', 'df-empty', q ? 'Nothing matches that search.' : 'No threads yet. Start the first one.'));
+      }
+      for (var i = 0; i < threads.length; i++) list.appendChild(threadRow(threads[i]));
+      view.appendChild(list);
+    }
+    function openThread(id) {
+      say('Loading…');
+      writeThreadQuery(id);
+      api('/forum/thread/' + encodeURIComponent(id)).then(function (r) {
+        if (r.status !== 200 || !r.body.ok) {
+          say((r.body && r.body.error) || 'Thread not found.');
+          return;
+        }
+        say('');
+        view.innerHTML = '';
+        var bar = el('div', 'df-tools');
+        var back = el('button', 'df-back');
+        back.type = 'button';
+        back.textContent = '← All threads';
+        back.addEventListener('click', function () {
+          writeThreadQuery('');
+          load(lastQuery);
+        });
+        bar.appendChild(back);
+        bar.appendChild(copyLink(id));
+        view.appendChild(bar);
+        view.appendChild(el('h2', 'df-title', r.body.thread.title));
+        var posts = el('div', 'df-posts');
+        var rows = r.body.posts || [];
+        for (var i = 0; i < rows.length; i++) posts.appendChild(postRow(rows[i], id));
+        view.appendChild(posts);
+        if (r.body.thread && r.body.thread.locked) {
+          view.appendChild(el('p', 'df-empty', 'This thread is locked.'));
+        } else if (linked) {
+          view.appendChild(composer(function (_t, text, done) {
+            api('/forum/thread/' + encodeURIComponent(id), { method: 'POST', body: JSON.stringify({ text: text }) })
+              .then(function (rr) {
+                if (rr.status === 200 && rr.body.ok) {
+                  done(true);
+                  openThread(id);
+                } else done(false, failWrite(rr));
+              })
+              .catch(function () { done(false, 'Network error.'); });
+          }, false));
+        }
+      }).catch(function () { say('Could not load that thread.'); });
+    }
+    function load(q) {
+      lastQuery = q || '';
+      say('Loading…');
+      api('/simp/me')
+        .then(function (me) {
+          meHandle = (me.body && me.body.x && me.body.x.handle) || '';
+          linked = !!(me.body && (me.body.linked || meHandle));
+        })
+        .catch(function () { linked = false; meHandle = ''; })
+        .then(function () {
+          var qs = q ? ('?q=' + encodeURIComponent(q)) : '';
+          return api('/forum/threads' + qs);
+        })
+        .then(function (r) {
+          say('');
+          renderList(r && r.body && r.body.threads ? r.body.threads : [], lastQuery);
+          var want = readThreadQuery();
+          if (want) openThread(want);
+        })
+        .catch(function () { say('Forum is unreachable right now. Chat still works.'); });
+    }
+    load();
+    return { reload: load, open: openThread };
+  }
+
   function mount(root, opts) {
     opts = opts || {};
     if (!root) return null;
@@ -860,7 +1185,7 @@
     };
   }
 
-  var api = { mount: mount, mint: MINT, defaultUrl: DEFAULT_WS };
+  var api = { mount: mount, mountForum: mountForum, mint: MINT, defaultUrl: DEFAULT_WS };
   global.DashaLobby = api;
 
   /** Drop non-product personal publisher JSON-LD if the host page still injects it. */
@@ -881,6 +1206,11 @@
     if (node && !node.dataset.mounted) {
       node.dataset.mounted = '1';
       mount(node);
+    }
+    var forum = document.getElementById('dasha-forum');
+    if (forum && !forum.dataset.mounted) {
+      forum.dataset.mounted = '1';
+      mountForum(forum);
     }
   }
   if (typeof document !== 'undefined') {

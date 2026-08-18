@@ -137,11 +137,6 @@ export function extractOgImage(html) {
   return '';
 }
 
-export function hasPinnedSimpClient(html) {
-  return /(?:const SIMP_SRI=['"]sha384-[A-Za-z0-9+/=]+['"][\s\S]*?s\.integrity\s*=\s*SIMP_SRI|s\.integrity\s*=\s*['"]sha384-[A-Za-z0-9+/=]+['"])/.test(html) &&
-    /s\.crossOrigin\s*=\s*['"]anonymous['"]/.test(html);
-}
-
 export function hasCurrentStudio(html) {
   const studioExternal =
     html.includes('lobby.getdasha.com/client/studio.js') &&
@@ -683,12 +678,9 @@ async function auditSite() {
   note('site', 'lobby-page-200', lobbyPage.status === 200, { status: lobbyPage.status });
   note('site', 'lobby-page-mount', lobbyPage.text.includes('id="dasha-lobby"'));
   note('site', 'lobby-page-client', lobbyPage.text.includes('lobby.getdasha.com/client/lobby.js'));
-  note(
-    'site',
-    'home-simp-mount',
-    home.text.includes('id="simp"') && home.text.includes('id="dasha-simp-board"'),
-  );
-  note('site', 'home-simp-client', home.text.includes('lobby.getdasha.com/client/simp-board.js'));
+  note('site', 'home-simp-door', home.text.includes('href="/simp"'));
+  note('site', 'home-no-simp-mount', !home.text.includes('id="dasha-simp-board"'));
+  note('site', 'home-no-simp-client', !home.text.includes('lobby.getdasha.com/client/simp-board.js'));
   note('site', 'home-negative-coin-copy', !NEGATIVE_COIN_COPY.test(publicCopyFromHtml(home.text)));
   note('site', 'desk-negative-coin-copy', !NEGATIVE_COIN_COPY.test(publicCopyFromHtml(desk.text)));
   note('site', 'studio-negative-coin-copy', !NEGATIVE_COIN_COPY.test(publicCopyFromHtml(studio.text)));
@@ -701,12 +693,6 @@ async function auditSite() {
     current: /chart on Dexscreener/i.test(publicCopyFromHtml(desk.text)) ? 'chart on Dexscreener' : null,
     expected: 'chart on GeckoTerminal',
   });
-  note(
-    'site',
-    'home-simp-sri',
-    hasPinnedSimpClient(home.text),
-  );
-
   for (const [id, response] of Object.entries({ home, studio, desk, lobby: lobbyPage, howto })) {
     const expected = WEBFLOW_METADATA[id];
     const actual = extractWebMetadata(response.text);

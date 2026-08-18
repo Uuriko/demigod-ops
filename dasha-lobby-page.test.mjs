@@ -18,9 +18,11 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import puppeteer from 'puppeteer-core';
 import { settleMotion } from './dasha-motion-settle.mjs';
+import { LOBBY_CLIENT_JS } from './dasha-lobby-static-gen.mjs';
 
 const live = process.argv.includes('--live');
 const source = await readFile(new URL('./dasha-lobby-page.html', import.meta.url), 'utf8');
+const client = live ? null : LOBBY_CLIENT_JS;
 assert.match(source, /lobby\.js';s\.integrity='sha384-[A-Za-z0-9+/=]+';s\.crossOrigin='anonymous'/,
   'Lobby client must be cross-origin pinned');
 assert.doesNotMatch(source, /plugin\.jup\.ag|window\.Jupiter|Jupiter\.init/,
@@ -44,6 +46,21 @@ for (const [device, width, height] of [['mobile', 390, 844], ['desktop', 1440, 9
   const page = await browser.newPage();
   await settleMotion(page);
   pages.push(page);
+  if (client) {
+    await page.setRequestInterception(true);
+    page.on('request', (request) => {
+      if (request.url() === 'https://lobby.getdasha.com/client/lobby.js') {
+        request.respond({
+          status: 200,
+          contentType: 'application/javascript; charset=utf-8',
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          body: client,
+        });
+      } else {
+        request.continue();
+      }
+    });
+  }
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e).slice(0, 100)));
   await page.setViewport({ width, height });

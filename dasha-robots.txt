@@ -3,8 +3,15 @@
 # This file is the source for what the Worker serves at /robots.txt. It used to be a different
 # document — a "paste this into Webflow SEO settings" draft still narrating a 2026-08-08 outage that
 # had already been fixed — while the edge served these rules instead. Two copies, and the one nobody
-# read was the one with the explanation in it. Kept in sync now; the Disallow lines below are the
-# part worth protecting, because they keep a 2020 e-commerce template out of a crypto domain's index.
+# read was the one with the explanation in it. Kept in sync now.
+#
+# The Disallow lines that used to sit here were described as the part worth protecting, because they
+# keep a 2020 e-commerce template out of a crypto domain's index. They did the opposite. All five
+# paths already answer 404, and /checkout, /paypal-checkout and /order-confirmation also serve
+# `X-Robots-Tag: noindex, nofollow`. A crawler that obeys a Disallow never fetches the URL, so it
+# never sees the 404 and never sees the noindex — which is the one signal that would remove it.
+# Blocked URLs can sit in an index indefinitely as URL-only entries. Letting crawlers fetch a 404 is
+# what actually retires a page, so the Disallow lines are gone and the 404s do the work.
 #
 # Deliberately permissive otherwise. Everything here is public and CC0, there is nothing to hide from
 # a crawler, and AI search indexes are a real discovery path for a site nobody links to yet.
@@ -14,11 +21,6 @@ Allow: /
 Allow: /studio
 Allow: /dasha
 Allow: /chess
-Disallow: /desk-rc
-Disallow: /retired-dasha-draft
-Disallow: /checkout
-Disallow: /paypal-checkout
-Disallow: /order-confirmation
 
 Sitemap: https://www.getdasha.com/sitemap.xml
 Sitemap: https://lobby.getdasha.com/sitemap.xml

@@ -54,7 +54,7 @@ const canonicalMetadata = [
 /* Canonical route inventory. The four thin SEO traps are not in any canonical product doc and
    roadmap D8 wants retired paths on a branded 404 so crawlers drop them — they do not belong
    in the sitemap while they serve a heading and a Buy button. */
-const SITEMAP_REQUIRED = ['/', '/simp', '/chess', '/studio', '/dasha'];
+const SITEMAP_REQUIRED = ['/', '/simp', '/chess', '/studio', '/dasha', '/bounties'];
 /* `/faucet` was on this list until 2026-08-15. It is a real Worker-served tip page with its own
    Durable Object and payout caps, not a trap — it was measured as thin before the Worker that
    serves it was deployed. Keeping it here would have made a correct sitemap fail. */

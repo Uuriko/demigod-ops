@@ -59,6 +59,7 @@ for (const route of ['/', '/studio', '/dasha']) {
       icons: [...document.querySelectorAll('link[rel~="icon"]')].map((l) => l.href),
       touchIcons: [...document.querySelectorAll('link[rel="apple-touch-icon"]')].map((l) => l.href),
       studioMounted: !!root,
+      html: document.documentElement.outerHTML,
       wrongMint: [...text.matchAll(/[1-9A-HJ-NP-Za-km-z]{32,44}pump/g)].map((m) => m[0]),
     };
   });
@@ -69,6 +70,18 @@ for (const route of ['/', '/studio', '/dasha']) {
   }
   check(!RETIRED.test(seen.text), `${route}: the retired product reappeared in live copy`);
 
+  /* The Desk's primary button — "Buy $dasha ↗" and "Copy CA" — carried white text on a gradient
+     starting at #a78bfa, which is 2.9:1 and fails WCAG AA on the one control the page exists for.
+     dasha-desk/src/styles.css fixed it to #7c3aed→#5b21b6 and says so in its own comment, the built
+     embed carries the fix, and DASHA-SHIP-MANIFEST.json records that artifact's hash as published —
+     yet live still serves the old gradient and no #5b21b6 anywhere. The receipt and the page
+     disagree, and nothing noticed, because live-verify compares content markers rather than the
+     built artifact. Measured live: 3.25:1 and 3.28:1. */
+  if (route === '/dasha') {
+    check(!/linear-gradient\([^)]*#a78bfa/i.test(seen.html),
+      '/dasha: the AA-failing #a78bfa primary button gradient is still live (fix is built but unshipped)');
+  }
+
   // The retired Dasha Labs icon was a 32-unit viewBox; ours is 64. Catches an old icon coming back.
   check(!seen.icons.some((h) => h.includes('0%2032%2032')),
     `${route}: the retired favicon is live again`);
@@ -77,6 +90,13 @@ for (const route of ['/', '/studio', '/dasha']) {
     `${route}: the Dasha favicon is missing`);
   check(seen.touchIcons.some((h) => h.includes('dasha-icon-180.png')),
     `${route}: the Dasha touch icon is missing`);
+  /* `some` only asks whether ours is present, so a second webclip declared alongside it passes.
+     All four Webflow surfaces still declare the 2020 template's "inkuPop P logo 256x256" first,
+     and it still resolves 200 — ours carries sizes="180x180" and the stale one carries none, so
+     which icon a given iOS version or link unfurler picks is not ours to decide. It is in no repo
+     source; it comes from Webflow page settings, so this fails until someone clears it there. */
+  check(!seen.touchIcons.some((h) => /inkuPop/i.test(h)),
+    `${route}: the 2020 template webclip is still declared next to ours`);
 
   check(errors.length === 0, `${route}: console errors — ${errors[0] || ''}`);
 

@@ -13,19 +13,42 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import puppeteer from 'puppeteer-core';
-import { buildStudioEmbed, embedScript } from './dasha-studio-embed-build.mjs';
 
 const here = (f) => new URL(`./${f}`, import.meta.url);
 const embed = await readFile(here('dasha-studio-embed.html'), 'utf8');
 const externalScript = await readFile(here('dasha-studio-embed.js'), 'utf8');
 const axeSrc = await readFile(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8');
+/* Thin loader points at lobby.getdasha.com/client/studio.js with an SRI pin. Live may lag disk;
+   the hostile-host proof must exercise the prepared client bytes, not whatever production still
+   serves. Serve the minified Worker client (same bytes the SRI was computed from). */
+const { STUDIO_CLIENT_JS, STUDIO_CLIENT_SRI } = await import('./dasha-lobby-static-gen.mjs');
+assert.match(embed, new RegExp(`integrity="${STUDIO_CLIENT_SRI.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`),
+  'thin loader SRI does not match dasha-lobby-static-gen — run: node dasha-lobby-assets-build.mjs --write');
 
-// ---- generated, not hand-written -------------------------------------------
-assert.equal(embed, buildStudioEmbed(await readFile(here('dasha-meme-studio.html'), 'utf8')),
-  'dasha-studio-embed.html is stale or was hand-edited — run: node dasha-studio-embed-build.mjs');
-assert.equal(externalScript, embedScript(embed),
-  'dasha-studio-embed.js drifted from the pasteable embed — run: node dasha-studio-embed-build.mjs');
+/* ---- generated, not hand-written -------------------------------------------
+   Delegated to the builder's own --check rather than recomputed here. This used to assert
+   `embed === buildStudioEmbed(studio)`, which drifted when the Studio moved to a thin Worker
+   loader: the exported pure function still returns the old 52,753-char self-contained embed, while
+   the build writes a 1,673-char loader plus an SRI for the Worker-served client that no pure
+   function can know. The assertion therefore failed permanently, and the remedy it printed —
+   "run: node dasha-studio-embed-build.mjs" — could never satisfy it, because running the build is
+   what produced the file it was rejecting.
+   One definition of "current" beats two that disagree, and --check is the one the ship gate and
+   dasha:test:all already trust. */
+{
+  const check = spawnSync(process.execPath, ['dasha-studio-embed-build.mjs', '--check'],
+    { cwd: dirname(fileURLToPath(import.meta.url)), encoding: 'utf8' });
+  assert.equal(check.status, 0,
+    `dasha-studio-embed.html/.js are stale or hand-edited — run: node dasha-studio-embed-build.mjs\n${(check.stderr || check.stdout || '').slice(-400)}`);
+}
+/* The .js half was a second copy of the same drifted expectation — `embedScript(embed)` is the
+   pure function's idea of the bundle, not the builder's. --check above already reports on both
+   files ("dasha-studio-embed.html and .js are current"), so this is covered, not dropped. */
+assert.ok(externalScript.length > 1000, 'dasha-studio-embed.js is empty or truncated');
 assert.ok(embed.length < 50_000, `Webflow rejects the ${embed.length}-character Studio embed`);
 
 // ---- it is a fragment, not a page ------------------------------------------
@@ -78,7 +101,21 @@ const page = await browser.newPage();
 const pageErrors = [];
 page.on('pageerror', (e) => pageErrors.push(String(e)));
 await page.setViewport({ width: 1280, height: 900 });
+await page.setRequestInterception(true);
+page.on('request', (request) => {
+  if (request.url().includes('/client/studio.js')) {
+    return request.respond({
+      status: 200,
+      contentType: 'application/javascript; charset=utf-8',
+      headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' },
+      body: STUDIO_CLIENT_JS,
+    });
+  }
+  return request.continue();
+});
 await page.goto(base, { waitUntil: 'networkidle2' });
+assert.ok(await page.evaluate(() => document.querySelector('.dasha-studio-embed')?.shadowRoot),
+  'thin loader did not mount a shadow root — SRI/client bytes mismatch or script blocked');
 
 const shadow = (fn, ...args) => page.evaluate(
   new Function('args', `const root = document.querySelector('.dasha-studio-embed').shadowRoot;
@@ -121,6 +158,10 @@ assert.ok(tool.lookCount >= 3, `only ${tool.lookCount} looks survived into the f
 
 // ---- it draws a real image --------------------------------------------------
 const drawn = await shadow(`async (root, $) => {
+  /* Cold open lands on today's ritual, which rotates format. This gate is "the embed can draw",
+     not "today is square" — pin the post size so 2026-08-17's banner (1200×628) is not a red. */
+  $('formats').value = 'square';
+  $('formats').dispatchEvent(new Event('change', { bubbles: true }));
   $('looks').selectedIndex = 1;
   $('looks').dispatchEvent(new Event('change', { bubbles: true }));
   $('line').value = 'Embedded and still weird.';

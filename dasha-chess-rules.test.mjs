@@ -2,7 +2,7 @@
 /**
  * Chess rules, at the places engines actually get them wrong.
  *
- * dasha-chess.test.mjs already covers the happy path. This covers the edge cases that are easy to
+ * dasha-chess-local.test.mjs covers the happy path in a browser. This covers the edge cases that are easy to
  * implement almost-correctly and that no casual game will surface: the queenside-castling b-file
  * exception, castling through or out of check, en passant expiring after one move, an en passant
  * capture that would expose its own king, underpromotion, stalemate vs checkmate, and pins.

@@ -29,7 +29,13 @@ export const MAX_POSTS = 50;
    length, so the arithmetic above is a design target, not a guarantee. */
 export const THREAD_BYTES_MAX = 120 * 1024;
 export const MAX_THREADS = 100;
-export const THREAD_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+/* Six months. Thirty days would drop the room's memory while people still cite a thread. */
+export const THREAD_TTL_MS = 180 * 24 * 60 * 60 * 1000;
+export const EDIT_WINDOW_MS = 15 * 60 * 1000;
+export const REPORT_REASONS = ['scam', 'spam', 'harassment', 'off-topic'];
+/* In-thread quote, not a nested tree. A snippet is enough to show what was answered. */
+export const QUOTE_SNIP = 140;
+export const MUTED_ERROR = 'this X session is muted — not the person';
 
 /** Chat's limits, surfaced so the relationship between the two surfaces is assertable. */
 export const FORUM_LIMITS = { CHAT_MAX_TEXT: MAX_TEXT, FORUM_MAX_TEXT: MAX_POST, MAX_TITLE };
@@ -76,7 +82,18 @@ export function newThread({ title, text, handle, avatar = null, now, id }) {
   };
 }
 
-export function addReply(posts, { text, handle, avatar = null, now, id }) {
+export function attachQuote(posts, quoteId) {
+  if (quoteId == null || quoteId === '') return { ok: true, quote: null };
+  const id = String(quoteId).slice(0, 48);
+  const src = (Array.isArray(posts) ? posts : []).find((p) => p && p.id === id);
+  if (!src || src.deleted) return { ok: false, error: 'quote not found' };
+  return {
+    ok: true,
+    quote: { id: src.id, handle: src.handle, text: String(src.text || '').slice(0, QUOTE_SNIP) },
+  };
+}
+
+export function addReply(posts, { text, handle, avatar = null, now, id, quoteId }) {
   const anon = requireAuthor(handle);
   if (anon) return anon;
   if (!Array.isArray(posts) || !posts.length) return { ok: false, error: 'thread not found' };
@@ -85,12 +102,82 @@ export function addReply(posts, { text, handle, avatar = null, now, id }) {
   if (posts.length >= MAX_POSTS) return { ok: false, error: 'thread is full' };
   const b = validateBody(text);
   if (!b.ok) return b;
+  const quoted = attachQuote(posts, quoteId);
+  if (!quoted.ok) return quoted;
   const post = { id, handle, avatar, text: b.text, ts: now };
+  if (quoted.quote) post.quote = quoted.quote;
   /* Measured, not assumed. A thread is one storage value with a hard 128 KiB ceiling, and a write
      that crosses it fails at the platform — which would lose the post and leave the reply count
      disagreeing with the posts. Refusing here keeps the thread consistent. */
   if (threadBytes([...posts, post]) > THREAD_BYTES_MAX) return { ok: false, error: 'thread is full' };
   return { ok: true, post };
+}
+
+/** Title + handle only. Bodies stay off the index so search cannot become a 100-thread storage scan. */
+export function searchThreads(index, q) {
+  const needle = String(q || '').trim().toLowerCase();
+  const list = Array.isArray(index) ? index : [];
+  if (!needle) return list;
+  return list.filter((t) => {
+    if (!t) return false;
+    const title = String(t.title || '');
+    const handle = String(t.handle || '');
+    if (!`${title} ${handle}`.toLowerCase().includes(needle)) return false;
+    return validateMessage(title, { maxText: MAX_TITLE }).ok;
+  });
+}
+
+export function assertWritable(summary) {
+  if (!summary) return { ok: false, error: 'thread not found' };
+  if (summary.locked) return { ok: false, error: 'thread is locked' };
+  return { ok: true };
+}
+
+export function lockThread(summary, { locked }) {
+  if (!summary) return { ok: false, error: 'thread not found' };
+  return { ok: true, summary: { ...summary, locked: Boolean(locked) } };
+}
+
+export function editPost(posts, { id, text, handle, now }) {
+  const anon = requireAuthor(handle);
+  if (anon) return anon;
+  if (!Array.isArray(posts)) return { ok: false, error: 'thread not found' };
+  const i = posts.findIndex((p) => p && p.id === id);
+  if (i < 0) return { ok: false, error: 'post not found' };
+  const post = posts[i];
+  if (post.deleted) return { ok: false, error: 'post is gone' };
+  if (post.handle !== handle) return { ok: false, error: 'not your post' };
+  if (Number(now) - Number(post.ts) > EDIT_WINDOW_MS) return { ok: false, error: 'edit window closed' };
+  const b = validateBody(text);
+  if (!b.ok) return b;
+  const next = { ...post, text: b.text, editedAt: now };
+  const copy = posts.slice();
+  copy[i] = next;
+  if (threadBytes(copy) > THREAD_BYTES_MAX) return { ok: false, error: 'thread is full' };
+  return { ok: true, post: next, posts: copy };
+}
+
+/** Tombstone a reply. The opener stays — deleting it would leave replies answering nothing. */
+export function deletePost(posts, { id, handle }) {
+  const anon = requireAuthor(handle);
+  if (anon) return anon;
+  if (!Array.isArray(posts) || !posts.length) return { ok: false, error: 'thread not found' };
+  const i = posts.findIndex((p) => p && p.id === id);
+  if (i < 0) return { ok: false, error: 'post not found' };
+  const post = posts[i];
+  if (post.handle !== handle) return { ok: false, error: 'not your post' };
+  if (post.deleted) return { ok: false, error: 'post is gone' };
+  if (i === 0) return { ok: false, error: 'cannot delete the opening post' };
+  const next = { ...post, text: '', deleted: true };
+  const copy = posts.slice();
+  copy[i] = next;
+  return { ok: true, post: next, posts: copy };
+}
+
+export function validateReport(reason) {
+  const r = String(reason || '').trim();
+  if (!REPORT_REASONS.includes(r)) return { ok: false, error: 'bad report reason' };
+  return { ok: true, reason: r };
 }
 
 /** Serialised size of a thread's posts, as storage will see it. */
@@ -112,10 +199,23 @@ export function pruneIndex(index, now) {
 export function publicThread(t) {
   return {
     id: t.id, title: t.title, handle: t.handle, avatar: t.avatar ?? null,
-    ts: t.ts, lastTs: t.lastTs, replies: t.replies ?? 0,
+    ts: t.ts, lastTs: t.lastTs, replies: t.replies ?? 0, locked: Boolean(t.locked),
   };
 }
 
 export function publicPost(p) {
-  return { id: p.id, handle: p.handle, avatar: p.avatar ?? null, text: p.text, ts: p.ts };
+  const out = {
+    id: p.id, handle: p.handle, avatar: p.avatar ?? null,
+    text: p.deleted ? '' : p.text, ts: p.ts,
+  };
+  if (p.editedAt) out.editedAt = p.editedAt;
+  if (p.deleted) out.deleted = true;
+  if (!p.deleted && p.quote && p.quote.id) {
+    out.quote = {
+      id: p.quote.id,
+      handle: p.quote.handle,
+      text: String(p.quote.text || '').slice(0, QUOTE_SNIP),
+    };
+  }
+  return out;
 }

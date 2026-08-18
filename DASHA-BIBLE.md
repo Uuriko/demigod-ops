@@ -1,16 +1,18 @@
 ---
 status: canonical
 canonical_for: culture-and-claims
-last_verified: 2026-08-08
+last_verified: 2026-08-14
 ---
 
 # Dasha bible — culture, design, product truth
 
-**Updated:** 2026-08-08  
-**Owner surfaces:** getdasha.com · `dasha-landing.html` · `dasha-desk` · `dasha-meme-studio.html` · `dasha-how-to-buy.html`  
+**Updated:** 2026-08-14
+**Owner surfaces:** getdasha.com · `/` (real hero on first paint — no `#dasha-home-cta` decoy) · `/simp` (playable quiz, not a handle list) · `/studio` · one canonical lobby (`www` `/lobby` **or** lobby.getdasha.com/lobby, 308 the other) · `/dasha` · `/bounties` · `/chess` · `/how-to-buy` · `dasha-landing.html` · `dasha-desk` · `dasha-meme-studio.html` · `dasha-how-to-buy.html`. **Forum is not a live surface** — do not list or link it until a forum exists.
 **Hard rule:** **Association is not endorsement.** Public posts ≠ brand deal, safety, or legal control of any mint.
 
 This doc is the shared design + culture spine for agents and humans shipping getdasha. Prefer primary sources linked below over vibes.
+
+Visual system owner: [`DASHA-ART-DIRECTION.md`](DASHA-ART-DIRECTION.md). If a surface disagrees with that file, the surface is wrong. Palette does not change.
 
 ---
 
@@ -53,8 +55,6 @@ This doc is the shared design + culture spine for agents and humans shipping get
 | Perry Spain AC bit | [2074960912805486623](https://x.com/PerryALPHA/status/2074960912805486623) | Third-party meme; photo below |
 
 **Never:** `t.me/dashacommunity` · “official coin” · “endorsed” · “safe” · “verified mint.”
-
-
 
 ## 2b. Coin-week timeline (scraped 2026-08-07 / 08)
 
@@ -112,10 +112,17 @@ Deadpan, lowercase energy, social, slightly mean, anti-roadmap. Prefer **her pos
 - PLEASE FREE TIBET / free-to-be-themselves energy
 
 **getdasha product voice (house rules):**
+- Sparse. Few clicks. No promises.
 - Make culture, not promises
 - Verify the mint yourself
 - No fake endorsement / no fake certainty
 - Studio: change one thing, pass it on · no wallet · nothing uploaded
+- Board: say **GitHub soon** when lobby OAuth is unconfigured. Honest beats a dead Connect button.
+- Status / black-hole is a **Demigod** problem. It does not belong on Dasha home.
+- Home first paint is the real hero. No `#dasha-home-cta` 100vh fallback. No second h1.
+- `/simp` is the playable quiz (same type/color as home), not a raw list of handles.
+- Forum is not a live surface. Do not ship a footer/nav link that only says the forum is not here.
+- Honest empty states only. Never "server not configured yet", "Table unavailable", or "Payout not live" as first-paint copy.
 
 ### Third-party tape (label clearly)
 
@@ -128,10 +135,13 @@ Deadpan, lowercase energy, social, slightly mean, anti-roadmap. Prefer **her pos
 - official · safe · verified · endorsed · backed by · Ansem product · guaranteed · immutable proof of truth  
 - Thesis Card / conviction receipt language on **live home** (retired from public funnel)  
 - Telegram community claims  
+- “she is the dev” (she said she is not)
 
 ---
 
 ## 5. Visual system (getdasha)
+
+Five colours. There is no sixth. Hex never invented elsewhere.
 
 | Token | Value | Notes |
 |-------|-------|-------|
@@ -139,23 +149,32 @@ Deadpan, lowercase energy, social, slightly mean, anti-roadmap. Prefer **her pos
 | Paper | `#f4eddb` | Warm off-white type |
 | Acid | `#dfff00` | Primary CTA / sticker |
 | Hot | `#ff3b81` | Offset shadow / seed |
-| Violet | `#7c4dff` | Gradients |
-| Type | Arial / system, heavy uppercase display | “MAKE IT STRANGER” energy |
+| Violet | `#7c4dff` | Depth only — glows, panels, arcs. Never type. |
+| Type | Arial Black / Helvetica 900, uppercase display | “MAKE IT STRANGER” energy |
 | Motif | Offset hard shadows, tilted poster, acid sticker, ticker | Casino-adjacent without casino hero photo (tests ban old catbox casino hero) |
 
-**Image policy for product HTML:**
+Canonical visual: [`DASHA-ART-DIRECTION.md`](DASHA-ART-DIRECTION.md). Palette does not change.
+
+**Likeness split (do not collapse these):**
+- **Shipped brand art** (logo, favicon, mark, Studio chrome, default poster) answers to art direction: **no Nekrasova likeness**. Cherries on ink.
+- **Optional tape** (a culture still you choose to hotlink) answers to this §5 image policy: source, honest alt, `referrerpolicy="no-referrer"`, “not endorsement” caption. One still max on home.
+
+**Image policy for optional tape in product HTML:**
 1. Prefer **hotlinkable** `pbs.twimg.com` media with `referrerpolicy="no-referrer"` and honest alts.
 2. Prefer **Dex CMS** for token glyph.
 3. Avoid banned hero assets: `files.catbox.moe/gpjyb0.jpg`, weserv, etc. (landing test).
 4. Record the source and usage boundary for every person-photo asset; project licensing cannot
    grant rights over a real person's name or likeness.
 5. Link image rows to **@dash_eats** or specific status URLs when known.
+6. Never use a likeness as the logo, favicon, or Desk mark. That slot is cherries.
 
 ### Working image library (HTTP 200 checked 2026-08-08)
 
+Optional tape only — not brand art.
+
 | URL | Use |
 |-----|-----|
-| `https://pbs.twimg.com/profile_images/556455602331742208/KWkVe0TV.jpeg` | Avatar / desk mark |
+| `https://pbs.twimg.com/profile_images/556455602331742208/KWkVe0TV.jpeg` | Optional tape only — **not** logo / favicon / desk mark |
 | `https://pbs.twimg.com/media/HMGsRZ8XgAEEPrS.jpg` | Tape / strip |
 | `https://pbs.twimg.com/media/HOpfTEyaIAAOVPy.jpg` | Tape |
 | `https://pbs.twimg.com/media/HN37QhRXkAALZR4.jpg` | Tape |
@@ -170,8 +189,8 @@ Deadpan, lowercase energy, social, slightly mean, anti-roadmap. Prefer **her pos
 | `https://pbs.twimg.com/media/HMu99HxXkAENYKI.jpg` | Perry Spain bit (label third-party) |
 | `https://pbs.twimg.com/media/Gkoqvc4WIAAYPJM.jpg` | Press/culture still |
 | `https://pbs.twimg.com/media/HHTIOCcXUAAcsUF.jpg` | Meme-culture still |
-| Dex token CMS | Desk token image |
-| Wikimedia portrait | `https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Dasha_Nekrasova.jpg/440px-Dasha_Nekrasova.jpg` — press/bio only; optional |
+| Dex token CMS | Token image, not the cherries mark |
+| Wikimedia portrait | `https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Dasha_Nekrasova.jpg/440px-Dasha_Nekrasova.jpg` — press/bio only; optional; never the mark |
 
 Catbox assets (`skjqyu`, `nid4qy`, `qnvc7b`, `gpjyb0`) exist for offline/share tools but **home landing must not reintroduce gpjyb0 hero**.
 
@@ -199,24 +218,44 @@ Use these as **aesthetic references**, not product pledges:
 
 | Surface | Job | Culture hooks |
 |---------|-----|----------------|
-| Home `/` | Studio, Lobby, Board, mint and buy entry | Sparse culture imagery; every remote asset keeps source context |
-| Studio `/studio` | Meme and image editor | Procedural looks plus local upload and a sourced Dasha image gallery |
-| Desk `/dasha` | Mint, chart, neutral share pack | Source-linked culture stills and token references |
-| How-to-buy `/how-to-buy` | Live edge-served buy ladder | Source post + @dash_eats footer/nav |
+| Home `/` | **First paint is the real hero** (`#content`). No `#dasha-home-cta` decoy. Above the fold at 1280×800: wordmark + one-line what-this-is, display h1, ONE acid CTA onto a finished surface, one quiet secondary, poster stack in-viewport. CA/BUY live in `#token`, not leading nav. Acid band/ticker required and live. | Sparse. One optional culture still max. `@dash_eats` in nav, not only footer. |
+| Simp `/simp` | **Playable quiz** on first HTML. Same type and tokens as home / studio. Not an unstyled handle list. | Same client as any in-hero quiz. No email gate. |
+| Studio `/studio` | Meme and image editor. First paint is a real poster, not an empty PHOTO stage. | Procedural looks plus local upload and a sourced Dasha image gallery |
+| Lobby — one URL | Pick `www.getdasha.com/lobby` **or** `lobby.getdasha.com/lobby`; 308 the other. Simp Board + GitHub/X OAuth for board identity. | Few clicks. No promises. Not Demigod status/black-hole. Not two layouts. |
+| Desk `/dasha` | Mint, chart, neutral share pack | Five tokens only — not lavender glass. Source-linked culture stills and token references. |
+| Board `/bounties` | **First-class.** Anybody with GitHub can list or claim a USDC bounty on Solana. Native mount — iframe is not the product. | GitHub required to list/claim. X optional (same lobby session as Simp Board). USDC declared. We don't hold it. Require `payTo`. Solana Pay URL must include a `reference`. |
+| How-to-buy `/how-to-buy` | Live edge-served buy ladder | Source post + `@dash_eats` in nav, not only footer |
+
+Board is not a widget on Home. Ship it as its own route with `bounties/board.css` tokens.
 
 ---
 
 ## 8. Design checklist (ship gate)
 
-- [x] Direct link to `https://x.com/dash_eats` on home + studio + desk (disk prepared)  
-- [x] Mint source post URL present  
-- [x] ≥4 culture images on home (twimg/dex), with honest caption  
-- [x] No catbox casino hero on home  
-- [x] No thesis/receipt language on home  
-- [x] No telegram community  
-- [x] No blanket footer disclaimer; exact source and rights context stays where needed
-- [x] Buy CTAs = exact Jupiter + mint  
-- [ ] **Published** on live Webflow (blocked without current-request re-auth)  
+- [ ] Home acid band / ticker is **live** (repeating uppercase on acid). Empty markup plus `animation: none` fails.
+- [ ] Home first paint is the real hero. **No `#dasha-home-cta`**, no 100vh Webflow-embed decoy, no second h1 before `#content`.
+- [ ] `/simp` is the playable quiz on first HTML (same type/color as home), not a raw `<ol>` of handles.
+- [ ] Forum is **not** in footer or nav. Do not link a path that only says the forum is not here.
+- [ ] Body background is ink `#070608`, not `#1F041C`. One type + color system on every public route.
+- [ ] At most **one** optional culture still on home (twimg/dex), with source + honest alt + caption. Not a gallery.
+- [ ] No Nekrasova likeness as logo, favicon, or Desk mark. Cherries on ink.
+- [ ] `@dash_eats` in **nav** on home + studio + desk + board + how-to-buy — not only footer.
+- [ ] Desk uses the five tokens (ink/paper/acid/hot/violet) — not lavender glass (`#c4a5ff`, `#f6f1ff`, soft `0 8px 24px`, `backdrop-filter` as the look, `system-ui` as display, gradient CTA `#7c3aed`).
+- [ ] No Exo / Bangers / Raleway (Webflow must not load a second font stack).
+- [ ] No Demigod `.dgnav` class names on Dasha surfaces.
+- [ ] No gradient behind body text.
+- [ ] Direct link to `https://x.com/dash_eats` on home + studio + desk + board.
+- [ ] Mint source post URL present.
+- [ ] No catbox casino hero on home.
+- [ ] No thesis/receipt language on home.
+- [ ] No telegram community.
+- [ ] No blanket footer disclaimer; exact source and rights context stays where needed.
+- [ ] Buy CTAs = exact Jupiter + mint.
+- [ ] Board: GitHub required to list/claim; X optional; USDC declared; we don't hold it; `payTo` required; Solana Pay `reference` present; native mount (no iframe as the product).
+- [ ] Board GitHub CTA says **GitHub soon** when lobby OAuth is unconfigured.
+- [ ] **Published** on live Webflow (blocked without current-request re-auth).
+
+Dropped 2026-08-13: “≥4 culture images on home.” That gate produced a likeness collage. Wrong.
 
 ---
 
@@ -230,14 +269,18 @@ Use these as **aesthetic references**, not product pledges:
 | 2026-08-07–08 | X keyword scrape @dash_eats + @PerryALPHA | Coin-week timeline, not-the-dev line, Perry media IDs |
 | 2026-08-08 | Internet bio sweep | Wikipedia, Vulture, Red Scare Cut, Spotify |
 | 2026-08-08 | Site wiring | Home tape + @dash_eats nav; desk avatar→pbs; studio/howto X links |
+| 2026-08-13 | Visual-spine overhaul | Board first-class; ticker required; likeness out of the mark; Desk must match landing tokens; GitHub-soon honesty |
+| 2026-08-14 | Live 1280×800 first-time visitor on www.getdasha.com | User-test lock: kill `#dasha-home-cta`; `/simp` is the quiz; Forum is not a live surface; one type/color system; one lobby URL |
 
 ---
 
 ## 10. For agents
 
-1. Read this file before changing landing copy or visuals.  
-2. Prefer weakest sufficient claim (public post / association).  
-3. When adding images: hotlink + `referrerpolicy="no-referrer"` + alt text + culture caption.  
-4. Publish still requires current-request Webflow auth.  
+1. Read this file **and** [`DASHA-ART-DIRECTION.md`](DASHA-ART-DIRECTION.md) before changing landing copy or visuals. Art direction wins on shipped brand art.
+2. Prefer weakest sufficient claim (public post / association).
+3. When adding optional tape: hotlink + `referrerpolicy="no-referrer"` + alt text + culture caption. Do not make it the logo.
+4. Do not invent a sixth colour. Do not load Exo/Bangers/Raleway. Do not put Demigod status/black-hole on Dasha home.
+5. Home first paint is the real hero. `/simp` is a quiz. Forum is not a live surface. Honest empty states only.
+6. Publish still requires current-request Webflow auth.
 
 **Primary outbound culture link:** [x.com/dash_eats](https://x.com/dash_eats)

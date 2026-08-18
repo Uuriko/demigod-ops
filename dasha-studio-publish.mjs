@@ -145,6 +145,21 @@ if (!readme.includes(versionedName)) {
   throw new Error('dasha-studio-readme.md snippet does not point at the fingerprinted embed');
 }
 files.set('README.md', readme);
+
+/* loader.html — the GitHub Pages thin loader. It pins the fingerprinted Pages embed (not the
+   Webflow lobby client), so a changed Pages asset fails closed instead of silently executing. It
+   is generated from dasha-studio-loader.html with the same fingerprint + SRI as the README snippet,
+   which is what keeps its pin from going stale every time the Studio changes. */
+const loader = (await read('dasha-studio-loader.html'))
+  .replace(/embed\.js"/g, `${versionedName}"`)
+  .replace(/integrity="sha384-[A-Za-z0-9+/=]+"/g, `integrity="${publishedSri}"`);
+if (!loader.includes(versionedName)) {
+  throw new Error('dasha-studio-loader.html does not point at the fingerprinted embed');
+}
+if (!loader.includes(publishedSri)) {
+  throw new Error('dasha-studio-loader.html has no integrity="sha384-…" to update — the loader lost its pin');
+}
+files.set('loader.html', loader);
 files.set('studio.test.mjs', await read('dasha-studio-static.test.mjs'));
 
 if (check) {

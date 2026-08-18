@@ -17,6 +17,7 @@
   .lp-id{display:flex;align-items:baseline;gap:9px;margin-right:auto;min-width:0}
   .lp-id b{font-size:19px;font-weight:950;letter-spacing:-.03em}
   .lp-id b span{color:var(--acid)}
+  .lp-room{margin:0;width:100%;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
 
   /* The composer, on a page where it is the only thing to type into. The counters sit inline with
      their fields rather than claiming their own rows: three rows of chrome under a chat is the
@@ -126,7 +127,8 @@
   .df-post{padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.28)}
   .df-body{margin:6px 0 0;font-size:15px;line-height:1.55;overflow-wrap:anywhere}
   .df-body a{color:var(--acid);font-weight:800;text-underline-offset:3px}
-  .df-back{min-height:44px;padding:0 14px;margin:0 0 12px;border:1px solid var(--line);border-radius:999px;
+  .df-tools{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+  .df-back{min-height:44px;padding:0 14px;margin:0;border:1px solid var(--line);border-radius:999px;
     background:rgba(255,255,255,.06);color:var(--paper);font:inherit;font-weight:800;font-size:12px;
     letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
   .df-back:hover{border-color:var(--acid);color:var(--acid)}
@@ -198,6 +200,7 @@
     <a class="lp-back" href="/">← $dasha</a>
     <a class="lp-back" href="https://lobby.getdasha.com/forum" style="margin-left:auto">Forum</a>
     <span class="lp-id"><b>$<span>dasha</span> lobby</b></span>
+    <p class="lp-room">Official room. No Telegram. No Discord.</p>
   </header>
 
   <div class="lp-hold">
@@ -206,4 +209,4 @@
   </div>
 </div>
 
-<script>(function(){var s=document.createElement('script');s.src='https://lobby.getdasha.com/client/lobby.js';s.integrity='sha384-fet8Bw+WiNBtGR2I4mj67Pk8Xv3WsVe4FvNEHBsjIoUvglQBomg5UPprS72dKEKb';s.crossOrigin='anonymous';s.defer=true;document.head.appendChild(s)})();</script>
+<script>(function(){var s=document.createElement('script');s.src='https://lobby.getdasha.com/client/lobby.js';s.integrity='sha384-LQsS+KX85eZNJ70lm4DaldCqBM1y3lnm1UgB9Gqm4w/l8j+LniYOGc2oOhyuRjQd';s.crossOrigin='anonymous';s.defer=true;document.head.appendChild(s)})();</script>
