@@ -33,8 +33,11 @@ import { allowWebhookRequest, webhookClientIp } from './demigod-webhook-rate-lim
 import {
   authenticate as authenticateAccount,
   can as roleCan,
+  changePassword,
+  findUser,
   issueSession,
   loadAccounts,
+  saveAccounts,
   verifyApiKey,
   verifySession,
 } from './demigod-die-accounts.mjs';
@@ -876,7 +879,8 @@ export function createDieWebServer() {
     const missionGet = url.pathname.match(/^\/api\/v1\/roles\/([^/]+)\/mission$/);
     const missionAct = url.pathname.match(/^\/api\/v1\/roles\/([^/]+)\/mission\/actions$/);
     const gatePost = url.pathname === '/login' || url.pathname === '/logout';
-    if (!['GET', 'HEAD'].includes(method) && !(method === 'POST' && (missionAct || gatePost))) {
+    const passwordPost = url.pathname === '/api/v1/account/password';
+    if (!['GET', 'HEAD'].includes(method) && !(method === 'POST' && (missionAct || gatePost || passwordPost))) {
       sendJson(res, 405, { ok: false, error: 'method_not_allowed' }, false, { Allow: 'GET, HEAD, POST' });
       return;
     }
@@ -1039,6 +1043,42 @@ export function createDieWebServer() {
           access: accessState(context),
           release: RELEASE_ID,
         }, head, noindex);
+      } else if (passwordPost) {
+        /* A person changing their own password, having proved the current one.
+           Explicitly NOT reachable with an API key: a key is a machine credential, and letting one
+           set its owner's password would turn "this key leaked" into "this account is gone". The
+           key holder can still be the same person — they can sign in and do it in a browser. */
+        if (context.via === 'api_key') {
+          sendJson(res, 403, { ok: false, error: 'password_change_requires_a_session' }, head);
+          return;
+        }
+        if (!context.email || !SESSION_SECRET) {
+          sendJson(res, 403, { ok: false, error: 'password_change_requires_an_account' }, head);
+          return;
+        }
+        const body = await readJsonBody(req, 4096);
+        const changed = changePassword(loadAccounts(), context.email,
+          String(body.currentPassword || ''), String(body.newPassword || ''));
+        if (!changed.ok) {
+          noteLoginFail(clientIp(req));
+          sendJson(res, 403, { ok: false, error: 'invalid_credentials' }, head);
+          return;
+        }
+        saveAccounts(changed.doc);
+        logEvent({ level: 'info', event: 'password_changed', account: context.email });
+        /* The epoch bump just invalidated every session for this account, including the one that
+           asked. Handing back a fresh cookie means the person who made the change stays signed in
+           while everyone else holding an old one does not — which is the outcome they wanted. */
+        const fresh = issueSession({ email: context.email, role: context.role, sessionEpoch: findUser(changed.doc, context.email)?.sessionEpoch }, SESSION_SECRET);
+        res.writeHead(200, {
+          ...baseHeaders,
+          ...noindex,
+          'Content-Type': 'application/json; charset=utf-8',
+          // Secure only when hosted, matching the login handler — hardcoding it makes the
+          // replacement cookie undeliverable in any plain-HTTP context the login itself supports.
+          'Set-Cookie': `${GATE_COOKIE}=${fresh}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${Math.floor(GATE_MS / 1000)}${context.hosted ? '; Secure' : ''}`,
+        });
+        res.end(`${JSON.stringify({ ok: true, otherSessionsEnded: true })}\n`);
       } else if (url.pathname === '/api/v1/companies') {
         sendJson(res, 200, companyList(url.searchParams), head);
       } else if (url.pathname.startsWith('/api/v1/companies/')) {

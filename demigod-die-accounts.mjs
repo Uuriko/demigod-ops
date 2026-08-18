@@ -137,7 +137,13 @@ export function issueSession(user, secret, { now = Date.now(), ttlMs = SESSION_T
   if (!secret) throw new Error('accounts: refusing to sign a session with no secret');
   const expiry = String(now + ttlMs);
   const body = `${Buffer.from(email).toString('base64url')}.${expiry}`;
-  const mac = crypto.createHmac('sha256', secret).update(body).digest('base64url');
+  /* The epoch is MAC input, not a token field.
+     Changing a password has to end the sessions that were open when it changed — otherwise
+     "someone has my password, I changed it" leaves the intruder logged in, which is the moment a
+     password change is usually made. Signing it in rather than adding a fourth segment keeps the
+     three-part shape that distinguishes an account session from the legacy anonymous cookie, and
+     verification recomputes with the CURRENT epoch: bump it and every old cookie stops matching. */
+  const mac = crypto.createHmac('sha256', secret).update(`${body}.${user?.sessionEpoch ?? 0}`).digest('base64url');
   return `${body}.${mac}`;
 }
 
@@ -152,14 +158,18 @@ export function verifySession(value, secret, doc, { now = Date.now() } = {}) {
   if (parts.length !== 3) return { ok: false, reason: 'malformed' };
   const [emailB64, expiry, mac] = parts;
   if (!/^\d{11,15}$/.test(expiry)) return { ok: false, reason: 'malformed' };
-  const expected = crypto.createHmac('sha256', secret).update(`${emailB64}.${expiry}`).digest('base64url');
+  /* The account is resolved BEFORE the signature is checked, because the epoch that was signed in
+     lives on the account and the expected MAC cannot be computed without it. Rejection shape is
+     identical either way, so this still says nothing about whether an address exists. */
+  let email;
+  try { email = Buffer.from(emailB64, 'base64url').toString('utf8'); } catch { return { ok: false, reason: 'malformed' }; }
+  const user = findUser(doc, email);
+  const expected = crypto.createHmac('sha256', secret)
+    .update(`${emailB64}.${expiry}.${user?.sessionEpoch ?? 0}`).digest('base64url');
   const a = Buffer.from(mac);
   const b = Buffer.from(expected);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return { ok: false, reason: 'bad_signature' };
   if (Number(expiry) <= now) return { ok: false, reason: 'expired' };
-  let email;
-  try { email = Buffer.from(emailB64, 'base64url').toString('utf8'); } catch { return { ok: false, reason: 'malformed' }; }
-  const user = findUser(doc, email);
   if (!user) return { ok: false, reason: 'no_such_user' };
   if (user.disabledAt) return { ok: false, reason: 'disabled' };
   if (!ROLES[user.role]) return { ok: false, reason: 'unknown_role' };
@@ -194,9 +204,50 @@ export function upsertUser(doc, { email, password, role = 'viewer', reinstate = 
     updatedAt: now,
     disabledAt: reinstate ? null : (previous?.disabledAt ?? null),
     keys: previous?.keys || [],
+    /* Any password change ends open sessions, however it was made. changePassword bumps this for
+       the self-service path; an admin resetting a forgotten password here has to do the same, or
+       the reset leaves exactly the sessions it was meant to cut off still working. */
+    sessionEpoch: (previous?.sessionEpoch ?? 0) + (password && previous ? 1 : 0),
   });
   if (!users[users.length - 1].passwordHash) throw new Error('accounts: a new account needs a password');
   return { ...doc, users };
+}
+
+/**
+ * PURE. Change a password, having proved the current one, and end every session open at the time.
+ *
+ * Requiring the current password is what stops a borrowed browser from becoming a permanent
+ * takeover. Bumping sessionEpoch is what makes the change mean something: a password is usually
+ * changed precisely because someone else may have it, and leaving their existing cookie working
+ * would answer that with nothing. API keys are deliberately NOT revoked — a key is a separate
+ * credential with its own revocation, and silently killing a team's automation because a person
+ * rotated their own password would be a surprise, not a security win.
+ */
+export function changePassword(doc, email, currentPassword, newPassword, { now = new Date().toISOString() } = {}) {
+  const auth = authenticate(doc, email, currentPassword);
+  if (!auth.ok) return { ok: false, reason: 'invalid' };
+  const id = normalizeEmail(email);
+  const hash = hashPassword(newPassword); // throws on a password under 12 characters
+  return {
+    ok: true,
+    doc: {
+      ...doc,
+      users: (doc.users || []).map((u) => (normalizeEmail(u?.email) === id
+        ? { ...u, passwordHash: hash, updatedAt: now, sessionEpoch: (u.sessionEpoch ?? 0) + 1 }
+        : u)),
+    },
+  };
+}
+
+/** PURE. End every session for an account without changing anything else about it. */
+export function revokeSessions(doc, email, { now = new Date().toISOString() } = {}) {
+  const id = normalizeEmail(email);
+  return {
+    ...doc,
+    users: (doc.users || []).map((u) => (normalizeEmail(u?.email) === id
+      ? { ...u, updatedAt: now, sessionEpoch: (u.sessionEpoch ?? 0) + 1 }
+      : u)),
+  };
 }
 
 /** PURE. Disable an account. Its live sessions stop verifying immediately, by construction. */
@@ -393,6 +444,47 @@ function selftest() {
   bad = false;
   try { upsertUser({ users: [] }, { email: 'b@example.com', role: 'viewer' }); } catch { bad = true; }
   assert(bad, 'a new account without a password is refused');
+
+  // --- password change ends open sessions ---
+  {
+    let d0 = upsertUser({ users: [] }, { email: 'p@example.com', password: 'first password here', role: 'operator' });
+    const sec = 'signing-key-for-the-session-tests-32+';
+    const before = issueSession(findUser(d0, 'p@example.com'), sec);
+    assert(verifySession(before, sec, d0).ok, 'a session works before the password changes');
+
+    assert(!changePassword(d0, 'p@example.com', 'wrong password xx', 'second password here').ok,
+      'the current password must be proved before it can be replaced');
+    const changed = changePassword(d0, 'p@example.com', 'first password here', 'second password here');
+    assert(changed.ok, 'the right current password permits the change');
+    assert(!verifySession(before, sec, changed.doc).ok,
+      'a session open when the password changed must stop working — that is the whole point of changing it');
+    assert(authenticate(changed.doc, 'p@example.com', 'second password here').ok, 'the new password works');
+    assert(!authenticate(changed.doc, 'p@example.com', 'first password here').ok, 'the old one does not');
+    const after = issueSession(findUser(changed.doc, 'p@example.com'), sec);
+    assert(verifySession(after, sec, changed.doc).ok, 'and a session issued after the change works');
+
+    let short = false;
+    try { changePassword(d0, 'p@example.com', 'first password here', 'tiny'); } catch { short = true; }
+    assert(short, 'a replacement under twelve characters is refused like any other password');
+
+    // keys survive a password change; they have their own revocation
+    const withKey = issueApiKey(d0, { email: 'p@example.com', label: 'ci' });
+    const rotated = changePassword(withKey.doc, 'p@example.com', 'first password here', 'third password here');
+    assert(verifyApiKey(withKey.secret, rotated.doc).ok,
+      'rotating a password does not silently kill a team automation that has its own revocation');
+
+    const cut = revokeSessions(d0, 'p@example.com');
+    assert(!verifySession(before, sec, cut).ok, 'sessions can be ended without changing the password');
+
+    // an admin reset must cut sessions too, or the reset leaves in the person it was meant to lock out
+    const adminReset = upsertUser(d0, { email: 'p@example.com', password: 'admin chosen password', role: 'operator' });
+    assert(!verifySession(before, sec, adminReset).ok,
+      'an admin resetting a forgotten password also ends the sessions open at the time');
+    // but a role edit with no new password must NOT log everyone out
+    const roleEdit = upsertUser(d0, { email: 'p@example.com', role: 'admin' });
+    assert(verifySession(before, sec, roleEdit).ok,
+      'changing only a role is not a credential change and must not end sessions');
+  }
 
   // --- API keys ---
   assert(effectiveRole('admin', 'viewer') === 'viewer' && effectiveRole('viewer', 'admin') === 'viewer',
