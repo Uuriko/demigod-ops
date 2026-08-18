@@ -1,35 +1,23 @@
 {
  "schema": "demigod.board-discover/1",
- "at": "2026-08-18T05:08:16.087Z",
- "considered": 639,
- "verified": 20,
- "mismatched": 8,
- "none": 611,
- "applied": 20,
+ "at": "2026-08-18T12:45:20.634Z",
+ "considered": 621,
+ "verified": 5,
+ "mismatched": 9,
+ "none": 607,
+ "applied": 5,
  "rows": [
   {
-   "id": "yc:apollo",
-   "name": "Apollo",
-   "website": "https://apollographql.com/",
-   "foundOn": "https://apollographql.com/careers",
+   "id": "yc:accord",
+   "name": "Accord",
+   "website": "https://inaccord.com/",
+   "foundOn": "https://inaccord.com/company/about",
    "state": "verified",
    "provider": "Ashby",
-   "slug": "apollo-graphql",
-   "owner": "https://www.apollographql.com/",
+   "slug": "accord",
+   "owner": "https://inaccord.com/",
    "via": "owner matches our website",
-   "url": "https://jobs.ashbyhq.com/apollo-graphql"
-  },
-  {
-   "id": "yc:athenahq",
-   "name": "AthenaHQ",
-   "website": "https://www.athenahq.ai/",
-   "foundOn": "https://www.athenahq.ai/careers",
-   "state": "verified",
-   "provider": "Ashby",
-   "slug": "athena-hq",
-   "owner": "https://www.athenahq.ai/",
-   "via": "owner matches our website",
-   "url": "https://jobs.ashbyhq.com/athena-hq"
+   "url": "https://jobs.ashbyhq.com/Accord"
   },
   {
    "id": "yc:athelas",
@@ -41,18 +29,6 @@
    "owner": "https://www.commure.com",
    "reason": "the board belongs to a different company",
    "url": "https://jobs.ashbyhq.com/Commure"
-  },
-  {
-   "id": "yc:atomic",
-   "name": "Atomic",
-   "website": "https://www.atomicvest.com/",
-   "foundOn": "https://www.atomicvest.com/careers",
-   "state": "verified",
-   "provider": "Ashby",
-   "slug": "atomic-invest",
-   "owner": "https://www.atomicvest.com/",
-   "via": "owner matches our website",
-   "url": "https://jobs.ashbyhq.com/atomic-invest"
   },
   {
    "id": "yc:candid-health",
@@ -99,30 +75,6 @@
    "url": "https://jobs.ashbyhq.com/fathom.video"
   },
   {
-   "id": "yc:every",
-   "name": "Every",
-   "website": "https://every.io/",
-   "foundOn": "https://every.io/",
-   "state": "verified",
-   "provider": "Ashby",
-   "slug": "every-io",
-   "owner": "https://www.every.io",
-   "via": "owner matches our website",
-   "url": "https://jobs.ashbyhq.com/every-io"
-  },
-  {
-   "id": "yc:flai",
-   "name": "Flai",
-   "website": "https://www.useflai.com/",
-   "foundOn": "https://www.useflai.com/",
-   "state": "verified",
-   "provider": "Ashby",
-   "slug": "flai",
-   "owner": "https://useflai.com",
-   "via": "owner matches our website",
-   "url": "https://jobs.ashbyhq.com/flai"
-  },
-  {
    "id": "yc:giga",
    "name": "Giga",
    "website": "https://giga.ai/",
@@ -132,6 +84,17 @@
    "owner": "https://gigaml.com/",
    "reason": "the board belongs to a different company",
    "url": "https://jobs.ashbyhq.com/gigaml"
+  },
+  {
+   "id": "yc:govly",
+   "name": "Govly",
+   "website": "https://www.govly.com/",
+   "foundOn": "https://www.govly.com/careers",
+   "state": "verified",
+   "provider": "Rippling",
+   "slug": "govly-inc",
+   "via": "the company linked this board and its feed returned 4 roles",
+   "url": "https://ats.rippling.com/govly-inc"
   },
   {
    "id": "yc:inscribe",
@@ -146,28 +109,15 @@
    "url": "https://jobs.ashbyhq.com/InscribeAI"
   },
   {
-   "id": "yc:ironclad",
-   "name": "Ironclad",
-   "website": "https://ironcladapp.com/",
-   "foundOn": "https://ironcladapp.com/careers",
+   "id": "yc:just-appraised",
+   "name": "Just Appraised",
+   "website": "https://www.justappraised.com/",
+   "foundOn": "https://www.justappraised.com/careers",
    "state": "verified",
-   "provider": "Ashby",
-   "slug": "ironcladhq",
-   "owner": "https://ironcladapp.com/",
-   "via": "owner matches our website",
-   "url": "https://jobs.ashbyhq.com/ironcladhq"
-  },
-  {
-   "id": "yc:lago",
-   "name": "Lago",
-   "website": "https://www.getlago.com/",
-   "foundOn": "https://www.getlago.com/careers",
-   "state": "verified",
-   "provider": "Ashby",
-   "slug": "lago",
-   "owner": "https://www.getlago.com",
-   "via": "owner matches our website",
-   "url": "https://jobs.ashbyhq.com/lago"
+   "provider": "Rippling",
+   "slug": "just-appraised-jobs",
+   "via": "the company linked this board and its feed returned 5 roles",
+   "url": "https://ats.rippling.com/just-appraised-jobs"
   },
   {
    "id": "yc:nash",
@@ -182,78 +132,6 @@
    "url": "https://jobs.ashbyhq.com/Nash"
   },
   {
-   "id": "yc:pave-2",
-   "name": "Pave",
-   "website": "https://pave.com/",
-   "foundOn": "https://pave.com/careers",
-   "state": "verified",
-   "provider": "Greenhouse",
-   "slug": "paveakatroveinformationtechnologies",
-   "owner": "https://www.pave.com/",
-   "via": "owner matches our website",
-   "url": "https://job-boards.greenhouse.io/paveakatroveinformationtechnologies"
-  },
-  {
-   "id": "yc:ploy",
-   "name": "Ploy",
-   "website": "https://ploy.ai/",
-   "foundOn": "https://ploy.ai/careers",
-   "state": "verified",
-   "provider": "Ashby",
-   "slug": "ployai",
-   "owner": "https://ploy.ai/",
-   "via": "owner matches our website",
-   "url": "https://jobs.ashbyhq.com/ployai"
-  },
-  {
-   "id": "yc:prodigal",
-   "name": "Prodigal",
-   "website": "https://prodigaltech.com/",
-   "foundOn": "https://prodigaltech.com/careers",
-   "state": "verified",
-   "provider": "Greenhouse",
-   "slug": "prodigal",
-   "owner": "https://www.prodigaltech.com/",
-   "via": "owner matches our website",
-   "url": "https://job-boards.greenhouse.io/prodigal"
-  },
-  {
-   "id": "yc:signoz",
-   "name": "SigNoz",
-   "website": "https://signoz.io/",
-   "foundOn": "https://signoz.io/careers",
-   "state": "verified",
-   "provider": "Ashby",
-   "slug": "signoz",
-   "owner": "https://signoz.io",
-   "via": "owner matches our website",
-   "url": "https://jobs.ashbyhq.com/SigNoz"
-  },
-  {
-   "id": "yc:slash",
-   "name": "Slash",
-   "website": "https://www.slash.com/",
-   "foundOn": "https://www.slash.com/careers",
-   "state": "verified",
-   "provider": "Ashby",
-   "slug": "slash-financial",
-   "owner": "https://www.slash.com/",
-   "via": "owner matches our website",
-   "url": "https://jobs.ashbyhq.com/slash-financial"
-  },
-  {
-   "id": "yc:strada",
-   "name": "Strada",
-   "website": "https://www.getstrada.com/",
-   "foundOn": "https://www.getstrada.com/about",
-   "state": "verified",
-   "provider": "Ashby",
-   "slug": "stradahq",
-   "owner": "https://www.getstrada.com/",
-   "via": "owner matches our website",
-   "url": "https://jobs.ashbyhq.com/stradahq"
-  },
-  {
    "id": "yc:variance",
    "name": "Variance",
    "website": "https://www.variance.com/",
@@ -263,30 +141,6 @@
    "owner": "https://variance.co",
    "reason": "the board belongs to a different company",
    "url": "https://jobs.ashbyhq.com/intrinsic-safety"
-  },
-  {
-   "id": "yc:weekend-fmr-volley",
-   "name": "Weekend (fmr. Volley)",
-   "website": "https://weekend.com/",
-   "foundOn": "https://weekend.com/careers",
-   "state": "verified",
-   "provider": "Ashby",
-   "slug": "weekend",
-   "owner": "https://www.weekend.com/",
-   "via": "owner matches our website",
-   "url": "https://jobs.ashbyhq.com/weekend"
-  },
-  {
-   "id": "yc:within",
-   "name": "Within",
-   "website": "https://within.ai/",
-   "foundOn": "https://within.ai/careers",
-   "state": "verified",
-   "provider": "Ashby",
-   "slug": "within-ai",
-   "owner": "https://www.within.ai/",
-   "via": "owner matches our website",
-   "url": "https://jobs.ashbyhq.com/within-ai"
   },
   {
    "id": "yc:wordware",
@@ -300,40 +154,15 @@
    "url": "https://jobs.ashbyhq.com/sauna.ai"
   },
   {
-   "id": "hn:neonhealth.com",
-   "name": "Neon Health",
-   "website": "https://neonhealth.com/",
-   "foundOn": "https://neonhealth.com/careers",
-   "state": "verified",
+   "id": "hn:careerjumpship.com",
+   "name": "CareerJumpShip",
+   "website": "https://careerjumpship.com/",
+   "state": "mismatch",
    "provider": "Ashby",
-   "slug": "neon-health",
-   "owner": "https://neonhealth.com/",
-   "via": "owner matches our website",
-   "url": "https://jobs.ashbyhq.com/neon-health"
-  },
-  {
-   "id": "hn:jobs.ashbyhq.com/runway-ml",
-   "name": "Runway",
-   "website": "https://runwayml.com/",
-   "foundOn": "https://runwayml.com/careers",
-   "state": "verified",
-   "provider": "Ashby",
-   "slug": "runway-ml",
-   "owner": "https://runwayml.com/",
-   "via": "owner matches our website",
-   "url": "https://jobs.ashbyhq.com/runway-ml"
-  },
-  {
-   "id": "hn:typesafe.ai",
-   "name": "TypeSafe AI",
-   "website": "https://typesafe.ai/",
-   "foundOn": "https://typesafe.ai/careers",
-   "state": "verified",
-   "provider": "Ashby",
-   "slug": "typesafe-ai",
-   "owner": "https://www.typesafe.ai",
-   "via": "owner matches our website",
-   "url": "https://jobs.ashbyhq.com/typesafe-ai"
+   "slug": "baseten",
+   "owner": "https://www.baseten.co/",
+   "reason": "the board belongs to a different company",
+   "url": "https://jobs.ashbyhq.com/baseten"
   }
  ]
 }

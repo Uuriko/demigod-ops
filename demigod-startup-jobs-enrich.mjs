@@ -14,6 +14,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 import { websiteHostKey } from './demigod-startup-map-data.mjs';
 import {
+  rippling as fetchRipplingRoles,
   workable as fetchWorkableRoles,
   personio as fetchPersonioRoles,
   recruitee as fetchRecruiteeRoles,
@@ -902,6 +903,32 @@ async function workable(slug) {
   return ownerWebsite ? { ...result, ownerWebsite } : null;
 }
 
+/**
+ * Rippling exposes no owner anywhere on its board or feed, so the usual proof is unavailable and
+ * this fails closed a different way: it counts a board ONLY when demigod-board-discover already
+ * found the link on a page served by the company's own domain, and recorded where.
+ *
+ * That is a real but weaker claim than the others make. Greenhouse, Lever and Ashby say "this board
+ * belongs to acme.com" and we check it. Here the company's own careers page says "our jobs are
+ * here", which a careers page can get wrong — Cargo links Customer.io's board, and only Greenhouse
+ * naming its owner caught that. The compensating guard is that the evidence has to come from the
+ * company's own host; a link found anywhere else counts for nothing.
+ */
+async function rippling(slug, company) {
+  const foundOn = company?.boardEvidence?.foundOn;
+  if (!foundOn) return null;
+  if (!websiteHostKey(foundOn) || websiteHostKey(foundOn) !== websiteHostKey(company?.website)) return null;
+  const feed = await fetchRipplingRoles(slug);
+  if (!feed?.ok) return null;
+  const found = hit(
+    feed.roles.filter((job) => isUsPostedLocation(locationBlob(job?.location))),
+    (job) => job?.title,
+    `https://ats.rippling.com/${slug}`,
+    'Rippling',
+  );
+  return found ? { ...found, ownedBy: 'careers-page' } : null;
+}
+
 // AR-28 secondary providers: fail closed without owner evidence (same honesty as Workable).
 async function personio(slug) {
   const feed = await fetchPersonioRoles(slug);
@@ -951,14 +978,20 @@ async function smartrecruiters(slug) {
 
 /** Exact board repair path: unlike broad discovery, missing owner evidence fails closed. */
 export async function fetchOwnedAtsBoard(company, slug, provider) {
-  const probe = { Greenhouse: greenhouse, Lever: lever, Ashby: ashby, Workable: workable }[provider];
+  const probe = { Greenhouse: greenhouse, Lever: lever, Ashby: ashby, Workable: workable, Rippling: rippling }[provider];
   if (!probe || !String(slug || '').trim()) return null;
-  const found = await probe(String(slug).trim());
-  if (
-    !found?.ownerWebsite ||
-    !sameWebsiteOwner(company?.website, found.ownerWebsite) ||
-    hasDeniedAtsBoard({ ...company, atsSource: found.ats, jobsUrl: found.jobsUrl })
-  ) return null;
+  const found = await probe(String(slug).trim(), company);
+  if (!found || hasDeniedAtsBoard({ ...company, atsSource: found.ats, jobsUrl: found.jobsUrl })) return null;
+  /* Two ways a board may be proved ours, and they are not equal.
+     - ownerWebsite: the board itself names the company. Greenhouse, Lever, Ashby and Workable all
+       publish this, and it is the strong form, because it survives a careers page being wrong.
+     - ownedBy 'careers-page': the company's own domain published the link, checked inside the probe.
+       Rippling exposes no owner anywhere, so this is the only evidence available for it.
+     The weak form is named rather than silently folded in, so a row's provenance can be read off
+     the code instead of inferred. Everything except Rippling still fails closed without the strong
+     form. */
+  if (found.ownedBy === 'careers-page') return found;
+  if (!found.ownerWebsite || !sameWebsiteOwner(company?.website, found.ownerWebsite)) return null;
   return found;
 }
 
