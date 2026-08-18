@@ -65,6 +65,67 @@ export function postingAgeIndex(aging = {}) {
   };
 }
 
+/**
+ * The only date field this codebase treats as a real posting date.
+ *
+ * `postedDaysAgo` in demigod-role-ledger.mjs has always required it, and the reason is that the
+ * alternatives do not mean what they look like: `createdAt` is when the record was made and
+ * `publishedAt` can move when a role is edited, so either one can make an old role look new. Mixing
+ * them into one denominator produces a number that is indefensible the moment anyone asks how it
+ * was built.
+ */
+export const ATTRIBUTABLE_DATE_FIELD = 'first_published';
+
+/** Buckets, in days. Cumulative — a role older than 365 is also older than 30. */
+export const AGE_BUCKETS = [30, 90, 180, 365];
+
+/**
+ * PURE. The distribution of posting ages across open roles, per date-field cohort.
+ *
+ * Reported per cohort rather than pooled, because pooling is exactly the mistake that produced a
+ * headline of "69.8% of 17,110" when the defensible statement is 69.1% of the 9,602 roles carrying
+ * an attributable date. The two happen to be close here. That is luck, not method: the `createdAt`
+ * cohort runs 13 points higher, so a different mix would have moved the pooled figure and nobody
+ * would have known which part was real.
+ */
+export function ageDistribution(roles, today, { buckets = AGE_BUCKETS } = {}) {
+  const day = (value) => {
+    const ms = Date.parse(String(value || ''));
+    return Number.isFinite(ms) ? Math.round((Date.parse(today) - ms) / 86400000) : null;
+  };
+  if (!Number.isFinite(Date.parse(today))) throw new Error('posting-age: a distribution needs a real "today"');
+
+  const cohorts = {};
+  for (const role of roles || []) {
+    if (!role || role.closedAt) continue;
+    const field = role.nativeDateField || 'none';
+    const age = day(role.nativePostedAt);
+    if (age === null || age < 0) continue;
+    (cohorts[field] ||= []).push(age);
+  }
+
+  const shape = (ages) => {
+    // An empty denominator yields no share at all — never a fabricated zero. Same invariant as
+    // postingAgeIndex above, which returns null rather than divide by nothing.
+    if (!ages.length) return null;
+    const over = {};
+    for (const bucket of buckets) {
+      const n = ages.filter((age) => age > bucket).length;
+      over[bucket] = { roles: n, sharePct: Math.round((n / ages.length) * 1000) / 10 };
+    }
+    const sorted = [...ages].sort((a, b) => a - b);
+    return { denominator: ages.length, medianDays: sorted[Math.floor(sorted.length / 2)], over };
+  };
+
+  const out = { schema: 'demigod.posting-age-distribution/1', asOf: String(today).slice(0, 10), cohorts: {} };
+  for (const [field, ages] of Object.entries(cohorts)) out.cohorts[field] = shape(ages);
+  out.attributable = out.cohorts[ATTRIBUTABLE_DATE_FIELD] || null;
+  out.headline = out.attributable
+    ? { field: ATTRIBUTABLE_DATE_FIELD, ...out.attributable.over[30], denominator: out.attributable.denominator }
+    : null;
+  return out;
+}
+
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const fmt = (n) => Number(n).toLocaleString('en-US');
 
@@ -101,8 +162,51 @@ export function indexFragment(ix) {
   ].join('');
 }
 
-if (isMain && process.argv.includes('--selftest')) {
+if (isMain && process.argv.includes('--distribution')) {
+  const ledger = JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-ROLE-LEDGER.json'), 'utf8'));
+  const today = new Date().toISOString().slice(0, 10);
+  console.log(JSON.stringify(ageDistribution(Object.values(ledger.roles || {}), today), null, 1));
+  // Exit, or the unconditional `if (isMain)` below also prints the aging fragment and the combined
+  // output is not parseable JSON. The selftest block escapes the same way.
+  process.exit(0);
+} else if (isMain && process.argv.includes('--selftest')) {
   const assert = (c, m) => { if (!c) throw new Error('FAIL: ' + m); };
+
+  // --- distribution: cohorts stay separate, and an empty denominator yields no share ---
+  {
+    const R = (field, day, extra = {}) => ({ nativeDateField: field, nativePostedAt: day, ...extra });
+    const dist = ageDistribution([
+      R('first_published', '2026-08-01'),                 //  16d
+      R('first_published', '2026-06-01'),                 //  77d
+      R('first_published', '2026-01-01'),                 // 228d
+      R('first_published', '2024-01-01'),                 // 959d
+      R('createdAt', '2020-01-01'),                       // old, different cohort
+      R('first_published', '2026-08-10', { closedAt: '2026-08-12' }), // closed, excluded
+      R('first_published', null),                          // no date, excluded
+    ], '2026-08-17');
+
+    const a = dist.attributable;
+    assert(a.denominator === 4, `closed and undated roles are excluded, got ${a.denominator}`);
+    assert(a.over[30].roles === 3 && a.over[90].roles === 2, 'buckets are cumulative');
+    assert(a.over[365].roles === 1, 'the oldest bucket still counts');
+    assert(dist.cohorts.createdAt.denominator === 1, 'a weaker date field is its own cohort, never pooled');
+    assert(dist.headline.field === 'first_published', 'the headline rests on the attributable field only');
+    assert(dist.headline.denominator === 4, 'and carries its denominator');
+
+    // The invariant this file already holds: no denominator, no share.
+    const empty = ageDistribution([R('createdAt', '2026-01-01')], '2026-08-17');
+    assert(empty.attributable === null && empty.headline === null, 'no attributable roles means no headline, not 0%');
+    assert(empty.cohorts.createdAt.denominator === 1, 'the cohort that does exist is still reported');
+
+    // A future-dated posting is bad data, not a negative age.
+    const future = ageDistribution([R('first_published', '2027-01-01'), R('first_published', '2026-01-01')], '2026-08-17');
+    assert(future.attributable.denominator === 1, 'a post date in the future is dropped, not counted as fresh');
+
+    let threw = false;
+    try { ageDistribution([], 'not-a-date'); } catch { threw = true; }
+    assert(threw, 'a distribution without a real today is refused');
+    assert(ageDistribution([], '2026-08-17').headline === null, 'no roles at all means no headline');
+  }
   const fixture = {
     today: '2026-08-15',
     companies: {

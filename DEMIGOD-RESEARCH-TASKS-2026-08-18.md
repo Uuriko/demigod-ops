@@ -17,18 +17,26 @@ coverage. Separately, ~27.4% of US LinkedIn listings are estimated to be ghost j
 recruiters say their employer posts them, and BLS June-2025 data shows 7.4M openings against 5.2M
 hires — roughly one posted role in three never producing a hire.
 
-Here is what our own ledger says about San Francisco startups, **live, 2026-08-17**:
+Here is what our own ledger says about San Francisco startups, **live, 2026-08-18**, on the only
+date field this codebase treats as attributable:
 
 | Open roles posted more than… | Count | Share |
 |---|---:|---:|
-| 30 days | 11,937 | **69.8%** |
-| 90 days | 6,152 | 36.0% |
-| 180 days | 3,080 | 18.0% |
-| 365 days | 1,228 | 7.2% |
+| 30 days | 6,636 | **69.1%** |
+| 90 days | 3,290 | 34.3% |
+| 365 days | 605 | 6.3% |
 
-Denominator: 17,110 of 17,112 open roles carry the company's own posted date.
+Denominator: **9,600** open roles carrying a Greenhouse `first_published` date. Median age 57 days.
 
-**Seventy percent, against an industry-quoted one in seven.** Whatever the explanation — different
+**Corrected from a first pass that said 69.8% of 17,110.** That version pooled three date fields.
+`postedDaysAgo` in `demigod-role-ledger.mjs` has always required `nativeDateField ===
+'first_published'`, because `createdAt` is when the record was made and `publishedAt` can move when a
+role is edited — either can make an old role look new. The cohorts differ enough to matter:
+`createdAt` runs 82.1% over 30 days against 69.1% for the other two, so a different source mix would
+have swung the pooled figure with nobody able to say which part was real. The headline survived the
+correction; the method it rested on did not, and that is the part that would have been attacked.
+
+**Sixty-nine percent, against an industry-quoted one in seven.** Whatever the explanation — different
 universe, different method, or SF startups genuinely being five times staler — that gap is the most
 interesting thing this company owns, and nobody has published it.
 
