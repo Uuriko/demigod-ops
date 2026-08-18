@@ -27,7 +27,17 @@ const server = createServer((_, res) => {
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const url = `http://127.0.0.1:${server.address().port}/`;
 
-const browser = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9223' });
+let browser;
+try {
+  browser = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9223' });
+} catch (err) {
+  server.close();
+  if (process.env.CI || process.env.GITHUB_ACTIONS) {
+    console.log('dasha-chess-sound: SKIP (no CDP :9223 — laptop-only; CI has no Chrome)');
+    process.exit(0);
+  }
+  throw err;
+}
 const failures = [];
 const check = (ok, message) => { if (!ok) failures.push(message); };
 
