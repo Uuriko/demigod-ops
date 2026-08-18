@@ -130,7 +130,7 @@ check(await page.evaluate(() => document.getElementById('sound-toggle').getAttri
 await page.evaluate(() => { try { localStorage.removeItem('dasha-chess-sound'); } catch (e) {} });
 await page.close();
 await browser.disconnect();
-server.close();
+await new Promise((resolve) => server.close(resolve));
 
 if (failures.length) {
   console.error(`dasha chess sound: ${failures.length} FAILURE(S)\n`);

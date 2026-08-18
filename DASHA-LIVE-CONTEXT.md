@@ -7,7 +7,7 @@ generated_from: dasha-context-refresh.mjs
 
 **Rewrite in place after meaningful work.** All agents (Grok / Claude / Codex) read this first for Dasha; keep NOW short. No secrets.
 
-Updated: 2026-08-18T10:23:54.845Z · Agent: pi
+Updated: 2026-08-18T10:49:18.049Z · Agent: pi
 
 ## Live
 
@@ -16,10 +16,11 @@ Updated: 2026-08-18T10:23:54.845Z · Agent: pi
 - Soft lag — none reported
 - Meta gate — ok
 - Announce-ready — no hard: assets-hash-match, client-studio-handoff, client-studio-after-share, handoff-reject-invalid, handoff-mint, handoff-card, handoff-og, simp-result-card, lobby-sitemap, home-mint-source, home-lobby-link, lobby-page-mount, lobby-page-client, home-no-simp-mount, home-no-simp-client, metadata-studio, metadata-desk, metadata-lobby, metadata-howto, parity-lobby-link, studio-current, howto-mint-source, howto-swap-step, howto-concise, sitemap-routes, home-sitemap-navigation, execution-home, execution-faucet, sitemap-social-cards
-- Verified — 2026-08-18T10:23:54.845Z via context-refresh
+- Verified — 2026-08-18T10:49:18.049Z via context-refresh
 
 ## Just shipped / in flight
 
+- 2026-08-18T10:49:18Z · pi: Fixed privacy page copy drift: aligned dasha-privacy.html with Worker PRIVACY_HTML (referral tracking, lobby history, chess replays, third-party hosts, deletion scope); added regression assertions to
 - 2026-08-18T10:23:54Z · pi: pi agent registered on bus; F1 test-theater audit done
 - 2026-08-18T10:19:12Z · meta: meta ok
 - 2026-08-18T09:39:15Z · meta: meta ok
@@ -32,7 +33,6 @@ Updated: 2026-08-18T10:23:54.845Z · Agent: pi
 - 2026-08-16T07:20:26Z · meta: meta FAIL meta-doc,context-scripts,script-audit-tools
 - 2026-08-16T07:11:07Z · meta: meta FAIL publish-retired,domain-runbook-current,meta-doc,context-scripts,script-audit-tools
 - 2026-08-16T07:10:32Z · meta: meta FAIL landing-sitemap-link,publish-retired,domain-runbook-current,meta-doc,context-scripts,script-audit-tools
-- 2026-08-16T06:29:22Z · meta: meta FAIL landing-sitemap-link,ship-readback,ship-readback-test,publish-retired,domain-runbook-current,meta-doc,context-scripts,script-audit-tools
 
 ## Blocked
 
@@ -74,7 +74,7 @@ Updated: 2026-08-18T10:23:54.845Z · Agent: pi
 
 ## Peers
 
-- last refresh — pi @ 2026-08-18T10:23:54.845Z
+- last refresh — pi @ 2026-08-18T10:49:18.049Z
 - peer inbox — `docs/exchange/DASHA-PEER-INBOX.md` (append via `dasha:peer-ping`)
 - bus messages — `/tmp/dg-busy/agent-bus/messages.jsonl` when `dg-bus send` works
 

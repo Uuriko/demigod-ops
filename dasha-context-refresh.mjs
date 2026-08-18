@@ -119,7 +119,7 @@ const liveLines = [
 
 const prevShipped = readPrevShipped().slice(0, 12);
 const stamp = note
-  ? `- ${iso().slice(0, 19)}Z · ${agent}: ${note.replace(/\n/g, ' ').slice(0, 200)}`
+  ? `- ${iso().slice(0, 19)}Z · ${agent}: ${note.replace(/\n/g, ' ').slice(0, 200).trimEnd()}`
   : null;
 const shipped = stamp ? [stamp, ...prevShipped].slice(0, 15) : prevShipped.length ? prevShipped : ['- (none yet this file)'];
 
