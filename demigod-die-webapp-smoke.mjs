@@ -217,6 +217,35 @@ async function main() {
     step((await req(port, '/api/v1/roles', { bearer: key })).status === 401,
       'a revoked key stops working with no restart');
 
+    // --- an admin can run the place without shell access to the host ---
+    const listed = await req(port, '/api/v1/accounts', { cookie });
+    step(listed.status === 200 && listed.json?.users?.length >= 1, 'an admin can see who has access');
+    step(!/passwordHash|"hash"/.test(listed.text), 'and the listing carries nothing that could be used to become them');
+
+    const added = await req(port, '/api/v1/accounts', {
+      method: 'POST', cookie, body: { email: 'colleague@smoke.test', role: 'viewer', password: 'a colleague password' },
+    });
+    step(added.status === 200 && added.json?.created === true, 'an admin can add a colleague from the web app');
+    step((await req(port, '/api/v1/accounts', {
+      method: 'POST', cookie, body: { email: 'nopass@smoke.test', role: 'viewer' },
+    })).status === 400, 'a new account without a password is refused');
+
+    /* The lockout guard. A store with no enabled admin cannot be repaired through this API by
+       anyone, and a hosted operator has no shell on the host to repair it with. */
+    step((await req(port, '/api/v1/accounts', {
+      method: 'POST', cookie, body: { email: 'admin@smoke.test', role: 'viewer' },
+    })).status === 409, 'the last admin cannot demote themselves into a locked-out account store');
+    step((await req(port, '/api/v1/accounts/disable', {
+      method: 'POST', cookie, body: { email: 'admin@smoke.test' },
+    })).status === 409, 'nor disable themselves');
+
+    const viewerLogin = await form(port, '/login', { email: 'colleague@smoke.test', password: 'a colleague password' });
+    step((await req(port, '/api/v1/accounts', { cookie: viewerLogin.cookie })).status === 403,
+      'a viewer cannot see the account list');
+    step((await req(port, '/api/v1/accounts', {
+      method: 'POST', cookie: viewerLogin.cookie, body: { email: 'self@smoke.test', role: 'admin', password: 'trying to escalate' },
+    })).status === 403, 'nor promote themselves');
+
     // --- and the person can be shut off ---
     const key2 = JSON.parse(await run([path.join(ROOT, 'demigod-die-accounts.mjs'), '--key-new', 'admin@smoke.test'], env)).key;
     step((await req(port, '/api/v1/roles', { bearer: key2 })).status === 200, 'a fresh key works');

@@ -34,10 +34,17 @@ import {
   authenticate as authenticateAccount,
   can as roleCan,
   changePassword,
+  disableUser,
   findUser,
+  issueApiKey,
   issueSession,
+  listApiKeys,
   loadAccounts,
+  normalizeEmail,
+  revokeApiKey,
+  ROLES,
   saveAccounts,
+  upsertUser,
   verifyApiKey,
   verifySession,
 } from './demigod-die-accounts.mjs';
@@ -68,6 +75,9 @@ const GATE_SECRET = String(process.env.DEMIGOD_DIE_GATE_SECRET || '').trim();
  * be the same value.
  */
 const SESSION_SECRET = String(process.env.DEMIGOD_DIE_SESSION_SECRET || '').trim();
+/* Read from the accounts module rather than restated, so adding a role there cannot leave this
+   file quietly rejecting it as invalid. */
+const ROLE_NAMES = Object.keys(ROLES);
 const ALLOW_TRYCLOUDFLARE = process.env.DEMIGOD_DIE_ALLOW_TRYCLOUDFLARE === '1';
 const GATE_COOKIE = 'die_gate';
 const GATE_MS = 12 * 60 * 60 * 1000;
@@ -904,7 +914,10 @@ export function createDieWebServer() {
     const missionAct = url.pathname.match(/^\/api\/v1\/roles\/([^/]+)\/mission\/actions$/);
     const gatePost = url.pathname === '/login' || url.pathname === '/logout';
     const passwordPost = url.pathname === '/api/v1/account/password';
-    if (!['GET', 'HEAD'].includes(method) && !(method === 'POST' && (missionAct || gatePost || passwordPost))) {
+    const adminPost = ['/api/v1/accounts', '/api/v1/accounts/disable', '/api/v1/keys', '/api/v1/keys/revoke']
+      .includes(url.pathname);
+    if (!['GET', 'HEAD'].includes(method)
+      && !(method === 'POST' && (missionAct || gatePost || passwordPost || adminPost))) {
       sendJson(res, 405, { ok: false, error: 'method_not_allowed' }, false, { Allow: 'GET, HEAD, POST' });
       return;
     }
@@ -1103,6 +1116,100 @@ export function createDieWebServer() {
           'Set-Cookie': `${GATE_COOKIE}=${fresh}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${Math.floor(GATE_MS / 1000)}${context.hosted ? '; Secure' : ''}`,
         });
         res.end(`${JSON.stringify({ ok: true, otherSessionsEnded: true })}\n`);
+      } else if (url.pathname === '/api/v1/accounts' && method === 'GET') {
+        if (!roleCan(context.role, 'admin')) {
+          sendJson(res, 403, { ok: false, error: 'admin_required' }, head);
+          return;
+        }
+        const doc = loadAccounts();
+        sendJson(res, 200, {
+          schema: 'demigod.die-accounts-list/1',
+          /* Never the hash, never a key secret. This route exists so an admin can see who has
+             access, which needs names and roles and nothing that could be used to become them. */
+          users: doc.users.map((u) => ({
+            email: normalizeEmail(u.email),
+            role: u.role,
+            disabled: Boolean(u.disabledAt),
+            createdAt: u.createdAt || null,
+            updatedAt: u.updatedAt || null,
+            keys: (u.keys || []).filter((k) => !k.revokedAt).length,
+          })),
+          keys: listApiKeys(doc),
+        }, head);
+      } else if (adminPost) {
+        /*
+         * Account administration, and why it is here at all.
+         *
+         * Until now the only way to add a colleague was the CLI on this laptop. That is workable
+         * for the person who owns the machine and impossible for anyone running this as a hosted
+         * app, which is the entire premise of putting it up for others to use.
+         *
+         * Session required, not an API key -- the same rule as changing a password. An admin key
+         * that leaked would otherwise be full account takeover: mint yourself a user, sign in,
+         * done. Provisioning by machine is a real enterprise need, but it wants its own narrower
+         * credential rather than a bearer token that can also read the whole corpus.
+         */
+        if (!roleCan(context.role, 'admin')) {
+          sendJson(res, 403, { ok: false, error: 'admin_required' }, head);
+          return;
+        }
+        if (context.via === 'api_key') {
+          sendJson(res, 403, { ok: false, error: 'account_admin_requires_a_session' }, head);
+          return;
+        }
+        const body = await readJsonBody(req, 8192);
+        const doc = loadAccounts();
+        /* The lockout guard. An account store with no enabled admin cannot be repaired through this
+           API by anyone -- it would need shell access to the host, which is exactly what a hosted
+           operator does not have. So the last admin can be neither disabled nor demoted. */
+        const enabledAdmins = doc.users.filter((u) => u.role === 'admin' && !u.disabledAt).map((u) => normalizeEmail(u.email));
+        const isLastAdmin = (email) => enabledAdmins.length === 1 && enabledAdmins[0] === normalizeEmail(email);
+
+        if (url.pathname === '/api/v1/accounts') {
+          const email = normalizeEmail(body.email);
+          if (!email) { sendJson(res, 400, { ok: false, error: 'invalid_email' }, head); return; }
+          const existing = findUser(doc, email);
+          const role = String(body.role || existing?.role || 'viewer');
+          if (!ROLE_NAMES.includes(role)) { sendJson(res, 400, { ok: false, error: 'invalid_role', roles: ROLE_NAMES }, head); return; }
+          if (!existing && !body.password) { sendJson(res, 400, { ok: false, error: 'password_required_for_a_new_account' }, head); return; }
+          if (existing?.role === 'admin' && role !== 'admin' && isLastAdmin(email)) {
+            sendJson(res, 409, { ok: false, error: 'refusing_to_demote_the_last_admin' }, head); return;
+          }
+          let next;
+          try {
+            next = upsertUser(doc, { email, role, password: body.password ? String(body.password) : undefined });
+          } catch (error) {
+            sendJson(res, 400, { ok: false, error: String(error.message || 'invalid_account') }, head); return;
+          }
+          saveAccounts(next);
+          logEvent({ level: 'info', event: existing ? 'account_updated' : 'account_created', account: context.email, subject: email, role });
+          sendJson(res, 200, { ok: true, email, role, created: !existing }, head);
+        } else if (url.pathname === '/api/v1/accounts/disable') {
+          const email = normalizeEmail(body.email);
+          if (!email || !findUser(doc, email)) { sendJson(res, 404, { ok: false, error: 'no_such_account' }, head); return; }
+          if (isLastAdmin(email)) { sendJson(res, 409, { ok: false, error: 'refusing_to_disable_the_last_admin' }, head); return; }
+          saveAccounts(disableUser(doc, email));
+          logEvent({ level: 'info', event: 'account_disabled', account: context.email, subject: email });
+          sendJson(res, 200, { ok: true, disabled: email }, head);
+        } else if (url.pathname === '/api/v1/keys') {
+          const email = normalizeEmail(body.email) || context.email;
+          try {
+            const issued = issueApiKey(doc, { email, label: String(body.label || ''), role: body.role || undefined });
+            saveAccounts(issued.doc);
+            logEvent({ level: 'info', event: 'api_key_issued', account: context.email, subject: email, keyId: issued.id });
+            /* Returned once and never recoverable, so the response says so rather than leaving the
+               caller to discover it when they come back for it. */
+            sendJson(res, 200, { ok: true, id: issued.id, key: issued.secret, shown: 'once' }, head);
+          } catch (error) {
+            sendJson(res, 400, { ok: false, error: String(error.message || 'key_refused') }, head);
+          }
+        } else {
+          const id = String(body.id || '');
+          if (!/^[0-9a-f]{12}$/.test(id)) { sendJson(res, 400, { ok: false, error: 'invalid_key_id' }, head); return; }
+          saveAccounts(revokeApiKey(doc, id));
+          logEvent({ level: 'info', event: 'api_key_revoked', account: context.email, keyId: id });
+          sendJson(res, 200, { ok: true, revoked: id }, head);
+        }
       } else if (url.pathname === '/api/v1/companies') {
         sendJson(res, 200, companyList(url.searchParams), head);
       } else if (url.pathname.startsWith('/api/v1/companies/')) {
