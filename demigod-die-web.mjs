@@ -53,6 +53,18 @@ const RELEASE_ID = String(process.env.DEMIGOD_RELEASE_ID || 'local').slice(0, 12
 const PUBLIC_HOST = String(process.env.DEMIGOD_DIE_PUBLIC_HOST || '').trim().toLowerCase();
 const TRUST_ACCESS_PROXY = process.env.DEMIGOD_DIE_TRUST_ACCESS_PROXY === '1';
 const GATE_SECRET = String(process.env.DEMIGOD_DIE_GATE_SECRET || '').trim();
+/**
+ * The key that signs account sessions. It must NOT be GATE_SECRET.
+ *
+ * GATE_SECRET is the shared login password — `secretEqual(password, GATE_SECRET)` is how the
+ * pre-accounts gate authenticates. It was also being used as the HMAC key for account sessions, so
+ * anyone who had ever been told the shared password could mint a valid cookie for any address and
+ * any role, admin included. Retiring the password once accounts exist does not close that: it stops
+ * being accepted at the login form while remaining the key that forges what the form would have
+ * issued. A signing key and a password handed to people are not the same kind of secret and cannot
+ * be the same value.
+ */
+const SESSION_SECRET = String(process.env.DEMIGOD_DIE_SESSION_SECRET || '').trim();
 const ALLOW_TRYCLOUDFLARE = process.env.DEMIGOD_DIE_ALLOW_TRYCLOUDFLARE === '1';
 const GATE_COOKIE = 'die_gate';
 const GATE_MS = 12 * 60 * 60 * 1000;
@@ -68,6 +80,9 @@ if (TRUST_ACCESS_PROXY && !PUBLIC_HOST) throw new Error('invalid_hosted_configur
 if (PUBLIC_HOST && !TRUST_ACCESS_PROXY && !GATE_SECRET) throw new Error('invalid_hosted_configuration');
 if (ALLOW_TRYCLOUDFLARE && !GATE_SECRET) throw new Error('invalid_hosted_configuration');
 if (GATE_SECRET && GATE_SECRET.length < 16) throw new Error('invalid_hosted_configuration');
+if (SESSION_SECRET && SESSION_SECRET.length < 32) throw new Error('invalid_session_secret');
+// The one that matters. Equal values reintroduce exactly the forgery this separation exists to stop.
+if (SESSION_SECRET && GATE_SECRET && SESSION_SECRET === GATE_SECRET) throw new Error('invalid_session_secret');
 
 const baseHeaders = Object.freeze({
   'Cache-Control': 'no-store',
@@ -151,7 +166,10 @@ export function identify(header, authorization) {
   const raw = cookieMap(header)[GATE_COOKIE];
   if (!raw) return { authenticated: false, email: null, role: null };
   if (raw.split('.').length === 3) {
-    const seen = verifySession(raw, GATE_SECRET, loadAccounts());
+    /* SESSION_SECRET, never GATE_SECRET. With no session secret set this passes '' and
+       verifySession returns no_secret — so an unconfigured deployment rejects account cookies
+       rather than falling back to validating them with the shared password. */
+    const seen = verifySession(raw, SESSION_SECRET, loadAccounts());
     return seen.ok
       ? { authenticated: true, email: seen.email, role: seen.role }
       : { authenticated: false, email: null, role: null, reason: seen.reason };
@@ -561,10 +579,30 @@ function allowApi(context, req, { write = false, now = Date.now() } = {}) {
   });
 }
 
-function canMutate(context) {
+/* Exported so the test can call THIS function. It used to be private, so the test reimplemented the
+   rule inline — and the copy drifted into asserting the bug was correct. A rule worth testing is
+   worth importing. */
+export function canMutate(context) {
   if (context.mode === 'local_read_only') return true;
   if (context.authenticated !== true) return false;
-  return context.role ? roleCan(context.role, 'write') : true;
+  if (context.role) return roleCan(context.role, 'write');
+  /*
+   * No role. What that means depends on HOW the caller got here, and the two cases are not alike.
+   *
+   * `gated_public` with no role is the legacy shared-password cookie, which only verifies while
+   * zero accounts exist — `identify` retires it the moment a first account is created. Possession
+   * of the shared secret is the authentication, and in that pre-accounts pilot the operator is the
+   * only person who can be holding it. They keep their desk.
+   *
+   * `hosted_read_only` is Cloudflare Access, and it is the hole. It sets authenticated:true purely
+   * because a request arrived through the proxy — and this origin deliberately refuses to trust the
+   * forwarded authenticated-user header (see the assertion in the test that this file must never
+   * even name it), so it has no idea who the caller is. The old `role ? … : true` fallback treated
+   * that as permission, letting an unidentified caller mutate the desk and land in the audit as
+   * account:null. An identity-aware proxy proves someone got in; it does not say who, and
+   * "someone" cannot be attributed.
+   */
+  return context.mode === 'gated_public';
 }
 
 function hydrateMission(roleId) {
@@ -898,13 +936,20 @@ export function createDieWebServer() {
           const named = accounts.users.length > 0;
           let cookieValue = null;
           if (named) {
+            /* Accounts exist but no signing key is configured: refuse rather than sign with the
+               shared password. Issuing here would hand out a cookie that anyone holding that
+               password could have forged themselves, which is worse than not logging in. */
+            if (!SESSION_SECRET) {
+              sendJson(res, 503, { ok: false, error: 'session_secret_required' });
+              return;
+            }
             const auth = authenticateAccount(accounts, email, password);
             if (!auth.ok) {
               noteLoginFail(ip);
               sendLoginUi(res, { error: 'login_invalid', next: nextPath });
               return;
             }
-            cookieValue = issueSession(auth.user, GATE_SECRET);
+            cookieValue = issueSession(auth.user, SESSION_SECRET);
           } else {
             if (!GATE_SECRET || !secretEqual(password, GATE_SECRET)) {
               noteLoginFail(ip);

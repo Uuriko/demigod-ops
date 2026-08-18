@@ -221,7 +221,13 @@ if (port !== null) {
     assert.equal(hostedBody.mode, 'hosted_read_only');
     assert.equal(hostedBody.modeLabel, 'Private');
     assert.equal(hostedBody.authenticated, true);
-    assert.equal(hostedBody.mutations, true);
+    /* false, and it was asserted as true here until 2026-08-18.
+       Access mode proves someone got past the identity-aware proxy; it does not say WHO, because
+       this origin deliberately does not trust Cf-Access-Authenticated-User-Email. So the context
+       carries authenticated:true with no account and no role, and canMutate's old
+       "authenticated therefore allowed" fallback let that caller write to the desk with account:null
+       on the receipt. A mode named hosted_read_only asserting it can mutate was the tell. */
+    assert.equal(hostedBody.mutations, false);
     assert.equal(hostedBody.access.publicHost, 'app.trydemigod.com');
 
     const roles = JSON.parse((await request('/api/v1/roles')).body);
@@ -543,19 +549,58 @@ fs.rmSync(temp, { recursive: true, force: true });
    everyone who got in was the same person. A viewer who authenticates successfully is still a
    viewer, and "logged in therefore allowed" is the exact assumption roles were added to remove. */
 {
-  const { can } = await import('./demigod-die-accounts.mjs');
-  const gate = (context) => {
-    if (context.mode === 'local_read_only') return true;
-    if (context.authenticated !== true) return false;
-    return context.role ? can(context.role, 'write') : true;
-  };
+  /* Imported, NOT reimplemented. This block used to define its own copy of the rule, and the copy
+     kept the `role ? … : true` fallback while asserting that fallback was correct — so the test
+     stayed green across every version of a function it was not calling. The bug it therefore
+     missed: Cloudflare Access mode sets authenticated:true with no account and no role, so
+     "authenticated, therefore allowed" let an unidentified caller mutate the desk and land in the
+     audit as account:null. */
+  const { canMutate: gate } = await import('./demigod-die-web.mjs');
   if (!gate({ mode: 'local_read_only' })) throw new Error('die-web: the operator on loopback keeps their desk');
   if (gate({ mode: 'gated_public', authenticated: false, role: 'admin' })) throw new Error('die-web: a role without a session grants nothing');
   if (gate({ mode: 'gated_public', authenticated: true, role: 'viewer' })) throw new Error('die-web: an authenticated VIEWER must not be able to mutate');
   if (!gate({ mode: 'gated_public', authenticated: true, role: 'operator' })) throw new Error('die-web: an operator must be able to mutate');
   if (!gate({ mode: 'gated_public', authenticated: true, role: 'admin' })) throw new Error('die-web: an admin must be able to mutate');
   if (gate({ mode: 'gated_public', authenticated: true, role: 'wizard' })) throw new Error('die-web: an unknown role grants nothing');
-  if (!gate({ mode: 'gated_public', authenticated: true, role: null })) throw new Error('die-web: the legacy cookie keeps working until a first account exists');
+  /* The two no-role cases, which are not the same case.
+     The shared-password cookie only verifies while zero accounts exist, and possession of that
+     secret is the authentication — the pilot operator keeps their desk. Access mode proves only
+     that SOMEONE came through the proxy, since this origin does not trust the forwarded email
+     header, and "someone" cannot be written to an audit trail. */
+  if (!gate({ mode: 'gated_public', authenticated: true, role: null })) {
+    throw new Error('die-web: the pre-accounts shared-password operator keeps write until a first account exists');
+  }
+  if (gate({ mode: 'hosted_read_only', authenticated: true })) {
+    throw new Error('die-web: Access mode has no identity, so it must not mutate — that is the hole');
+  }
+}
+
+
+/* The session signing key must not be the shared login password.
+   GATE_SECRET is compared against a submitted password to let someone in; it was also the HMAC key
+   for account sessions. Anyone ever told that password could therefore forge a cookie for any
+   address and any role. Retiring the password once accounts exist does not help — it stops being
+   accepted at the form while remaining the key that forges what the form would have issued. */
+{
+  const { issueSession, verifySession } = await import('./demigod-die-accounts.mjs');
+  const doc = { users: [{ email: 'alice@example.com', role: 'admin', disabledAt: null }] };
+  const shared = 'shared-gate-password-1234';
+  const signing = 'a-separate-signing-key-of-at-least-32-chars';
+
+  const forged = issueSession({ email: 'alice@example.com', role: 'admin' }, shared);
+  if (verifySession(forged, signing, doc).ok) {
+    throw new Error('die-web: a cookie signed with the shared password must not verify against the signing key');
+  }
+  const real = issueSession({ email: 'alice@example.com', role: 'admin' }, signing);
+  if (!verifySession(real, signing, doc).ok) throw new Error('die-web: a properly signed session must verify');
+  if (verifySession(real, shared, doc).ok) throw new Error('die-web: and must not verify against the password');
+
+  // The server refuses to start if someone sets them to the same value.
+  const source = fs.readFileSync(path.join(root, 'demigod-die-web.mjs'), 'utf8');
+  assert.match(source, /SESSION_SECRET === GATE_SECRET\) throw new Error\('invalid_session_secret'\)/);
+  assert.match(source, /verifySession\(raw, SESSION_SECRET/);
+  assert.match(source, /issueSession\(auth\.user, SESSION_SECRET\)/);
+  assert.doesNotMatch(source, /issueSession\([^)]*GATE_SECRET/);
 }
 
 
