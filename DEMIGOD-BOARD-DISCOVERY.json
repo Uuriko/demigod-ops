@@ -1,11 +1,11 @@
 {
  "schema": "demigod.board-discover/1",
- "at": "2026-08-18T05:04:10.972Z",
+ "at": "2026-08-18T05:08:16.087Z",
  "considered": 639,
- "verified": 18,
- "mismatched": 10,
+ "verified": 20,
+ "mismatched": 8,
  "none": 611,
- "applied": false,
+ "applied": 20,
  "rows": [
   {
    "id": "yc:apollo",
@@ -16,6 +16,7 @@
    "provider": "Ashby",
    "slug": "apollo-graphql",
    "owner": "https://www.apollographql.com/",
+   "via": "owner matches our website",
    "url": "https://jobs.ashbyhq.com/apollo-graphql"
   },
   {
@@ -27,6 +28,7 @@
    "provider": "Ashby",
    "slug": "athena-hq",
    "owner": "https://www.athenahq.ai/",
+   "via": "owner matches our website",
    "url": "https://jobs.ashbyhq.com/athena-hq"
   },
   {
@@ -49,6 +51,7 @@
    "provider": "Ashby",
    "slug": "atomic-invest",
    "owner": "https://www.atomicvest.com/",
+   "via": "owner matches our website",
    "url": "https://jobs.ashbyhq.com/atomic-invest"
   },
   {
@@ -85,17 +88,6 @@
    "url": "https://jobs.ashbyhq.com/eventualcomputing"
   },
   {
-   "id": "yc:every",
-   "name": "Every",
-   "website": "https://every.io/",
-   "foundOn": "https://every.io/",
-   "state": "verified",
-   "provider": "Ashby",
-   "slug": "every-io",
-   "owner": "https://www.every.io",
-   "url": "https://jobs.ashbyhq.com/every-io"
-  },
-  {
    "id": "yc:fathom",
    "name": "Fathom",
    "website": "https://www.fathom.ai/",
@@ -107,6 +99,18 @@
    "url": "https://jobs.ashbyhq.com/fathom.video"
   },
   {
+   "id": "yc:every",
+   "name": "Every",
+   "website": "https://every.io/",
+   "foundOn": "https://every.io/",
+   "state": "verified",
+   "provider": "Ashby",
+   "slug": "every-io",
+   "owner": "https://www.every.io",
+   "via": "owner matches our website",
+   "url": "https://jobs.ashbyhq.com/every-io"
+  },
+  {
    "id": "yc:flai",
    "name": "Flai",
    "website": "https://www.useflai.com/",
@@ -115,6 +119,7 @@
    "provider": "Ashby",
    "slug": "flai",
    "owner": "https://useflai.com",
+   "via": "owner matches our website",
    "url": "https://jobs.ashbyhq.com/flai"
   },
   {
@@ -137,6 +142,7 @@
    "provider": "Ashby",
    "slug": "inscribeai",
    "owner": "https://www.inscribe.ai/",
+   "via": "owner matches our website",
    "url": "https://jobs.ashbyhq.com/InscribeAI"
   },
   {
@@ -148,6 +154,7 @@
    "provider": "Ashby",
    "slug": "ironcladhq",
    "owner": "https://ironcladapp.com/",
+   "via": "owner matches our website",
    "url": "https://jobs.ashbyhq.com/ironcladhq"
   },
   {
@@ -159,17 +166,19 @@
    "provider": "Ashby",
    "slug": "lago",
    "owner": "https://www.getlago.com",
+   "via": "owner matches our website",
    "url": "https://jobs.ashbyhq.com/lago"
   },
   {
    "id": "yc:nash",
    "name": "Nash",
    "website": "https://www.usenash.com/",
-   "state": "mismatch",
+   "foundOn": "https://www.usenash.com/careers",
+   "state": "verified",
    "provider": "Ashby",
    "slug": "nash",
    "owner": "https://www.nash.ai/",
-   "reason": "the board belongs to a different company",
+   "via": "our website redirects to the domain the board names",
    "url": "https://jobs.ashbyhq.com/Nash"
   },
   {
@@ -181,6 +190,7 @@
    "provider": "Greenhouse",
    "slug": "paveakatroveinformationtechnologies",
    "owner": "https://www.pave.com/",
+   "via": "owner matches our website",
    "url": "https://job-boards.greenhouse.io/paveakatroveinformationtechnologies"
   },
   {
@@ -192,6 +202,7 @@
    "provider": "Ashby",
    "slug": "ployai",
    "owner": "https://ploy.ai/",
+   "via": "owner matches our website",
    "url": "https://jobs.ashbyhq.com/ployai"
   },
   {
@@ -203,18 +214,8 @@
    "provider": "Greenhouse",
    "slug": "prodigal",
    "owner": "https://www.prodigaltech.com/",
+   "via": "owner matches our website",
    "url": "https://job-boards.greenhouse.io/prodigal"
-  },
-  {
-   "id": "yc:pump-co",
-   "name": "Pump.co",
-   "website": "https://www.pump.co/",
-   "state": "mismatch",
-   "provider": "Greenhouse",
-   "slug": "pumpcareers",
-   "owner": "https://media.licdn.com/dms/image/v2/D560BAQFEGFgnm6ReUA/company-logo_100_100/company-logo_100_100/0/1689983487482/pumpcloud_logo?e=1748476800\\u0026v=beta\\u0026t=1mElrVtFEQKALp09KKskjIE-VdbVT8BnAqhrLDy-pXM",
-   "reason": "the board belongs to a different company",
-   "url": "https://job-boards.greenhouse.io/pumpcareers"
   },
   {
    "id": "yc:signoz",
@@ -225,7 +226,20 @@
    "provider": "Ashby",
    "slug": "signoz",
    "owner": "https://signoz.io",
+   "via": "owner matches our website",
    "url": "https://jobs.ashbyhq.com/SigNoz"
+  },
+  {
+   "id": "yc:slash",
+   "name": "Slash",
+   "website": "https://www.slash.com/",
+   "foundOn": "https://www.slash.com/careers",
+   "state": "verified",
+   "provider": "Ashby",
+   "slug": "slash-financial",
+   "owner": "https://www.slash.com/",
+   "via": "owner matches our website",
+   "url": "https://jobs.ashbyhq.com/slash-financial"
   },
   {
    "id": "yc:strada",
@@ -236,6 +250,7 @@
    "provider": "Ashby",
    "slug": "stradahq",
    "owner": "https://www.getstrada.com/",
+   "via": "owner matches our website",
    "url": "https://jobs.ashbyhq.com/stradahq"
   },
   {
@@ -258,6 +273,7 @@
    "provider": "Ashby",
    "slug": "weekend",
    "owner": "https://www.weekend.com/",
+   "via": "owner matches our website",
    "url": "https://jobs.ashbyhq.com/weekend"
   },
   {
@@ -269,6 +285,7 @@
    "provider": "Ashby",
    "slug": "within-ai",
    "owner": "https://www.within.ai/",
+   "via": "owner matches our website",
    "url": "https://jobs.ashbyhq.com/within-ai"
   },
   {
@@ -291,6 +308,7 @@
    "provider": "Ashby",
    "slug": "neon-health",
    "owner": "https://neonhealth.com/",
+   "via": "owner matches our website",
    "url": "https://jobs.ashbyhq.com/neon-health"
   },
   {
@@ -302,6 +320,7 @@
    "provider": "Ashby",
    "slug": "runway-ml",
    "owner": "https://runwayml.com/",
+   "via": "owner matches our website",
    "url": "https://jobs.ashbyhq.com/runway-ml"
   },
   {
@@ -313,6 +332,7 @@
    "provider": "Ashby",
    "slug": "typesafe-ai",
    "owner": "https://www.typesafe.ai",
+   "via": "owner matches our website",
    "url": "https://jobs.ashbyhq.com/typesafe-ai"
   }
  ]
