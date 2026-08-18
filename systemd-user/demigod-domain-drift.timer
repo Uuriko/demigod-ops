@@ -1,0 +1,13 @@
+[Unit]
+Description=Check company domain drift weekly
+
+[Timer]
+# Weekly, not daily. It probes 2,815 third-party sites; running that every night would be a lot of
+# unsolicited traffic to other people's servers for a signal that moves on the scale of rebrands and
+# shutdowns, not hours.
+OnCalendar=Sun 04:00
+Persistent=true
+RandomizedDelaySec=60min
+
+[Install]
+WantedBy=timers.target

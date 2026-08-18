@@ -1,0 +1,23 @@
+[Unit]
+Description=Demigod domain drift — which companies moved, died, or merely would not answer
+# Without this a failing job is invisible: systemd marks it failed and nothing reads that.
+OnFailure=demigod-alert@%n.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/potter
+Environment=DEMIGOD_ROOT=/home/potter
+# Keep the PREVIOUS report before the tool overwrites it. demigod-domain-drift.mjs writes a single
+# DEMIGOD-DOMAIN-DRIFT.json every run, so scheduling it alone would produce a series of exactly one
+# — and "which companies moved since last week" is the whole question. `|| true` because a first
+# run with no previous report is not a failure.
+ExecStartPre=/bin/sh -c 'mkdir -p %h/.local/share/demigod/domain-drift && [ -f /home/potter/DEMIGOD-DOMAIN-DRIFT.json ] && cp /home/potter/DEMIGOD-DOMAIN-DRIFT.json %h/.local/share/demigod/domain-drift/$(date +%%Y%%m%%d).json || true'
+ExecStart=/home/potter/.nvm/versions/node/v24.17.0/bin/node /home/potter/demigod-domain-drift.mjs
+# 2,815 sites at concurrency 8 with a 9s timeout each. Weekly, and generous.
+TimeoutStartSec=5400
+NoNewPrivileges=true
+PrivateTmp=false
+UMask=0022
+
+[Install]
+WantedBy=default.target

@@ -28,6 +28,8 @@ mkdir -p "$BUSY"
 
 # name|command
 CHECKS=(
+  # 2.3s, and it is the gate that catches an untracked module a tracked one imports.
+  "verify-source|cd $ROOT && npm run --silent demigod:verify:source"
   "origin-mirror|$NODE $ROOT/demigod-origin-mirror.mjs"
   "supply-chain|$NODE $ROOT/demigod-supply-chain-check.mjs"
   "board-retention|$NODE $ROOT/demigod-board-retention.test.mjs"
