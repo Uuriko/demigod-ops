@@ -771,9 +771,18 @@ also no staging — editing a unit changes the machine.
 
 1. **The Cloudflare account permission.** Unchanged from §12: Zero Trust org, identity provider, an
    Access app with one allow policy, a DNS record. The only remaining blocker for a stable hostname.
-2. **Backup destination.** `restic` is not installed, and `DG_BACKUP_REPO` / `RESTIC_PASSWORD_FILE`
-   are unset, so `demigod-backup.timer` is inactive. The script fails closed on all three: there is
-   no backup today, only a backup that would now contain the right things once those exist.
+2. **Off-device backup destination.** `restic` is not installed and `DG_BACKUP_REPO` /
+   `RESTIC_PASSWORD_FILE` are unset, so `demigod-backup.timer` is inactive. No external storage is
+   mounted — the only other filesystem, `/recovery`, is a 4 GB partition on the *same physical
+   disk*, so putting a copy there would survive an accidental delete but not a disk failure, and
+   calling it a backup would be the kind of claim this codebase exists to refuse.
+
+   **What does exist as of 2026-08-18:** `demigod-die-snapshot.timer` runs daily (`Persistent=true`,
+   so a missed run catches up), taking a `VACUUM INTO` snapshot and then *proving a restore* — it
+   restores the snapshot and boots `demigod-die-web` against the restored file to confirm it serves
+   real receipts. The journal carries the receipt. That is genuine point-in-time recovery against
+   deletion, corruption, and bad writes, and it is honestly not disaster recovery. Off-device is
+   still the gap, and it needs hardware or object-store credentials.
 3. **`DEMIGOD_DIE_SESSION_SECRET`** in `~/.config/demigod/die-web.env`, then a first admin account.
    Named accounts refuse to issue sessions until it is set, which is deliberate.
 

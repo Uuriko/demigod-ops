@@ -1,0 +1,20 @@
+[Unit]
+Description=Demigod DIE mission-store snapshot, with a restore proved every run
+# Not conditioned on the store existing: the tool reports the absence rather than the unit
+# skipping silently, and a backup job that quietly does nothing is the failure being guarded against.
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/potter
+Environment=DEMIGOD_ROOT=/home/potter
+Environment=DEMIGOD_DIE_STORE=%h/.local/share/demigod/die-missions.sqlite
+# Take the snapshot (VACUUM INTO, verified before it is kept), then prove a restore of it by
+# booting the product against the restored file. A snapshot nobody has restored is a hypothesis.
+ExecStart=/home/potter/.nvm/versions/node/v24.17.0/bin/node /home/potter/demigod-die-store-snapshot.mjs
+ExecStart=/home/potter/.nvm/versions/node/v24.17.0/bin/node /home/potter/demigod-die-store-snapshot.mjs --drill
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=false
+
+[Install]
+WantedBy=default.target

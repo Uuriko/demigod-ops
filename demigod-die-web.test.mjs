@@ -385,6 +385,21 @@ if (port !== null) {
 }
 
 
+/* The snapshot unit must also prove a restore, every run.
+   Taking snapshots is the easy half and the half that lies: a file of the right size that nobody
+   has opened is a hypothesis, not a backup. If someone ever trims this unit back to the snapshot
+   step alone it still looks like it is working, so the pairing is asserted rather than assumed. */
+{
+  const unit = fs.readFileSync(path.join(root, 'systemd-user/demigod-die-snapshot.service'), 'utf8');
+  const execs = unit.split('\n').filter((line) => line.startsWith('ExecStart='));
+  assert.equal(execs.length, 2, 'the snapshot unit takes a snapshot AND drills a restore');
+  assert.ok(execs.some((line) => line.includes('--drill')), 'one of them is the restore drill');
+  const timer = fs.readFileSync(path.join(root, 'systemd-user/demigod-die-snapshot.timer'), 'utf8');
+  assert.match(timer, /^Persistent=true$/m,
+    'a laptop is not on at a fixed hour, so a missed backup must catch up rather than be skipped');
+}
+
+
 /* The caller's fault or ours.
    This was a prefix allowlist and it missed 30 of the 125 domain codes the kernel and packet
    actually throw -- the whole note_* family among them, which is scorecard validation. Sending a

@@ -114,6 +114,92 @@ export function snapshot({ store = STORE, dir = SNAPSHOT_DIR, at = new Date() } 
   return { path: out, bytes: fs.statSync(out).size, counts: proof.counts };
 }
 
+/**
+ * Put a snapshot back, having proved it first.
+ *
+ * REFUSES TO OVERWRITE by default. The single most expensive way to lose data is a restore that
+ * clobbers a live store with a snapshot nobody checked — at that point both copies are gone and
+ * the second one was the backup. So the destination must not exist unless `force` is passed, and
+ * when it is, the existing file is moved aside rather than deleted.
+ */
+export function restore(snapshotPath, destination, { force = false, at = new Date() } = {}) {
+  if (!fs.existsSync(snapshotPath)) throw new Error(`die-store-snapshot: no snapshot at ${snapshotPath}`);
+  /* Verified BEFORE anything is written. Restoring first and checking after is how a good store
+     gets replaced by a bad one. Compared against nothing, because a restore is usually happening
+     precisely because the source is gone. */
+  const proof = verifySnapshot(snapshotPath, null);
+  if (!proof.ok) throw new Error(`die-store-snapshot: refusing to restore an unverifiable snapshot — ${proof.why}`);
+
+  let displaced = null;
+  if (fs.existsSync(destination)) {
+    if (!force) throw new Error(`die-store-snapshot: ${destination} exists; pass --force to replace it (the current file is kept aside, not deleted)`);
+    displaced = `${destination}.displaced-${at.toISOString().replace(/[:.]/g, '-')}`;
+    fs.renameSync(destination, displaced);
+  }
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
+  fs.copyFileSync(snapshotPath, destination);
+  fs.chmodSync(destination, 0o600);
+
+  // And prove what landed is what was intended, rather than trusting the copy.
+  const landed = verifySnapshot(destination, null);
+  if (!landed.ok) throw new Error(`die-store-snapshot: restored file does not verify — ${landed.why}`);
+  return { restored: destination, from: snapshotPath, displaced, counts: landed.counts };
+}
+
+/**
+ * The drill. Snapshot the live store, restore it somewhere else, and serve the product from the
+ * restored copy to prove it is a working database and not just a file of the right size.
+ *
+ * A backup nobody has restored is a hypothesis. Row counts and integrity_check say the bytes are
+ * coherent; only booting the app against it says the thing a customer would get back actually
+ * works. This is the difference between "we take backups" and "we have restored one".
+ */
+export async function drill({ store = STORE, at = new Date() } = {}) {
+  const { spawn } = await import('node:child_process');
+  const http = await import('node:http');
+  const scratch = fs.mkdtempSync(path.join(process.env.TMPDIR || '/tmp', 'die-drill-'));
+  try {
+    const made = snapshot({ store, dir: path.join(scratch, 'snap'), at });
+    const target = path.join(scratch, 'restored', 'die-missions.sqlite');
+    const put = restore(made.path, target);
+
+    const port = 9700 + Number(process.hrtime.bigint() % 90n);
+    const server = spawn(process.execPath, [path.join(path.dirname(fileURLToPath(import.meta.url)), 'demigod-die-web.mjs'), '--port', String(port)],
+      { env: { ...process.env, DEMIGOD_DIE_STORE: target } });
+    try {
+      const ask = (p) => new Promise((resolve, reject) => {
+        const r = http.request({ host: '127.0.0.1', port, path: p }, (res) => {
+          let text = ''; res.setEncoding('utf8');
+          res.on('data', (c) => { text += c; });
+          res.on('end', () => resolve({ status: res.statusCode, text }));
+        });
+        r.on('error', reject); r.end();
+      });
+      let up = false;
+      for (let i = 0; i < 60 && !up; i++) {
+        try { up = (await ask('/healthz')).status === 200; } catch { /* still starting */ }
+        if (!up) await new Promise((r) => setTimeout(r, 250));
+      }
+      if (!up) throw new Error('die-store-snapshot: the restored store did not come up');
+      const health = JSON.parse((await ask('/healthz')).text);
+      if (health.store !== 'ok') throw new Error(`die-store-snapshot: restored store unhealthy — ${health.store}`);
+      const activity = JSON.parse((await ask('/api/v1/activity')).text);
+      const served = (activity.rows || []).length;
+      /* The receipts are the thing a hiring desk cannot reconstruct, so they are what the drill
+         checks actually came back — not merely that the server answered. */
+      if (served < 1) throw new Error('die-store-snapshot: restored store served no receipts');
+      return {
+        ok: true,
+        at: at.toISOString(),
+        snapshotBytes: made.bytes,
+        counts: put.counts,
+        receiptsServed: served,
+        provedBy: 'booted demigod-die-web against the restored file and read its activity',
+      };
+    } finally { server.kill('SIGTERM'); }
+  } finally { fs.rmSync(scratch, { recursive: true, force: true }); }
+}
+
 /** PURE-ish. Keep the newest `keep` snapshots. Retention is not the backup, restic's is. */
 export function prune({ dir = SNAPSHOT_DIR, keep = 3 } = {}) {
   if (!fs.existsSync(dir)) return [];
@@ -173,6 +259,25 @@ function selftest() {
   try { snapshot({ store: path.join(os, 'nope.sqlite'), dir }); } catch { threw = true; }
   assert(threw, 'no store is an error, not an empty backup');
 
+  // --- restore, and the two ways it must refuse ---
+  const dest = path.join(os, 'restored', 'die-missions.sqlite');
+  const put = restore(second.path, dest);
+  assert(fs.existsSync(dest) && put.counts.missions === 1, 'a verified snapshot restores');
+  assert((fs.statSync(dest).mode & 0o777) === 0o600, 'a restored store is not world-readable');
+
+  let refused = false;
+  try { restore(second.path, dest); } catch { refused = true; }
+  assert(refused, 'restoring over an existing store is refused without --force');
+
+  const back = restore(second.path, dest, { force: true, at: new Date('2026-08-18T14:00:00Z') });
+  assert(back.displaced && fs.existsSync(back.displaced),
+    'forcing keeps the file it replaced rather than deleting it — both copies gone is the disaster');
+
+  refused = false;
+  try { restore(corrupt, path.join(os, 'nope.sqlite')); } catch { refused = true; }
+  assert(refused, 'an unverifiable snapshot is never restored — that is how a good store becomes a bad one');
+  assert(!fs.existsSync(path.join(os, 'nope.sqlite')), 'and nothing is written when it refuses');
+
   const dropped = prune({ dir, keep: 1 });
   assert(dropped.length === 1, `pruning keeps the newest, dropped ${dropped.length}`);
   assert(fs.readdirSync(dir).filter((f) => /^die-missions-/.test(f)).length === 1, 'one snapshot remains');
@@ -193,6 +298,13 @@ if (isMain) {
     const proof = verifySnapshot(newest, fs.existsSync(STORE) ? STORE : null);
     console.log(JSON.stringify({ snapshot: newest, ...proof }, null, 1));
     if (!proof.ok) process.exit(1);
+  } else if (args.includes('--drill')) {
+    console.log(JSON.stringify(await drill({}), null, 1));
+  } else if (args.includes('--restore')) {
+    const from = args[args.indexOf('--restore') + 1];
+    const toAt = args.indexOf('--to');
+    const to = toAt >= 0 ? args[toAt + 1] : STORE;
+    console.log(JSON.stringify(restore(from, to, { force: args.includes('--force') }), null, 1));
   } else {
     const made = snapshot();
     const dropped = prune({});

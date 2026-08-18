@@ -1,0 +1,11 @@
+[Unit]
+Description=Snapshot the Demigod DIE mission store daily and prove a restore
+
+[Timer]
+OnCalendar=daily
+# The laptop is not on at a fixed hour, so a missed run must catch up rather than be skipped.
+Persistent=true
+RandomizedDelaySec=900
+
+[Install]
+WantedBy=timers.target
