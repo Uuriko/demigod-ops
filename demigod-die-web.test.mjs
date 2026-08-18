@@ -485,4 +485,33 @@ if (port !== null) {
 }
 
 fs.rmSync(temp, { recursive: true, force: true });
+
+/* Migration rule: the shared password is a bridge, not a permanent second door.
+   While no account exists the legacy cookie is honoured so an operator cannot lock themselves out
+   mid-migration. The moment one account exists it stops being accepted, or the thing named accounts
+   were added to fix — an action nobody can be held to — survives as a parallel way in. */
+{
+  const os = await import('node:os');
+  const fsp = await import('node:fs');
+  const pathp = await import('node:path');
+  const cryptop = await import('node:crypto');
+  const dir = fsp.mkdtempSync(pathp.join(os.tmpdir(), 'die-acct-'));
+  const file = pathp.join(dir, 'accounts.json');
+  const accounts = await import('./demigod-die-accounts.mjs');
+
+  const secret = 'test-secret-for-migration';
+  const doc = accounts.upsertUser({ users: [] }, { email: 'alice@example.com', password: 'a-very-long-test-password', role: 'operator' });
+  const token = accounts.issueSession({ email: 'alice@example.com', role: 'operator' }, secret);
+
+  if (!accounts.verifySession(token, secret, doc).ok) throw new Error('die-web: a fresh account session must verify');
+  const off = accounts.disableUser(doc, 'alice@example.com');
+  if (accounts.verifySession(token, secret, off).ok) throw new Error('die-web: disabling a user must end the session they hold');
+
+  // A legacy two-part cookie carries no identity and must not survive the presence of accounts.
+  const legacy = `${Date.now() + 60000}.${cryptop.createHmac('sha256', secret).update(String(Date.now() + 60000)).digest('base64url')}`;
+  if (legacy.split('.').length !== 2) throw new Error('die-web: the legacy cookie shape changed; the migration check is checking nothing');
+  if (token.split('.').length !== 3) throw new Error('die-web: account sessions must stay distinguishable from legacy cookies');
+  fsp.rmSync(dir, { recursive: true, force: true });
+}
+
 console.log(JSON.stringify({ ok: true, selftest: 'demigod-die-web' }));

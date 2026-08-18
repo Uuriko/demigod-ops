@@ -28,6 +28,13 @@ import {
   toMissionCompany,
 } from './demigod-role-mission-kernel.mjs';
 import { buildDesk } from './demigod-structured-hiring.mjs';
+import {
+  authenticate as authenticateAccount,
+  can as roleCan,
+  issueSession,
+  loadAccounts,
+  verifySession,
+} from './demigod-die-accounts.mjs';
 
 const CODE_ROOT = path.dirname(fileURLToPath(import.meta.url));
 const UI_TEMPLATE = fs.readFileSync(path.join(CODE_ROOT, 'demigod-die-web-ui.html'), 'utf8');
@@ -116,6 +123,29 @@ function secretEqual(left, right) {
   const a = crypto.createHash('sha256').update(String(left)).digest();
   const b = crypto.createHash('sha256').update(String(right)).digest();
   return crypto.timingSafeEqual(a, b);
+}
+
+/**
+ * Who is asking, from the cookie.
+ *
+ * Two cookie shapes coexist during the migration. An account session is `email.expiry.mac` and
+ * carries an identity; the legacy shared-password cookie is `expiry.mac` and carries none. The
+ * account session is checked against the accounts file as it stands NOW, so disabling someone ends
+ * the session they are already holding — a revocation that leaves live cookies working is not a
+ * revocation.
+ */
+export function identify(header) {
+  const raw = cookieMap(header)[GATE_COOKIE];
+  if (!raw) return { authenticated: false, email: null, role: null };
+  if (raw.split('.').length === 3) {
+    const seen = verifySession(raw, GATE_SECRET, loadAccounts());
+    return seen.ok
+      ? { authenticated: true, email: seen.email, role: seen.role }
+      : { authenticated: false, email: null, role: null, reason: seen.reason };
+  }
+  // Legacy shared cookie: authenticated, but anonymous. Only honoured while no account exists.
+  if (loadAccounts().users.length > 0) return { authenticated: false, email: null, role: null, reason: 'legacy_cookie_retired' };
+  return { authenticated: verifyGateCookie(header), email: null, role: null };
 }
 
 function verifyGateCookie(header) {
@@ -229,7 +259,7 @@ function sendLoginUi(res, { error = '', head = false, next = '/roles' } = {}) {
   const dest = safeNext(next);
   const message = error
     ? `<p class="error" role="alert">${error === 'login_invalid' ? 'That password is wrong.' : 'Try again in a few minutes.'}</p>`
-    : '<p class="lede">This is the private hiring desk. Enter the password for this machine.</p>';
+    : '<p class="lede">This is the private hiring desk. Sign in with your account.</p>';
   const body = `<!doctype html>
 <html lang="en">
 <head>
@@ -264,6 +294,8 @@ function sendLoginUi(res, { error = '', head = false, next = '/roles' } = {}) {
     ${message}
     <form method="post" action="/login">
       <input type="hidden" name="next" value="${dest}">
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="username" autocapitalize="off" spellcheck="false">
       <label for="password">Password</label>
       <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
       <button type="submit">Open DIE</button>
@@ -283,8 +315,9 @@ function requestContext(req) {
     return { mode: 'local_read_only', authenticated: false, hosted: false };
   }
   if (isGatedHost(hostname)) {
-    const authenticated = verifyGateCookie(req.headers.cookie);
-    return { mode: 'gated_public', authenticated, hosted: true, needsLogin: !authenticated };
+    const who = identify(req.headers.cookie);
+    const authenticated = who.authenticated;
+    return { mode: 'gated_public', authenticated, hosted: true, needsLogin: !authenticated, email: who.email, role: who.role };
   }
   if (!TRUST_ACCESS_PROXY || hostname !== PUBLIC_HOST) {
     throw Object.assign(new Error('host_forbidden'), { status: 403 });
@@ -678,10 +711,12 @@ export function createDieWebServer() {
           }
           const type = String(req.headers['content-type'] || '');
           let password = '';
+          let email = '';
           let nextPath = url.searchParams.get('next');
           if (type.includes('application/json')) {
             const payload = await readJsonBody(req, 4096);
             password = String(payload.password || '');
+            email = String(payload.email || '');
             nextPath = payload.next || nextPath;
           } else {
             const raw = await new Promise((resolve, reject) => {
@@ -699,19 +734,39 @@ export function createDieWebServer() {
             });
             const form = new URLSearchParams(raw);
             password = String(form.get('password') || '');
+            email = String(form.get('email') || '');
             nextPath = form.get('next') || nextPath;
           }
-          if (!secretEqual(password, GATE_SECRET)) {
-            noteLoginFail(ip);
-            sendLoginUi(res, { error: 'login_invalid', next: nextPath });
-            return;
+          /* Named accounts first, the shared password second. A single secret cannot say who did
+             anything, cannot be withdrawn from one person, and is the largest gap between this desk
+             and something other people can be given. It stays as a fallback only while accounts are
+             empty, so the machine never locks its own operator out mid-migration — once one account
+             exists, the shared password stops being accepted. */
+          const accounts = loadAccounts();
+          const named = accounts.users.length > 0;
+          let cookieValue = null;
+          if (named) {
+            const auth = authenticateAccount(accounts, email, password);
+            if (!auth.ok) {
+              noteLoginFail(ip);
+              sendLoginUi(res, { error: 'login_invalid', next: nextPath });
+              return;
+            }
+            cookieValue = issueSession(auth.user, GATE_SECRET);
+          } else {
+            if (!GATE_SECRET || !secretEqual(password, GATE_SECRET)) {
+              noteLoginFail(ip);
+              sendLoginUi(res, { error: 'login_invalid', next: nextPath });
+              return;
+            }
+            cookieValue = makeGateCookie();
           }
           const secure = context.hosted ? '; Secure' : '';
           res.writeHead(303, {
             ...baseHeaders,
             ...noindex,
             Location: safeNext(nextPath),
-            'Set-Cookie': `${GATE_COOKIE}=${makeGateCookie()}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${Math.floor(GATE_MS / 1000)}${secure}`,
+            'Set-Cookie': `${GATE_COOKIE}=${cookieValue}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${Math.floor(GATE_MS / 1000)}${secure}`,
           });
           res.end();
           return;
@@ -726,6 +781,16 @@ export function createDieWebServer() {
           modeLabel: modeLabel(context.mode),
           authenticated: context.authenticated === true,
           hosted: context.hosted === true,
+          /* Who, not just whether. An action that cannot be attributed to a person is the thing a
+             shared password made impossible, and it is what an audit trail needs to be worth
+             keeping. null here means the legacy anonymous cookie, which stops being accepted the
+             moment a first account exists. */
+          user: context.email || null,
+          role: context.role || null,
+          can: context.role
+            ? { read: roleCan(context.role, 'read'), write: roleCan(context.role, 'write'), admin: roleCan(context.role, 'admin') }
+            : null,
+          accounts: loadAccounts().users.length,
           mutations: canMutate(context),
           access: accessState(context),
           release: RELEASE_ID,
