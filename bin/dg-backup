@@ -63,9 +63,28 @@ LIST="$(mktemp)"; trap 'rm -f "$LIST"' EXIT
 ( cd "$ROOT" && git ls-files -o -i --exclude-standard 2>/dev/null | grep -v '/' || true ) \
   | sed "s|^|$ROOT/|" >"$LIST"
 
-for extra in "$ROOT/.config/demigod" "$ROOT/.config/systemd/user" "$ROOT/.gitconfig"; do
+# The product's own database lives under ~/.local/share/demigod, which the no-slash filter above
+# never matched — it only catches TOP-LEVEL ignored files. So die-missions.sqlite, the only copy of
+# every mission and audit receipt, was outside the backup entirely while the backup reported success.
+for extra in "$ROOT/.config/demigod" "$ROOT/.config/systemd/user" "$ROOT/.gitconfig" \
+             "$ROOT/.local/share/demigod"; do
   [[ -e "$extra" ]] && printf '%s\n' "$extra" >>"$LIST"
 done
+
+# A file-level copier reads a SQLite database over an interval, not at an instant, so a snapshot
+# taken mid-write holds pages from both sides of it: a file that opens, reports a size, and is
+# corrupt in the middle. VACUUM INTO gives a consistent copy, and the tool verifies it before
+# keeping it. Restic then backs up both the live file and a snapshot known to be restorable.
+DIE_STORE="${DEMIGOD_DIE_STORE:-$ROOT/.local/share/demigod/die-missions.sqlite}"
+if [[ -f "$DIE_STORE" ]]; then
+  if [[ "$mode" == "--check" ]]; then
+    node "$ROOT/demigod-die-store-snapshot.mjs" --verify-only >/dev/null 2>&1 \
+      || log "warn: no verified DIE snapshot yet (run dg-backup once)"
+  else
+    DEMIGOD_DIE_STORE="$DIE_STORE" node "$ROOT/demigod-die-store-snapshot.mjs" >>"$LOG" 2>&1 \
+      || die "DIE store snapshot failed — refusing to back up a database that could not be copied consistently"
+  fi
+fi
 
 count="$(wc -l <"$LIST")"
 # An empty snapshot would succeed and read as green while protecting nothing.
