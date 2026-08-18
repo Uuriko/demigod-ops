@@ -1,0 +1,14 @@
+[Unit]
+Description=Run the Demigod integrity sweep daily
+
+[Timer]
+OnCalendar=daily
+# A laptop that was asleep at the scheduled hour must still get its sweep, or the checks silently
+# stop running on exactly the machine they are meant to watch.
+Persistent=true
+# The sweep talks to GitHub and Origin for 14 repositories; a spread start avoids hammering both
+# at the same second every day.
+RandomizedDelaySec=20min
+
+[Install]
+WantedBy=timers.target

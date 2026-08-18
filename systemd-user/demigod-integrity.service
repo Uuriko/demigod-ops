@@ -1,0 +1,20 @@
+[Unit]
+Description=Demigod nightly integrity sweep — mirror drift, supply chain, cross-pipeline invariants
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/potter
+Environment=DEMIGOD_ROOT=/home/potter
+Environment=DEMIGOD_BUSY=/tmp/dg-busy
+# One ExecStart, not one per check. systemd runs multiple ExecStart entries fail-fast, so a drifted
+# mirror would stop the sweep and hide a compromised dependency underneath it; prefixing with `-`
+# would make the unit incapable of failing at all. bin/dg-integrity runs every check, reports all of
+# them, and exits non-zero at the end if any failed.
+ExecStart=/home/potter/bin/dg-integrity
+# Read-only checks only. Nothing here publishes, sends, spends, or mutates a store.
+NoNewPrivileges=true
+PrivateTmp=false
+UMask=0022
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,15 @@
+[Unit]
+Description=Collect one slice of board history each night
+
+[Timer]
+# 03:00 rather than "daily", which fires at midnight alongside four other Demigod timers. The
+# archive is the one dependency here that belongs to someone else, and stacking requests with the
+# rest of the nightly work is how a polite collector stops being polite.
+OnCalendar=*-*-* 03:00:00
+# The collector is resumable and a missed night costs one slice, not the run. Persistent matters
+# anyway: without it a laptop asleep at 03:00 simply never collects, and the set never finishes.
+Persistent=true
+RandomizedDelaySec=45min
+
+[Install]
+WantedBy=timers.target

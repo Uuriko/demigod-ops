@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# dg-integrity — run every read-only Demigod integrity check, then report ALL of them.
+#
+# WHY A WRAPPER AND NOT THREE ExecStart LINES
+# systemd runs multiple ExecStart= entries fail-fast: the first non-zero stops the unit and the
+# rest never execute. For a nightly sweep that is exactly wrong. A mirror that drifted would hide
+# a compromised dependency underneath it, and the operator would fix the loud thing and never learn
+# about the quiet one. Prefixing with `-` inverts the problem: everything runs, nothing can fail,
+# and a unit that cannot fail is not a check.
+#
+# So: run all, remember each verdict, exit non-zero at the end if any failed.
+#
+# WHAT BELONGS HERE
+# Only checks that are read-only, safe unattended, and exit non-zero on a real finding. Nothing
+# that publishes, sends, spends, or mutates a store. Adding a check that always exits 0 makes this
+# file dishonest, so each one is asserted to be capable of failing before it is added.
+#
+#   bin/dg-integrity           # run the sweep
+#   bin/dg-integrity --list    # name the checks and write nothing
+#
+# Receipt: /tmp/dg-busy/integrity.json
+set -uo pipefail
+
+ROOT="${DEMIGOD_ROOT:-$HOME}"
+BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"
+NODE="${DG_NODE:-$HOME/.nvm/versions/node/v24.17.0/bin/node}"
+mkdir -p "$BUSY"
+
+# name|command
+CHECKS=(
+  "origin-mirror|$NODE $ROOT/demigod-origin-mirror.mjs"
+  "supply-chain|$NODE $ROOT/demigod-supply-chain-check.mjs"
+  "board-retention|$NODE $ROOT/demigod-board-retention.test.mjs"
+  "die-accounts|$NODE $ROOT/demigod-die-accounts.mjs --selftest"
+  "die-store-snapshot|$NODE $ROOT/demigod-die-store-snapshot.mjs --selftest"
+)
+
+if [[ "${1:-}" == "--list" ]]; then
+  for entry in "${CHECKS[@]}"; do printf '%s\n' "${entry%%|*}"; done
+  exit 0
+fi
+
+started="$(date -Iseconds)"
+failed=()
+passed=()
+declare -A REASON=()
+
+for entry in "${CHECKS[@]}"; do
+  name="${entry%%|*}"
+  cmd="${entry#*|}"
+  # Each check owns its own timeout: one hung network call must not stall the whole sweep
+  # indefinitely, and a timeout is a failure to report rather than a reason to skip the rest.
+  if out="$(timeout 600 bash -c "$cmd" 2>&1)"; then
+    passed+=("$name")
+    printf '  ok    %s\n' "$name"
+  else
+    code=$?
+    failed+=("$name")
+    REASON["$name"]="exit ${code}: $(printf '%s' "$out" | tail -n 2 | tr '\n' ' ' | cut -c1-180)"
+    printf '  FAIL  %-20s %s\n' "$name" "${REASON[$name]}"
+  fi
+done
+
+# Receipt first, exit second, so a failing sweep still leaves something to read.
+{
+  printf '{"at":"%s","started":"%s","passed":[' "$(date -Iseconds)" "$started"
+  for i in "${!passed[@]}"; do [[ $i -gt 0 ]] && printf ','; printf '"%s"' "${passed[$i]}"; done
+  printf '],"failed":['
+  for i in "${!failed[@]}"; do [[ $i -gt 0 ]] && printf ','; printf '"%s"' "${failed[$i]}"; done
+  printf '],"reasons":{'
+  first=1
+  for name in "${failed[@]:-}"; do
+    [[ -z "$name" ]] && continue
+    [[ $first -eq 0 ]] && printf ','
+    printf '"%s":"%s"' "$name" "$(printf '%s' "${REASON[$name]}" | sed 's/"/\\"/g')"
+    first=0
+  done
+  printf '}}\n'
+} >"$BUSY/integrity.json"
+
+printf 'dg-integrity %s · %d passed · %d failed · receipt %s\n' \
+  "$([[ ${#failed[@]} -eq 0 ]] && echo OK || echo FAIL)" \
+  "${#passed[@]}" "${#failed[@]}" "$BUSY/integrity.json"
+
+exit $(( ${#failed[@]} > 0 ))

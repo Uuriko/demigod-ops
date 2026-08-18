@@ -1,0 +1,21 @@
+[Unit]
+Description=Demigod board-history archive collection — one bounded slice per night
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/potter
+Environment=DEMIGOD_ROOT=/home/potter
+# A bounded slice, not the whole set. 429 boards remain and each asks the Internet Archive for
+# roughly eighteen snapshots at 3.5s spacing, so an unbounded run is hours of sustained requests
+# against a service that throttles — and a throttle read as "no history" is the permanent error this
+# collector was built to avoid. Twenty a night finishes in about three weeks and stays polite.
+ExecStart=/home/potter/.nvm/versions/node/v24.17.0/bin/node /home/potter/demigod-board-history-run.mjs --limit 20
+# Long, because the work is deliberately slow. Type=oneshot means systemd will not start a second
+# slice while this one runs, so a long night cannot overlap the next.
+TimeoutStartSec=7200
+NoNewPrivileges=true
+PrivateTmp=false
+UMask=0022
+
+[Install]
+WantedBy=default.target
