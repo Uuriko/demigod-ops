@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security or leaked secret
+    url: https://github.com/Uuriko/demigod-ops/security/advisories/new
+    about: Private advisory only. Do not open a public issue for vulnerabilities, tokens, or hiring PII.
+  - name: Design talk
+    url: https://github.com/Uuriko/demigod-ops/discussions
+    about: Questions and design discussion. GitHub is the official community; there is no Discord or Telegram.

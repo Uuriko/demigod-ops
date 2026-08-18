@@ -10,7 +10,10 @@ GitHub is the official room.
 
 - **Issues:** https://github.com/Uuriko/demigod-ops/issues
 - **Pull requests:** https://github.com/Uuriko/demigod-ops/pulls
-- **Discussions** (if enabled on the repo) are fine for design talk.
+- **Discussions** are for design talk.
+- **Support map:** [SUPPORT.md](SUPPORT.md)
+- **Security / leaked secrets / CoC reports:** [SECURITY.md](SECURITY.md) (private advisory only)
+- **Conduct:** [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 
 There is **no official Discord, Telegram, Slack, WhatsApp, or other off-site chat**.
 Do not add invite links or treat a third-party server as the project community.
