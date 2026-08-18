@@ -1,8 +1,14 @@
 [Unit]
 Description=Named Cloudflare tunnel for gated Demigod DIE
-Wants=demigod-die-web.service
+# BindsTo, not Wants: a tunnel that outlives its origin publishes a dead app behind a live
+# hostname. Wants= is advisory — on 2026-08-18 this unit held four ready edge connections while
+# demigod-die-web.service was inactive. Requires= would not have caught it either, because the app
+# stopping cleanly is not a failure to propagate. BindsTo= stops this tunnel with the origin.
+BindsTo=demigod-die-web.service
 After=network-online.target demigod-die-web.service
-ConditionPathExists=%h/.config/demigod/die-gate-ready
+# The arming marker, deliberately absent by default. die-gate-ready only means a gate secret exists;
+# it is not consent to publish. Exposure is armed by die-tunnel-ready and nothing else.
+ConditionPathExists=%h/.config/demigod/die-tunnel-ready
 ConditionPathExists=%h/.config/demigod/die-tunnel.token
 
 [Service]

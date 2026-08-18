@@ -1,8 +1,13 @@
 [Unit]
 Description=Cloudflare quick tunnel for gated Demigod DIE
-Wants=demigod-die-web.service
+# See demigod-die-named-tunnel.service for why BindsTo rather than Wants.
+BindsTo=demigod-die-web.service
 After=network-online.target demigod-die-web.service
-ConditionPathExists=%h/.config/demigod/die-gate-ready
+# A trycloudflare.com hostname is ephemeral: it dies with the process and the next one is different.
+# This unit wrote such a URL to ~/.config/demigod/die-public-url, and it was still being reported as
+# the public desk hours after the connector had dropped to zero connections. It is a demo transport,
+# so it is armed by the same explicit marker as the real one rather than by a gate secret.
+ConditionPathExists=%h/.config/demigod/die-tunnel-ready
 
 [Service]
 Type=simple

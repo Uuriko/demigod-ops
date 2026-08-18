@@ -74,13 +74,36 @@ assert.match(serverSource, /frame-ancestors 'none'/);
 assert.doesNotMatch(serverSource, /unsafe-inline/);
 assert.match(webService, /EnvironmentFile=-%h\/\.config\/demigod\/die-web\.env/);
 assert.match(webService, /DEMIGOD_DIE_STORE=%h\/\.local\/share\/demigod\/die-missions.sqlite/);
-assert.match(tunnelService, /ConditionPathExists=%h\/\.config\/demigod\/die-tunnel-ready/);
 assert.match(tunnelService, /wrangler@4\.120\.1 tunnel run demigod-die/);
-const quickTunnel = fs.readFileSync(path.join(root, 'systemd-user/demigod-die-quick-tunnel.service'), 'utf8');
-const namedTunnel = fs.readFileSync(path.join(root, 'systemd-user/demigod-die-named-tunnel.service'), 'utf8');
-assert.match(quickTunnel, /ConditionPathExists=%h\/\.config\/demigod\/die-gate-ready/);
-assert.match(quickTunnel, /demigod-die-quick-tunnel\.mjs/);
-assert.match(namedTunnel, /die-tunnel\.token/);
+
+/**
+ * EVERY unit that can open a tunnel must be armed by die-tunnel-ready and bound to the origin.
+ *
+ * This block used to assert the interlock on demigod-die-tunnel.service by name, and it passed
+ * while demigod-die-named-tunnel.service — the unit that actually runs — carried neither control.
+ * On 2026-08-18 that unit held four ready Cloudflare edge connections while demigod-die-web.service
+ * was inactive, gated only on die-gate-ready, which exists and means nothing more than "a gate
+ * secret is present". A green test named a file that was not the one exposing anything.
+ *
+ * So the set is discovered from ExecStart rather than hardcoded: add a fourth way to start a
+ * tunnel and it is held to the same two rules without anyone remembering to extend this list.
+ */
+const unitDir = path.join(root, 'systemd-user');
+const tunnelUnits = fs.readdirSync(unitDir)
+  .filter((f) => /^demigod-die-.+\.service$/.test(f))
+  .map((f) => ({ name: f, text: fs.readFileSync(path.join(unitDir, f), 'utf8') }))
+  .filter((u) => /^ExecStart=.*(cloudflared|tunnel run|quick-tunnel)/m.test(u.text));
+
+assert.ok(tunnelUnits.length >= 3,
+  `expected every DIE tunnel unit to be discovered from its ExecStart, found ${tunnelUnits.length}`);
+for (const u of tunnelUnits) {
+  assert.match(u.text, /^ConditionPathExists=%h\/\.config\/demigod\/die-tunnel-ready$/m,
+    `${u.name}: exposure must be armed by die-tunnel-ready, not by a gate secret existing`);
+  assert.match(u.text, /^BindsTo=demigod-die-web\.service$/m,
+    `${u.name}: must stop with its origin — Wants= let this tunnel outlive a dead app`);
+}
+assert.match(tunnelUnits.find((u) => u.name.includes('quick')).text, /demigod-die-quick-tunnel\.mjs/);
+assert.match(tunnelUnits.find((u) => u.name.includes('named')).text, /die-tunnel\.token/);
 assert.doesNotMatch(fs.readFileSync(path.join(root, 'demigod-die-quick-tunnel.mjs'), 'utf8'), /child_process.*eval/);
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'demigod-die-web-'));

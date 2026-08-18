@@ -1,6 +1,8 @@
 [Unit]
 Description=Cloudflare Tunnel for the Demigod DIE private app
-Requires=demigod-die-web.service
+# Requires= propagates a failed origin but not a stopped one, so a clean `systemctl stop` on the
+# app left this tunnel serving nothing. BindsTo= covers both.
+BindsTo=demigod-die-web.service
 After=network-online.target demigod-die-web.service
 ConditionPathExists=%h/.config/demigod/die-tunnel-ready
 
