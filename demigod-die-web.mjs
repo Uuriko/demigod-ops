@@ -12,6 +12,7 @@ import { importJsonMissions, missionStorePath, openMissionStore } from './demigo
 import { projectActivityList } from './demigod-die-activity-shape.mjs';
 import { csvRow, exportFilename } from './demigod-die-export.mjs';
 import { loadHistory, signalsFrom, withWatchlist } from './demigod-die-signals.mjs';
+import { HISTORY as LIFESPAN_HISTORY, MAP as LIFESPAN_MAP, lifespans, load as loadLifespan } from './demigod-die-lifespan.mjs';
 import {
   advanceApplication,
   applyCandidate,
@@ -1300,6 +1301,30 @@ export function createDieWebServer() {
           ? withWatchlist(feed, STORE.list().map((m) => m?.crm?.company?.companyId || m?.packet?.companyId).filter(Boolean))
           : feed;
         sendJson(res, 200, { schema: 'demigod.die-signals/1', ...body }, head);
+      } else if (url.pathname === '/api/v1/lifespan') {
+        /* How long roles actually stay open, from the archive reconstruction. Unique data that DIE
+           has never shown, and the exclusions travel with it: of 24,775 observed spans only 1,105
+           can support a duration claim, and a median quoted without that denominator is a different,
+           easier number. */
+        const feed = lifespans(loadLifespan(LIFESPAN_HISTORY, {}), loadLifespan(LIFESPAN_MAP, {}));
+        const company = boundedText(url.searchParams.get('company'), 160, 'invalid_company');
+        if (company) {
+          const one = (feed.companies || []).find((c) => c.companyId === company);
+          sendJson(res, 200, { schema: 'demigod.die-lifespan/1', ...(one || { companyId: company, ok: false, why: 'no archived board for this company yet' }) }, head);
+          return;
+        }
+        const limit = parseInteger(url.searchParams.get('limit'), {
+          fallback: 25, min: 1, max: MAX_LIMIT, error: 'invalid_limit',
+        });
+        sendJson(res, 200, {
+          schema: 'demigod.die-lifespan/1',
+          ok: feed.ok,
+          why: feed.why ?? null,
+          boardsCollected: feed.boardsCollected ?? 0,
+          companiesWithAClaim: feed.companiesWithAClaim ?? 0,
+          overall: feed.overall ?? null,
+          companies: (feed.companies || []).slice(0, limit),
+        }, head);
       } else if (url.pathname === '/api/v1/export') {
         const dataset = String(url.searchParams.get('dataset') || '');
         const format = String(url.searchParams.get('format') || 'csv').toLowerCase();
