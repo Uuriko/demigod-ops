@@ -55,18 +55,14 @@ html.dg-route-boot:has(body.dg-ready)::before,html.dg-route-boot:has(body[data-d
 </style>
 
 <style id="dg-volume-step-hide">
-.steps-grid .step-card:nth-child(3){opacity:0}
-html.dg-volume-honest .steps-grid .step-card:nth-child(3){opacity:1;transition:opacity .15s ease}
-
-a[href*="mailto:hello"]{opacity:0}
-html.dg-contact-honest a[href*="mailto:"]{opacity:1;transition:opacity .12s ease}
-
-.btn-label,.button_label{opacity:0}
-html.dg-cta-honest .btn-label,html.dg-cta-honest .button_label{opacity:1;transition:opacity .12s ease}
-
-.pricing-card{opacity:0;animation:dg-pc-reveal 0s linear 1s forwards}
-@keyframes dg-pc-reveal{to{opacity:1}}
-html.dg-pricing-honest .pricing-card{opacity:1;animation:none;transition:opacity .12s ease}
+/* Fail-open: never hide conversion UI waiting on a JS class. Scrub still rewrites dishonest canvas copy. */
+.steps-grid .step-card:nth-child(3){opacity:1}
+a[href*="mailto:hello"]{opacity:1}
+.btn-label,.button_label{opacity:1}
+.pricing-card{opacity:1;animation:none}
+.w-file-upload-error:not(.w--error){display:none!important}
+.w-file-upload-error-msg{display:none!important}
+.w-file-upload-error.w--error,.w-file-upload-error.w--error .w-file-upload-error-msg{display:block!important}
 </style>
 
 <style id="dg-early-skip-css">#dg-skip-early{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10001}#dg-skip-early:focus,#dg-skip-early:focus-visible{position:fixed;left:12px;top:12px;width:auto;height:auto;overflow:visible;background:#10c674;color:#03140d;padding:8px 12px;border-radius:6px;font-weight:600;text-decoration:none;outline:2px solid #a6ffcb;outline-offset:2px}</style>
@@ -284,7 +280,7 @@ try{(function(){
   if(!id&&path!=='/')id=path.slice(1);
   var aliases={pilot:'hire',method:'how',founders:'hire',candidates:'talent',compare:'pricing',status:'about'};
   id=aliases[id]||id;
-  var allowed={how:1,pricing:1,faq:1,hire:1,talent:1,contact:1,legal:1,refer:1,partners:1,about:1,blog:1,map:1,events:1,sample:1};
+  var allowed={how:1,pricing:1,faq:1,hire:1,talent:1,contact:1,legal:1,refer:1,partners:1,about:1,blog:1,map:1,events:1,sample:1,startups:1};
   var url=allowed[id]?'https://www.trydemigod.com/?p='+encodeURIComponent(id):'https://www.trydemigod.com/';
   var can=document.createElement('link');can.rel='canonical';can.href=url;document.head.appendChild(can);
   var og=document.querySelector('meta[property="og:url"]'); if(og)og.setAttribute('content',url);
@@ -309,10 +305,10 @@ try{(function(){
 <style id="dg-hide-insights">#insights-section,.insights-section{display:none!important}</style>
 <style id="hide-webflow-badge">a.w-webflow-badge,.w-webflow-badge{display:none!important}</style>
 <style id="dg-simplify">.w-nav .w-dropdown,.w-nav .w-dropdown-toggle,.w-mega-menu,.mega-menu,[class*="mega-menu"]{display:none!important}footer .w-layout-grid,.footer .w-layout-grid{display:none!important}</style>
-<link rel="preload" as="script" href="https://files.catbox.moe/7o703k.js" data-dg-foot-preload>
-<meta name="dg-startup-map-script" content="https://files.catbox.moe/xik8zi.js">
-<meta name="dg-startup-map-data" content="https://files.catbox.moe/i7txgf.json">
-<meta name="dg-startup-roles-feed" content="https://files.catbox.moe/z3rx1a.json">
+<link rel="preload" as="script" href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@23044d11f53e/foot-latest.js" data-dg-foot-preload>
+<meta name="dg-startup-map-script" content="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@23044d11f53e/startup-map-latest.js">
+<meta name="dg-startup-map-data" content="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@23044d11f53e/sf-startup-map.json">
+<meta name="dg-startup-roles-feed" content="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@23044d11f53e/roles-feed.json">
 <link rel="preload" as="image" media="(min-width:901px)" href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg" fetchpriority="high">
 
 <style id="dg-hero-ar">.hero-section img,.hero-content-right img,.statue-frame,.statue-wrapper{aspect-ratio:16/9;max-width:100%;height:auto}.statue-svg{aspect-ratio:2/3;width:100%;height:auto}</style>
@@ -377,8 +373,10 @@ video,iframe{display:block;border:0}
 @media(orientation:landscape) and (max-height:500px){.hero-section,.header{min-height:auto!important;padding:2rem 1rem!important}}
 ::file-selector-button{font:inherit;color:#0A0A0A;background:var(--g);border:0;border-radius:8px;padding:.4rem .75rem;cursor:pointer}
 @media(prefers-contrast:more){a{text-decoration:underline}::selection{background:#10c674;color:#03140d}}
-@media print{html,body{background:#fff!important;color:#111!important}#dg-bar,.nav_right,a[data-dg-cta]{display:none!important}a{color:#000!important}}</style>
-<link rel="stylesheet" href="https://files.catbox.moe/ua6eev.css" onerror="var s=document.getElementById('dg-base-tokens');if(s)s.textContent+=';/*catbox-css-failed*/'">
+@media print{html,body{background:#fff!important;color:#111!important}#dg-bar,.nav_right,a[data-dg-cta]{display:none!important}a{color:#000!important}}
+/* Live 390px hire/home: #dg-bar (two-line CTAs) sat on step copy. Foot sets 86px; two-line dock is taller. html body beats later body !important. */
+@media(max-width:767px){html body{padding-bottom:calc(7.5rem + env(safe-area-inset-bottom,0px))!important}}</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@23044d11f53e/head-latest.css" onerror="var s=document.getElementById('dg-base-tokens');if(s)s.textContent+=';/*catbox-css-failed*/'" integrity="sha384-DVJvIlODKqEw2alxHLe65wLzssFAGRkg2Xeu8Rc9C4Mqw9x+WoW4h5tQE9BOdVxm" crossorigin="anonymous">
 <!-- Demigod forms --><!-- openModal --><!-- demigod-polish -->
 
 <script id="dg-early-copy-scrub">
@@ -476,7 +474,7 @@ try{(function(){
 
 <script type="application/ld+json" id="dg-nav-jsonld">{"@context":"https://schema.org","@type":"ItemList","name":"Demigod site pages","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","url":"https://www.trydemigod.com/"},{"@type":"ListItem","position":2,"name":"Hire talent","url":"https://www.trydemigod.com/hire"},{"@type":"ListItem","position":3,"name":"Share privately","url":"https://www.trydemigod.com/talent"},{"@type":"ListItem","position":4,"name":"How it works","url":"https://www.trydemigod.com/how"},{"@type":"ListItem","position":5,"name":"Pricing","url":"https://www.trydemigod.com/pricing"},{"@type":"ListItem","position":6,"name":"FAQ","url":"https://www.trydemigod.com/faq"},{"@type":"ListItem","position":7,"name":"SF tech companies","url":"https://www.trydemigod.com/startups"},{"@type":"ListItem","position":8,"name":"Contact","url":"https://www.trydemigod.com/contact"},{"@type":"ListItem","position":9,"name":"Legal","url":"https://www.trydemigod.com/legal"},{"@type":"ListItem","position":10,"name":"About","url":"https://www.trydemigod.com/about"}]}</script>
 
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"Blog","name":"Demigod Blog","url":"https://www.trydemigod.com/?p=blog","inLanguage":"en","publisher":{"@type":"Organization","name":"Demigod","url":"https://www.trydemigod.com","logo":{"@type":"ImageObject","url":"https://files.catbox.moe/ges75q.jpg","width":1024,"height":1024}},"blogPost":[{"@type":"BlogPosting","headline":"Epicurus' Garden and the SF hacker house","description":"Epicurus wanted friendship and a quiet mind. SF hacker houses want speed. The useful overlap is smaller: choose the room carefully, write the norms down, and leave room to recover.","url":"https://www.trydemigod.com/?p=blog#note-epicurus-garden-hacker-houses","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-epicurus-garden-hacker-houses"},"image":"https://files.catbox.moe/urbco5.jpg","articleSection":"Market","datePublished":"2026-07-17","dateModified":"2026-07-17","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Blog","name":"Demigod Blog","url":"https://www.trydemigod.com/blog","inLanguage":"en","publisher":{"@type":"Organization","name":"Demigod","url":"https://www.trydemigod.com","logo":{"@type":"ImageObject","url":"https://files.catbox.moe/ges75q.jpg","width":1024,"height":1024}},"blogPost":[{"@type":"BlogPosting","headline":"Epicurus' Garden and the SF hacker house","description":"Epicurus wanted friendship and a quiet mind. SF hacker houses want speed. The useful overlap is smaller: choose the room carefully, write the norms down, and leave room to recover.","url":"https://www.trydemigod.com/blog#note-epicurus-garden-hacker-houses","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/blog#note-epicurus-garden-hacker-houses"},"image":"https://files.catbox.moe/urbco5.jpg","articleSection":"Market","datePublished":"2026-07-17","dateModified":"2026-07-17","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"}]}</script>
 
 <style id="dg-cta-preboot">
 

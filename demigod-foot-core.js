@@ -1,5 +1,5 @@
-/*dg-foot-v1104-core*/
-window.dgFootVersion = 'v1104'; console.log('[demigod] foot v1104-core loaded');
+/*dg-foot-v1105-core*/
+window.dgFootVersion = 'v1105'; console.log('[demigod] foot v1105-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
@@ -1707,7 +1707,7 @@ function nav(){
   var right=q('.nav_container .nav_right');
   if(right&&!q('#dg-nav-directory')){
     var menu=document.createElement('details');menu.id='dg-nav-directory';
-    menu.innerHTML='<summary>Explore</summary><div class="dg-nav-panel"><p class="dg-nav-group">Start</p><a href="/how-it-works" data-dg-page="how">How it works</a><a href="/pricing" data-dg-page="pricing">Pricing</a><a href="/sample" data-dg-page="sample">Sample match</a><a href="/?p=bounties" data-dg-page="bounties">Bounties</a><a href="/hire" data-dg-page="hire">Hire guide</a><a href="/talent" data-dg-page="talent">Talent guide</a><p class="dg-nav-group">More</p><a href="/startups" data-dg-page="map">SF directory</a><a href="/blog" data-dg-page="blog">Notes</a><a href="/faq" data-dg-page="faq">FAQ</a><a href="/about" data-dg-page="about">About</a><a href="/contact" data-dg-page="contact">Contact</a><a href="/legal" data-dg-page="legal">Privacy & terms</a></div>';
+    menu.innerHTML='<summary>Explore</summary><div class="dg-nav-panel"><p class="dg-nav-group">Start</p><a href="/how-it-works" data-dg-page="how">How it works</a><a href="/pricing" data-dg-page="pricing">Pricing</a><a href="/sample" data-dg-page="sample">Sample match</a><a href="/?p=bounties" data-dg-page="bounties">Bounties</a><a href="/hire" data-dg-page="hire">Hire guide</a><a href="/talent" data-dg-page="talent">Talent guide</a><p class="dg-nav-group">More</p><a href="/startups" data-dg-page="map">SF directory</a><a href="/posting-age" data-dg-page="posting-age">Posting age index</a><a href="/blog" data-dg-page="blog">Notes</a><a href="/faq" data-dg-page="faq">FAQ</a><a href="/about" data-dg-page="about">About</a><a href="/contact" data-dg-page="contact">Contact</a><a href="/legal" data-dg-page="legal">Privacy & terms</a></div>';
     qa('a',menu).forEach(function(a){a.style.setProperty('visibility','visible','important');a.style.setProperty('opacity','1','important')});
     menu.addEventListener('click',function(e){if(e.target.closest('a'))menu.removeAttribute('open')});right.prepend(menu);
     menu.addEventListener('keydown',function(e){if(e.key==='Escape'&&menu.open){e.preventDefault();menu.removeAttribute('open');menu.querySelector('summary').focus()}});
@@ -1744,6 +1744,7 @@ function foot(){
           '<p class="dg-footer-heading" id="dg-footer-company">Company</p>'+
           '<a href="/about" data-dg-page="about">About</a>'+
           '<a href="/startups" data-dg-page="map">SF directory</a>'+
+          '<a href="/posting-age" data-dg-page="posting-age">Posting age index</a>'+
           '<a href="/contact" data-dg-page="contact">Contact</a>'+
           '<a href="/legal" data-dg-page="legal">Privacy &amp; terms</a>'+
           '<a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>'+
@@ -3555,6 +3556,20 @@ var DG_PAGES = {
       '<p class="dg-p-note">Each note has a shareable link. Questions: <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>.</p></div>' +
       '<div class="dg-blog-grid" id="dg-blog-grid"></div>',
   },
+  'posting-age': {
+    title: 'Posting age index',
+    doc: 'Posting age index · Demigod',
+    desc: "69% of SF startup roles with an attributable date have been posted more than 30 days. Live data, methodology, and what the age distribution does not prove.",
+    html:
+      '<p class="dg-p-lead"><strong>How long SF startup roles actually stay posted</strong> — live from the role ledger. This is posting age, not a ghost-job claim: the limits below are as important as the number.</p>' +
+      '<p class="dg-p-actions"><a class="hire" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire">Start brief →</a> <a class="talent dg-p-actions-sec" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent">Share privately →</a></p>' +
+      '<table><tbody><tr><th scope="row" style="text-align:left;font-weight:500;padding:6px 14px 6px 0">Open roles</th><td style="text-align:right;font-variant-numeric:tabular-nums;padding:6px 0">17,353</td><td style="padding:6px 0 6px 14px;color:#7f978c">across all tracked boards</td></tr><tr><th scope="row" style="text-align:left;font-weight:500;padding:6px 14px 6px 0">Roles with an attributable date</th><td style="text-align:right;font-variant-numeric:tabular-nums;padding:6px 0">9,667</td><td style="padding:6px 0 6px 14px;color:#7f978c">Greenhouse first_published field</td></tr><tr><th scope="row" style="text-align:left;font-weight:500;padding:6px 14px 6px 0">Posted >30 days</th><td style="text-align:right;font-variant-numeric:tabular-nums;padding:6px 0">6,549</td><td style="padding:6px 0 6px 14px;color:#7f978c">67.7%</td></tr><tr><th scope="row" style="text-align:left;font-weight:500;padding:6px 14px 6px 0">Posted >90 days</th><td style="text-align:right;font-variant-numeric:tabular-nums;padding:6px 0">3,270</td><td style="padding:6px 0 6px 14px;color:#7f978c">33.8%</td></tr><tr><th scope="row" style="text-align:left;font-weight:500;padding:6px 14px 6px 0">Posted >365 days</th><td style="text-align:right;font-variant-numeric:tabular-nums;padding:6px 0">610</td><td style="padding:6px 0 6px 14px;color:#7f978c">6.3%, counted as evergreen</td></tr><tr><th scope="row" style="text-align:left;font-weight:500;padding:6px 14px 6px 0">Median age</th><td style="text-align:right;font-variant-numeric:tabular-nums;padding:6px 0">56 days</td><td style="padding:6px 0 6px 14px;color:#7f978c">—</td></tr></tbody></table>' +
+      '<p class="dg-p-note"><strong>Companies with roles open over a year:</strong> Netlify (2723d), Anaplan (2542d), Databricks (2469d), Brave Software (2253d), Neuralink (2114d).</p>' +
+      '<ol class="dg-p-list"><li><strong>Age comes from the ATS</strong> — each role\'s date is what the company\'s own system reports (Greenhouse <code>first_published</code>), not when Demigod first saw it.</li><li><strong>Evergreen is separate</strong> — roles over 365 days are counted apart so they cannot inflate the headline.</li><li><strong>No ghost-job claim</strong> — a long-open role can be real and hard to fill. The data shows the distribution; you draw the inference.</li></ol>' +
+      '<p class="dg-p-note"><strong>The industry says</strong> about 1 in 7 US listings stays active more than 30 days. Among SF startups with attributable dates it is 67.7% — a different universe, a different number. <a href="/startups" data-dg-page="map">SF directory →</a></p>' +
+      '<p class="dg-p-note">Data polled daily from 493 verified SF startup ATS boards (Greenhouse 123, Ashby 326, Lever 44). Last update: 2026-08-18. Questions: <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>.</p>',
+  },
+
   private: {
     title: 'Why private',
     doc: 'Why private · Demigod',
@@ -4714,7 +4729,7 @@ function openPage(id, push) {
   } catch (e) {}
   try {
     /* Prefer hard path (/events) over /?p= when we own a clean route. */
-    var preferred = { how:'/how', pricing:'/pricing', hire:'/hire', talent:'/talent', faq:'/faq', legal:'/legal', refer:'/refer', about:'/about', events:'/events', map:'/startups', contact:'/contact', blog:'/blog', sample:'/sample', bounties:'/?p=bounties', press:'/press', private:'/private', notfound:'/' };
+    var preferred = { how:'/how', pricing:'/pricing', hire:'/hire', talent:'/talent', faq:'/faq', legal:'/legal', refer:'/refer', about:'/about', events:'/events', map:'/startups', contact:'/contact', blog:'/blog', sample:'/sample', bounties:'/?p=bounties', press:'/press', private:'/private', 'posting-age':'/posting-age', notfound:'/' };
     var pathNow = (location.pathname || '/').replace(/\/+$/, '') || '/';
     /* v860: an ALIAS must not claim canonical for itself. DG_PAGE_PATHS declares 36 paths across ~19
        routes, so /referral, /referrals and /partners are all route 'refer', and /press-kit and
@@ -5174,6 +5189,9 @@ var DG_PAGE_PATHS = {
   // that does not resolve is worse than no alias: it is a promise the site cannot keep. The
   // `#tryout` hash below still works, because that one never depended on a page existing.
 
+  '/posting-age': 'posting-age',
+  '/posting-age-index': 'posting-age',
+  '/data': 'posting-age',
   '/terms': 'legal',
   '/cookies': 'legal',
   '/refer': 'refer',
@@ -5332,7 +5350,7 @@ else if(k==='jobseeker'||h===J||h==='#jobseeker-modal'){if(!q(J))return;e.preven
 document.addEventListener('input',function(e){if(OPEN&&e.target&&e.target.closest&&e.target.closest(S+','+J)){/*dg-wiz-err-clear*/try{var f=e.target.closest('form');var er=f&&f.querySelector('.dg-wiz-err,.dg-wiz-req-err'),eid=er&&er.id;if(er)er.remove();e.target.style.borderColor='';e.target.removeAttribute('aria-invalid');if(eid){var ids=(e.target.getAttribute('aria-describedby')||'').split(/\s+/).filter(function(id){return id&&id!==eid});if(ids.length)e.target.setAttribute('aria-describedby',ids.join(' '));else e.target.removeAttribute('aria-describedby')}}catch(err){}}},true);
 document.addEventListener('keydown',function(e){if(e.defaultPrevented)return;if(e.key==='Escape'&&q('#dg-page')){closePage();return}if(e.key==='Escape'&&OPEN){OPEN=null;hide(true)}});
 typeof window.addEventListener==='function'&&window.addEventListener('popstate',function(){/*dg-page-popstate*/ try{ if(!routePages()) closePage(); }catch(e){} });
-window.__dgFootVer='1104';console.log('Demigod v1104');
+window.__dgFootVer='1105';console.log('Demigod v1105');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 

@@ -1,7 +1,8 @@
 (function () {
   'use strict';
-  // Minimal, text-first SF tech company directory ("think Craigslist"): a dense,
-  // searchable list. No SVG map, no radius search, no venue layer; events stay separate.
+  // Minimal, text-first tech company directory ("think Craigslist"): a dense,
+  // searchable list spanning SF Bay, LA, and NYC scope on roles. No SVG map, no radius
+  // search, no venue layer; events stay separate.
   // Preserves the public API (mount/addCommunityStartups), schema/3 validation, the
   // community-submission merge, and every honesty label from the prior atlas.
   var source = document.currentScript && document.currentScript.src;
@@ -28,9 +29,28 @@
   var DG_SORTS = ['roles', 'fresh', 'stale', 'name'];
   var DG_HIRING = ['yes', 'unknown'];
   var DG_FUNCS = ['engineering', 'ai/data', 'design', 'product', 'sales', 'marketing', 'operations', 'people', 'finance/legal'];
+  // First-class role metros (directory expansion). Empty string = unfiltered.
+  var DG_METROS = ['sf-bay', 'la', 'nyc'];
   // 'unknown' is a real filter value (≈⅓ of the map has no attributed headcount). Empty
   // string is only the unfiltered control state — never a bucket label.
   var DG_SIZES = ['1-10', '11-50', '51-200', '201+', 'unknown'];
+
+  /** PURE. Same metro rules as demigod-public-roles.detectPublicMetro (browser copy). */
+  function dgDetectMetro(location) {
+    var s = String(location || '');
+    if (!s.trim()) return null;
+    if (/san\s*francisco|\bsf\b|bay\s*area|palo\s*alto|mountain\s*view|menlo\s*park|oakland|berkeley|san\s*mateo|redwood\s*city|sunnyvale|cupertino|san\s*jose|south\s*bay|peninsula|fremont|emeryville|daly\s*city|south\s*san\s*francisco|silicon\s*valley/i.test(s)) return 'sf-bay';
+    if (/los\s*angeles|santa\s*monica|culver\s*city|pasadena|burbank|el\s*segundo|playa\s*vista|venice(?:\s*,\s*ca)?|long\s*beach,\s*ca|marina\s*del\s*rey|century\s*city/i.test(s)) return 'la';
+    if (/new\s*york|\bnyc\b|brooklyn|manhattan|queens|bronx|long\s*island\s*city|jersey\s*city|hoboken/i.test(s)) return 'nyc';
+    return null;
+  }
+
+  function dgMetroLabel(metro) {
+    if (metro === 'sf-bay') return 'SF Bay';
+    if (metro === 'la') return 'Los Angeles';
+    if (metro === 'nyc') return 'NYC';
+    return '';
+  }
 
   function dgFunctionLabel(value) {
     return value === 'ai/data' ? 'AI / data' : value === 'finance/legal' ? 'Finance / legal' : value.charAt(0).toUpperCase() + value.slice(1);
@@ -53,7 +73,7 @@
   }
 
   function dgParseFilterHash(hash, providers) {
-    var out = { query: '', hiring: '', func: '', size: '', provider: '', sort: 'roles' };
+    var out = { query: '', hiring: '', func: '', size: '', provider: '', metro: '', sort: 'roles' };
     var raw = String(hash || '').replace(/^#/, '');
     if (!raw) return out;
     var known = (providers || []).map(function (x) { return String(x).toLowerCase(); });
@@ -67,6 +87,7 @@
       else if (k === 'hiring' && DG_HIRING.indexOf(v) >= 0) out.hiring = v;
       else if (k === 'fn' && DG_FUNCS.indexOf(v) >= 0) out.func = v;
       else if (k === 'size' && DG_SIZES.indexOf(v) >= 0) out.size = v;
+      else if (k === 'metro' && DG_METROS.indexOf(v) >= 0) out.metro = v;
       else if (k === 'sort' && DG_SORTS.indexOf(v) >= 0) out.sort = v;
       else if (k === 'ats' && known.indexOf(v.toLowerCase()) >= 0) out.provider = v.toLowerCase();
     });
@@ -80,6 +101,7 @@
     if (st.hiring) parts.push('hiring=' + encodeURIComponent(st.hiring));
     if (st.func) parts.push('fn=' + encodeURIComponent(st.func));
     if (st.size) parts.push('size=' + encodeURIComponent(st.size));
+    if (st.metro) parts.push('metro=' + encodeURIComponent(st.metro));
     if (st.provider) parts.push('ats=' + encodeURIComponent(st.provider));
     if (st.sort && st.sort !== 'roles') parts.push('sort=' + encodeURIComponent(st.sort));
     return parts.length ? '#' + parts.join('&') : '';
@@ -101,10 +123,15 @@
   // unfiltered page.
   function dgFilterRoles(roles, opts) {
     var fn = (opts && opts.func) || '';
+    var metro = (opts && opts.metro) || '';
     var names = opts && opts.companies;
     return (roles || []).filter(function (r) {
       if (!r) return false;
       if (fn && String(r.fn || '') !== fn) return false;
+      if (metro) {
+        var m = r.metro || dgDetectMetro(r.location) || dgDetectMetro(r.employerOffice);
+        if (m !== metro) return false;
+      }
       if (names && !names.has(String(r.company || '').toLowerCase())) return false;
       return true;
     });
@@ -163,7 +190,7 @@
   }
 
   var state = {
-    baseMap: null, root: null, query: '', hiring: '', func: '', size: '', provider: '', sort: 'roles',
+    baseMap: null, root: null, query: '', hiring: '', func: '', size: '', metro: '', provider: '', sort: 'roles',
     communityStartups: Array.isArray(window.dgCommunityStartups) ? window.dgCommunityStartups : [],
   };
 
@@ -475,7 +502,7 @@
       state.hashApplied = true;
       var fromHash = dgParseFilterHash(typeof location !== 'undefined' ? location.hash : '', providers);
       state.query = fromHash.query; state.hiring = fromHash.hiring; state.func = fromHash.func; state.size = fromHash.size;
-      state.provider = fromHash.provider; state.sort = fromHash.sort;
+      state.metro = fromHash.metro; state.provider = fromHash.provider; state.sort = fromHash.sort;
     }
     var sources = (map.sources || []).map(function (item) {
       var url = safeUrl(item.url);
@@ -497,7 +524,7 @@
          source and city-level scope, so the paragraph only has to carry what it doesn't: where the
          counts come from, that they are point-in-time, and that open-age is an observation rather
          than a verdict. Every honesty claim survives; the restatement does not. */
-      '<p class="dg-dir-intro">City-level only — a listed Bay Area location, not a verified office. Open-role counts come from each company\'s own public job board, point-in-time — an observation, not a hiring verdict. Listed companies are not engaged Demigod clients; use <strong>Hiring here? Start a brief</strong> to work with us.</p>' +
+      '<p class="dg-dir-intro">City-level only — a listed location (SF Bay companies on this map; observed open roles also surface Los Angeles and NYC when the ATS says so), not a verified office. Open-role counts come from each company\'s own public job board, point-in-time — an observation, not a hiring verdict. Listed companies are not engaged Demigod clients; use <strong>Hiring here? Start a brief</strong> to work with us.</p>' +
       /* Coverage stats and role buckets moved BELOW the list. On a 390px screen they pushed the
          first company past ~1,700px, so the entire mobile fold was chrome, a disclaimer and
          aggregates — zero product. They are orientation for someone already browsing, not for
@@ -511,6 +538,10 @@
       '<select class="dg-dir-func" aria-label="Filter by role function"><option value="">Any role</option>' +
       DG_FUNCS.map(function (f) {
         return '<option value="' + f + '"' + (state.func === f ? ' selected' : '') + '>' + dgFunctionLabel(f) + '</option>';
+      }).join('') + '</select>' +
+      '<select class="dg-dir-metro" aria-label="Filter observed roles by metro"><option value="">Roles: any metro</option>' +
+      DG_METROS.map(function (m) {
+        return '<option value="' + m + '"' + (state.metro === m ? ' selected' : '') + '>' + dgMetroLabel(m) + ' roles</option>';
       }).join('') + '</select>' +
       '<select class="dg-dir-size" aria-label="Filter by team size"><option value="">Any team size</option>' +
       DG_SIZES.map(function (size) {
@@ -548,6 +579,7 @@
     var searchEl = root.querySelector('.dg-dir-search');
     var hiringEl = root.querySelector('.dg-dir-hiring');
     var funcEl = root.querySelector('.dg-dir-func');
+    var metroEl = root.querySelector('.dg-dir-metro');
     var sizeEl = root.querySelector('.dg-dir-size');
     var providerEl = root.querySelector('.dg-dir-provider');
     var sortEl = root.querySelector('.dg-dir-sort');
@@ -563,11 +595,13 @@
       var q = searchEl.value.trim().toLowerCase();
       var h = hiringEl.value;
       var fn = funcEl.value;
+      var metro = metroEl ? metroEl.value : '';
       var size = sizeEl.value;
       var provider = providerEl.value;
       state.query = searchEl.value.trim();
       state.hiring = h;
       state.func = fn;
+      state.metro = metro;
       state.size = size;
       state.provider = provider;
       state.sort = sortEl ? sortEl.value : 'roles';
@@ -605,7 +639,8 @@
       // Keep the roles panel in the same view as the rows. null = no filter active, so do not
       // narrow; building a 2,735-name Set on every keystroke of an unfiltered page is pure waste.
       var narrowed = (q || h || fn || size || provider) ? new Set(matches.map(function (i) { return String(companies[i].name || '').toLowerCase(); })) : null;
-      mountRecentRoles(root, { func: fn, companies: narrowed });
+      // Metro filters roles only (ATS location), not the company map rows — map is still SF-HQ scope.
+      mountRecentRoles(root, { func: fn, metro: metro, companies: narrowed });
       list.innerHTML = slice.length
         ? slice.map(function (i) { return companyRow(companies[i], i); }).join('')
         : '<li class="dg-dir-empty">' + ((h || fn || size || provider) ? 'No companies match those filters.' : 'No companies match that search.') + '</li>';
@@ -613,15 +648,17 @@
       count.textContent = matches.length
         ? matches.length + ' of ' + companies.length + ' compan' + (matches.length === 1 ? 'y' : 'ies') +
           (fn ? ' hiring in ' + dgFunctionLabel(fn) : '') +
+          (metro ? ' · roles in ' + dgMetroLabel(metro) : '') +
           (size ? ' · team size ' + (size === 'unknown' ? 'unknown' : size) : '') +
           (provider ? ' on ' + provider : '') +
           (matches.length > shown ? ' — showing ' + shown : '') +
-          (!q && !h && !fn && !size && !provider ? ' · ' + (hiringNow + hiringYc) + ' with job links: ' + hiringNow + ' with observed US-posted or remote roles, ' + hiringYc + ' more hiring per YC' : '')
+          (!q && !h && !fn && !size && !provider && !metro ? ' · ' + (hiringNow + hiringYc) + ' with job links: ' + hiringNow + ' with observed US-posted or remote roles, ' + hiringYc + ' more hiring per YC' : '')
         : ((h || fn || size || provider) ? 'No companies match those filters.' : 'No companies match that search.');
     }
     searchEl.addEventListener('input', renderRows);
     hiringEl.addEventListener('change', renderRows);
     funcEl.addEventListener('change', renderRows);
+    if (metroEl) metroEl.addEventListener('change', renderRows);
     sizeEl.addEventListener('change', renderRows);
     providerEl.addEventListener('change', renderRows);
     if (sortEl) sortEl.addEventListener('change', renderRows);
@@ -715,7 +752,7 @@
     if (!root) return;
     css();
     root.setAttribute('aria-busy', 'true');
-    root.innerHTML = '<p class="dg-dir-intro">Loading the SF tech company directory…</p>';
+    root.innerHTML = '<p class="dg-dir-intro">Loading the tech company directory…</p>';
     fetch(dataUrl, { cache: 'force-cache', credentials: 'omit' })
       .then(function (r) { if (!r.ok) throw new Error('Map data HTTP ' + r.status); return r.json(); })
       .then(function (map) {
