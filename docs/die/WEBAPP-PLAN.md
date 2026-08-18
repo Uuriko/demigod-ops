@@ -1,6 +1,6 @@
 # DIE hosted web app plan
 
-**Status:** architecture and execution plan · 2026-08-16
+**Status:** H0/H1 complete · H2 transport prepared dark, interlock corrected 2026-08-18 · named accounts, roles, API keys, and export shipped · Access/DNS activation still blocked by current Cloudflare OAuth scope · 2026-08-18
 **Product:** Demigod Intelligence Engine inside Demigod, not a separate brand
 **Target:** private operator web app first; customer/team product only after the real workflow proves it
 
@@ -433,8 +433,8 @@ Exit:
 - demo state remains visibly demo;
 - no local ops route exists on the hosted origin.
 
-This phase requires current-request authorization for DNS, Access, tunnel, host, and deployment
-changes. Planning and local implementation do not grant it.
+The 2026-08-16 request authorized these external changes. Activation still fails closed until the
+Cloudflare account can create an Access organization/application/policy and a DNS record.
 
 ### H3 — Durable role calibration and review
 
@@ -532,14 +532,13 @@ unit/domain checks
 
 ## 9. First implementation packet
 
-The first code slice should be H0 plus the read-only skeleton of H1.
+The first code slice implements H0 plus the read-only skeleton of H1.
 
 Touch only:
 
 ```text
 demigod-die-web.mjs                 new narrow server
 demigod-die-web-ui.html             new product shell
-demigod-die-web-http-policy.mjs     hosted route/security policy
 demigod-die-web.test.mjs            one fail-capable contract suite
 package.json                         one local start script
 demigod-verify-all.mjs              add focused test after it is green
@@ -589,3 +588,166 @@ First-slice acceptance:
 
 The plan stays ambitious by defining the route from local tool to customer SaaS, while each phase
 ships only the commitments supported by the workflow evidence available at that phase.
+
+## 11. H0/H1 implementation receipt · 2026-08-16
+
+Implemented:
+
+- dedicated `127.0.0.1:9880` Node server, separate from the operations dashboard;
+- native Roles, Role Workspace, Companies, and Company Packet screens;
+- native Activity screen and bounded `/api/v1/activity` placeholder that exposes only hosted
+  workflow receipts and reports zero while hosted mutations do not exist;
+- bounded company search and cursor-ready API projection over the 2,754-company source corpus;
+- Company Packet screen renders accepted research values with exact citations, explicit unknowns,
+  bounded hiring journal, evidence-based peers, and observed roles from the existing packet;
+- role workspace projection over existing packet, review-note, company, and candidate-evidence logic;
+- Roles list state, readiness checkpoints, and candidate-channel counts derived from that same
+  workspace projection; non-demo packets are not labeled accepted before the acceptance gate opens;
+- explicit local session truth: `authenticated: false`, `hosted: false`, `mode: local_read_only`;
+- GET/HEAD-only policy, loopback host enforcement, generic internal errors, no CORS, strict security
+  headers, and per-response CSP nonces without `unsafe-inline`;
+- a fail-capable HTTP/security/product contract in the full Demigod verifier;
+- `npm run demigod:die:web` as the one local start command.
+
+Verified:
+
+- `node demigod-die-web.test.mjs` PASS with real loopback HTTP probes;
+- `npm run demigod:verify:source` PASS;
+- `npm run demigod:verify:all` PASS with the DIE contract in the canonical integration gate;
+- real-store search returned the exact Anthropic company identity and both role packets remained
+  visibly demo-only;
+- headless browser render PASS for Roles, Role Workspace, and Companies;
+- Axe returned zero violations on the Role Workspace and Companies screens after the contrast fix.
+- Activity query-bound and empty-receipt HTTP checks pass; its rendered empty state has zero Axe
+  violations and marks the Activity navigation item current.
+- Roles fixture checks bind exact checkpoint and channel counts; the real two-card render shows
+  demo-only readiness, shortlist, rediscovery, review, and packet-update truth with zero Axe
+  violations.
+- CommodityAI renders verified cited research plus journal and peers; Anthropic renders the honest
+  no-research state plus its journal and peers. Both real packet screens have zero Axe violations.
+
+Not performed in H0/H1: deployment, DNS, tunnel, identity-provider configuration, hosted
+authentication, customer invitations, data migration, or hosted mutations.
+
+**2026-08-16 H1 projection correction:** the role HTTP route now reuses `buildDesk(id).workspace`
+instead of calling the pure composer with empty channel defaults. The native view renders inbound,
+referrals, rediscovery, prior pairs, explicit suppression reasons, and the bounded shortlist. A
+non-empty fixture proves the route carries shortlist and rediscovery data; the real demo workspace
+rendered 3/3 shortlist entries and four suppressed rediscovery rows with zero Axe violations. The
+focused loopback HTTP/security suite and `npm run demigod:verify:source` pass; import integrity keeps
+the still-untracked DIE web test as an advisory gate-list item. The full
+`npm run demigod:verify:all` integration gate also passes with zero failed checks.
+
+## 12. H2 dark-deployment receipt · 2026-08-16
+
+Implemented:
+
+- hosted mode for the same read-only app, enabled only by the complete pair
+  `DEMIGOD_DIE_PUBLIC_HOST` + `DEMIGOD_DIE_TRUST_ACCESS_PROXY=1`;
+- exact hosted-host enforcement and mandatory bounded `Cf-Access-Jwt-Assertion` shape check;
+- no trust in `Cf-Access-Authenticated-User-Email`; the origin assumes signature, audience, and
+  team validation only when Cloudflare Tunnel has `originRequest.access.required=true`;
+- owner-scoped systemd web service, enabled and active at `127.0.0.1:9880`;
+- separate tunnel service with an absent `~/.config/demigod/die-tunnel-ready` condition interlock;
+- named Cloudflare tunnel `demigod-die` (`7eb0869e-07ac-49c6-8101-41a78a6e8bbd`), created but
+  inactive, without a public hostname or connector.
+
+Verified:
+
+- focused HTTP contract PASS for local session truth, hosted denial without an assertion, hosted
+  session projection behind the trusted-proxy contract, wrong-host denial, and incomplete-config
+  startup failure;
+- `npm run demigod:verify:source` and `npm run demigod:verify:all` PASS after the H2 changes;
+- systemd unit verification PASS;
+- installed web service active; socket inventory shows only `127.0.0.1:9880`;
+- future public Host header returns `403` while hosted mode is disabled;
+- tunnel start is skipped because the readiness marker is absent;
+- Cloudflare inventory reports the named tunnel `inactive`;
+- `app.trydemigod.com` has no DNS record.
+
+External blocker:
+
+- Cloudflare API returns `Access is not enabled` for applications and identity providers;
+- the current Wrangler OAuth grant has tunnel administration but lacks Access app/policy write and
+  DNS write scopes;
+- the available Cloudflare browser session is not authenticated, so account enablement cannot be
+  completed safely from the current credentials.
+
+Activation sequence once those account permissions exist:
+
+1. enable the Zero Trust organization and identity provider;
+2. create the self-hosted Access app and one explicit operator allow policy;
+3. configure tunnel ingress to `http://127.0.0.1:9880` with required Access team and audience
+   validation;
+4. set the hosted environment, restart the web service, and prove direct/missing/wrong assertions
+   fail;
+5. create the public DNS route, write the readiness marker, and start the tunnel;
+6. prove unauthenticated HTTPS denial and authenticated read-only browser access before calling H2
+   complete.
+
+Rollback is ordered to fail closed: remove/disable the DNS route, stop the tunnel, remove the
+readiness marker and hosted environment, then restart the loopback service. No private store is
+migrated or mutated by H2.
+
+## 13. Correction to §12, and what shipped since · 2026-08-18
+
+### The §12 receipt was wrong about the tunnel
+
+§12 records the named tunnel as *"created but inactive, without a public hostname or connector"*
+and the tunnel service as holding *"an absent `~/.config/demigod/die-tunnel-ready` condition
+interlock"*. On 2026-08-18 the connector was running with **four ready edge connections**, and had
+been since 2026-08-17 01:03, while `demigod-die-web.service` was `inactive (dead)`.
+
+Both halves of that sentence were true of `demigod-die-tunnel.service`. Neither was true of
+`demigod-die-named-tunnel.service`, which is the unit that actually runs:
+
+| unit | armed by | origin dependency | ran |
+|---|---|---|---|
+| `demigod-die-tunnel` | `die-tunnel-ready` (absent) | `Requires=` | no |
+| `demigod-die-named-tunnel` | `die-gate-ready` (**present**) | `Wants=` | **yes** |
+| `demigod-die-quick-tunnel` | `die-gate-ready` (**present**) | `Wants=` | yes, connector dead |
+
+`die-gate-ready` means only that a gate secret exists. It is not consent to publish, and gating
+exposure on it made the interlock decorative. `demigod-die-web.test.mjs` asserted the real
+interlock, and passed, because it read the one unit that was correctly gated and therefore could
+not expose anything — the two that could were checked for a token path and a filename.
+
+Nothing was publicly reachable: no DNS record resolves to the tunnel and hosted mode returns 403
+without an Access assertion. The controls that held were the ones nobody was relying on.
+
+**Fixed.** All three units are armed by `die-tunnel-ready` and use `BindsTo=demigod-die-web.service`
+— not `Requires=`, which propagates a failed origin but not a cleanly stopped one, and a clean
+`systemctl stop` was exactly the case that left a tunnel serving nothing. The test now discovers
+every unit that can open a tunnel from its `ExecStart` rather than naming files, and it caught a
+third unit on its first run.
+
+**Note for whoever reads §12 next:** `~/.config/systemd/user/` is symlinked to `systemd-user/` in
+the repo, so the repo is the installed configuration. There is no install step and no drift, but
+also no staging — editing a unit changes the machine.
+
+### Shipped since §12
+
+- **Named accounts** with scrypt hashes, roles `viewer`/`operator`/`admin`, sessions verified
+  against the accounts file as it stands now. Publishing, sending, and spending are deliberately
+  not grantable by any role.
+- **API keys** (`dgk_<id>_<secret>`), issued per account, revocable by id, stored only as a
+  SHA-256 hash and printed once. Effective role is the weaker of the key's grant and the owner's
+  current role, computed per request, so demoting a person demotes their programs.
+- **Export** at `/api/v1/export?dataset=…&format=csv|json` over companies, roles, missions,
+  calendar, and activity. Oversized exports refuse rather than truncate, because a CSV has no field
+  to carry "and 900 more" and a truncated file opens looking complete.
+- **Per-account rate limiting** and audit records that separate `account` (who was signed in) from
+  `actor` (who the record is about).
+
+### What is still needed before an outside user
+
+1. **The Cloudflare account permission.** Unchanged from §12 and unchanged by any of the above:
+   Zero Trust org, an identity provider, an Access app with one allow policy, and a DNS record.
+   This is the only remaining blocker for a stable hostname, and no amount of code moves it.
+2. **Streaming export.** A full companies export builds a packet per company and takes ~20s. It
+   fits inside Cloudflare's 100s limit, but it wants streaming before it wants more datasets.
+3. **Observability.** There is no error reporting and no metrics. `/healthz` answers, which is not
+   the same as knowing the app is serving correctly.
+4. **Backup and restore** of `die-missions.sqlite`, which currently exists in one place.
+5. **Password reset and session listing.** An admin can disable an account; nobody can rotate a
+   password without the CLI.
