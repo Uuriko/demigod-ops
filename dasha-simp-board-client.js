@@ -1378,12 +1378,35 @@
         alt: 'Dasha'
       };
       if (media && media.src) {
+        var qsrc = media.src.charAt(0) === '/' ? media.src : base + media.src;
         var qimg = document.createElement('img');
         qimg.className = 'simp-quiz-media';
-        qimg.src = media.src.charAt(0) === '/' ? media.src : base + media.src;
+        qimg.src = qsrc;
         qimg.alt = media.alt || 'Dasha';
+        /* eager, never lazy: this is the largest element on the quiz card and the thing the
+           question is asking about, so it is the LCP candidate. Lazy-loading the LCP image is a
+           measured regression rather than a saving. */
         qimg.loading = 'eager';
-        stage.appendChild(qimg);
+        qimg.decoding = 'async';
+        qimg.fetchPriority = 'high';
+        /* AVIF and WebP twins sit beside every jpg at the same path, so the browser takes the
+           smallest format it understands and the <img> stays the fallback for the rest. The quiz
+           set is 786 KB as jpg and 260 KB as avif — two thirds of it was being paid for by whoever
+           took the quiz on a phone. A <source> pointing at a file that does not exist is skipped,
+           so this stays safe for any photo not yet converted. */
+        if (/\.jpe?g$/i.test(qsrc)) {
+          var pic = document.createElement('picture');
+          [['image/avif', '.avif'], ['image/webp', '.webp']].forEach(function (pair) {
+            var src = document.createElement('source');
+            src.type = pair[0];
+            src.srcset = qsrc.replace(/\.jpe?g$/i, pair[1]);
+            pic.appendChild(src);
+          });
+          pic.appendChild(qimg);
+          stage.appendChild(pic);
+        } else {
+          stage.appendChild(qimg);
+        }
       }
       var question = el('h4', 'simp-quiz-question', data.question.prompt);
       question.id = 'simp-quiz-question';
