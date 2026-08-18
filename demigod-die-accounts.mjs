@@ -166,8 +166,21 @@ export function verifySession(value, secret, doc, { now = Date.now() } = {}) {
   return { ok: true, email: normalizeEmail(user.email), role: user.role };
 }
 
-/** PURE. Add or replace an account. */
-export function upsertUser(doc, { email, password, role = 'viewer', now = new Date().toISOString() }) {
+/**
+ * PURE. Add or replace an account.
+ *
+ * `reinstate` exists because this function rebuilds the record, and two fields must survive that
+ * rebuild or it quietly undoes security decisions someone made on purpose:
+ *
+ * - KEYS. Changing a role used to drop `keys` on the floor, so demoting a colleague also deleted
+ *   every API key they held — with no record that it happened, and no error, because the keys were
+ *   simply not copied onto the new object. Found by a test asserting demotion reaches the key: the
+ *   key was not demoted, it was gone.
+ * - DISABLEDAT. It reset to null, so upserting a disabled account silently re-enabled it. A role
+ *   edit is not a reinstatement, and the fail-closed default is to stay disabled. Re-enabling is
+ *   now something a caller has to ask for by name.
+ */
+export function upsertUser(doc, { email, password, role = 'viewer', reinstate = false, now = new Date().toISOString() }) {
   const id = normalizeEmail(email);
   if (!id) throw new Error(`accounts: ${JSON.stringify(email)} is not a usable address`);
   if (!ROLES[role]) throw new Error(`accounts: ${JSON.stringify(role)} is not a role (${Object.keys(ROLES).join(', ')})`);
@@ -179,7 +192,8 @@ export function upsertUser(doc, { email, password, role = 'viewer', now = new Da
     passwordHash: password ? hashPassword(password) : previous?.passwordHash,
     createdAt: previous?.createdAt || now,
     updatedAt: now,
-    disabledAt: null,
+    disabledAt: reinstate ? null : (previous?.disabledAt ?? null),
+    keys: previous?.keys || [],
   });
   if (!users[users.length - 1].passwordHash) throw new Error('accounts: a new account needs a password');
   return { ...doc, users };
@@ -192,6 +206,129 @@ export function disableUser(doc, email, { now = new Date().toISOString() } = {})
     ...doc,
     users: (doc.users || []).map((u) => (normalizeEmail(u?.email) === id ? { ...u, disabledAt: now } : u)),
   };
+}
+
+/* ------------------------------------------------------------------------ *
+ * API keys — the same accounts, reached by a program instead of a browser.
+ * ------------------------------------------------------------------------ */
+
+export const KEY_PREFIX = 'dgk';
+
+/** Role strength, so a key can be weaker than its owner but never stronger. */
+const RANK = { viewer: 1, operator: 2, admin: 3 };
+
+/**
+ * PURE. The role a key actually has RIGHT NOW: the weaker of what it was granted and what its
+ * owner currently holds.
+ *
+ * Demoting a person has to demote their programs too. Storing the key's role and trusting it would
+ * leave an operator key writing on behalf of someone who has since been reduced to a viewer, which
+ * is the same "verified against what was true at issue time" mistake that revocation usually dies
+ * of. Both values are read at verification and the lower one wins.
+ */
+export function effectiveRole(keyRole, userRole) {
+  const a = RANK[String(keyRole || '')];
+  const b = RANK[String(userRole || '')];
+  if (!a || !b) return null;
+  return Object.keys(RANK).find((name) => RANK[name] === Math.min(a, b)) || null;
+}
+
+/**
+ * Hash an API key secret.
+ *
+ * SHA-256 rather than the scrypt used for passwords, deliberately. scrypt is slow ON PURPOSE
+ * because a human password carries maybe 30 bits and must be made expensive to guess. This secret
+ * is 32 bytes from the CSPRNG — 256 bits — so there is no dictionary to run and no brute force to
+ * slow down, and scrypt would only add ~100ms to every single API request in exchange for nothing.
+ * The comparison is still timing-safe, because that cost is real and near-zero.
+ */
+function hashKeySecret(secret) {
+  return crypto.createHash('sha256').update(String(secret)).digest('hex');
+}
+
+/**
+ * Issue a key for an account. Returns the updated doc and the secret, which is the only time the
+ * secret exists — only its hash is stored, so a lost key is reissued rather than recovered.
+ */
+export function issueApiKey(doc, { email, label = '', role, now = new Date().toISOString() } = {}) {
+  const user = findUser(doc, email);
+  if (!user) throw new Error(`accounts: no account for ${JSON.stringify(email)}`);
+  if (user.disabledAt) throw new Error('accounts: refusing to issue a key for a disabled account');
+  const want = role || user.role;
+  if (!ROLES[want]) throw new Error(`accounts: ${JSON.stringify(want)} is not a role`);
+  if (RANK[want] > RANK[user.role]) {
+    throw new Error(`accounts: refusing to issue a ${want} key for a ${user.role} account`);
+  }
+  const id = crypto.randomBytes(6).toString('hex');
+  const secret = crypto.randomBytes(32).toString('base64url');
+  const record = {
+    id,
+    label: String(label || '').slice(0, 80),
+    role: want,
+    hash: hashKeySecret(secret),
+    createdAt: now,
+    revokedAt: null,
+    lastUsedAt: null,
+  };
+  const users = (doc.users || []).map((u) => (normalizeEmail(u?.email) === normalizeEmail(email)
+    ? { ...u, keys: [...(u.keys || []), record] }
+    : u));
+  return { doc: { ...doc, users }, secret: `${KEY_PREFIX}_${id}_${secret}`, id };
+}
+
+/**
+ * PURE. Verify a presented key against the CURRENT accounts.
+ *
+ * The key id travels in the token so the right record is found directly. Hashing the presented
+ * secret against every stored key instead would be O(keys) work on each request and would leak,
+ * through timing, roughly how many keys exist.
+ */
+export function verifyApiKey(value, doc, { now = Date.now() } = {}) {
+  /* Matched, not split. The secret is base64url, whose alphabet includes '_' — so splitting on '_'
+     tore the secret into pieces and every valid key read as malformed. The id is fixed-width hex,
+     so anchoring it lets the secret keep the rest of the string, separators and all. */
+  const parts = new RegExp(`^${KEY_PREFIX}_([0-9a-f]{12})_(.+)$`).exec(String(value || ''));
+  if (!parts) return { ok: false, reason: 'malformed' };
+  const [, id, secret] = parts;
+  for (const user of doc.users || []) {
+    const key = (user.keys || []).find((k) => k?.id === id);
+    if (!key) continue;
+    const a = Buffer.from(hashKeySecret(secret), 'hex');
+    const b = Buffer.from(String(key.hash || ''), 'hex');
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return { ok: false, reason: 'invalid' };
+    if (key.revokedAt) return { ok: false, reason: 'revoked' };
+    if (user.disabledAt) return { ok: false, reason: 'disabled' };
+    if (key.expiresAt && Date.parse(key.expiresAt) <= now) return { ok: false, reason: 'expired' };
+    const role = effectiveRole(key.role, user.role);
+    if (!role) return { ok: false, reason: 'unknown_role' };
+    return { ok: true, email: normalizeEmail(user.email), role, keyId: id };
+  }
+  return { ok: false, reason: 'invalid' };
+}
+
+/** PURE. Revoke one key by id. Revoked, never deleted — a key that vanishes takes its history too. */
+export function revokeApiKey(doc, id, { now = new Date().toISOString() } = {}) {
+  return {
+    ...doc,
+    users: (doc.users || []).map((u) => ({
+      ...u,
+      keys: (u.keys || []).map((k) => (k?.id === id ? { ...k, revokedAt: k.revokedAt || now } : k)),
+    })),
+  };
+}
+
+/** PURE. Keys with no secret in them, for showing an operator what exists. */
+export function listApiKeys(doc) {
+  return (doc.users || []).flatMap((u) => (u.keys || []).map((k) => ({
+    id: k.id,
+    label: k.label,
+    role: k.role,
+    email: normalizeEmail(u.email),
+    createdAt: k.createdAt,
+    revokedAt: k.revokedAt || null,
+    lastUsedAt: k.lastUsedAt || null,
+    active: !k.revokedAt && !u.disabledAt,
+  })));
 }
 
 function selftest() {
@@ -257,6 +394,49 @@ function selftest() {
   try { upsertUser({ users: [] }, { email: 'b@example.com', role: 'viewer' }); } catch { bad = true; }
   assert(bad, 'a new account without a password is refused');
 
+  // --- API keys ---
+  assert(effectiveRole('admin', 'viewer') === 'viewer' && effectiveRole('viewer', 'admin') === 'viewer',
+    'the weaker of key and owner wins, whichever side it is on');
+  assert(effectiveRole('operator', 'operator') === 'operator', 'equal roles pass through');
+  assert(effectiveRole('wizard', 'admin') === null, 'an unknown role on either side is not a role');
+
+  const issued = issueApiKey(doc, { email: 'alice@example.com', label: 'ci' });
+  const rawKey = issued.secret;
+  assert(rawKey.startsWith('dgk_'), 'a key is recognisable as one');
+  assert(!JSON.stringify(issued.doc).includes(rawKey.split('_')[2]),
+    'the secret itself is never stored — only its hash');
+
+  const okKey = verifyApiKey(rawKey, issued.doc);
+  assert(okKey.ok && okKey.email === 'alice@example.com' && okKey.role === 'operator', 'a fresh key verifies with its role');
+  assert(verifyApiKey('dgk_zzzzzzzzzzzz_secret', issued.doc).reason === 'malformed'
+    || verifyApiKey('dgk_zzzzzzzzzzzz_secret', issued.doc).reason === 'invalid', 'an unknown id does not verify');
+  assert(verifyApiKey('nonsense', issued.doc).reason === 'malformed', 'junk is refused');
+  assert(verifyApiKey(`dgk_${issued.id}_wrongsecret`, issued.doc).reason === 'invalid',
+    'the right id with the wrong secret is refused');
+
+  // the same three revocation checks the sessions get, because a key is a credential too
+  assert(verifyApiKey(rawKey, revokeApiKey(issued.doc, issued.id)).reason === 'revoked',
+    'a revoked key stops working');
+  assert(verifyApiKey(rawKey, disableUser(issued.doc, 'alice@example.com')).reason === 'disabled',
+    'disabling a person must kill the keys their programs hold, not just their browser session');
+  assert(verifyApiKey(rawKey, { users: [] }).reason === 'invalid', 'removing the account ends the key');
+
+  // demotion reaches the key, which is the whole point of computing the role at verify time
+  const demotedDoc = upsertUser(issued.doc, { email: 'alice@example.com', role: 'viewer' });
+  assert(verifyApiKey(rawKey, demotedDoc).role === 'viewer',
+    'demoting the owner demotes the key on its next request, not at its next reissue');
+
+  let refused = false;
+  try { issueApiKey(demotedDoc, { email: 'alice@example.com', role: 'admin' }); } catch { refused = true; }
+  assert(refused, 'a key cannot be issued stronger than the account it belongs to');
+  refused = false;
+  try { issueApiKey(disableUser(issued.doc, 'alice@example.com'), { email: 'alice@example.com' }); } catch { refused = true; }
+  assert(refused, 'a disabled account issues nothing');
+
+  const listed = listApiKeys(issued.doc);
+  assert(listed.length === 1 && listed[0].active && !JSON.stringify(listed).includes('hash'),
+    'listing keys shows what exists without showing anything that could be used');
+
   console.log(JSON.stringify({ ok: true, selftest: 'die-accounts' }));
 }
 
@@ -276,7 +456,31 @@ if (isMain) {
   } else if (arg('--disable')) {
     saveAccounts(disableUser(loadAccounts(), arg('--disable')));
     console.log(JSON.stringify({ ok: true, disabled: normalizeEmail(arg('--disable')) }));
+  } else if (arg('--key-new')) {
+    const { doc, secret, id } = issueApiKey(loadAccounts(), {
+      email: arg('--key-new'), label: arg('--label') || '', role: arg('--role') || undefined,
+    });
+    saveAccounts(doc);
+    /* Printed once, on purpose. Only the hash is stored, so this is the single moment the secret
+       exists anywhere — a key that can be re-read later is a key an attacker can re-read too. */
+    console.log(JSON.stringify({ ok: true, id, key: secret, shown: 'once — store it now, it cannot be recovered' }, null, 1));
+  } else if (args.includes('--key-list')) {
+    const keys = listApiKeys(loadAccounts());
+    console.log(`api keys: ${keys.length} (${ACCOUNTS_PATH})`);
+    for (const k of keys) {
+      console.log(`  ${k.id}  ${String(k.email).padEnd(28)} ${String(k.role).padEnd(9)} ${k.active ? 'active  ' : 'INACTIVE'} ${k.label || ''}`);
+    }
+  } else if (arg('--key-revoke')) {
+    saveAccounts(revokeApiKey(loadAccounts(), arg('--key-revoke')));
+    console.log(JSON.stringify({ ok: true, revoked: arg('--key-revoke') }));
   } else {
-    console.log('usage: --add <email> --role viewer|operator|admin  (password from DEMIGOD_DIE_PASSWORD) | --list | --disable <email> | --selftest');
+    console.log([
+      'usage:',
+      '  --add <email> --role viewer|operator|admin   (password from DEMIGOD_DIE_PASSWORD)',
+      '  --list | --disable <email>',
+      '  --key-new <email> [--role r] [--label text]  issue an API key, printed once',
+      '  --key-list | --key-revoke <id>',
+      '  --selftest',
+    ].join('\n'));
   }
 }

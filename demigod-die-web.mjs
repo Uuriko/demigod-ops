@@ -35,6 +35,7 @@ import {
   can as roleCan,
   issueSession,
   loadAccounts,
+  verifyApiKey,
   verifySession,
 } from './demigod-die-accounts.mjs';
 
@@ -136,7 +137,17 @@ function secretEqual(left, right) {
  * the session they are already holding — a revocation that leaves live cookies working is not a
  * revocation.
  */
-export function identify(header) {
+export function identify(header, authorization) {
+  /* A bearer key is checked first and never falls through to the cookie. Someone who presents a
+     credential explicitly gets an answer about THAT credential — falling back would let a caller
+     with a revoked key keep working on a stale cookie and never learn the key had been revoked. */
+  const bearer = /^Bearer\s+(\S+)$/i.exec(String(authorization || ''));
+  if (bearer) {
+    const seen = verifyApiKey(bearer[1], loadAccounts());
+    return seen.ok
+      ? { authenticated: true, email: seen.email, role: seen.role, via: 'api_key', keyId: seen.keyId }
+      : { authenticated: false, email: null, role: null, reason: seen.reason, via: 'api_key' };
+  }
   const raw = cookieMap(header)[GATE_COOKIE];
   if (!raw) return { authenticated: false, email: null, role: null };
   if (raw.split('.').length === 3) {
@@ -351,9 +362,22 @@ function requestContext(req) {
     return { mode: 'local_read_only', authenticated: false, hosted: false };
   }
   if (isGatedHost(hostname)) {
-    const who = identify(req.headers.cookie);
+    const who = identify(req.headers.cookie, req.headers.authorization);
     const authenticated = who.authenticated;
-    return { mode: 'gated_public', authenticated, hosted: true, needsLogin: !authenticated, email: who.email, role: who.role };
+    return {
+      mode: 'gated_public',
+      authenticated,
+      hosted: true,
+      /* Stays !authenticated, with no exemption for api_key. Excusing a failed key from needsLogin
+         looked like "don't send a program to a login form", but needsLogin is the gate that returns
+         401 — so a REVOKED key would have sailed past it into the data routes as an anonymous
+         reader. The login-form branch only fires for UI routes; an API caller already gets JSON. */
+      needsLogin: !authenticated,
+      email: who.email,
+      role: who.role,
+      via: who.via || 'session',
+      keyId: who.keyId || null,
+    };
   }
   if (!TRUST_ACCESS_PROXY || hostname !== PUBLIC_HOST) {
     throw Object.assign(new Error('host_forbidden'), { status: 403 });
