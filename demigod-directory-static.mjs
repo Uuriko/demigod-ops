@@ -219,7 +219,15 @@ export function buildStaticDirectory(map, generatedAt = '', feed = null, maxByte
     return `<li><a href="${esc(jobs)}" rel="nofollow">${esc(label)}</a></li>`;
   };
 
-  const at = generatedAt || (map?.generatedAt || '').slice(0, 10);
+  /* The date on this page is when the counts were OBSERVED, not when the file was built.
+     They are not the same day: the map's generatedAt was 2026-08-16 while every counted row carried
+     openRolesAt 2026-08-17, so the page said "10936 open roles observed 2026-08-16" about
+     observations taken the day after. Stamping a count with the build date is the same restamping
+     the methodology page promises we never do, just in the conservative direction.
+     Oldest wins when rows disagree, because that is the only choice that cannot overstate
+     freshness — the newest would advertise the whole corpus as being as fresh as its freshest row. */
+  const observedDays = verified.map((c) => String(c.openRolesAt || '').slice(0, 10)).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+  const at = generatedAt || observedDays[0] || (map?.generatedAt || '').slice(0, 10);
   const agingNote = agingRoles
     ? ` ${agingRoles} role${agingRoles === 1 ? '' : 's'} across ${aging.length} compan${aging.length === 1 ? 'y' : 'ies'} ${agingRoles === 1 ? 'was' : 'were'} posted 90–365 days ago, counted only among roles whose Greenhouse board date we can attribute — not out of the total above.`
     : '';
@@ -338,6 +346,22 @@ if (isMain && (process.env.DEMIGOD_STATIC_SELFTEST === '1' || process.argv.inclu
      divides it by the headline and gets a rate that was never measured. Every other number here
      states its denominator; this one has to say which denominator it is NOT. */
   assert(/not out of the total above/.test(html), 'the aging count must refuse the denominator a reader would assume');
+
+  /* The page date must come from when the counts were observed, not when the map was built.
+     Live case that forced this: map generatedAt 2026-08-16, every counted row openRolesAt
+     2026-08-17, page claiming "observed 2026-08-16". */
+  {
+    const dated = buildStaticDirectory({
+      generatedAt: '2026-08-16T20:00:00.000Z',
+      companies: [
+        { id: 'a', name: 'Acme', website: 'https://acme.com/', openRoles: 3, atsSource: 'Greenhouse', jobsUrl: 'https://boards.greenhouse.io/acme', openRolesAt: '2026-08-17' },
+        { id: 'b', name: 'Beta', website: 'https://beta.com/', openRoles: 2, atsSource: 'Ashby', jobsUrl: 'https://jobs.ashbyhq.com/beta', openRolesAt: '2026-08-18' },
+      ],
+    });
+    assert(dated.includes('2026-08-17'), 'the page is dated by observation, not by map build time');
+    assert(!dated.includes('2026-08-16'), 'the build date must not appear as the observation date');
+    assert(!dated.includes('observed 2026-08-18'), 'the newest row must not date the whole corpus');
+  }
   assert(html.includes('dg-static-aging') && html.includes('Posted 90–365 days ago (board date)'), 'aging section heading is crawlable');
   assert(html.includes('Alpha Robotics — 3 roles still open after 90–365d on Ashby'), 'aging company rows are crawlable');
   assert(html.includes('not a fill rate or ghost-job score'), 'aging section states inference limits');
