@@ -514,4 +514,25 @@ fs.rmSync(temp, { recursive: true, force: true });
   fsp.rmSync(dir, { recursive: true, force: true });
 }
 
+
+/* Authorization: signing in is not permission.
+   Before named accounts, canMutate asked only whether the caller was authenticated, because
+   everyone who got in was the same person. A viewer who authenticates successfully is still a
+   viewer, and "logged in therefore allowed" is the exact assumption roles were added to remove. */
+{
+  const { can } = await import('./demigod-die-accounts.mjs');
+  const gate = (context) => {
+    if (context.mode === 'local_read_only') return true;
+    if (context.authenticated !== true) return false;
+    return context.role ? can(context.role, 'write') : true;
+  };
+  if (!gate({ mode: 'local_read_only' })) throw new Error('die-web: the operator on loopback keeps their desk');
+  if (gate({ mode: 'gated_public', authenticated: false, role: 'admin' })) throw new Error('die-web: a role without a session grants nothing');
+  if (gate({ mode: 'gated_public', authenticated: true, role: 'viewer' })) throw new Error('die-web: an authenticated VIEWER must not be able to mutate');
+  if (!gate({ mode: 'gated_public', authenticated: true, role: 'operator' })) throw new Error('die-web: an operator must be able to mutate');
+  if (!gate({ mode: 'gated_public', authenticated: true, role: 'admin' })) throw new Error('die-web: an admin must be able to mutate');
+  if (gate({ mode: 'gated_public', authenticated: true, role: 'wizard' })) throw new Error('die-web: an unknown role grants nothing');
+  if (!gate({ mode: 'gated_public', authenticated: true, role: null })) throw new Error('die-web: the legacy cookie keeps working until a first account exists');
+}
+
 console.log(JSON.stringify({ ok: true, selftest: 'demigod-die-web' }));

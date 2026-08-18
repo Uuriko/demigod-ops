@@ -464,8 +464,19 @@ function slotIcs(mission, slot) {
   return `${lines.join('\r\n')}`;
 }
 
+/**
+ * May this request change anything?
+ *
+ * Authenticated was the whole test before named accounts existed, because everyone who got in was
+ * the same person. Now a role exists it has to be consulted: a viewer who signs in successfully is
+ * still a viewer, and "logged in therefore allowed" is exactly the assumption roles were added to
+ * remove. A session with no role is the legacy shared cookie, which only survives while no account
+ * exists at all.
+ */
 function canMutate(context) {
-  return context.mode === 'local_read_only' || context.authenticated === true;
+  if (context.mode === 'local_read_only') return true;
+  if (context.authenticated !== true) return false;
+  return context.role ? roleCan(context.role, 'write') : true;
 }
 
 function hydrateMission(roleId) {
@@ -504,7 +515,7 @@ function hydrateMission(roleId) {
   };
 }
 
-function applyMissionAction(roleId, body = {}) {
+function applyMissionAction(roleId, body = {}, { account = null } = {}) {
   const opened = hydrateMission(roleId);
   if (!opened.mission) throw Object.assign(new Error(opened.reason || 'mission_unavailable'), { status: 400 });
   let mission = opened.mission;
@@ -550,7 +561,13 @@ function applyMissionAction(roleId, body = {}) {
       action: last.action,
       at: last.at,
       idempotencyKey: last.idempotencyKey,
+      /* Two different facts, kept apart. `actor` is who the record is ABOUT — the interviewer, the
+         reviewer, whoever the desk is recording. `account` is who was signed in and made the
+         request. Collapsing them would let "Priya interviewed the candidate" and "Priya typed this
+         in" become the same claim, and only one of those is evidence. Null account means the
+         legacy anonymous cookie or loopback, which is itself worth being able to see in the log. */
       actor: last.actor,
+      account,
     });
   }
   return {
@@ -816,7 +833,7 @@ export function createDieWebServer() {
           return;
         }
         const body = await readJsonBody(req);
-        sendJson(res, 200, applyMissionAction(decodeId(missionAct[1]), body), false);
+        sendJson(res, 200, applyMissionAction(decodeId(missionAct[1]), body, { account: context.email || null }), false);
       } else if (url.pathname.match(/^\/api\/v1\/roles\/[^/]+\/slots\/[^/]+\.ics$/)) {
         const parts = url.pathname.split('/');
         const roleId = decodeId(parts[4]);
