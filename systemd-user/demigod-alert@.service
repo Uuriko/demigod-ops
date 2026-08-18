@@ -1,0 +1,12 @@
+[Unit]
+Description=Record a failed Demigod unit somewhere durable (%i)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/potter
+Environment=DEMIGOD_ROOT=/home/potter
+# %i is the unit that failed, passed by its OnFailure=. Without this, a nightly job that starts
+# failing is invisible: systemd marks it failed and nothing ever reads that, so a silent job and a
+# broken job look identical from the outside.
+ExecStart=/home/potter/bin/dg-record-failure %i
+NoNewPrivileges=true

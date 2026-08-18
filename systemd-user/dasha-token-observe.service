@@ -1,5 +1,8 @@
 [Unit]
 Description=Dasha token observation — one dated reading of market, identity, chain and clones
+# Without this a failing nightly job is invisible: systemd marks it failed and nothing
+# reads that, so a silent job and a broken one look identical from outside.
+OnFailure=demigod-alert@%n.service
 # Not conditioned on anything: the tool records each source's own reachability, so a run with a
 # throttled RPC is still a useful observation rather than a reason to skip. A backup-shaped unit
 # that quietly does nothing is the failure mode being avoided.

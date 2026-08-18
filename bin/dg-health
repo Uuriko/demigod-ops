@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# dg-health — is the automation actually running, and did any of it fail?
+#
+# WHY THIS EXISTS
+# Eight Demigod jobs now run on timers. Scheduling them was the easy half. Without a way to see
+# them, a job that starts failing every night looks exactly like a job that is running fine, and
+# the first anyone learns of it is when the thing it was protecting is needed. `systemctl
+# list-timers` shows schedules but not outcomes; `systemctl --failed` clears the moment a unit is
+# restarted or the session recycles. Neither answers "has this been working".
+#
+# THE ONE THING IT REFUSES TO SAY
+# That a job is healthy because it has never failed. A timer that has never run is not passing —
+# it is untested, and it prints as such. Those two states are different and the difference is the
+# entire point of looking.
+#
+#   bin/dg-health          # every Demigod/Dasha timer, last result, next run
+#   bin/dg-health --json   # same, machine-readable
+set -uo pipefail
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/demigod"
+FAILURES="$STATE_DIR/failures.jsonl"
+json=0
+[[ "${1:-}" == "--json" ]] && json=1
+
+mapfile -t timers < <(systemctl --user list-timers --all --no-pager 2>/dev/null \
+  | awk '/(demigod|dasha)[^ ]*\.timer/ {for(i=1;i<=NF;i++) if($i ~ /\.timer$/) print $i}' | sort -u)
+
+rows=()
+untested=0
+failing=0
+ok=0
+
+for t in "${timers[@]}"; do
+  svc="${t%.timer}.service"
+  result="$(systemctl --user show "$svc" -p Result --value 2>/dev/null || echo unknown)"
+  last="$(systemctl --user show "$t" -p LastTriggerUSec --value 2>/dev/null)"
+  next="$(systemctl --user show "$t" -p NextElapseUSecRealtime --value 2>/dev/null)"
+  enabled="$(systemctl --user is-enabled "$t" 2>/dev/null || echo unknown)"
+  nruns="$(systemctl --user show "$svc" -p NRestarts --value 2>/dev/null || echo 0)"
+
+  # "never triggered" is its own state, not a pass.
+  if [[ -z "$last" || "$last" == "n/a" || "$last" == "0" ]]; then
+    state="untested"; untested=$((untested+1))
+  elif [[ "$result" == "success" ]]; then
+    state="ok"; ok=$((ok+1))
+  else
+    state="FAILING"; failing=$((failing+1))
+  fi
+  rows+=("$state|$t|$result|${last:-never}|${next:-unscheduled}|$enabled|$nruns")
+done
+
+recent_failures=0
+[[ -f "$FAILURES" ]] && recent_failures="$(wc -l <"$FAILURES" 2>/dev/null || echo 0)"
+
+if [[ $json -eq 1 ]]; then
+  printf '{"at":"%s","ok":%d,"untested":%d,"failing":%d,"recordedFailures":%s,"timers":[' \
+    "$(date -Iseconds)" "$ok" "$untested" "$failing" "${recent_failures:-0}"
+  for i in "${!rows[@]}"; do
+    IFS='|' read -r state t result last next enabled nruns <<<"${rows[$i]}"
+    [[ $i -gt 0 ]] && printf ','
+    printf '{"unit":"%s","state":"%s","lastResult":"%s","enabled":"%s"}' "$t" "$state" "$result" "$enabled"
+  done
+  printf ']}\n'
+  exit $(( failing > 0 ))
+fi
+
+printf 'Demigod automation · %s\n\n' "$(date -Iseconds)"
+printf '  %-34s %-9s %-9s %s\n' UNIT STATE RESULT ENABLED
+for row in "${rows[@]}"; do
+  IFS='|' read -r state t result last next enabled nruns <<<"$row"
+  printf '  %-34s %-9s %-9s %s\n' "$t" "$state" "$result" "$enabled"
+done
+
+printf '\n  %d ok · %d untested · %d failing\n' "$ok" "$untested" "$failing"
+if [[ "${recent_failures:-0}" -gt 0 ]]; then
+  printf '  %s recorded failure(s) — %s\n' "$recent_failures" "$FAILURES"
+  printf '  most recent: %s\n' "$(tail -n 1 "$FAILURES" | cut -c1-160)"
+fi
+[[ $untested -gt 0 ]] && printf '  note: "untested" means the timer has never fired. That is not the same as passing.\n'
+
+exit $(( failing > 0 ))

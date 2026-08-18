@@ -1,5 +1,8 @@
 [Unit]
 Description=Demigod DIE mission-store snapshot, with a restore proved every run
+# Without this a failing nightly job is invisible: systemd marks it failed and nothing
+# reads that, so a silent job and a broken one look identical from outside.
+OnFailure=demigod-alert@%n.service
 # Not conditioned on the store existing: the tool reports the absence rather than the unit
 # skipping silently, and a backup job that quietly does nothing is the failure being guarded against.
 

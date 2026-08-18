@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# dg-record-failure — append one durable record when a Demigod unit fails.
+#
+# Invoked by demigod-alert@.service via OnFailure=. Not run by hand.
+#
+# WHY DURABLE AND NOT /tmp
+# The bus and truth receipts already live in /tmp/dg-busy and die at every reboot, which is fine
+# for a receipt you read the same day and useless for "has the nightly sweep been failing all
+# week". This writes to ~/.local/state, which survives.
+#
+# WHY IT NEVER FAILS ITSELF
+# An OnFailure handler that can fail produces a failed unit whose own failure handler failed, and
+# systemd will not chase that for you. Every step here is best-effort; the worst case is a missing
+# line, not a second alert.
+set -u
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/demigod"
+LOG="$STATE_DIR/failures.jsonl"
+UNIT="${1:-unknown.service}"
+mkdir -p "$STATE_DIR" 2>/dev/null || exit 0
+
+# Ask systemd what actually happened rather than guessing from the unit name.
+result="$(systemctl --user show "$UNIT" -p Result --value 2>/dev/null || echo unknown)"
+status="$(systemctl --user show "$UNIT" -p ExecMainStatus --value 2>/dev/null || echo '')"
+# Last few journal lines are usually the whole story for a oneshot.
+tail_lines="$(journalctl --user -u "$UNIT" -n 6 --no-pager -o cat 2>/dev/null \
+  | tr '\n' ' ' | tr -d '\r' | sed 's/"/\\"/g' | cut -c1-400)"
+
+printf '{"at":"%s","unit":"%s","result":"%s","exitStatus":"%s","tail":"%s"}\n' \
+  "$(date -Iseconds)" "$UNIT" "$result" "$status" "$tail_lines" >>"$LOG" 2>/dev/null || exit 0
+
+# A marker the health view can notice without parsing anything.
+printf '%s failed at %s (%s)\n' "$UNIT" "$(date -Iseconds)" "$result" >"$STATE_DIR/last-failure" 2>/dev/null || true
+exit 0

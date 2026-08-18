@@ -1,5 +1,8 @@
 [Unit]
 Description=Demigod board-history archive collection — one bounded slice per night
+# Without this a failing nightly job is invisible: systemd marks it failed and nothing
+# reads that, so a silent job and a broken one look identical from outside.
+OnFailure=demigod-alert@%n.service
 
 [Service]
 Type=oneshot
