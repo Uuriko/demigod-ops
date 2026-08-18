@@ -89,6 +89,44 @@ export const REPORT_ONLY_PATTERNS = [
   { provider: 'Workable', re: /https?:\/\/(?:apply|jobs)\.workable\.com\/([a-z0-9][a-z0-9-]*)/ig },
 ];
 
+/**
+ * PURE. Careers pages the company links to from its own homepage.
+ *
+ * CAREERS_PATHS below is a guess, and guessing paths is the same mistake as guessing ATS slugs —
+ * it works when a company used the conventional name and never works otherwise. Accord publishes
+ * careers at `/company/about#careers`; no path list reaches that. So read the homepage and follow
+ * the links they actually wrote.
+ *
+ * Same-host only. An off-site "careers" link is usually a job board, a parent company or a
+ * recruiter, and following it would start crawling the internet rather than asking one company a
+ * question. ATS links found on the page are handled separately by boardsFromHtml.
+ */
+export function careersLinksFromHtml(html, baseUrl) {
+  let base;
+  try { base = new URL(String(baseUrl)); } catch { return []; }
+  const out = [];
+  const seen = new Set();
+  for (const match of String(html || '').matchAll(/<a\b[^>]*\bhref=(["'])(.*?)\1[^>]*>([\s\S]{0,120}?)<\/a>/gi)) {
+    const href = match[2];
+    const text = match[3].replace(/<[^>]*>/g, ' ').trim();
+    const looksCareers = /\b(careers?|jobs|hiring|join\s*us|work\s*with\s*us|open\s*roles?|we[''`]?re\s*hiring)\b/i.test(text)
+      || /\/(careers?|jobs|join|hiring|open-roles?)(\/|$|#|\?)/i.test(href);
+    if (!looksCareers) continue;
+    let resolved;
+    try { resolved = new URL(href, base); } catch { continue; }
+    if (resolved.hostname.replace(/^www\./, '') !== base.hostname.replace(/^www\./, '')) continue;
+    if (!/^https?:$/.test(resolved.protocol)) continue;
+    resolved.hash = '';
+    const key = resolved.href;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(key);
+    // A homepage can link the same section a dozen ways; a handful is enough to find the board.
+    if (out.length >= 4) break;
+  }
+  return out;
+}
+
 /** PURE. Boards from providers we can act on, plus the ones only worth reporting. */
 export function reportOnlyBoards(html) {
   const source = String(html || '');
@@ -234,8 +272,17 @@ function loadRedirects() {
 async function discoverFor(company, redirects = new Map()) {
   const base = String(company.website).replace(/\/+$/, '');
   const seen = new Set();
-  for (const suffix of CAREERS_PATHS) {
-    const html = await fetchText(`${base}${suffix}`);
+  /* Ask the homepage where its careers page is before falling back to guessing paths. The homepage
+     is fetched once either way — CAREERS_PATHS includes '/' — so this costs nothing extra and
+     reaches pages no path list would. */
+  const home = await fetchText(`${base}/`);
+  const linked = home ? careersLinksFromHtml(home, `${base}/`) : [];
+  const targets = [...linked, ...CAREERS_PATHS.map((suffix) => `${base}${suffix || '/'}`)];
+  const visited = new Set();
+  for (const target of targets) {
+    if (visited.has(target)) continue;
+    visited.add(target);
+    const html = target === `${base}/` && home ? home : await fetchText(target);
     if (!html) continue;
     for (const candidate of boardsFromHtml(html)) {
       const key = `${candidate.provider}|${candidate.slug}`;
@@ -252,7 +299,7 @@ async function discoverFor(company, redirects = new Map()) {
       }
       const verdict = verdictFor({ ...candidate, companyWebsite: company.website, boardHtml, feedRoles, redirectsTo: redirects.get(company.id) || null });
       if (verdict.state === 'verified') {
-        return { id: company.id, name: company.name, website: company.website, foundOn: `${base}${suffix}`, ...verdict, url: candidate.url };
+        return { id: company.id, name: company.name, website: company.website, foundOn: target, ...verdict, url: candidate.url };
       }
       if (verdict.state === 'mismatch') {
         return { id: company.id, name: company.name, website: company.website, ...verdict, url: candidate.url };
@@ -319,6 +366,24 @@ function selftest() {
   assert(!found.some((f) => f.slug === 'jobs' || f.slug === ''), 'a bare provider index is not a board');
   assert(boardsFromHtml('').length === 0 && boardsFromHtml(null).length === 0, 'no html, no boards');
   assert(boardsFromHtml('<a href="https://ats.rippling.com/acme-jobs/jobs">x</a>').some((f) => f.provider === 'Rippling' && f.slug === 'acme-jobs'), 'Rippling boards are found');
+
+  // Follow the careers link the company wrote, rather than guessing its path.
+  {
+    const page = `<a href="/company/about#careers">Careers</a>
+      <a href="/team">Join us</a>
+      <a href="https://boards.greenhouse.io/other">Careers at our investor</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/careers">Careers</a>`;
+    const links = careersLinksFromHtml(page, 'https://acme.com/');
+    assert(links.includes('https://acme.com/company/about'), 'a careers link under an unconventional path is followed');
+    assert(links.includes('https://acme.com/team'), 'link text decides, not just the path');
+    assert(!links.some((l) => /greenhouse\.io/.test(l)), 'an off-site link is never followed as a careers page');
+    assert(!links.some((l) => /pricing/.test(l)), 'unrelated links are ignored');
+    assert(links.every((l) => !l.includes('#')), 'fragments are stripped so the same page is fetched once');
+    assert(careersLinksFromHtml(page, 'not a url').length === 0, 'an unusable base yields nothing');
+    assert(careersLinksFromHtml('', 'https://acme.com/').length === 0, 'no html, no links');
+    assert(careersLinksFromHtml(Array.from({ length: 40 }, (_, i) => `<a href="/careers${i}">Careers</a>`).join(''), 'https://acme.com/').length <= 4, 'a page cannot make us fetch dozens of pages');
+  }
 
   // Rippling states no owner, so its feed is the evidence — and an empty feed is not a board.
   assert(verdictFor({ provider: 'Rippling', slug: 'acme', companyWebsite: 'https://acme.com', feedRoles: 3 }).state === 'verified', 'a feed with roles confirms a linked Rippling board');
