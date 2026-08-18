@@ -20,7 +20,7 @@
       <form id="signout" method="post" action="/logout" hidden><button type="submit">Sign out</button></form>
     </div>
   </header>
-  <nav aria-label="Primary"><a href="/roles" id="navRoles">Roles</a><a href="/missions" id="navMissions">Missions</a><a href="/calendar" id="navCalendar">Calendar</a><a href="/companies" id="navCompanies">Companies</a><a href="/activity" id="navActivity">Activity</a></nav>
+  <nav aria-label="Primary"><a href="/roles" id="navRoles">Roles</a><a href="/missions" id="navMissions">Missions</a><a href="/calendar" id="navCalendar">Calendar</a><a href="/companies" id="navCompanies">Companies</a><a href="/activity" id="navActivity">Activity</a><a href="/access" id="navAccess" hidden>Access</a></nav>
   <main id="content" tabindex="-1"><p role="status">Loading…</p></main>
   <script nonce="__NONCE__">
     const main=document.querySelector('main');
@@ -48,8 +48,31 @@
     async function activity(){setNav('Activity');shell('Activity','Mission workflow receipts. Consent, intro, send, and money never appear here.');const data=await get('/api/v1/activity?limit=20');if(!data.rows.length){main.append(el('p',{class:'empty',role:'status',text:'No workflow receipts yet. Actions on a live mission appear here.'}));return}const list=el('div',{class:'stack'});for(const row of data.rows)list.append(el('article',{class:'card'},[el('h3',{text:label(text(row.action))}),el('div',{class:'meta'},[tag(text(row.entity)),tag(text(row.actor)),tag(when(row.at))])]));main.append(list)}
     async function missions(){setNav('Missions');shell('Missions','Writable hires stored in SQLite. Demo packets never appear here.');const data=await get('/api/v1/missions');const grid=el('div',{class:'grid'});for(const row of data.rows)grid.append(card(row.title,row.href,[el('div',{class:'meta'},[tag(label(row.closeState)),tag(text(row.companyId,'No company'))]),el('p',{class:'meta',text:when(row.updatedAt)})]));main.append(data.rows.length?grid:el('p',{class:'empty',text:'No persisted missions yet. Open a real role to start one.'}))}
     async function calendar(){setNav('Calendar');shell('Calendar','Holds and bookings inside Demigod. Download .ics — nothing is sent.');const data=await get('/api/v1/calendar');const list=el('div',{class:'stack'});for(const row of data.slots)list.append(el('article',{class:'card'},[el('h3',{text:`${text(row.title)} · ${label(text(row.moment,'slot'))}`}),el('div',{class:'meta'},[tag(label(row.state)),tag(text(row.interviewer)),tag(`${when(row.start)} → ${when(row.end)}`)]),el('a',{class:'button',href:row.href,text:'Download .ics'})]));main.append(data.slots.length?list:el('p',{class:'empty',text:'No slots yet.'}))}
-    function paintChrome(session){const mode=document.querySelector('#mode');mode.textContent=session.modeLabel||label(session.mode);const signout=document.querySelector('#signout');if(signout)signout.hidden=!session.hosted;document.querySelectorAll('.banner').forEach((node)=>node.remove());if(!session.hosted&&session.access?.publicUrl){const note=document.createElement('p');note.className='banner';note.textContent=`Public desk: ${session.access.publicUrl}`;document.querySelector('nav').after(note)}}
-    async function boot(){const session=await get('/api/v1/session');paintChrome(session);const parts=location.pathname.split('/').filter(Boolean);if(parts[0]==='activity')return activity();if(parts[0]==='missions')return missions();if(parts[0]==='calendar')return calendar();if(parts[0]==='companies'&&parts[1])return company(decodeURIComponent(parts[1]));if(parts[0]==='companies')return companies();if(parts[0]==='roles'&&parts[1])return role(decodeURIComponent(parts[1]));return roles()}
+    async function access(){setNav('Access');shell('Access','Who can reach this desk, and with what. Adding a colleague here is the only way to do it without a shell on the host.');const err=el('p',{class:'error',role:'alert'});err.hidden=true;const reload=()=>access();const call=async(path,body)=>{err.hidden=true;try{return await post(path,body)}catch(error){err.hidden=false;err.textContent=error.message;throw error}};let data;try{data=await get('/api/v1/accounts')}catch(error){main.append(el('p',{class:'error',role:'alert',text:error.message}));return}
+      const people=el('div',{class:'stack'});
+      for(const u of data.users){const row=el('article',{class:'card'},[el('h3',{text:u.email}),el('div',{class:'meta'},[tag(label(u.role)),tag(u.disabled?'Disabled':'Active',u.disabled?'warn':'good'),tag(`${u.keys} key${u.keys===1?'':'s'}`)])]);
+        const roleSel=el('select',{'aria-label':`Role for ${u.email}`});for(const r of ['viewer','operator','admin']){const opt=el('option',{value:r,text:r});if(r===u.role)opt.selected=true;roleSel.append(opt)}
+        const setRole=el('button',{type:'button',text:'Set role'});setRole.addEventListener('click',async()=>{await call('/api/v1/accounts',{email:u.email,role:roleSel.value});reload()});
+        const key=el('button',{type:'button',text:'Issue key'});key.addEventListener('click',async()=>{const made=await call('/api/v1/keys',{email:u.email,label:'issued from the desk'});
+          /* Shown once, in a field the operator can copy, and never fetched again — only the hash
+             is stored. A key that can be re-read later is a key an attacker can re-read too. */
+          const box=el('div',{class:'scorecard'},[el('p',{text:'Copy this now. It cannot be shown again.'}),el('input',{value:made.key,readonly:'readonly','aria-label':'New API key'})]);row.append(box)});
+        const off=el('button',{type:'button',text:u.disabled?'Disabled':'Disable'});off.disabled=u.disabled;off.addEventListener('click',async()=>{await call('/api/v1/accounts/disable',{email:u.email});reload()});
+        row.append(el('div',{class:'toolbar'},[roleSel,setRole,key,off]));people.append(row)}
+      main.append(section('People',[people]));
+      const email=el('input',{type:'email',maxlength:'160',placeholder:'colleague@example.com','aria-label':'New account email'});
+      const role=el('select',{'aria-label':'New account role'});for(const r of ['viewer','operator','admin'])role.append(el('option',{value:r,text:r}));
+      const pw=el('input',{type:'password',maxlength:'200',placeholder:'Their first password (12+ characters)','aria-label':'New account password'});
+      const addForm=el('form',{class:'toolbar'},[email,role,pw,el('button',{type:'submit',text:'Add person'})]);
+      addForm.addEventListener('submit',async(event)=>{event.preventDefault();await call('/api/v1/accounts',{email:email.value,role:role.value,password:pw.value});reload()});
+      main.append(section('Add someone',[addForm,err]));
+      const keys=el('div',{class:'stack'});
+      for(const k of data.keys){const card=el('article',{class:'card'},[el('h3',{text:k.label||k.id}),el('div',{class:'meta'},[tag(k.email),tag(label(k.role)),tag(k.active?'Active':'Revoked',k.active?'good':'warn')])]);
+        if(k.active){const rev=el('button',{type:'button',text:'Revoke'});rev.addEventListener('click',async()=>{await call('/api/v1/keys/revoke',{id:k.id});reload()});card.append(el('div',{class:'toolbar'},[rev]))}
+        keys.append(card)}
+      main.append(section('API keys',[data.keys.length?keys:el('p',{class:'empty',text:'No keys issued.'})]))}
+    function paintChrome(session){const mode=document.querySelector('#mode');mode.textContent=session.modeLabel||label(session.mode);const access=document.querySelector('#navAccess');if(access)access.hidden=!session.can?.admin;const signout=document.querySelector('#signout');if(signout)signout.hidden=!session.hosted;document.querySelectorAll('.banner').forEach((node)=>node.remove());if(!session.hosted&&session.access?.publicUrl){const note=document.createElement('p');note.className='banner';note.textContent=`Public desk: ${session.access.publicUrl}`;document.querySelector('nav').after(note)}}
+    async function boot(){const session=await get('/api/v1/session');paintChrome(session);const parts=location.pathname.split('/').filter(Boolean);if(parts[0]==='access')return access();if(parts[0]==='activity')return activity();if(parts[0]==='missions')return missions();if(parts[0]==='calendar')return calendar();if(parts[0]==='companies'&&parts[1])return company(decodeURIComponent(parts[1]));if(parts[0]==='companies')return companies();if(parts[0]==='roles'&&parts[1])return role(decodeURIComponent(parts[1]));return roles()}
     boot().catch(fail);
   </script>
 </body>

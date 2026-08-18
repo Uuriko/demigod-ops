@@ -888,6 +888,7 @@ const uiRoute = (pathname) => pathname === '/'
   || pathname === '/roles'
   || pathname === '/companies'
   || pathname === '/activity'
+  || pathname === '/access'
   || pathname === '/missions'
   || pathname === '/calendar'
   || /^\/(?:roles|companies)\/[^/]+$/.test(pathname);
