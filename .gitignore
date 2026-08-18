@@ -250,3 +250,7 @@ DEMIGOD-TARGETS.json
 # paths ending `oauth/.env`. The real Cloudflare OAuth token lives at ~/.config/.wrangler at 0600,
 # under the already-ignored .config/ path. So this is hygiene, not an exposure fix.
 .wrangler/
+
+# Media sources are the originals, recoverable from the site; only the built
+# deliverables and their manifest belong in git.
+dasha-media/src/
