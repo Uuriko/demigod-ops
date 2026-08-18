@@ -228,6 +228,15 @@ export function buildStaticDirectory(map, generatedAt = '', feed = null, maxByte
      freshness — the newest would advertise the whole corpus as being as fresh as its freshest row. */
   const observedDays = verified.map((c) => String(c.openRolesAt || '').slice(0, 10)).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
   const at = generatedAt || observedDays[0] || (map?.generatedAt || '').slice(0, 10);
+  /* What this page does NOT list, said on the page rather than left to be inferred.
+     The listing is companies whose public ATS board we could read. A larger group says it is hiring
+     — via its own YC profile — and publishes no board we can reach, and showing only the readable
+     half makes the directory look like the market instead of like our coverage. Naming the gap is
+     the difference between a sample and a census, and this one is a sample. */
+  const reportedOnly = companies.filter((c) => c.hiring === 'yes' && !(c.openRoles && c.atsSource && safeUrl(c.jobsUrl))).length;
+  const coverageNote = reportedOnly
+    ? ` A further ${reportedOnly} compan${reportedOnly === 1 ? 'y reports' : 'ies report'} hiring but publish no job board we can read; they are counted nowhere above.`
+    : '';
   const agingNote = agingRoles
     ? ` ${agingRoles} role${agingRoles === 1 ? '' : 's'} across ${aging.length} compan${aging.length === 1 ? 'y' : 'ies'} ${agingRoles === 1 ? 'was' : 'were'} posted 90–365 days ago, counted only among roles whose Greenhouse board date we can attribute — not out of the total above.`
     : '';
@@ -263,7 +272,7 @@ ${recent.map((role) => (() => { const bits = [`first observed ${esc(role.observe
   const page = (shown) => `<style>.dg-static{max-width:76rem;margin:2rem auto;padding:1rem}.dg-static li{margin:.35rem 0}</style>
 <details class="dg-static" data-generated-at="${esc(at)}">
 <summary>Browse ${verified.length} companies with public ATS open roles in this ${esc(at)} snapshot</summary>
-<p>${totalRoles} open roles observed ${esc(at)}.${agingNote} Counts are a dated snapshot; follow each employer's public job board for current status.</p>
+<p>${totalRoles} open roles observed ${esc(at)}.${agingNote}${coverageNote} Counts are a dated snapshot; follow each employer's public job board for current status.</p>
 ${activity ? `<p><strong>Observed hiring activity:</strong> ${esc(activity)}</p>` : ''}
 ${shown < sorted.length ? `<p>Listing the ${shown} of these ${verified.length} companies (startups first when size/stage is known, then by open-role count); the counts above cover all ${verified.length}.</p>\n` : ''}<ul>
 ${sorted.slice(0, shown).map(row).join('\n')}
@@ -346,6 +355,21 @@ if (isMain && (process.env.DEMIGOD_STATIC_SELFTEST === '1' || process.argv.inclu
      divides it by the headline and gets a rate that was never measured. Every other number here
      states its denominator; this one has to say which denominator it is NOT. */
   assert(/not out of the total above/.test(html), 'the aging count must refuse the denominator a reader would assume');
+
+  /* The page must say what it is not listing. Companies that report hiring with no readable board
+     are the larger group, and omitting them silently turns a sample into an implied census. */
+  {
+    const withGap = buildStaticDirectory({ companies: [
+      { id: 'a', name: 'Acme', website: 'https://acme.com/', openRoles: 3, atsSource: 'Ashby', jobsUrl: 'https://jobs.ashbyhq.com/acme', openRolesAt: '2026-08-17', hiring: 'yes' },
+      { id: 'b', name: 'Beta', website: 'https://beta.com/', hiring: 'yes' },
+      { id: 'c', name: 'Gamma', website: 'https://gamma.com/', hiring: 'yes' },
+    ] });
+    assert(/A further 2 companies report hiring but publish no job board we can read/.test(withGap), 'the unreadable-board group is named on the page');
+    const noGap = buildStaticDirectory({ companies: [
+      { id: 'a', name: 'Acme', website: 'https://acme.com/', openRoles: 3, atsSource: 'Ashby', jobsUrl: 'https://jobs.ashbyhq.com/acme', openRolesAt: '2026-08-17', hiring: 'yes' },
+    ] });
+    assert(!/A further/.test(noGap), 'with nothing missing the page claims no gap');
+  }
 
   /* The page date must come from when the counts were observed, not when the map was built.
      Live case that forced this: map generatedAt 2026-08-16, every counted row openRolesAt
