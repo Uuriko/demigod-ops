@@ -39,7 +39,9 @@ assert.equal(socialCard.readUInt32BE(16), 1200);
 assert.equal(socialCard.readUInt32BE(20), 630);
 
 assert(!/thesis|receipt-form|telegram/i.test(html), 'retired thesis/Telegram content leaked into homepage');
-for (const [name, source] of Object.entries({ homepage: html, howto, ...(desk ? { desk } : {}), studio, lobbyClient, simpClient })) assert(!/dasha\.cam|t\.me\//i.test(source), `${name}: unowned token-profile link returned`);
+for (const [name, source] of Object.entries({ homepage: html, ...(desk ? { desk } : {}), studio, lobbyClient, simpClient })) assert(!/dasha\.cam|t\.me\//i.test(source), `${name}: unowned token-profile link returned`);
+assert(!/dasha\.cam|t\.me\/dashacommunity/i.test(howto), 'howto: unowned token-profile link returned');
+assert.match(howto, /t\.me\/\+xB7S8mIQaKFiZjRh/, 'howto footer includes the official Telegram group');
 assert(!/images\.weserv\.nl|files\.catbox\.moe|gpjyb0\.jpg/.test(html), 'old third-party casino hero image returned');
 // Curated stills allowed (id=stills + pbs/wikimedia). Ban casino tape hosts and Perry image strip.
 assert(!/cdn\.dexscreener\.com|Public tape|Stills from the timeline|Culture tape/.test(html), 'homepage regained retired tape copy');

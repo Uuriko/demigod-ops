@@ -207,6 +207,7 @@ export const HOWTO_HTML = `<!doctype html>
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="$dasha — getdasha.com">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@dash_eats">
 <meta name="twitter:title" content="How to buy $dasha">
 <meta name="twitter:description" content="SOL → match mint → swap.">
 <meta name="twitter:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
@@ -214,7 +215,7 @@ export const HOWTO_HTML = `<!doctype html>
 <style>
 :root{color-scheme:dark;--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--line:rgba(244,237,219,.18);--muted:rgba(244,237,219,.62);--panel:rgba(255,255,255,.04);--mono:ui-monospace,Menlo,Consolas,monospace}
 *{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--paper);font:16px/1.55 Arial,Helvetica,sans-serif}
-.dasha-slim{display:flex;align-items:center;gap:.65rem;padding:.45rem 0}.dasha-word{display:inline-flex;align-items:center;min-height:48px;color:#f4eddb;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900;font-size:1.15rem;letter-spacing:-.04em;text-decoration:none;text-transform:uppercase}.dasha-slim .buy-dasha{margin-left:auto;display:inline-flex;align-items:center;min-height:48px;padding:0 1rem;background:#dfff00;color:#070608;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900;text-decoration:none;text-transform:uppercase}.dasha-menu{position:relative}.dasha-menu summary{list-style:none;cursor:pointer;min-height:48px;min-width:48px;display:inline-flex;align-items:center;justify-content:center;color:#f4eddb;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900;font-size:1rem;text-transform:uppercase}.dasha-menu summary::-webkit-details-marker{display:none}.dasha-menu nav{position:absolute;right:0;top:100%;z-index:90;display:grid;min-width:11rem;padding:.4rem .7rem;background:#070608;border:1px solid #dfff00}.dasha-menu nav a{display:inline-flex;align-items:center;min-height:48px;color:#f4eddb;font-weight:900;text-transform:uppercase;text-decoration:none}
+.dasha-slim{display:flex;align-items:center;gap:.65rem;padding:.45rem 0}.dasha-word{display:inline-flex;align-items:center;min-height:48px;color:#f4eddb;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900;font-size:1.15rem;letter-spacing:-.04em;text-decoration:none;text-transform:uppercase}.dasha-slim .buy-dasha{margin-left:auto;display:inline-flex;align-items:center;min-height:48px;padding:0 1rem;background:#dfff00;color:#070608;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900;text-decoration:none;text-transform:uppercase}
 .dasha-crop{position:fixed;inset:10px;z-index:80;pointer-events:none}.dasha-crop i{position:absolute;width:12px;height:12px;border-style:solid;border-color:#f4eddb}.dasha-crop i:nth-child(1){top:0;left:0;border-width:2px 0 0 2px}.dasha-crop i:nth-child(2){top:0;right:0;border-width:2px 2px 0 0;border-color:#dfff00}.dasha-crop i:nth-child(3){bottom:0;left:0;border-width:0 0 2px 2px;border-color:#dfff00}.dasha-crop i:nth-child(4){bottom:0;right:0;border-width:0 2px 2px 0}
 @media(prefers-reduced-motion:no-preference){@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:180ms}}
 .wrap{width:min(720px,calc(100% - 32px));margin:0 auto;padding:28px 0 64px}
@@ -247,7 +248,7 @@ footer nav{display:flex;flex-wrap:wrap;gap:.15rem .25rem}
 </head>
 <body>
 <div class="dasha-crop" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-<header class="dasha-slim"><a class="dasha-word" href="https://www.getdasha.com/">$dasha</a><a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha</a><details class="dasha-menu"><summary aria-label="Menu">Menu</summary><nav aria-label="Dasha"><a href="/forum">Forum</a><a href="/chess">Chess</a></nav></details></header>
+<header class="dasha-slim"><a class="dasha-word" href="https://www.getdasha.com/">$dasha</a><a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha</a></header>
 <main class="wrap">
 
   <h1>How to buy $dasha</h1>
@@ -271,12 +272,13 @@ footer nav{display:flex;flex-wrap:wrap;gap:.15rem .25rem}
       <button type="button" class="btn" id="copy">Copy CA</button>
     </div>
     <p class="source"><a href="https://solscan.io/token/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Solscan ↗</a> · Source: <a href="https://x.com/dash_eats/status/2085405228078432279" target="_blank" rel="noopener noreferrer">@dash_eats ↗</a></p>
+    <p>CoinGecko <a href="https://www.coingecko.com/en/coins/dash_eats" target="_blank" rel="noopener noreferrer">dash_eats</a> is this mint. <a href="https://www.coingecko.com/en/coins/dasha" target="_blank" rel="noopener noreferrer">Dasha</a> is VVAIFU.</p>
   </article>
 
   <article class="step" id="step03" data-n="03">
     <div class="n">03</div>
     <h2>Swap</h2>
-    <p>In Phantom: Swap, top SOL, bottom paste the mint. Don’t spend all SOL.</p>
+    <p>In Phantom: Swap, top SOL, bottom paste the mint. Or open the <a href="https://phantom.com/tokens/solana/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Phantom token page</a>. Don’t spend all SOL.</p>
     <p>Or tap Buy $dasha.</p>
     <div class="actions">
       <a class="btn" id="buy" target="_blank" rel="noopener noreferrer" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Buy $dasha</a>
@@ -287,12 +289,12 @@ footer nav{display:flex;flex-wrap:wrap;gap:.15rem .25rem}
     <ul class="doors">
       <li><a target="_blank" rel="noopener noreferrer" href="https://pump.fun/coin/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">pump.fun</a></li>
       <li><a target="_blank" rel="noopener noreferrer" href="https://trade.phantom.com/token/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Phantom trade</a></li>
+      <li><a target="_blank" rel="noopener noreferrer" href="https://phantom.com/tokens/solana/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Phantom</a></li>
     </ul>
   </article>
 
   <footer class="dasha-foot">
-    <p><a href="https://www.getdasha.com/">$dasha</a> · <a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a> · <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></p>
-    <nav aria-label="Rooms"><a href="/forum">Forum</a><a href="/chess">Chess</a></nav>
+    <p><a href="https://www.getdasha.com/">$dasha</a> · <a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a> · <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a> · <a href="https://t.me/+xB7S8mIQaKFiZjRh" target="_blank" rel="noopener noreferrer">Telegram</a></p>
   </footer>
 </main>
 <div class="buy-sticky" id="buy-sticky" hidden><a class="btn" id="buy-sticky-a" target="_blank" rel="noopener noreferrer" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Buy $dasha</a></div>
@@ -358,6 +360,7 @@ export const CHESS_PAGE_HTML = `<!doctype html>
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Dasha Chess">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@dash_eats">
 <meta name="twitter:title" content="Dasha Chess">
 <meta name="twitter:description" content="Chess.">
 <meta name="twitter:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
@@ -406,7 +409,7 @@ main{padding:12px 0 48px}.kicker{color:var(--acid);font:900 12px/1 monospace;let
   </div>
 </main>
 <style>footer.dasha-foot{padding:1.25rem 0 calc(1.25rem + env(safe-area-inset-bottom,0px));background:#070608;color:#f4eddb;font:900 1rem/1.3 Arial,Helvetica,sans-serif}footer.dasha-foot a{display:inline-flex;align-items:center;min-height:48px;min-width:48px;padding:0 .65rem;color:#f4eddb;text-decoration:none}footer.dasha-foot a:hover{color:#dfff00}footer.dasha-foot .buy-dasha,footer.dasha-foot .buy-dasha:hover{background:#dfff00;color:#070608;padding:0 1rem}footer.dasha-foot nav{display:flex;flex-wrap:wrap;gap:.15rem .25rem}</style>
-<footer class="dasha-foot wrap"><p><a href="https://www.getdasha.com/">$dasha</a> · <a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a> · <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></p></footer>
+<footer class="dasha-foot wrap"><p><a href="https://www.getdasha.com/">$dasha</a> · <a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a> · <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a> · <a href="https://t.me/+xB7S8mIQaKFiZjRh" target="_blank" rel="noopener noreferrer">Telegram</a></p></footer>
 <dialog class="promotion" id="promotion" aria-labelledby="promotion-title"><form method="dialog"><p id="promotion-title">Promote to</p><button value="q" aria-label="Queen">♕</button><button value="r" aria-label="Rook">♖</button><button value="b" aria-label="Bishop">♗</button><button value="n" aria-label="Knight">♘</button></form></dialog>
 <script>
 (function(){
@@ -556,6 +559,7 @@ export const GRAPH_PAGE_HTML = `<!doctype html>
 <meta property="og:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
 <meta property="og:image:alt" content="$DASHA GRAPH">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@dash_eats">
 <meta name="twitter:title" content="$DASHA GRAPH">
 <meta name="twitter:description" content="Public chain. Addresses, not people.">
 <meta name="twitter:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
@@ -696,10 +700,10 @@ export const LOBBY_PAGE_HTML = `<!doctype html>
 <div id="dasha-forum"></div>
 <div id="dasha-lobby" data-lobby-url="wss://lobby.getdasha.com/ws"></div>
 </div>
-<footer class="dasha-foot"><p><a href="https://www.getdasha.com/">$dasha</a> · <a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a> · <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></p></footer>
+<footer class="dasha-foot"><p><a href="https://www.getdasha.com/">$dasha</a> · <a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a> · <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a> · <a href="https://t.me/+xB7S8mIQaKFiZjRh" target="_blank" rel="noopener noreferrer">Telegram</a></p></footer>
 </main>
 <script>(function(){var s=document.createElement('script');s.src='https://lobby.getdasha.com/client/lobby.js';s.integrity='sha384-2Qd8tdEn2k3Wt9vKu6BQ6pCqro7kzQO+Aehevrx9HNU8o2luI0sHSNq6BNYTvaF6';s.crossOrigin='anonymous';s.defer=true;document.head.appendChild(s)})();</script>
 </body>
 </html>
 `;
-export const ASSET_HASH = "6996524be55c8a2e";
+export const ASSET_HASH = "4e464685a748a79e";

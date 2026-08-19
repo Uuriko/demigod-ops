@@ -91,6 +91,7 @@ import {
   STUDIO_CLIENT_SRI,
   ROBOTS_TXT,
   SITEMAP_XML,
+  HOWTO_HTML,
   CHESS_PAGE_HTML,
   GRAPH_PAGE_HTML,
   GRAPH_CLIENT_JS,
@@ -119,6 +120,9 @@ import {
   AWARD_ROOM_CSS,
   AWARD_SLIM_CSS,
   BUY_HREF,
+  COINGECKO_DASH_EATS_HREF,
+  DEXSCREENER_PAIR_HREF,
+  PHANTOM_TOKEN_HREF,
   cropTicksHtml,
   AWARD_FOOT_CSS,
   hamburgerHtml,
@@ -503,7 +507,49 @@ export function rewriteHomeFirstViewport(html) {
   }
   page = ensureHomeAwardChrome(page);
   page = injectHomeReveal(page);
-  return rewriteLeftoverLobbyHrefs(stripHomeLeftoverChrome(page));
+  page = rewriteLeftoverLobbyHrefs(stripHomeLeftoverChrome(page));
+  page = ensureHomeTokenReachLinks(page);
+  return ensureTwitterSite(page);
+}
+
+const TOKEN_REACH_LINKS = [
+  [COINGECKO_DASH_EATS_HREF, 'CoinGecko'],
+  [DEXSCREENER_PAIR_HREF, 'Dexscreener'],
+  [PHANTOM_TOKEN_HREF, 'Phantom'],
+];
+
+function tokenReachAnchor(href, label) {
+  return `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+}
+
+/** Home #token row: live CoinGecko dash_eats, this Dexscreener pair, Phantom token page. */
+export function ensureHomeTokenReachLinks(html) {
+  const page = String(html || '');
+  const hasHref = (hay, href) => hay.toLowerCase().includes(href.toLowerCase());
+  const missing = (hay) => TOKEN_REACH_LINKS.filter(([href]) => !hasHref(hay, href));
+  const row = page.match(/<div\b[^>]*\bclass=["'][^"']*\blinkrow\b[^"']*["'][^>]*>[\s\S]*?<\/div>/i);
+  if (row) {
+    const add = missing(row[0]);
+    if (!add.length) return page;
+    return page.replace(row[0], row[0].replace(/<\/div>\s*$/i, `${add.map(([href, label]) => tokenReachAnchor(href, label)).join('')}</div>`));
+  }
+  const token = page.match(/<section\b[^>]*\bid=["']token["'][^>]*>[\s\S]*?<\/section>/i);
+  if (!token) return page;
+  const add = missing(token[0]);
+  if (!add.length) return page;
+  return page.replace(token[0], token[0].replace(/<\/section>\s*$/i, `<div class="linkrow">${add.map(([href, label]) => tokenReachAnchor(href, label)).join('')}</div></section>`));
+}
+
+/** Existing large-image cards get twitter:site @dash_eats. Does not touch og:image. */
+export function ensureTwitterSite(html) {
+  const page = String(html || '');
+  if (!/summary_large_image/i.test(page)) return page;
+  if (/name=["']twitter:site["']/i.test(page)) {
+    return page.replace(/<meta\b[^>]*\bname=["']twitter:site["'][^>]*>/gi, '<meta name="twitter:site" content="@dash_eats">');
+  }
+  const card = page.match(/<meta\b[^>]*\b(?:name=["']twitter:card["'][^>]*content=["']summary_large_image["']|content=["']summary_large_image["'][^>]*name=["']twitter:card["'])[^>]*>/i);
+  if (card) return page.replace(card[0], `${card[0]}<meta name="twitter:site" content="@dash_eats">`);
+  return page.replace(/<\/head>/i, '<meta name="twitter:site" content="@dash_eats"></head>');
 }
 
 function ensureHomeAwardChrome(html) {
@@ -717,9 +763,28 @@ function isLeftoverDeskPath(pathname) {
   return path === '/dasha' || path === '/desk';
 }
 
-function isLeftoverHowtoPath(pathname) {
+function isHowtoPath(pathname) {
   const path = String(pathname || '').replace(/\/+$/, '') || '/';
   return path === '/how-to-buy' || path === '/howtobuy';
+}
+
+function isLeftoverHowtoPath(pathname) {
+  return isHowtoPath(pathname);
+}
+
+function howtoPageHtml() {
+  return ensureTwitterSite(HOWTO_HTML);
+}
+
+function howtoPageResponse(request) {
+  return new Response(request.method === 'HEAD' ? null : howtoPageHtml(), {
+    status: 200,
+    headers: htmlHeaders({
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=120',
+      'X-Dasha-Edge': 'howto',
+    }),
+  });
 }
 
 /** Dock is off. Dance files stay on disk; nothing mounts them. */
@@ -731,7 +796,7 @@ export function injectDanceDock(html) {
   return html;
 }
 
-const CHESS_PAGE = ensurePrivacyLink(CHESS_PAGE_HTML);
+const CHESS_PAGE = ensureTwitterSite(ensurePrivacyLink(CHESS_PAGE_HTML));
 const GRAPH_PAGE = GRAPH_PAGE_HTML;
 const LOBBY_PAGE = injectDanceDock(ensurePrivacyLink(stripLobbySimpQuiz(LOBBY_PAGE_HTML)));
 const FORUM_PAGE = LOBBY_PAGE;
@@ -1141,7 +1206,7 @@ export function simpSharePageHtml(result, id) {
 <meta property="og:type" content="website"><meta property="og:site_name" content="getdasha"><meta property="og:url" content="${url}">
 <meta property="og:title" content="${typeName}"><meta property="og:description" content="${description}">
 <meta property="og:image" content="${SIMP_SHARE_IMAGE}"><meta property="og:image:alt" content="${typeName}">
-<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${typeName}"><meta name="twitter:description" content="${description}"><meta name="twitter:image" content="${SIMP_SHARE_IMAGE}"><meta name="twitter:image:alt" content="${typeName}">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:site" content="@dash_eats"><meta name="twitter:title" content="${typeName}"><meta name="twitter:description" content="${description}"><meta name="twitter:image" content="${SIMP_SHARE_IMAGE}"><meta name="twitter:image:alt" content="${typeName}">
 <style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}body{font:16px/1.45 Arial,Helvetica,sans-serif;background:var(--ink);color:var(--paper);max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:var(--acid)}h1{font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(2rem,8vw,3.4rem);line-height:.95;margin:0 0 .75rem}.dasha-share{background:var(--acid);color:var(--ink);border:0;padding:.55rem 1rem;font:inherit;font-weight:700;cursor:pointer}</style>
 <body>
 <h1>${typeName}</h1>
@@ -2066,7 +2131,7 @@ export class DashaLobby {
       const resultUrl = `https://lobby.getdasha.com/simp/r/${id}`;
       const imageUrl = 'https://lobby.getdasha.com/simp/card/quiz.png';
       const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${identity}</title><link rel="canonical" href="${resultUrl}"><meta property="og:type" content="website"><meta property="og:site_name" content="getdasha"><meta property="og:url" content="${resultUrl}"><meta property="og:title" content="${identity}"><meta property="og:description" content="${description}"><meta property="og:image" content="${imageUrl}"><meta property="og:image:secure_url" content="${imageUrl}"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="628"><meta property="og:image:alt" content="Dasha simp quiz"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${identity}"><meta name="twitter:description" content="${description}"><meta name="twitter:image" content="${imageUrl}"><meta name="twitter:image:alt" content="Dasha simp quiz"><style>body{margin:0;background:#070608;color:#f4eddb;font:20px/1.4 Arial,Helvetica,sans-serif;display:grid;place-items:center;min-height:100vh}.r{max-width:36rem;padding:32px}h1{font-size:clamp(42px,9vw,76px);line-height:.95}b{color:#dfff00}a{display:inline-block;background:#dfff00;color:#070608;padding:14px 20px;font-weight:900;text-decoration:none}</style></head><body><main class="r"><b>DASHA SIMP QUIZ</b><h1>${result.correct}/${result.total}<br>${identity}</h1><p>${description}</p><a href="https://www.getdasha.com/?challenge=${id}#simp">Beat this score</a></main></body></html>`;
-      return new Response(headOnly ? null : html, { headers: htmlHeaders({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' }) });
+      return new Response(headOnly ? null : ensureTwitterSite(html), { headers: htmlHeaders({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' }) });
     }
 
     if (path === '/simp/hold') {
@@ -3693,7 +3758,7 @@ async function productEdge(request, url, env) {
     return bountiesFeedResponse(request);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverHowtoPath(url.pathname)) {
-    return Response.redirect('https://www.getdasha.com/', 308);
+    return howtoPageResponse(request);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/simp')) {
     return simpPageResponse(request);
@@ -3815,6 +3880,7 @@ async function productEdge(request, url, env) {
   html = rewriteStudioScriptIntegrity(html);
   html = rewriteLobbyScriptIntegrity(html);
   html = rewriteStaleCdnFavicon(html);
+  html = ensureTwitterSite(html);
   if (isExactPath(url.pathname, '/studio')) html = rewriteStudioBuyVerifyHref(html);
   if (danceDockPath(url.pathname)) html = injectDanceDock(html);
   if (stripped) {
@@ -4027,7 +4093,7 @@ export default {
       return bountiesFeedResponse(request);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverHowtoPath(url.pathname)) {
-      return Response.redirect('https://www.getdasha.com/', 308);
+      return howtoPageResponse(request);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/chess' || url.pathname === '/chess/')) {
       const html = await chessPageForRequest(request, env);
