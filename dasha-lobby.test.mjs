@@ -925,6 +925,7 @@ for (const path of ['/studio', '/studio/']) {
     assert.match(section, /<footer\b[^>]*id="token"/, `${label} must keep CA + Buy in a token footer`);
     assert.match(section, /<a href="https:\/\/www\.getdasha\.com\/">\$dasha<\/a> · <a class="buy-dasha" href="https:\/\/jup\.ag\/swap\?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump"/, `${label} site footer must keep \$dasha + Buy`);
     assert.match(section, /href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats</, `${label} site footer must include @dash_eats`);
+    assert.match(section, TELEGRAM_HREF, `${label} site footer includes Telegram`);
     assert.doesNotMatch(section.match(/<footer class="dasha-foot"[\s\S]*?<\/footer>/i)?.[0] || '', /<nav\b|href="\/chess">Chess</, `${label} site footer has no room nav`);
     assert.match(section, /53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump/, `${label} footer must show the mint`);
     assert.match(section, /jup\.ag\/swap\?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump/, `${label} footer must keep Buy`);
@@ -966,7 +967,7 @@ for (const path of ['/studio', '/studio/']) {
   assert.doesNotMatch(listedSection, /\bClaim\b|\bPay\b/);
   assert.doesNotMatch(listed, /<iframe/i);
   assert.doesNotMatch(listed, /#c8b6ff|rgba\(\s*124\s*,\s*77\s*,\s*255/i);
-  assert.doesNotMatch(listedSection, /t\.me\//i);
+  assert.doesNotMatch(listedSection.replace(/<footer class="dasha-foot">[\s\S]*?<\/footer>/i, ''), /t\.me\//i);
   assert.match(listed, TELEGRAM_HREF);
   assert.doesNotMatch(listed, /payTo:""/);
   const emptyListed = injectBountiesBoard(shell, { listings: [] });
