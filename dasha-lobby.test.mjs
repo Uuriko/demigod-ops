@@ -670,6 +670,8 @@ for (const path of ['/studio', '/studio/']) {
   assert.doesNotMatch(shareHtml, /property="og:image:alt" content="[^"]*9\/10/);
   assert.match(shareHtml, /9\/10/);
   assert.match(shareHtml, /class="dasha-share"/);
+  assert.match(shareHtml, /dasha-share[\s\S]*href="https:\/\/www\.getdasha\.com\/forum">Forum</, 'share page hops to Forum after Share');
+  assert.match(shareHtml, /Back to Dasha<\/a> · <a href="https:\/\/www\.getdasha\.com\/forum">Forum</);
   assert.match(shareHtml, /navigator\.share/);
   assert.match(shareHtml, /x\.com\/intent\/post/);
   assert.doesNotMatch(shareHtml, /\.simp-/);
@@ -713,6 +715,7 @@ for (const path of ['/studio', '/studio/']) {
         assert.match(html, /<h1>Dasha scholar<\/h1>/);
         assert.match(html, /property="og:title" content="Dasha scholar"/);
         assert.match(html, /property="og:image:alt" content="Dasha scholar"/);
+        assert.match(html, /dasha-share[\s\S]*href="https:\/\/www\.getdasha\.com\/forum">Forum</);
         assert.doesNotMatch(html, /<h1>[^<]*9\/10/);
       }
       const missing = await workerModule.default.fetch(new Request(`https://${host}/simp/r/unknown`, { method }), shareEnv);
@@ -725,6 +728,7 @@ for (const path of ['/studio', '/studio/']) {
       } else {
         assert.match(missingBody, /<h1>Result not found<\/h1>/);
         assert.match(missingBody, /No quiz result for this id/);
+        assert.match(missingBody, /Back to Dasha<\/a> · <a href="https:\/\/www\.getdasha\.com\/forum">Forum</);
         assert.notEqual(missingBody.trim(), '', `${host} /simp/r/unknown must not 200 a blank page`);
         assert.doesNotMatch(missingBody, /Page not found — \$dasha|9\/10|Dasha scholar|0\/0/);
       }
@@ -2203,6 +2207,7 @@ assert.match(shareResultHtml, /twitter:card[^>]+summary_large_image/);
 assert.match(shareResultHtml, /twitter:site[^>]+@dash_eats/);
 assert.match(shareResultHtml, /twitter:image[^>]+\/simp\/card\/quiz\.png/);
 assert.match(shareResultHtml, /og:image:width[^>]+1200[\s\S]*og:image:height[^>]+628/);
+assert.match(shareResultHtml, /href="https:\/\/www\.getdasha\.com\/\?challenge=sharetest#simp">Beat this score</, 'lobby /simp/r stays the dare card');
 const studioEvent = (body) => studioDo.fetch(new Request('https://lobby.getdasha.com/studio/event', {
   method: 'POST', headers: { Origin: 'https://www.getdasha.com', 'Content-Type': 'application/json' }, body: JSON.stringify(body),
 }));

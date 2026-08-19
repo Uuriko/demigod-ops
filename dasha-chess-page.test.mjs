@@ -99,6 +99,8 @@ assert.match(source, /WWW\+'\/chess\?challenge='/, 'invite share must use the ww
 assert.doesNotMatch(source, /id="dasha-lobby"/, 'chess must not embed lobby chat');
 assert.doesNotMatch(source, /lobby\.getdasha\.com\/client\/lobby\.js/, 'chess must not load the lobby client');
 assert.match(source, /id="ask-lobby"[^>]*>Ask</, 'invite must be able to ask the public room');
+assert.match(source, /id="ask-forum" href="https:\/\/www\.getdasha\.com\/forum">Forum</, 'challenge-share hops to Forum next to Ask');
+assert.match(source, /id="share-x"[^>]*>Post on X<\/button><button class="btn ghost" id="ask-lobby"/, 'Forum hop does not replace share-x or Ask');
 assert.match(source, /id="gate-kicker"[^>]*hidden/);
 assert.match(source, /id="gate-title"[^>]*hidden/);
 assert.match(source, /id="gate-copy"[^>]*hidden/);

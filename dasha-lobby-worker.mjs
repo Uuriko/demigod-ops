@@ -1258,7 +1258,8 @@ export function simpSharePageHtml(result, id) {
 <h1>${typeName}</h1>
 ${support ? `<p>${support}</p>` : ''}
 <button type="button" class="dasha-share" data-title="${typeName}" data-text="${shareText}" data-url="${url}">Share</button>
-<p><a href="/simp">Simp</a> · <a href="https://www.getdasha.com/">Back to Dasha</a></p>
+ <a href="https://www.getdasha.com/forum">Forum</a>
+<p><a href="/simp">Simp</a> · <a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="https://www.getdasha.com/forum">Forum</a></p>
 <script>${SIMP_SHARE_JS}</script>
 </body></html>`;
 }
@@ -1270,7 +1271,7 @@ export function simpResultMissingHtml() {
 <body>
 <h1>Result not found</h1>
 <p>No quiz result for this id.</p>
-<p><a href="/simp">Simp</a> · <a href="https://www.getdasha.com/">Back to Dasha</a></p>
+<p><a href="/simp">Simp</a> · <a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="https://www.getdasha.com/forum">Forum</a></p>
 </body></html>`;
 }
 
