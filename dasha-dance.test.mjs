@@ -168,14 +168,16 @@ assert.doesNotMatch(graphHtml, /dasha-dance|three@0\.170/, '308 /graph must not 
   assert.equal(forum.status, 308, 'lobby /forum 308s home');
   assert.equal(forum.headers.get('location'), 'https://www.getdasha.com/');
 }
-for (const [host, path] of [
-  ['lobby.getdasha.com', '/how-to-buy'],
-  ['www.getdasha.com', '/bounties'],
-  ['www.getdasha.com', '/how-to-buy'],
-]) {
-  const res = await worker.fetch(new Request(`https://${host}${path}`), assets);
-  assert.equal(res.status, 308, `${host}${path} 308s home`);
-  assert.equal(res.headers.get('location'), 'https://www.getdasha.com/');
+{
+  const bounties = await worker.fetch(new Request('https://www.getdasha.com/bounties'), assets);
+  assert.equal(bounties.status, 308, 'www /bounties 308s home');
+  assert.equal(bounties.headers.get('location'), 'https://www.getdasha.com/');
+}
+for (const host of ['lobby.getdasha.com', 'www.getdasha.com']) {
+  const res = await worker.fetch(new Request(`https://${host}/how-to-buy`), assets);
+  assert.equal(res.status, 200, `${host}/how-to-buy is worker-served`);
+  const html = await res.text();
+  assert.doesNotMatch(html, /dasha-dance\.js/, `${host}/how-to-buy must not inject the dock`);
 }
 for (const [host, path] of [
   ['lobby.getdasha.com', '/chess'],

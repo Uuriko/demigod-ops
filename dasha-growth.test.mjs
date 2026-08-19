@@ -61,7 +61,11 @@ assert.ok(!/thesis card|conviction receipt/i.test(landing), 'home stays culture 
 const howto = read('dasha-how-to-buy.html');
 assert.ok(howto.includes(MINT));
 assert.ok(howto.includes('jup.ag/swap'));
-assert.ok(!/phantom\.com\/tokens|raydium\.io\/swap/i.test(howto), 'howto regained retired buy venues');
+assert.ok(howto.includes('https://phantom.com/tokens/solana/' + MINT), 'howto Phantom token page');
+assert.ok(!/raydium\.io\/swap/i.test(howto), 'howto regained retired Raydium venue');
+assert.match(howto, /https:\/\/www\.coingecko\.com\/en\/coins\/dash_eats/, 'howto points at live dash_eats');
+assert.match(howto, /VVAIFU/, 'howto still names VVAIFU on /coins/dasha');
+assert.doesNotMatch(howto, /CoinGecko['’]s Dasha is only VVAIFU|including CoinGecko['’]s Dasha \(VVAIFU\)/, 'VVAIFU-only CoinGecko wording is gone');
 assert.ok(howto.includes('https://phantom.app/ul/v1/swap?buy=solana%3A101%2Faddress%3A' + MINT), 'howto Phantom deeplink');
 assert.ok(howto.includes('https://pump.fun/coin/' + MINT), 'howto pump.fun coin URL');
 assert.ok(howto.includes('https://trade.phantom.com/token/' + MINT), 'howto Phantom trade URL');

@@ -17,7 +17,8 @@ const desk = existsSync(deskPath) ? readFileSync(deskPath, 'utf8') : '';
 
 assert.ok(html.includes(MINT), 'mint on how-to-buy');
 assert.ok(html.includes('jup.ag/swap'), 'jupiter deep link');
-assert.ok(!/phantom\.com\/tokens|raydium\.io\/swap/i.test(html), 'retired transaction venues returned');
+assert.ok(html.includes('https://phantom.com/tokens/solana/' + MINT), 'Phantom token page');
+assert.ok(!/raydium\.io\/swap/i.test(html), 'retired Raydium venue returned');
 assert.match(html, /data-n="01"[\s\S]*?wallet[\s\S]*?SOL/, 'Get SOL must mention wallet and SOL');
 assert.doesNotMatch(html, /We never take your card|Nobody from \$dasha will ask for it/i);
 assert.ok(html.includes('https://phantom.app/'), 'official Phantom download');
@@ -47,7 +48,8 @@ assert.match(html, /\.btn\{[^}]*background:var\(--acid\);color:var\(--ink\)/, 'h
 assert.match(html, /\.btn\.ghost\{[^}]*color:var\(--paper\);border:1px solid var\(--paper\)/, 'howto ghost is paper on ink');
 assert.match(html, /footer \.buy-dasha,footer \.buy-dasha:hover\{background:var\(--acid\);color:var\(--ink\)/, 'howto Buy hover stays ink on acid');
 assert.match(html, /href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats</, 'footer includes @dash_eats');
-assert.match(html.match(/<footer[\s\S]*?<\/footer>/i)?.[0] || '', /href="\/chess">Chess</, 'howto footer must include Chess');
+assert.match(html.match(/<footer[\s\S]*?<\/footer>/i)?.[0] || '', /t\.me\/\+xB7S8mIQaKFiZjRh/, 'howto footer includes Telegram');
+assert.doesNotMatch(html.match(/<footer[\s\S]*?<\/footer>/i)?.[0] || '', /\/studio|>Studio<|>Privacy<|>Chess</, 'howto footer has no leftover rooms');
 assert.doesNotMatch(html, /href="\/graph"/, 'howto chrome must hide Graph');
 assert.ok(!html.includes('t.me/dashacommunity'), 'no disallowed telegram');
 assert.ok(!/can go to zero|not financial advice|\bNFA\b|rugcheck|warning|disclaimer|not an endorsement|never trust|wrong one|lookalike|fake token|token safe/i.test(html), 'negative coin copy returned');
@@ -56,6 +58,12 @@ assert.ok(html.includes('id="buy-sticky"') || html.includes('buy-sticky'), 'howt
 assert.ok(html.includes('SOL → match mint → swap') || html.includes('match mint'), 'howto concise lede');
 assert.match(html, /property="og:image" content="https:\/\//, 'howto must have a share image');
 assert.match(html, /name="twitter:card" content="summary_large_image"/, 'howto must declare a large X card');
+assert.match(html, /name="twitter:site" content="@dash_eats"/, 'howto large card must name @dash_eats');
+assert.match(html, /https:\/\/www\.coingecko\.com\/en\/coins\/dash_eats/, 'howto points at live dash_eats');
+assert.match(html, /https:\/\/www\.coingecko\.com\/en\/coins\/dasha/, 'howto still names the generic Dasha CoinGecko page');
+assert.match(html, /VVAIFU/, 'howto still says /coins/dasha is VVAIFU');
+assert.doesNotMatch(html, /CoinGecko['’]s Dasha is only VVAIFU|including CoinGecko['’]s Dasha \(VVAIFU\)/, 'VVAIFU-only CoinGecko wording is gone');
+assert.doesNotMatch(html, /dasha-menu|aria-label="Menu">Menu</, 'howto must not render a Menu');
 assert.doesNotMatch(html, /application\/ld\+json|"@type"\s*:\s*"HowTo"/, 'retired HowTo structured data returned');
 // One copy affordance is clearer than making both the code block and button perform the same action.
 assert.ok(html.includes('user-select:all'), 'mint must remain selectable');

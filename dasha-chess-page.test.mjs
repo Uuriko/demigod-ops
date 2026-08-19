@@ -184,6 +184,8 @@ assert.equal((source.match(/href="https:\/\/www\.getdasha\.com\/"/g) || []).leng
 assert.doesNotMatch(source, /class="(?:brand|back)" href="\/"/, 'Chess navigation must not mislabel the lobby service root as Home');
 assert.match(source, /<a href="https:\/\/www\.getdasha\.com\/">\$dasha<\/a> · <a class="buy-dasha"/);
 assert.match(source, /href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats</);
+assert.match(source, /t\.me\/\+xB7S8mIQaKFiZjRh/, 'chess footer includes Telegram');
+assert.match(source, /name="twitter:site" content="@dash_eats"/, 'chess large card names twitter:site');
 assert.doesNotMatch(source.match(/<footer[\s\S]*?<\/footer>/i)?.[0] || '', /<nav\b|href="\/chess">Chess</, 'chess footer has no room nav');
 assert.doesNotMatch(source, /\/airdrop|\/earn|\/graph/, 'chess chrome must not grow dead or shelved doors');
 assert.equal((source.match(/https:\/\/jup\.ag\/swap\?/g) || []).length, 2, 'Chess header Buy plus slim footer Buy stay on one Jupiter venue');

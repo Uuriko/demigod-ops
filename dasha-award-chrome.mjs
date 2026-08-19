@@ -2,11 +2,17 @@
  * Shared Lando/No Art chrome for worker rooms + home rewrite.
  * Tokens only. No Inter. No Google Fonts. No Barba. No Lenis.
  */
-import { MINT, WSOL } from './dasha-lobby-mod.mjs';
+import { MINT, PAIR, WSOL } from './dasha-lobby-mod.mjs';
 
 export const BUY_HREF = `https://jup.ag/swap?sell=${WSOL}&buy=${MINT}`;
 export const WORDMARK_HREF = 'https://www.getdasha.com/';
 export const DASH_EATS_HREF = 'https://x.com/dash_eats';
+export const TELEGRAM_HREF = 'https://t.me/+xB7S8mIQaKFiZjRh';
+export const COINGECKO_DASH_EATS_HREF = 'https://www.coingecko.com/en/coins/dash_eats';
+export const COINGECKO_DASHA_VVAIFU_HREF = 'https://www.coingecko.com/en/coins/dasha';
+export const DEXSCREENER_PAIR_HREF = `https://dexscreener.com/solana/${PAIR}`;
+export const PHANTOM_TOKEN_HREF = `https://phantom.com/tokens/solana/${MINT}`;
+export const TWITTER_SITE = '@dash_eats';
 
 export const AWARD_SLIM_CSS = '.dasha-slim{display:flex;align-items:center;gap:.65rem;padding:.45rem 1rem;font-family:Arial,Helvetica,sans-serif}.dasha-word{display:inline-flex;align-items:center;min-height:48px;color:#f4eddb;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900;font-size:1.15rem;letter-spacing:-.04em;text-decoration:none;text-transform:uppercase}.dasha-slim .buy-dasha{margin-left:auto;display:inline-flex;align-items:center;min-height:48px;padding:0 1rem;background:#dfff00;color:#070608;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900;text-decoration:none;text-transform:uppercase}';
 
@@ -65,5 +71,5 @@ export function roomRailHtml() {
 }
 
 export function slimFooterHtml() {
-  return `<footer class="dasha-foot"><style>${AWARD_FOOT_CSS}</style><p><a href="${WORDMARK_HREF}">$dasha</a> · <a class="buy-dasha" href="${BUY_HREF}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a> · <a href="${DASH_EATS_HREF}" target="_blank" rel="noopener noreferrer">@dash_eats</a></p></footer>`;
+  return `<footer class="dasha-foot"><style>${AWARD_FOOT_CSS}</style><p><a href="${WORDMARK_HREF}">$dasha</a> · <a class="buy-dasha" href="${BUY_HREF}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a> · <a href="${DASH_EATS_HREF}" target="_blank" rel="noopener noreferrer">@dash_eats</a> · <a href="${TELEGRAM_HREF}" target="_blank" rel="noopener noreferrer">Telegram</a></p></footer>`;
 }
