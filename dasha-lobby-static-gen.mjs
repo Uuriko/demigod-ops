@@ -706,4 +706,4 @@ export const LOBBY_PAGE_HTML = `<!doctype html>
 </body>
 </html>
 `;
-export const ASSET_HASH = "74fc8138176ed11b";
+export const ASSET_HASH = "4e464685a748a79e";
