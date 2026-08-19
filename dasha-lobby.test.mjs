@@ -1660,6 +1660,7 @@ try {
   assert.match(injected, /<a class="skip-link" href="#content">Skip to content<\/a>/, 'Designer skip → #content must stay when the hero is #content');
   assert.match(injected, /id="dasha-home"/, 'live Webflow wrapper id=dasha-home must not block the hero');
   assert.match(injected, new RegExp(mint));
+  assert.match(injected, /id="ask-forum" href="https:\/\/www\.getdasha\.com\/forum">Forum</, 'home chess mount keeps the challenge-share Forum hop');
   assert.equal(rewriteHomeFirstViewport(injected), injected, 'second pass must not duplicate calm CSS, Buy pill, board mount, or reveal');
   assert.equal([...injected.matchAll(/id=["']dasha-lock["']/g)].length, 0);
   const alreadyBuy = rewriteHomeFirstViewport(stripHomeSimpBoard(webflowHome.replace(

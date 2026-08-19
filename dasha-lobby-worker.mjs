@@ -287,13 +287,14 @@ function stripHomeWebFonts(html) {
 }
 
 function stripHomeForumHrefs(html) {
+  const dropNavHop = (all) => (/\bid=["']ask-forum["']/i.test(all) ? all : '');
   return String(html || '')
-    .replace(/\s*·\s*<a\b[^>]*href=["'](?:https:\/\/(?:www\.)?getdasha\.com)?\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, '')
-    .replace(/<a\b[^>]*href=["'](?:https:\/\/(?:www\.)?getdasha\.com)?\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>\s*·\s*/gi, '')
-    .replace(/<a\b[^>]*href=["'](?:https:\/\/(?:www\.)?getdasha\.com)?\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, '')
-    .replace(/\s*·\s*<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, '')
-    .replace(/<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>\s*·\s*/gi, '')
-    .replace(/<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, '');
+    .replace(/\s*·\s*<a\b[^>]*href=["'](?:https:\/\/(?:www\.)?getdasha\.com)?\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, dropNavHop)
+    .replace(/<a\b[^>]*href=["'](?:https:\/\/(?:www\.)?getdasha\.com)?\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>\s*·\s*/gi, dropNavHop)
+    .replace(/<a\b[^>]*href=["'](?:https:\/\/(?:www\.)?getdasha\.com)?\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, dropNavHop)
+    .replace(/\s*·\s*<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, dropNavHop)
+    .replace(/<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>\s*·\s*/gi, dropNavHop)
+    .replace(/<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, dropNavHop);
 }
 
 function demoteHomeNavMint(html) {
