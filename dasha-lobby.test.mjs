@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
-import { AWARD_BTN_CSS, AWARD_CHROME_CSS, DASHA_ROOMS, hamburgerHtml, roomRailHtml, slimFooterHtml } from './dasha-award-chrome.mjs';
+import { AWARD_BTN_CSS, AWARD_CHROME_CSS, DASHA_ROOMS, hamburgerHtml, roomRailHtml, slimFooterHtml, TELEGRAM_HREF } from './dasha-award-chrome.mjs';
 
 const root = new URL('./', import.meta.url);
 const landing = await readFile(new URL('./dasha-landing.html', root), 'utf8');
@@ -386,8 +386,10 @@ for (const host of ['www.getdasha.com', 'getdasha.com']) {
     }
     for (const path of ['/how-to-buy', '/how-to-buy/', '/howtobuy', '/howtobuy/']) {
       const howtobuy = await workerModule.default.fetch(new Request(`https://${host}${path}`, { method }), {});
-      assert.equal(howtobuy.status, 308, `${host}${path} ${method} must 308 home`);
-      assert.equal(howtobuy.headers.get('location'), 'https://www.getdasha.com/');
+      assert.equal(howtobuy.status, 200, `${host}${path} ${method} is worker-served`);
+      assert.equal(howtobuy.headers.get('x-dasha-edge'), 'howto');
+      if (method === 'HEAD') assert.equal(await howtobuy.text(), '');
+      else assert.match(await howtobuy.text(), /How to buy \$dasha/);
     }
     for (const path of ['/privacy', '/privacy/', '/legal', '/privacy-policy']) {
       const privacy = await workerModule.default.fetch(new Request(`https://${host}${path}`, { method }), {});
@@ -399,8 +401,10 @@ for (const host of ['www.getdasha.com', 'getdasha.com']) {
 for (const method of ['GET', 'HEAD']) {
   for (const path of ['/how-to-buy', '/how-to-buy/', '/howtobuy', '/howtobuy/']) {
     const howtobuy = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`, { method }), {});
-    assert.equal(howtobuy.status, 308, `lobby${path} ${method} must 308 home`);
-    assert.equal(howtobuy.headers.get('location'), 'https://www.getdasha.com/');
+    assert.equal(howtobuy.status, 200, `lobby${path} ${method} is worker-served`);
+    assert.equal(howtobuy.headers.get('x-dasha-edge'), 'howto');
+    if (method === 'HEAD') assert.equal(await howtobuy.text(), '');
+    else assert.match(await howtobuy.text(), /How to buy \$dasha/);
   }
 }
 for (const method of ['GET', 'HEAD']) {
@@ -961,7 +965,9 @@ for (const path of ['/studio', '/studio/']) {
   assert.doesNotMatch(listedSection, /<script\b/i);
   assert.doesNotMatch(listedSection, /\bClaim\b|\bPay\b/);
   assert.doesNotMatch(listed, /<iframe/i);
-  assert.doesNotMatch(listed, /#c8b6ff|rgba\(\s*124\s*,\s*77\s*,\s*255|t\.me\//i);
+  assert.doesNotMatch(listed, /#c8b6ff|rgba\(\s*124\s*,\s*77\s*,\s*255/i);
+  assert.doesNotMatch(listedSection, /t\.me\//i);
+  assert.match(listed, TELEGRAM_HREF);
   assert.doesNotMatch(listed, /payTo:""/);
   const emptyListed = injectBountiesBoard(shell, { listings: [] });
   const emptyFallback = injectBountiesBoard(shell, normalizeBountiesFeed(null));

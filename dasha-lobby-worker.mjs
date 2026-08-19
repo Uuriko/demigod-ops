@@ -797,7 +797,7 @@ export function injectDanceDock(html) {
 }
 
 const CHESS_PAGE = ensureTwitterSite(ensurePrivacyLink(CHESS_PAGE_HTML));
-const GRAPH_PAGE = ensureTwitterSite(GRAPH_PAGE_HTML);
+const GRAPH_PAGE = GRAPH_PAGE_HTML;
 const LOBBY_PAGE = injectDanceDock(ensurePrivacyLink(stripLobbySimpQuiz(LOBBY_PAGE_HTML)));
 const FORUM_PAGE = LOBBY_PAGE;
 
