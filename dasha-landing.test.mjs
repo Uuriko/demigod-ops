@@ -164,6 +164,7 @@ assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => matc
   'https://www.getdasha.com/',
   'https://www.getdasha.com/simp',
   'https://www.getdasha.com/chess',
+  'https://www.getdasha.com/forum',
   'https://www.getdasha.com/faucet',
   'https://www.getdasha.com/airdrop',
   'https://www.getdasha.com/earn',
@@ -174,7 +175,7 @@ assert.doesNotMatch(sitemap, /getdasha\.com\/learn/, 'sitemap must not feature /
 assert.doesNotMatch(sitemap, /getdasha\.com\/verse/, 'sitemap must not feature /verse');
 assert.doesNotMatch(sitemap, /getdasha\.com\/how-to-buy/, 'sitemap must not feature leftover /how-to-buy');
 assert.doesNotMatch(sitemap, /getdasha\.com\/bounties/, 'sitemap must not feature leftover /bounties');
-assert.doesNotMatch(sitemap, /getdasha\.com\/forum/, 'sitemap must not feature leftover /forum');
+assert.match(sitemap, /<loc>https:\/\/www\.getdasha\.com\/forum<\/loc>/, 'sitemap must list /forum');
 assert.doesNotMatch(sitemap, /getdasha\.com\/lobby/, 'sitemap must not feature leftover /lobby');
 assert.match(sitemap, /\n  <url>\n    <loc>https:\/\/www\.getdasha\.com\/chess<\/loc>\n  <\/url>\n/, 'www chess loc must keep the same indent as other sitemap urls');
 assert(!/lastmod|thesis|receipt|forecast/i.test(sitemap), 'sitemap contains stale dates or retired routes');

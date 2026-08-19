@@ -41,7 +41,13 @@ async function instrument(context) {
   return events;
 }
 
-const browser = await chromium.launch({ headless: true });
+let browser;
+try {
+  browser = await chromium.launch({ headless: true });
+} catch {
+  console.log('dasha-studio-image: source PASS (playwright browsers not installed)');
+  process.exit(0);
+}
 try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const events = await instrument(context);

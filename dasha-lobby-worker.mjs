@@ -6,6 +6,8 @@ import {
   MINT,
   WSOL,
   DASHA_TAPE_EMBED_SRC,
+  GECKO_POOL_TRADES,
+  normalizeMintTicks,
   PIN,
   MAX_HISTORY,
   MAX_SOCKETS,
@@ -122,6 +124,7 @@ import {
   BUY_HREF,
   COINGECKO_DASH_EATS_HREF,
   DEXSCREENER_PAIR_HREF,
+  FORUM_HREF,
   PHANTOM_TOKEN_HREF,
   cropTicksHtml,
   AWARD_FOOT_CSS,
@@ -219,9 +222,16 @@ export function stripHomeSimpBoard(html) {
 
 const HOME_SKIP_RE = /<a\b[^>]*(?:\bclass=["'][^"']*\bskip(?:-link)?\b[^"']*["']|>\s*Skip to )[^>]*>[\s\S]*?<\/a>/gi;
 const HOME_HERO_RE = /<main\b|<header\b[^>]*\bdasha-hero\b|<header\b|<section\b/i;
-function isLeftoverForumPath(pathname) {
-  const path = String(pathname || '').replace(/\/+$/, '') || '/';
-  return path === '/forum' || path === '/lobby';
+function isForumPagePath(pathname) {
+  return isExactPath(pathname, '/forum');
+}
+
+function isForumTapePath(pathname) {
+  return isExactPath(pathname, '/forum/tape');
+}
+
+function isLeftoverLobbyPath(pathname) {
+  return isExactPath(pathname, '/lobby');
 }
 
 function isForumApiPath(pathname) {
@@ -509,7 +519,17 @@ export function rewriteHomeFirstViewport(html) {
   page = injectHomeReveal(page);
   page = rewriteLeftoverLobbyHrefs(stripHomeLeftoverChrome(page));
   page = ensureHomeTokenReachLinks(page);
+  page = ensureHomeForumHop(page);
   return ensureTwitterSite(page);
+}
+
+/** Quiet Forum hop after first paint. Slim bar stays wordmark + Buy. */
+export function ensureHomeForumHop(html) {
+  const page = String(html || '');
+  const foot = page.match(/<footer\b[^>]*\bclass=["'][^"']*\bdasha-foot\b[^>]*>[\s\S]*?<\/footer>/i);
+  if (!foot) return page;
+  if (/href=["'](?:https:\/\/(?:www\.)?getdasha\.com)?\/forum\/?["'][^>]*>\s*Forum\s*</i.test(foot[0])) return page;
+  return page.replace(foot[0], foot[0].replace(/<\/p>(\s*<\/footer>)/i, ` · <a href="${FORUM_HREF}">Forum</a></p>$1`));
 }
 
 const TOKEN_REACH_LINKS = [
@@ -787,6 +807,32 @@ function howtoPageResponse(request) {
   });
 }
 
+function forumPageHtml() {
+  return ensureTwitterSite(FORUM_PAGE);
+}
+
+function forumPageResponse(request) {
+  return new Response(request.method === 'HEAD' ? null : forumPageHtml(), {
+    status: 200,
+    headers: htmlHeaders({
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=120',
+      'X-Dasha-Edge': 'forum',
+    }),
+  });
+}
+
+async function forumTapeResponse(request) {
+  let ticks = [];
+  try {
+    const res = await fetch(GECKO_POOL_TRADES, { headers: { Accept: 'application/json' } });
+    if (res.ok) ticks = normalizeMintTicks(await res.json());
+  } catch {
+    ticks = [];
+  }
+  return json({ ticks }, 200, '*');
+}
+
 /** Dock is off. Dance files stay on disk; nothing mounts them. */
 export function danceDockPath(pathname) {
   return false;
@@ -799,7 +845,7 @@ export function injectDanceDock(html) {
 const CHESS_PAGE = ensureTwitterSite(ensurePrivacyLink(CHESS_PAGE_HTML));
 const GRAPH_PAGE = GRAPH_PAGE_HTML;
 const LOBBY_PAGE = injectDanceDock(ensurePrivacyLink(stripLobbySimpQuiz(LOBBY_PAGE_HTML)));
-const FORUM_PAGE = LOBBY_PAGE;
+const FORUM_PAGE = ensureTwitterSite(LOBBY_PAGE);
 
 /** Replace leftover Webflow SRI on the worker-served studio.js tag. Other pins stay. */
 /** Live Studio nav CTA currently dumps people under the home lock at /#token. */
@@ -1462,6 +1508,8 @@ const OAUTH_RETURN_OK = new Set([
   'https://www.getdasha.com/simp',
   'https://www.getdasha.com/chess',
   'https://lobby.getdasha.com/chess',
+  'https://www.getdasha.com/forum',
+  'https://lobby.getdasha.com/forum',
   'https://www.getdasha.com/lobby',
   'https://lobby.getdasha.com/lobby',
   'https://www.getdasha.com/faucet',
@@ -1475,7 +1523,7 @@ function parseOAuthReturn(raw) {
   if (path === '/graph') return 'https://www.getdasha.com/';
   if (path === '/simp') return 'https://www.getdasha.com/simp';
   if (path === '/chess') return 'https://www.getdasha.com/chess';
-  if (path === '/lobby' || path === '/forum') return 'https://www.getdasha.com/';
+  if (path === '/lobby' || path === '/forum') return 'https://www.getdasha.com/forum';
   if (path === '/faucet') return 'https://www.getdasha.com/faucet';
   return '';
 }
@@ -3807,13 +3855,19 @@ async function productEdge(request, url, env) {
   if (url.pathname.replace(/\/$/, '') === '/simp/hold') {
     return simpHoldResponse(request.headers.get('Origin'));
   }
+  if ((request.method === 'GET' || request.method === 'HEAD') && isForumTapePath(url.pathname)) {
+    return forumTapeResponse(request);
+  }
   if (isForumApiPath(url.pathname)) {
     const origin = request.headers.get('Origin');
     const allowedOrigin = origin && originAllowed(origin, env.ALLOWED_ORIGINS || '') ? origin : env.ALLOW_ANY_ORIGIN ? origin || '*' : null;
     return forumApiResponse(request, env, allowedOrigin);
   }
-  if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverForumPath(url.pathname)) {
-    return Response.redirect('https://www.getdasha.com/', 308);
+  if ((request.method === 'GET' || request.method === 'HEAD') && isForumPagePath(url.pathname)) {
+    return forumPageResponse(request);
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverLobbyPath(url.pathname)) {
+    return Response.redirect('https://www.getdasha.com/forum', 308);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverPrivacyPath(url.pathname)) {
     return Response.redirect('https://www.getdasha.com/', 308);
@@ -3945,11 +3999,17 @@ export default {
     if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverPrivacyPath(url.pathname)) {
       return Response.redirect('https://www.getdasha.com/', 308);
     }
+    if ((request.method === 'GET' || request.method === 'HEAD') && isForumTapePath(url.pathname)) {
+      return forumTapeResponse(request);
+    }
     if (isForumApiPath(url.pathname)) {
       return forumApiResponse(request, env, allowedOrigin);
     }
-    if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverForumPath(url.pathname)) {
-      return Response.redirect('https://www.getdasha.com/', 308);
+    if ((request.method === 'GET' || request.method === 'HEAD') && isForumPagePath(url.pathname)) {
+      return forumPageResponse(request);
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverLobbyPath(url.pathname)) {
+      return Response.redirect('https://www.getdasha.com/forum', 308);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/.well-known/security.txt') {
       return securityTxtResponse(request, url.hostname);
@@ -4115,8 +4175,14 @@ export default {
     if ((request.method === 'GET' || request.method === 'HEAD') && (isLeftoverStudioPath(url.pathname) || isLeftoverDeskPath(url.pathname))) {
       return Response.redirect('https://www.getdasha.com/', 308);
     }
-    if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverForumPath(url.pathname)) {
-      return Response.redirect('https://www.getdasha.com/', 308);
+    if ((request.method === 'GET' || request.method === 'HEAD') && isForumTapePath(url.pathname)) {
+      return forumTapeResponse(request);
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && isForumPagePath(url.pathname)) {
+      return forumPageResponse(request);
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverLobbyPath(url.pathname)) {
+      return Response.redirect('https://www.getdasha.com/forum', 308);
     }
 
     if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/health')) {

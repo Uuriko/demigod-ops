@@ -922,8 +922,35 @@
     quiz.innerHTML = '<p><a href="/simp">Take Simp</a></p>';
   }
 
+  function mountMintTape(root) {
+    if (!root || root.dataset.mounted) return;
+    root.dataset.mounted = '1';
+    var api = root.getAttribute('data-tape-api') || 'https://lobby.getdasha.com/forum/tape';
+    fetch(api, { method: 'GET', mode: 'cors', cache: 'no-store' })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        var ticks = data && data.ticks;
+        root.textContent = '';
+        if (!ticks || !ticks.length) {
+          root.hidden = true;
+          return;
+        }
+        ticks.forEach(function (t) {
+          if (!t || (t.kind !== 'buy' && t.kind !== 'sell') || !t.usd) return;
+          root.appendChild(el('span', 'mint-tick', t.kind + ' ' + t.usd));
+        });
+        root.hidden = !root.childNodes.length;
+      })
+      .catch(function () {
+        root.hidden = true;
+      });
+  }
+
   function auto() {
     stripPersonalBrand();
+    mountMintTape(document.getElementById('dasha-mint-tape'));
     var forum = document.getElementById('dasha-forum');
     if (forum && !forum.dataset.mounted) {
       forum.dataset.mounted = '1';

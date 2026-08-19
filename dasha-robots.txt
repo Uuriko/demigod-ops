@@ -12,6 +12,7 @@
 User-agent: *
 Allow: /
 Allow: /chess
+Allow: /forum
 Allow: /verse
 Allow: /learn
 Allow: /faucet
