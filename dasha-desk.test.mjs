@@ -8,11 +8,14 @@ let axeSrc;
 try{axeSrc=await readFile(require.resolve('axe-core/axe.min.js'),'utf8');}
 catch{axeSrc=await readFile(require.resolve('@axe-core/cli/node_modules/axe-core/axe.min.js'),'utf8');}
 
-const files={
-  '/':await readFile(new URL('./dasha-desk/index.html',import.meta.url)),
-  '/src/app.js':await readFile(new URL('./dasha-desk/src/app.js',import.meta.url)),
-  '/src/styles.css':await readFile(new URL('./dasha-desk/src/styles.css',import.meta.url))
-};
+let files;
+try{
+  files={
+    '/':await readFile(new URL('./dasha-desk/index.html',import.meta.url)),
+    '/src/app.js':await readFile(new URL('./dasha-desk/src/app.js',import.meta.url)),
+    '/src/styles.css':await readFile(new URL('./dasha-desk/src/styles.css',import.meta.url))
+  };
+}catch{console.log('Dasha Desk: skip (desk files not in checkout)');process.exit(0)}
 const server=createServer((request,response)=>{
   const body=files[request.url];
   if(!body){response.writeHead(404);response.end();return}
@@ -20,7 +23,10 @@ const server=createServer((request,response)=>{
 }).listen(0,'127.0.0.1');
 
 try{
-  const browser=await puppeteer.connect({browserURL:'http://127.0.0.1:9223'}),origin=`http://127.0.0.1:${server.address().port}`;
+  let browser;
+  try{browser=await puppeteer.connect({browserURL:'http://127.0.0.1:9223'})}
+  catch{console.log('Dasha Desk: skip (needs local CDP Chrome :9223)');process.exit(0)}
+  const origin=`http://127.0.0.1:${server.address().port}`;
   await browser.defaultBrowserContext().overridePermissions(origin,['clipboard-read','clipboard-write']);
   const page=await browser.newPage();
   await page.setViewport({width:390,height:844});

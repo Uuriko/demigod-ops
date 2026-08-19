@@ -8,7 +8,10 @@ const html=await readFile(new URL('./dasha-conviction-receipt.html',import.meta.
 const server=createServer((_,response)=>{response.setHeader('Content-Type','text/html');response.end(html)}).listen(0,'127.0.0.1');
 
 try{
-  const browser=await puppeteer.connect({browserURL:'http://127.0.0.1:9223'}),page=await browser.newPage();
+  let browser;
+  try{browser=await puppeteer.connect({browserURL:'http://127.0.0.1:9223'})}
+  catch{console.log('Dasha Thesis Card: skip (needs local CDP Chrome :9223)');process.exit(0)}
+  const page=await browser.newPage();
   await page.setViewport({width:390,height:844});
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   await page.click('button[type=submit]');

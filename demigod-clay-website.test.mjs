@@ -101,8 +101,8 @@ assert.equal(rq.topBoards[0].requisitionIdDistinct, 1);
 
 // Inject source binds employer meta (static/structural)
 const foot = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
-assert.match(foot, /employerDepartment/);
-assert.match(foot, /boardUpdatedAt/);
+assert.match(foot, /employerOffice/);
+assert.match(foot, /firstObservedAt/);
 assert.match(foot, /matching inventory/);
 assert.match(foot, /function injectObservedRoles/);
 

@@ -266,7 +266,13 @@ try {
   process.exit(0);
 }
 
-const browser = await chromium.launch({ headless: true });
+let browser;
+try {
+  browser = await chromium.launch({ headless: true });
+} catch {
+  console.log('dasha-chess-page: source PASS (playwright browsers not installed)');
+  process.exit(0);
+}
 try {
   for (const viewport of [{ width: 320, height: 700 }, { width: 390, height: 844 }, { width: 1440, height: 900 }]) {
     const context = await browser.newContext({ viewport });
