@@ -126,6 +126,7 @@ import {
   DEXSCREENER_PAIR_HREF,
   FORUM_HREF,
   PHANTOM_TOKEN_HREF,
+  TELEGRAM_HREF,
   cropTicksHtml,
   AWARD_FOOT_CSS,
   hamburgerHtml,
@@ -287,13 +288,14 @@ function stripHomeWebFonts(html) {
 }
 
 function stripHomeForumHrefs(html) {
+  const dropNavHop = (all) => (/\bid=["']ask-forum["']/i.test(all) ? all : '');
   return String(html || '')
-    .replace(/\s*·\s*<a\b[^>]*href=["'](?:https:\/\/(?:www\.)?getdasha\.com)?\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, '')
-    .replace(/<a\b[^>]*href=["'](?:https:\/\/(?:www\.)?getdasha\.com)?\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>\s*·\s*/gi, '')
-    .replace(/<a\b[^>]*href=["'](?:https:\/\/(?:www\.)?getdasha\.com)?\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, '')
-    .replace(/\s*·\s*<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, '')
-    .replace(/<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>\s*·\s*/gi, '')
-    .replace(/<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, '');
+    .replace(/\s*·\s*<a\b[^>]*href=["'](?:https:\/\/(?:www\.)?getdasha\.com)?\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, dropNavHop)
+    .replace(/<a\b[^>]*href=["'](?:https:\/\/(?:www\.)?getdasha\.com)?\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>\s*·\s*/gi, dropNavHop)
+    .replace(/<a\b[^>]*href=["'](?:https:\/\/(?:www\.)?getdasha\.com)?\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, dropNavHop)
+    .replace(/\s*·\s*<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, dropNavHop)
+    .replace(/<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>\s*·\s*/gi, dropNavHop)
+    .replace(/<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, dropNavHop);
 }
 
 function demoteHomeNavMint(html) {
@@ -501,6 +503,101 @@ function injectHomeReveal(html) {
   return /<\/body>/i.test(page) ? page.replace(/<\/body>/i, `${tag}</body>`) : page + tag;
 }
 
+const HOME_OG_TITLE = '$dasha — make the timeline stranger';
+const HOME_DESCRIPTION = '$dasha on getdasha.com. Make something. Pass it on.';
+const HOME_WEBSITE_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  '@id': 'https://www.getdasha.com/#website',
+  name: '$dasha',
+  alternateName: ['dasha', 'dash_eats'],
+  url: 'https://www.getdasha.com/',
+  description: HOME_DESCRIPTION,
+  sameAs: [
+    'https://x.com/dash_eats',
+    COINGECKO_DASH_EATS_HREF,
+    `https://solscan.io/token/${MINT}`,
+  ],
+  about: {
+    '@type': 'Thing',
+    identifier: {
+      '@type': 'PropertyValue',
+      propertyID: 'Solana mint',
+      value: MINT,
+    },
+  },
+};
+const HOME_WEBSITE_SCRIPT = `<script type="application/ld+json">${JSON.stringify(HOME_WEBSITE_LD)}</script>`;
+const FORUM_DESCRIPTION = 'Threads + chat.';
+const FORUM_WEBPAGE_SCRIPT = `<script type="application/ld+json">${JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  name: 'Forum — $dasha',
+  url: 'https://www.getdasha.com/forum',
+  isPartOf: { '@id': 'https://www.getdasha.com/#website' },
+  about: HOME_WEBSITE_LD.about,
+})}</script>`;
+export const LLMS_TXT = `$dasha
+dash_eats
+https://www.getdasha.com/
+mint ${MINT}
+Telegram ${TELEGRAM_HREF}
+CoinGecko ${COINGECKO_DASH_EATS_HREF}
+`;
+
+function insertHeadTag(html, tag) {
+  const page = String(html || '');
+  if (page.includes(tag)) return page;
+  if (/<\/head>/i.test(page)) return page.replace(/<\/head>/i, `${tag}</head>`);
+  if (/<body\b/i.test(page)) return page.replace(/<body\b/i, `${tag}<body`);
+  return page + tag;
+}
+
+function upsertMeta(html, attr, key, content) {
+  const page = String(html || '');
+  const re = new RegExp(`<meta\\b[^>]*\\b${attr}=["']${key}["'][^>]*>`, 'i');
+  const tag = `<meta ${attr}="${key}" content="${content}">`;
+  if (re.test(page)) return page.replace(re, tag);
+  return insertHeadTag(page, tag);
+}
+
+function dropWebsiteJsonLd(html) {
+  return String(html || '').replace(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/gi, (block) => {
+    try {
+      const value = JSON.parse(block.replace(/^[\s\S]*?>|<\/script>$/gi, ''));
+      return value?.['@type'] === 'WebSite' ? '' : block;
+    } catch {
+      return block;
+    }
+  });
+}
+
+/** Home crawler tags + one WebSite entity. Slim bar stays wordmark + Buy. */
+export function ensureHomeSeo(html) {
+  let page = upsertMeta(upsertMeta(upsertMeta(String(html || ''), 'name', 'description', HOME_DESCRIPTION), 'property', 'og:title', HOME_OG_TITLE), 'property', 'og:description', HOME_DESCRIPTION);
+  page = dropWebsiteJsonLd(page);
+  return page.includes(HOME_WEBSITE_SCRIPT) ? page : insertHeadTag(page, HOME_WEBSITE_SCRIPT);
+}
+
+/** Forum crawler tag + mint pointer. No lecture. */
+export function ensureForumSeo(html) {
+  let page = upsertMeta(upsertMeta(upsertMeta(String(html || ''), 'property', 'og:description', FORUM_DESCRIPTION), 'name', 'description', FORUM_DESCRIPTION), 'name', 'twitter:description', FORUM_DESCRIPTION);
+  if (page.includes(FORUM_WEBPAGE_SCRIPT)) return page;
+  return insertHeadTag(page, FORUM_WEBPAGE_SCRIPT);
+}
+
+function llmsTxtResponse(request) {
+  return new Response(request.method === 'HEAD' ? null : LLMS_TXT, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'public, max-age=300',
+      'X-Robots-Tag': 'all',
+      'X-Dasha-Edge': 'llms',
+    },
+  });
+}
+
 /** www/apex / only: first paint is headline + Buy $dasha. Never emit #dasha-lock. */
 export function rewriteHomeFirstViewport(html) {
   let page = demoteHomeNavMint(stripHomeForumHrefs(stripHomeAtmosphere(stripHomeWebFonts(stripHomeCtaDecoy(String(html || ''))))));
@@ -520,7 +617,7 @@ export function rewriteHomeFirstViewport(html) {
   page = rewriteLeftoverLobbyHrefs(stripHomeLeftoverChrome(page));
   page = ensureHomeTokenReachLinks(page);
   page = ensureHomeForumHop(page);
-  return ensureTwitterSite(page);
+  return ensureTwitterSite(ensureHomeSeo(page));
 }
 
 /** Quiet Forum hop after first paint. Slim bar stays wordmark + Buy. */
@@ -808,7 +905,7 @@ function howtoPageResponse(request) {
 }
 
 function forumPageHtml() {
-  return ensureTwitterSite(FORUM_PAGE);
+  return ensureTwitterSite(ensureForumSeo(FORUM_PAGE));
 }
 
 function forumPageResponse(request) {
@@ -1258,7 +1355,8 @@ export function simpSharePageHtml(result, id) {
 <h1>${typeName}</h1>
 ${support ? `<p>${support}</p>` : ''}
 <button type="button" class="dasha-share" data-title="${typeName}" data-text="${shareText}" data-url="${url}">Share</button>
-<p><a href="/simp">Simp</a> · <a href="https://www.getdasha.com/">Back to Dasha</a></p>
+ <a href="https://www.getdasha.com/forum">Forum</a>
+<p><a href="/simp">Simp</a> · <a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="https://www.getdasha.com/forum">Forum</a></p>
 <script>${SIMP_SHARE_JS}</script>
 </body></html>`;
 }
@@ -1270,7 +1368,7 @@ export function simpResultMissingHtml() {
 <body>
 <h1>Result not found</h1>
 <p>No quiz result for this id.</p>
-<p><a href="/simp">Simp</a> · <a href="https://www.getdasha.com/">Back to Dasha</a></p>
+<p><a href="/simp">Simp</a> · <a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="https://www.getdasha.com/forum">Forum</a></p>
 </body></html>`;
 }
 
@@ -3792,6 +3890,9 @@ async function productEdge(request, url, env) {
       },
     });
   }
+  if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/llms.txt') {
+    return llmsTxtResponse(request);
+  }
   if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/sitemap.xml') {
     return new Response(request.method === 'HEAD' ? null : SITEMAP_XML, {
       status: 200,
@@ -4139,6 +4240,9 @@ export default {
           'X-Robots-Tag': 'all',
         },
       });
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/llms.txt') {
+      return llmsTxtResponse(request);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/sitemap.xml') {
       return new Response(request.method === 'HEAD' ? null : SITEMAP_XML, {

@@ -182,6 +182,7 @@ assert(worker.includes('rewriteStudioBuyVerifyHref(html)'), 'proxied /studio mus
 assert(worker.includes('isLeftoverHowtoPath') && worker.includes('howtoPageResponse'), 'how-to-buy is worker-served');
 assert(worker.includes('rewriteStaleCdnFavicon(html)'), 'proxied product HTML must rewrite leftover CDN favicon.ico');
 assert(worker.includes('rewriteHomeFirstViewport(stripHomeSimpBoard(html))'), 'www/apex / must rewrite the first viewport after stripping leftover board chrome');
+assert(worker.includes('ensureHomeSeo') && worker.includes('ensureForumSeo') && worker.includes('/llms.txt'), 'home/forum crawler tags and llms.txt are worker-owned');
 assert(worker.includes('ensureHomeChessMount') && worker.includes('chessHomeMountHtml'), 'home rewrite embeds the chess game above faucet');
 assert(worker.includes('stripHomeLeftoverChrome'), 'home rewrite strips leftover Webflow chrome from the HTML');
 assert(worker.includes('id="dasha-home-calm"') && worker.includes('.dasha>nav.nav') && worker.includes('main.dasha>nav.nav') && worker.includes('main.dasha>nav.nav.wrap') && worker.includes('.dasha-hero .actions a:not(.buy-dasha)') && worker.includes('.dasha-hero .actions .pill:not(.buy-dasha)') && worker.includes('github.com/Uuriko/dasha-desk') && worker.includes('a[href^="/studio#"]') && worker.includes('footer:not(.dasha-foot)'), 'home html-security injects first-paint hide CSS');
@@ -402,6 +403,11 @@ for (const host of ['www.getdasha.com', 'getdasha.com']) {
         assert.match(html, /t\.me\/\+xB7S8mIQaKFiZjRh/);
         assert.doesNotMatch(html, /href="\/studio">Studio<|>Privacy</);
         assert.doesNotMatch(html, /dasha-dance\.js/);
+        assert.match(html, /name="twitter:site" content="@dash_eats"/);
+        assert.match(html, /property="og:description" content="Threads \+ chat\."/);
+        assert.match(html, /application\/ld\+json/);
+        assert.match(html, /53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump/);
+        assert.match(html, /https:\/\/www\.getdasha\.com\/#website/);
       }
     }
     for (const path of ['/lobby', '/lobby/']) {
@@ -670,6 +676,8 @@ for (const path of ['/studio', '/studio/']) {
   assert.doesNotMatch(shareHtml, /property="og:image:alt" content="[^"]*9\/10/);
   assert.match(shareHtml, /9\/10/);
   assert.match(shareHtml, /class="dasha-share"/);
+  assert.match(shareHtml, /dasha-share[\s\S]*href="https:\/\/www\.getdasha\.com\/forum">Forum</, 'share page hops to Forum after Share');
+  assert.match(shareHtml, /Back to Dasha<\/a> · <a href="https:\/\/www\.getdasha\.com\/forum">Forum</);
   assert.match(shareHtml, /navigator\.share/);
   assert.match(shareHtml, /x\.com\/intent\/post/);
   assert.doesNotMatch(shareHtml, /\.simp-/);
@@ -713,6 +721,7 @@ for (const path of ['/studio', '/studio/']) {
         assert.match(html, /<h1>Dasha scholar<\/h1>/);
         assert.match(html, /property="og:title" content="Dasha scholar"/);
         assert.match(html, /property="og:image:alt" content="Dasha scholar"/);
+        assert.match(html, /dasha-share[\s\S]*href="https:\/\/www\.getdasha\.com\/forum">Forum</);
         assert.doesNotMatch(html, /<h1>[^<]*9\/10/);
       }
       const missing = await workerModule.default.fetch(new Request(`https://${host}/simp/r/unknown`, { method }), shareEnv);
@@ -725,6 +734,7 @@ for (const path of ['/studio', '/studio/']) {
       } else {
         assert.match(missingBody, /<h1>Result not found<\/h1>/);
         assert.match(missingBody, /No quiz result for this id/);
+        assert.match(missingBody, /Back to Dasha<\/a> · <a href="https:\/\/www\.getdasha\.com\/forum">Forum</);
         assert.notEqual(missingBody.trim(), '', `${host} /simp/r/unknown must not 200 a blank page`);
         assert.doesNotMatch(missingBody, /Page not found — \$dasha|9\/10|Dasha scholar|0\/0/);
       }
@@ -1187,7 +1197,7 @@ for (const path of ['/', '/lobby', '/oauth/x/start?return=%2Flobby', '/client/st
   assert.equal(redirected.status, 308, `${path} must redirect to HTTPS`);
   assert.equal(redirected.headers.get('location'), `https://lobby.getdasha.com${path}`);
 }
-for (const path of ['/robots.txt', '/sitemap.xml']) {
+for (const path of ['/robots.txt', '/sitemap.xml', '/llms.txt']) {
   const response = await workerModule.default.fetch(new Request(`https://www.getdasha.com${path}`, { method: 'HEAD' }), {});
   assert.equal(response.status, 200, `${path} HEAD must match GET status`);
   assert.equal(await response.text(), '', `${path} HEAD must not return a body`);
@@ -1225,6 +1235,19 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
   assert.doesNotMatch(robotsBody, /Allow: \/graph/, `${host} robots must not advertise shelved /graph`);
   assert.match(robotsBody, /Allow: \/learn/, `${host} robots must allow /learn`);
   assert.match(robotsBody, /Allow: \/faucet/, `${host} robots must allow /faucet`);
+  const llms = await workerModule.default.fetch(new Request(`https://${host}/llms.txt`), {});
+  assert.equal(llms.status, 200, `${host} /llms.txt must stay 200`);
+  assert.match(llms.headers.get('content-type') || '', /text\/plain/);
+  assert.equal(llms.headers.get('x-dasha-edge'), 'llms', `${host} /llms.txt is worker-owned`);
+  const llmsBody = await llms.text();
+  assert.match(llmsBody, /\$dasha/);
+  assert.match(llmsBody, /dash_eats/);
+  assert.match(llmsBody, /53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump/);
+  assert.match(llmsBody, /https:\/\/www\.getdasha\.com\//);
+  assert.match(llmsBody, /https:\/\/t\.me\/\+xB7S8mIQaKFiZjRh/);
+  assert.match(llmsBody, /https:\/\/www\.coingecko\.com\/en\/coins\/dash_eats/);
+  assert.doesNotMatch(llmsBody, /VVAIFU|not advice|disclaimer|FQ1tyso61AH1tzodyJfSwmzsD3GToybbRNoZxUBz21p8/i);
+  assert.ok(llmsBody.trim().split(/\n/).length >= 3 && llmsBody.trim().split(/\n/).length <= 6, `${host} /llms.txt stays three to six lines`);
 }
 
 {
@@ -1616,6 +1639,27 @@ try {
     assert.match(html, /<a href="https:\/\/dexscreener\.com\/solana\/9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7"/, `${label} token row links this Dexscreener pair`);
     assert.match(html, /phantom\.com\/tokens\/solana\/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump/, `${label} token row links the Phantom token page`);
     assert.match(html, /name="twitter:site" content="@dash_eats"/, `${label} large-image card names twitter:site`);
+    assert.match(html, /name="description" content="\$dasha on getdasha\.com\. Make something\. Pass it on\."/, `${label} home description names $dasha and getdasha.com`);
+    assert.match(html, /property="og:title" content="\$dasha — make the timeline stranger"/, `${label} og:title matches the live title`);
+    assert.match(html, /property="og:description" content="\$dasha on getdasha\.com\. Make something\. Pass it on\."/, `${label} og:description matches the home description`);
+    {
+      const sites = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)]
+        .map((match) => { try { return JSON.parse(match[1]); } catch { return null; } })
+        .filter((row) => row?.['@type'] === 'WebSite');
+      assert.equal(sites.length, 1, `${label} must ship one WebSite JSON-LD`);
+      const site = sites[0];
+      assert.equal(site.name, '$dasha');
+      assert.deepEqual(site.alternateName, ['dasha', 'dash_eats']);
+      assert.equal(site.url, 'https://www.getdasha.com/');
+      assert.match(site.description, /\$dasha/);
+      assert.deepEqual(site.sameAs, [
+        'https://x.com/dash_eats',
+        'https://www.coingecko.com/en/coins/dash_eats',
+        'https://solscan.io/token/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump',
+      ]);
+      assert.equal(site.about?.identifier?.value, '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump');
+      assert.doesNotMatch(JSON.stringify(site), /VVAIFU|\/coins\/dasha(?![_\w])|FQ1tyso61AH1tzodyJfSwmzsD3GToybbRNoZxUBz21p8|status\/2085405228078432279/i, `${label} home JSON-LD must not cite VVAIFU or the old mint`);
+    }
     assert.doesNotMatch(html.match(/<footer class="dasha-foot">[\s\S]*?<\/footer>/)?.[0] || '', /\/studio|>Studio<|>Privacy</, `${label} footer has no Privacy or Studio`);
     assert.doesNotMatch(html, /href=["']https:\/\/lobby\.getdasha\.com\/chess/, `${label} leftover Chess hrefs must be same-origin`);
     assert.match(html, /\.simp-row\{display:grid;grid-template-columns:3\.2rem minmax\(0,1fr\) 3\.2rem/, `${label} must ship three-column board CSS`);
@@ -1656,6 +1700,7 @@ try {
   assert.match(injected, /<a class="skip-link" href="#content">Skip to content<\/a>/, 'Designer skip → #content must stay when the hero is #content');
   assert.match(injected, /id="dasha-home"/, 'live Webflow wrapper id=dasha-home must not block the hero');
   assert.match(injected, new RegExp(mint));
+  assert.match(injected, /id="ask-forum" href="https:\/\/www\.getdasha\.com\/forum">Forum</, 'home chess mount keeps the challenge-share Forum hop');
   assert.equal(rewriteHomeFirstViewport(injected), injected, 'second pass must not duplicate calm CSS, Buy pill, board mount, or reveal');
   assert.equal([...injected.matchAll(/id=["']dasha-lock["']/g)].length, 0);
   const alreadyBuy = rewriteHomeFirstViewport(stripHomeSimpBoard(webflowHome.replace(
@@ -2203,6 +2248,7 @@ assert.match(shareResultHtml, /twitter:card[^>]+summary_large_image/);
 assert.match(shareResultHtml, /twitter:site[^>]+@dash_eats/);
 assert.match(shareResultHtml, /twitter:image[^>]+\/simp\/card\/quiz\.png/);
 assert.match(shareResultHtml, /og:image:width[^>]+1200[\s\S]*og:image:height[^>]+628/);
+assert.match(shareResultHtml, /href="https:\/\/www\.getdasha\.com\/\?challenge=sharetest#simp">Beat this score</, 'lobby /simp/r stays the dare card');
 const studioEvent = (body) => studioDo.fetch(new Request('https://lobby.getdasha.com/studio/event', {
   method: 'POST', headers: { Origin: 'https://www.getdasha.com', 'Content-Type': 'application/json' }, body: JSON.stringify(body),
 }));

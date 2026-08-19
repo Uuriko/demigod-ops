@@ -187,6 +187,17 @@ for (const host of ['www.getdasha.com', 'getdasha.com', 'lobby.getdasha.com']) {
     assert.match(html, /t\.me\/\+xB7S8mIQaKFiZjRh/);
     assert.doesNotMatch(html, /href="\/studio">Studio<|>Privacy</);
     assert.doesNotMatch(html, /dasha-dance\.js/);
+    assert.match(html, /name="twitter:site" content="@dash_eats"/);
+    assert.match(html, /property="og:description" content="Threads \+ chat\."/);
+    {
+      const pages = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)]
+        .map((match) => { try { return JSON.parse(match[1]); } catch { return null; } })
+        .filter((row) => row?.['@type'] === 'WebPage');
+      assert.equal(pages.length, 1, `${host}${path} ships one WebPage JSON-LD`);
+      assert.equal(pages[0].isPartOf?.['@id'], 'https://www.getdasha.com/#website');
+      assert.equal(pages[0].about?.identifier?.value, '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump');
+      assert.doesNotMatch(JSON.stringify(pages[0]), /VVAIFU|\/coins\/dasha(?![_\w])|welcome to the forum|how this works/i);
+    }
   }
   for (const path of ['/lobby', '/lobby/']) {
     const res = await workerModule.default.fetch(new Request(`https://${host}${path}`), workerEnv);
