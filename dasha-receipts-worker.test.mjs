@@ -16,7 +16,7 @@ class D1Statement {
 }
 class D1Database {
   constructor(schema) { this.db = new DatabaseSync(':memory:'); this.db.exec(schema); }
-  prepare(sql) { return new D1Statement(this.db.prepare(sql)); }
+  prepare(sql) { return new D1Statement(this.db.prepare(String(sql).replace(/\?\d+/g, '?'))); }
 }
 
 const schema = await readFile(new URL('./dasha-receipts-schema.sql', import.meta.url), 'utf8');
