@@ -43,7 +43,14 @@ assert.doesNotMatch(page, /dasha-rooms|dasha-next|welcome to the forum|how this 
 assert.match(page, /id="dasha-forum"/);
 assert.match(page, /id="dasha-lobby"/);
 assert.match(page, /wss:\/\/lobby\.getdasha\.com\/ws/);
-assert.doesNotMatch(page, /dasha-menu|href="\/forum">Forum</, 'leftover forum page must not render a Menu or Forum door');
+assert.doesNotMatch(page, /dasha-menu|aria-label="Menu">Menu</, 'forum page must not render a Menu');
+assert.doesNotMatch(page.match(/<header class="dasha-slim[\s\S]*?<\/header>/)?.[0] || '', /href="\/forum">Forum</, 'forum slim bar is not a Forum door');
+assert.match(page, /href="https:\/\/www\.getdasha\.com\/forum">Forum</, 'forum footer Forum is last');
+assert.match(page, /id="dasha-mint-tape"/);
+assert.match(page, /53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump[\s\S]*getdasha\.com[\s\S]*t\.me\/\+xB7S8mIQaKFiZjRh/);
+assert.match(page, /name="twitter:site" content="@dash_eats"/);
+assert.match(client, /mountMintTape/);
+assert.match(client, /\/forum\/tape/);
 assert.match(page, /\.forum-send,.lobby-send[\s\S]*?background:var\(--acid\);color:var\(--ink\)/, 'forum send is acid fill + ink type');
 assert.match(page, /\.forum-back,.lobby-x-btn,.lobby-x-unlink\{background:transparent;color:var\(--paper\);border-color:var\(--paper\)/, 'forum ghost is paper on ink');
 assert.match(page, /\.lobby-send:disabled,.forum-send:disabled\{opacity:\.7/, 'forum disabled type stays readable');
@@ -169,15 +176,55 @@ const workerEnv = {
 };
 
 for (const host of ['www.getdasha.com', 'getdasha.com', 'lobby.getdasha.com']) {
-  for (const path of ['/lobby', '/lobby/', '/forum', '/forum/']) {
+  for (const path of ['/forum', '/forum/']) {
     const res = await workerModule.default.fetch(new Request(`https://${host}${path}`), workerEnv);
-    assert.equal(res.status, 308, `${host}${path} must 308 home`);
-    assert.equal(res.headers.get('location'), 'https://www.getdasha.com/');
+    assert.equal(res.status, 200, `${host}${path} is worker-served`);
+    assert.equal(res.headers.get('x-dasha-edge'), 'forum');
+    const html = await res.text();
+    assert.match(html, /id="dasha-forum"/);
+    assert.match(html, /id="dasha-lobby"/);
+    assert.doesNotMatch(html, /dasha-menu|aria-label="Menu">Menu</);
+    assert.match(html, /t\.me\/\+xB7S8mIQaKFiZjRh/);
+    assert.doesNotMatch(html, /href="\/studio">Studio<|>Privacy</);
+    assert.doesNotMatch(html, /dasha-dance\.js/);
+  }
+  for (const path of ['/lobby', '/lobby/']) {
+    const res = await workerModule.default.fetch(new Request(`https://${host}${path}`), workerEnv);
+    assert.equal(res.status, 308, `${host}${path} must 308 to forum`);
+    assert.equal(res.headers.get('location'), 'https://www.getdasha.com/forum');
   }
 }
 
 const apiList = await workerModule.default.fetch(forumReq('/forum/threads'), workerEnv);
 assert.equal(apiList.status, 200);
 assert.ok((await apiList.json()).threads.length >= 3);
+
+{
+  const nativeFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async (input) => {
+      const url = String(typeof input === 'string' ? input : input.url);
+      if (url.includes('geckoterminal.com') && url.includes('9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7')) {
+        return new Response(JSON.stringify({
+          data: [
+            { attributes: { kind: 'buy', volume_in_usd: '12.5' } },
+            { attributes: { kind: 'sell', volume_in_usd: '3' } },
+            { attributes: { kind: 'buy', volume_in_usd: 'nope' } },
+          ],
+        }), { headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response('no', { status: 404 });
+    };
+    const tape = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/forum/tape'), workerEnv);
+    assert.equal(tape.status, 200);
+    assert.deepEqual(await tape.json(), { ticks: [{ kind: 'buy', usd: '12.5' }, { kind: 'sell', usd: '3' }] });
+    globalThis.fetch = async () => new Response('no', { status: 500 });
+    const down = await workerModule.default.fetch(new Request('https://www.getdasha.com/forum/tape'), workerEnv);
+    assert.equal(down.status, 200);
+    assert.deepEqual(await down.json(), { ticks: [] });
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
+}
 
 console.log('dasha-forum: PASS');

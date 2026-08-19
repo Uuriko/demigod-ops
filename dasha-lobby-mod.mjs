@@ -7,6 +7,24 @@ export const MINT = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
 export const PAIR = '9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7';
 /** Official Dexscreener embed for this pair only. Candles + windows + info. */
 export const DASHA_TAPE_EMBED_SRC = `https://dexscreener.com/solana/${PAIR}?embed=1&loadChartSettings=0&trades=0&tabs=0&info=1&chartLeftToolbar=0&chartTheme=dark&theme=dark&chartStyle=0&chartType=usd&interval=15`;
+/** GeckoTerminal trades for this pair only. Same pool the home chart already cites. */
+export const GECKO_POOL_TRADES = `https://api.geckoterminal.com/api/v2/networks/solana/pools/${PAIR}/trades`;
+
+/** One-line buy/sell ticks. Pass gecko numbers through. Hide empties. Invent nothing. */
+export function normalizeMintTicks(payload) {
+  const rows = Array.isArray(payload?.data) ? payload.data : [];
+  const ticks = [];
+  for (const row of rows) {
+    const a = row && row.attributes;
+    if (!a) continue;
+    const kind = a.kind === 'buy' || a.kind === 'sell' ? a.kind : '';
+    const usd = String(a.volume_in_usd || '').trim();
+    if (!kind || !usd || !Number.isFinite(Number(usd)) || Number(usd) <= 0) continue;
+    ticks.push({ kind, usd });
+    if (ticks.length >= 12) break;
+  }
+  return ticks;
+}
 
 export function isDashaTapeEmbedSrc(src) {
   try {

@@ -3,7 +3,9 @@ import {
   MINT,
   PAIR,
   DASHA_TAPE_EMBED_SRC,
+  GECKO_POOL_TRADES,
   isDashaTapeEmbedSrc,
+  normalizeMintTicks,
   PIN,
   MAX_SOCKETS,
   validateNick,
@@ -41,6 +43,18 @@ assert.equal(isDashaTapeEmbedSrc(DASHA_TAPE_EMBED_SRC), true);
 assert.equal(isDashaTapeEmbedSrc(`https://dexscreener.com/solana/${PAIR}?embed=1`), true);
 assert.equal(isDashaTapeEmbedSrc(`https://dexscreener.com/solana/${PAIR}`), false);
 assert.equal(isDashaTapeEmbedSrc('https://dexscreener.com/solana/otherpair?embed=1'), false);
+assert.equal(GECKO_POOL_TRADES, `https://api.geckoterminal.com/api/v2/networks/solana/pools/${PAIR}/trades`);
+assert.deepEqual(normalizeMintTicks({
+  data: [
+    { attributes: { kind: 'buy', volume_in_usd: '12.5' } },
+    { attributes: { kind: 'sell', volume_in_usd: '4' } },
+    { attributes: { kind: 'buy', volume_in_usd: 'nope' } },
+    { attributes: { kind: 'swap', volume_in_usd: '9' } },
+    { attributes: { kind: 'buy', volume_in_usd: '0' } },
+  ],
+}), [{ kind: 'buy', usd: '12.5' }, { kind: 'sell', usd: '4' }]);
+assert.deepEqual(normalizeMintTicks(null), []);
+assert.deepEqual(normalizeMintTicks({ data: [] }), []);
 assert.equal(PIN.mint, MINT);
 assert.equal(PIN.text, 'Public lobby.');
 assert.equal(MAX_SOCKETS, 80, 'public room concurrent cap');

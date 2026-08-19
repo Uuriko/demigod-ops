@@ -6,6 +6,7 @@ import { MINT, PAIR, WSOL } from './dasha-lobby-mod.mjs';
 
 export const BUY_HREF = `https://jup.ag/swap?sell=${WSOL}&buy=${MINT}`;
 export const WORDMARK_HREF = 'https://www.getdasha.com/';
+export const FORUM_HREF = `${WORDMARK_HREF}forum`;
 export const DASH_EATS_HREF = 'https://x.com/dash_eats';
 export const TELEGRAM_HREF = 'https://t.me/+xB7S8mIQaKFiZjRh';
 export const COINGECKO_DASH_EATS_HREF = 'https://www.coingecko.com/en/coins/dash_eats';
@@ -71,5 +72,5 @@ export function roomRailHtml() {
 }
 
 export function slimFooterHtml() {
-  return `<footer class="dasha-foot"><style>${AWARD_FOOT_CSS}</style><p><a href="${WORDMARK_HREF}">$dasha</a> · <a class="buy-dasha" href="${BUY_HREF}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a> · <a href="${DASH_EATS_HREF}" target="_blank" rel="noopener noreferrer">@dash_eats</a> · <a href="${TELEGRAM_HREF}" target="_blank" rel="noopener noreferrer">Telegram</a></p></footer>`;
+  return `<footer class="dasha-foot"><style>${AWARD_FOOT_CSS}</style><p><a href="${WORDMARK_HREF}">$dasha</a> · <a class="buy-dasha" href="${BUY_HREF}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a> · <a href="${DASH_EATS_HREF}" target="_blank" rel="noopener noreferrer">@dash_eats</a> · <a href="${TELEGRAM_HREF}" target="_blank" rel="noopener noreferrer">Telegram</a> · <a href="${FORUM_HREF}">Forum</a></p></footer>`;
 }

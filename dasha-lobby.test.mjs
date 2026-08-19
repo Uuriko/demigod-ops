@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
-import { AWARD_BTN_CSS, AWARD_CHROME_CSS, DASHA_ROOMS, hamburgerHtml, roomRailHtml, slimFooterHtml, TELEGRAM_HREF } from './dasha-award-chrome.mjs';
+import { AWARD_BTN_CSS, AWARD_CHROME_CSS, DASHA_ROOMS, FORUM_HREF, hamburgerHtml, roomRailHtml, slimFooterHtml, TELEGRAM_HREF } from './dasha-award-chrome.mjs';
 
 const root = new URL('./', import.meta.url);
 const landing = await readFile(new URL('./dasha-landing.html', root), 'utf8');
@@ -18,6 +18,12 @@ const mint = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
 
 assert(!landing.includes('id="dasha-lobby"'), 'landing must not mount lobby');
 assert(page.includes('id="dasha-lobby"'), 'dedicated lobby mount missing');
+assert(page.includes('id="dasha-forum"') && page.includes('class="forum-split"'), 'combo room mounts threads + chat');
+assert(page.includes('id="dasha-mint-tape"') && page.includes('/forum/tape'), 'combo room has the mint tape');
+assert(page.includes('name="twitter:site" content="@dash_eats"'), 'forum large card names twitter:site');
+assert.match(page, /53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump[\s\S]*getdasha\.com[\s\S]*t\.me\/\+xB7S8mIQaKFiZjRh/);
+assert.doesNotMatch(page, /dasha-menu|aria-label="Menu">Menu</);
+assert.doesNotMatch(page, /href="\/studio">Studio<|>Privacy</);
 assert(!chessPage.includes('id="dasha-lobby"'), 'chess must not embed lobby chat');
 assert.match(chessPage, /\.btn\{[^}]*background:var\(--acid\);color:var\(--ink\)/, 'chess primary is acid fill + ink type');
 assert.match(chessPage, /\.btn\.ghost\{[^}]*color:var\(--paper\);border:1px solid var\(--paper\)/, 'chess ghost is paper on ink');
@@ -57,10 +63,12 @@ assert.doesNotMatch(chessPage, /\/airdrop|\/earn|\/claim|\/graph/, 'chess chrome
   assert.doesNotMatch(ham + rail + foot, /\/bounties/, 'chrome list must hide Bounties');
   assert.doesNotMatch(ham + rail + foot, /\/privacy|>Privacy</, 'chrome list must hide Privacy');
   assert.match(foot, /t\.me\/\+xB7S8mIQaKFiZjRh/, 'award footer includes Telegram');
+  assert.match(foot, new RegExp(`${FORUM_HREF.replaceAll('/', '\\/')}">Forum<`), 'award footer Forum is last');
+  assert.doesNotMatch(ham + rail, /\/forum|>Forum</, 'slim bar and rail hide Forum');
   assert.doesNotMatch(ham + rail + foot, /\/learn|>Learn</, 'chrome list must hide Learn');
   assert.doesNotMatch(ham + rail + foot, /\/verse|>Verse</, 'chrome list must hide Verse');
-  assert.doesNotMatch(ham + rail + foot, /\/forum|>Forum</, 'chrome list must hide Forum');
-  assert.doesNotMatch(ham + rail + foot, /\/chess|>Chess</, 'chrome list must hide Chess');
+  assert.doesNotMatch(ham + rail, /\/chess|>Chess</, 'slim bar and rail hide Chess');
+  assert.doesNotMatch(foot, /\/chess|>Chess</, 'footer must not door to Chess');
   assert.match(foot, /padding:1\.25rem 1\.25rem calc\(1\.25rem/);
   assert.doesNotMatch(foot, /180px/, 'footer must not reserve the retired dancer dock');
   assert.match(foot, /min-height:48px/);
@@ -75,7 +83,8 @@ assert.doesNotMatch(chessPage, /\/airdrop|\/earn|\/claim|\/graph/, 'chess chrome
   assert.match(studioEmbed, /\.chip\{min-height:48px[\s\S]*?color:var\(--paper\)/, 'studio chips are 48px paper on ink');
   assert.match(studioPage, /\.btn\.primary\{background:var\(--acid\);border-color:var\(--acid\);color:var\(--ink\)/, 'studio page primary is acid fill + ink type');
 }
-assert.doesNotMatch(chessPage, /href="\/forum">Forum</, 'chess page chrome must hide Forum');
+assert.doesNotMatch(chessPage.match(/<header class="dasha-slim[\s\S]*?<\/header>/)?.[0] || chessPage, /href="\/forum">Forum</, 'chess slim bar hides Forum');
+assert.match(chessPage, /href="https:\/\/www\.getdasha\.com\/forum">Forum</, 'chess footer Forum is last');
 assert.doesNotMatch(chessPage, /#08070a|#f5eedf|#72d6ff|#c8b6ff/);
 assert(page.includes('wss://lobby.getdasha.com/ws'), 'dedicated lobby must use permanent WS host');
 assert(!landing.includes('spiny-helmet'), 'temporary workers host must not remain');
@@ -128,15 +137,16 @@ assert(worker.includes('checkRepeat'), 'worker enforces duplicate filter');
 assert(worker.includes('MAX_SOCKETS'), 'worker has connection cap');
 assert(worker.includes('4001') || worker.includes('lobby full'), 'worker rejects over-cap joins');
 assert(worker.includes('/capacity'), 'worker exposes capacity probe');
-assert(worker.includes('isLeftoverForumPath') && worker.includes("path === '/forum' || path === '/lobby'"), 'leftover /forum and /lobby 308 home');
-assert(worker.includes('LOBBY_PAGE_HTML'), 'forum page bytes stay on disk for later');
+assert(worker.includes('isForumPagePath') && worker.includes("isExactPath(pathname, '/forum')"), 'www + lobby /forum is the combo room');
+assert(worker.includes('isLeftoverLobbyPath') && worker.includes("Response.redirect('https://www.getdasha.com/forum', 308)"), '/lobby 308s to /forum');
+assert(worker.includes('LOBBY_PAGE_HTML') && worker.includes("'X-Dasha-Edge': 'forum'"), 'forum page is worker-served');
 assert(!landing.includes('One room · max 80.'), 'removed Lobby explainer returned');
 assert(worker.includes('/oauth/x/start'), 'worker has X OAuth start');
 assert.match(worker, /\['https:\/\/www\.getdasha\.com','https:\/\/getdasha\.com','https:\/\/lobby\.getdasha\.com'\]\.forEach/, 'OAuth popup completion must target every first-party opener origin exactly');
 assert(!worker.includes('return to the lobby'), 'shared OAuth completion must not force every product back to Lobby');
 assert(!worker.includes('Perks unlocked: longer messages'), 'shared OAuth completion must not claim Lobby-only perks');
 assert(worker.includes('isLeftoverPrivacyPath') && !worker.includes('PRIVACY_HTML'), 'leftover /privacy 308s home; no policy page');
-assert(worker.includes('isLeftoverForumPath'), 'product and lobby /forum 308 home');
+assert(worker.includes('isForumPagePath') && worker.includes('forumPageResponse'), 'product and lobby /forum are 200');
 assert(worker.includes('NOT_FOUND_HTML') && worker.includes("'X-Dasha-Edge': 'html-404'"), 'unknown paths serve branded HTML 404');
 assert(worker.includes("url.searchParams.get('continue') !== '1'") && worker.includes('Continue with X'), 'OAuth still gates continue=1');
 assert(!/offline\.access/.test(await readFile(new URL('./dasha-lobby-x.mjs', root), 'utf8')), 'OAuth must not request unused persistent X access');
@@ -379,10 +389,25 @@ for (const method of ['GET', 'HEAD']) {
 assert.doesNotMatch(worker, /pathname === ['"]\/desk['"]/, 'desk must stay a Webflow 301, not a worker second desk');
 for (const host of ['www.getdasha.com', 'getdasha.com']) {
   for (const method of ['GET', 'HEAD']) {
-    for (const path of ['/forum', '/forum/', '/lobby', '/lobby/']) {
+    for (const path of ['/forum', '/forum/']) {
+      const room = await workerModule.default.fetch(new Request(`https://${host}${path}`, { method }), {});
+      assert.equal(room.status, 200, `${host}${path} ${method} is worker-served`);
+      assert.equal(room.headers.get('x-dasha-edge'), 'forum');
+      if (method === 'HEAD') assert.equal(await room.text(), '');
+      else {
+        const html = await room.text();
+        assert.match(html, /id="dasha-forum"/);
+        assert.match(html, /id="dasha-lobby"/);
+        assert.doesNotMatch(html, /dasha-menu|aria-label="Menu">Menu</);
+        assert.match(html, /t\.me\/\+xB7S8mIQaKFiZjRh/);
+        assert.doesNotMatch(html, /href="\/studio">Studio<|>Privacy</);
+        assert.doesNotMatch(html, /dasha-dance\.js/);
+      }
+    }
+    for (const path of ['/lobby', '/lobby/']) {
       const leftover = await workerModule.default.fetch(new Request(`https://${host}${path}`, { method }), {});
-      assert.equal(leftover.status, 308, `${host}${path} ${method} must 308 home`);
-      assert.equal(leftover.headers.get('location'), 'https://www.getdasha.com/');
+      assert.equal(leftover.status, 308, `${host}${path} ${method} must 308 to forum`);
+      assert.equal(leftover.headers.get('location'), 'https://www.getdasha.com/forum');
     }
     for (const path of ['/how-to-buy', '/how-to-buy/', '/howtobuy', '/howtobuy/']) {
       const howtobuy = await workerModule.default.fetch(new Request(`https://${host}${path}`, { method }), {});
@@ -415,10 +440,25 @@ for (const method of ['GET', 'HEAD']) {
   }
 }
 for (const method of ['GET', 'HEAD']) {
-  for (const path of ['/forum', '/forum/', '/lobby', '/lobby/']) {
+  for (const path of ['/forum', '/forum/']) {
+    const room = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`, { method }), {});
+    assert.equal(room.status, 200, `lobby ${path} ${method} is worker-served`);
+    assert.equal(room.headers.get('x-dasha-edge'), 'forum');
+    if (method === 'HEAD') assert.equal(await room.text(), '');
+    else {
+      const html = await room.text();
+      assert.match(html, /id="dasha-forum"/);
+      assert.match(html, /id="dasha-lobby"/);
+      assert.doesNotMatch(html, /dasha-menu|aria-label="Menu">Menu</);
+      assert.match(html, /t\.me\/\+xB7S8mIQaKFiZjRh/);
+      assert.doesNotMatch(html, /href="\/studio">Studio<|>Privacy</);
+      assert.doesNotMatch(html, /dasha-dance\.js/);
+    }
+  }
+  for (const path of ['/lobby', '/lobby/']) {
     const leftover = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`, { method }), {});
-    assert.equal(leftover.status, 308, `lobby ${path} ${method} must 308 home`);
-    assert.equal(leftover.headers.get('location'), 'https://www.getdasha.com/');
+    assert.equal(leftover.status, 308, `lobby ${path} ${method} must 308 to forum`);
+    assert.equal(leftover.headers.get('location'), 'https://www.getdasha.com/forum');
   }
 }
 {
@@ -472,7 +512,7 @@ for (const path of ['/studio', '/studio/']) {
     assert.doesNotMatch(html, /dasha-menu|aria-label="Menu">Menu</, `${label} must not render a Menu`);
     assert.doesNotMatch(html, /<nav aria-label="Dasha">|<nav aria-label="Rooms">/, `${label} must not render a room list`);
     assert.match(html, /class="dasha-word" href="https:\/\/www\.getdasha\.com\/">\$dasha</, `${label} wordmark must leave the JSON health root`);
-    assert.doesNotMatch(html, /href="\/forum">Forum</, `${label} chrome must hide Forum`);
+    assert.doesNotMatch(html.match(/<header class="dasha-slim[\s\S]*?<\/header>/)?.[0] || '', /\/forum|>Forum</, `${label} slim bar hides Forum`);
     assert.doesNotMatch(html, /href="\/studio">Studio</, `${label} chrome must not include Studio`);
     assert.doesNotMatch(html, /href="\/graph"/, `${label} chrome must not door to shelved /graph`);
     assert.doesNotMatch(html, /href="\/verse">Verse</, `${label} chrome must not include Verse`);
@@ -482,7 +522,8 @@ for (const path of ['/studio', '/studio/']) {
     assert.match(html, /How big of a Dasha simp are you\?/, `${label} must lead with the quiz`);
     assert.equal((html.match(/How big of a Dasha simp are you\?/g) || []).length, 1, `${label} must not stack the quiz lede`);
     assert.doesNotMatch(html, /Open Studio|Open forum|Make a meme/);
-    assert.doesNotMatch(html, /href=["'][^"']*\/(?:studio|forum)/);
+    assert.doesNotMatch(html, /href=["'][^"']*\/studio/);
+    assert.match(html, /href="https:\/\/www\.getdasha\.com\/forum">Forum</, `${label} footer Forum is last`);
     assert.doesNotMatch(html, /Quick 10Q|Deep 20Q|\b10Q\b|\b20Q\b/);
     assert.doesNotMatch(html, /Take Simp|Ranked by lore|founding #1|not measured/);
     assert.match(html, /<a href="https:\/\/www\.getdasha\.com\/">\$dasha<\/a> · <a class="buy-dasha"[^>]*>Buy \$dasha ↗<\/a> · <a href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats<\/a> · <a href="https:\/\/t\.me\/\+xB7S8mIQaKFiZjRh"[^>]*>Telegram<\/a>/, `${label} footer must keep \$dasha + Buy + @dash_eats + Telegram`);
@@ -790,10 +831,15 @@ for (const path of ['/studio', '/studio/']) {
         assert.equal(hop.status, 308, `${host}${path} must 308 home`);
         assert.equal(hop.headers.get('location'), 'https://www.getdasha.com/');
       }
-      for (const path of ['/lobby', '/lobby/', '/forum', '/forum/']) {
+      for (const path of ['/forum', '/forum/']) {
+        const room = await workerModule.default.fetch(new Request(`https://${host}${path}`), {});
+        assert.equal(room.status, 200, `${host}${path} is worker-served`);
+        assert.equal(room.headers.get('x-dasha-edge'), 'forum');
+      }
+      for (const path of ['/lobby', '/lobby/']) {
         const hop = await workerModule.default.fetch(new Request(`https://${host}${path}`), {});
-        assert.equal(hop.status, 308, `${host}${path} must 308 home`);
-        assert.equal(hop.headers.get('location'), 'https://www.getdasha.com/');
+        assert.equal(hop.status, 308, `${host}${path} must 308 to forum`);
+        assert.equal(hop.headers.get('location'), 'https://www.getdasha.com/forum');
       }
       const bounties = await workerModule.default.fetch(new Request(`https://${host}/bounties`), {});
       assert.equal(bounties.status, 308, `${host}/bounties must 308 home`);
@@ -916,7 +962,8 @@ for (const path of ['/studio', '/studio/']) {
     assert.match(section, /class="dasha-slim[\s"]/, `${label} must ship the slim bar`);
     assert.doesNotMatch(section, /dasha-menu|aria-label="Menu">Menu</, `${label} must not render a Menu`);
     assert.doesNotMatch(section, /href="\/studio">Studio</, `${label} chrome must not include Studio`);
-    assert.doesNotMatch(section, /href="\/forum">Forum</, `${label} chrome must hide Forum`);
+    assert.doesNotMatch(section.match(/<header class="dasha-slim[\s\S]*?<\/header>/)?.[0] || '', /\/forum|>Forum</, `${label} slim bar hides Forum`);
+    assert.match(section, /href="https:\/\/www\.getdasha\.com\/forum">Forum</, `${label} footer Forum is last`);
     assert.doesNotMatch(section, /href="\/graph"/, `${label} chrome must not door to shelved /graph`);
     assert.doesNotMatch(section, /href="\/verse">Verse</, `${label} chrome must not include Verse`);
     assert.doesNotMatch(section, /<nav aria-label="Dasha">|href="\/chess">Chess</, `${label} chrome must not door to Chess`);
@@ -934,7 +981,7 @@ for (const path of ['/studio', '/studio/']) {
     assert.match(section, /This sends a request\. It is not a live listing\./, `${label} must not pretend a board write`);
     assert.doesNotMatch(section, /We'll add it to the board/);
     assert.doesNotMatch(section, /Payout not live/);
-    assert.doesNotMatch(section, /href="\/forum">Forum</);
+    assert.match(section, /href="https:\/\/www\.getdasha\.com\/forum">Forum</);
     assert.doesNotMatch(section, /#1[fF]041[cC]|#0000[eE]{2}|#7c4dff|--violet|--hot-deep/);
     for (const hex of section.match(/#[0-9a-fA-F]{3,8}\b/g) || []) {
       assert.ok(BOARD_TOKENS.includes(hex.toLowerCase()), `${label} must stay tokens-only (saw ${hex})`);
@@ -1154,6 +1201,7 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
     'https://www.getdasha.com/',
     'https://www.getdasha.com/simp',
     'https://www.getdasha.com/chess',
+    'https://www.getdasha.com/forum',
     'https://www.getdasha.com/faucet',
   ]) {
     assert.match(sitemapBody, new RegExp(`<loc>${loc.replaceAll('.', '\\.')}</loc>`), `${host} sitemap must list ${loc}`);
@@ -1167,7 +1215,7 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/bounties/, `${host} sitemap must not feature leftover /bounties`);
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/capsule/, `${host} sitemap must not invent /capsule`);
   assert.doesNotMatch(sitemapBody, /lobby\.getdasha\.com\/bounties/, `${host} sitemap must not list lobby /bounties`);
-  assert.doesNotMatch(sitemapBody, /getdasha\.com\/forum/, `${host} sitemap must not feature leftover /forum`);
+  assert.match(sitemapBody, /<loc>https:\/\/www\.getdasha\.com\/forum<\/loc>/, `${host} sitemap must list /forum`);
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/lobby/, `${host} sitemap must not feature leftover /lobby`);
   assert.doesNotMatch(sitemapBody, /lobby\.getdasha\.com\/chess/, `${host} sitemap must not list lobby chess`);
   assert.match(sitemapBody, /\n  <url>\n    <loc>https:\/\/www\.getdasha\.com\/chess<\/loc>\n  <\/url>\n/, `${host} sitemap chess URL must keep the same indent as other locs`);
@@ -1401,8 +1449,8 @@ try {
     for (const host of ['www.getdasha.com', 'getdasha.com']) {
       for (const path of ['/lobby', '/lobby/']) {
         const lobby = await workerModule.default.fetch(new Request(`https://${host}${path}`), {});
-        assert.equal(lobby.status, 308, `${host} ${path} must 308 home`);
-        assert.equal(lobby.headers.get('location'), 'https://www.getdasha.com/');
+        assert.equal(lobby.status, 308, `${host} ${path} must 308 to forum`);
+        assert.equal(lobby.headers.get('location'), 'https://www.getdasha.com/forum');
       }
     }
   } finally {
@@ -1543,7 +1591,7 @@ try {
     assert.doesNotMatch(html, /fonts\.googleapis|fonts\.gstatic/, `${label} must drop Google Fonts preconnect`);
     assert.doesNotMatch(html, /Exo|Bangers|Raleway/, `${label} must drop Exo\/Bangers\/Raleway`);
     assert.doesNotMatch(html, /href=["']https:\/\/lobby\.getdasha\.com\/forum/, `${label} must drop leftover lobby-host Forum hops`);
-    assert.doesNotMatch(html, /href="\/forum">Forum</, `${label} chrome must hide Forum`);
+    assert.doesNotMatch(html.match(/<header class="dasha-slim">[\s\S]*?<\/header>/)?.[0] || '', /\/forum|>Forum</, `${label} slim bar hides Forum`);
     assert.doesNotMatch(homeHero(html), /href="\/forum"/, `${label} hero must not put Forum on first paint`);
     assert.doesNotMatch(html, /--hot-deep|rgba\(124,\s*77,\s*255/, `${label} must drop the violet wash and --hot-deep`);
     assert.doesNotMatch(hero, /system-ui/, `${label} hero must not use system-ui`);
@@ -1561,7 +1609,7 @@ try {
     assert.doesNotMatch(lowerNav, /href="\/bounties"/, `${label} lower nav must not door to Bounties`);
     assert.doesNotMatch(lowerNav, /#token|buy-dasha/i, `${label} lower nav must not grow a Buy pill`);
     assert.doesNotMatch(lowerNav, /href="\/forum">Forum</, `${label} lower nav must hide Forum`);
-    assert.doesNotMatch(html, /href="\/forum"/, `${label} Forum stays out of the footer`);
+    assert.match(html.match(/<footer class="dasha-foot">[\s\S]*?<\/footer>/)?.[0] || '', /href="https:\/\/www\.getdasha\.com\/forum">Forum</, `${label} footer Forum is last`);
     assert.doesNotMatch(html.match(/<footer class="dasha-foot">[\s\S]*?<\/footer>/)?.[0] || '', /<nav\b|href="\/chess">Chess</, `${label} site footer has no room nav`);
     assert.match(html.match(/<footer class="dasha-foot">[\s\S]*?<\/footer>/)?.[0] || '', /t\.me\/\+xB7S8mIQaKFiZjRh/, `${label} site footer includes Telegram`);
     assert.match(html, /https:\/\/www\.coingecko\.com\/en\/coins\/dash_eats/, `${label} token row links live CoinGecko dash_eats`);
@@ -1596,7 +1644,8 @@ try {
   assert.match(injected, /class="dasha-crop"/, 'home rewrite must add crop marks');
   assert.doesNotMatch(injected, /dasha-menu|aria-label="Menu">Menu</, 'home rewrite must not render a Menu');
   assert.doesNotMatch(injected.match(/<header class="dasha-slim">[\s\S]*?<\/header>/)?.[0] || '', /<nav\b|href="\/chess"|href="\/studio"|href="\/how-to-buy"|href="\/simp"|href="\/dasha"|href="\/bounties"|href="\/faucet"|href="\/forum"/, 'home slim bar is wordmark + Buy only');
-  assert.doesNotMatch(injected.match(/<footer class="dasha-foot">[\s\S]*?<\/footer>/)?.[0] || '', /<nav\b|href="\/chess"|href="\/studio"|href="\/how-to-buy"|href="\/simp"|href="\/dasha"|href="\/bounties"|href="\/faucet"|href="\/forum"/, 'home footer is $dasha · Buy · @dash_eats · Telegram');
+  assert.doesNotMatch(injected.match(/<footer class="dasha-foot">[\s\S]*?<\/footer>/)?.[0] || '', /<nav\b|href="\/chess"|href="\/studio"|href="\/how-to-buy"|href="\/simp"|href="\/dasha"|href="\/bounties"|href="\/faucet"/, 'home footer is $dasha · Buy · @dash_eats · Telegram · Forum');
+  assert.match(injected.match(/<footer class="dasha-foot">[\s\S]*?<\/footer>/)?.[0] || '', /href="https:\/\/www\.getdasha\.com\/forum">Forum</, 'home footer Forum is last');
   assert.match(injected.match(/<footer class="dasha-foot">[\s\S]*?<\/footer>/)?.[0] || '', /t\.me\/\+xB7S8mIQaKFiZjRh/, 'home footer includes Telegram');
   assert.match(injected, /https:\/\/www\.coingecko\.com\/en\/coins\/dash_eats/, 'rewritten home links CoinGecko dash_eats');
   assert.match(injected, /phantom\.com\/tokens\/solana\/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump/, 'rewritten home links Phantom');
@@ -1706,8 +1755,8 @@ try {
     globalThis.fetch = async () => new Response(lobbyDeadCss, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     for (const path of ['/lobby', '/lobby/']) {
       const page = await workerModule.default.fetch(new Request(`https://www.getdasha.com${path}`), {});
-      assert.equal(page.status, 308, `www ${path} must 308 home`);
-      assert.equal(page.headers.get('location'), 'https://www.getdasha.com/');
+      assert.equal(page.status, 308, `www ${path} must 308 to forum`);
+      assert.equal(page.headers.get('location'), 'https://www.getdasha.com/forum');
     }
   } finally {
     globalThis.fetch = nativeFetch;
@@ -1788,7 +1837,8 @@ ${liveHomeFooter}
     assert.doesNotMatch(chessHtml, /dasha-menu|aria-label="Menu">Menu</, `${host} /chess must not render a Menu`);
     assert.doesNotMatch(chessHtml, /href="\/graph"/);
     assert.doesNotMatch(chessHtml, /\/airdrop|\/earn|\/claim/, `${host} /chess chrome must not grow dead doors`);
-    assert.doesNotMatch(chessHtml, /href="\/forum">Forum</, `${host} /chess chrome must hide Forum`);
+    assert.doesNotMatch(chessHtml.match(/<header class="dasha-slim[\s\S]*?<\/header>/)?.[0] || '', /\/forum|>Forum</, `${host} /chess slim bar hides Forum`);
+    assert.match(chessHtml, /href="https:\/\/www\.getdasha\.com\/forum">Forum</, `${host} /chess footer Forum is last`);
     assert.doesNotMatch(chessHtml, /href="\/studio"|href="\/how-to-buy"/, `${host} /chess chrome has no leftover rooms`);
     assert.doesNotMatch(chessHtml, /class="(?:brand|back)" href="\/"/);
     assert.match(chessHtml, /id="buy-dasha"/);
@@ -1811,12 +1861,13 @@ ${liveHomeFooter}
   assert.equal(ensurePrivacyLink(lobbyLinked), lobbyLinked, 'lobby nav Privacy strip must be idempotent');
   {
     const forum = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/forum'), {});
-    assert.equal(forum.status, 308, 'lobby /forum 308s home');
-    assert.equal(forum.headers.get('location'), 'https://www.getdasha.com/');
+    assert.equal(forum.status, 200, 'lobby /forum is worker-served');
+    assert.equal(forum.headers.get('x-dasha-edge'), 'forum');
   }
   const lobbyHead = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/forum', { method: 'HEAD' }), {});
-  assert.equal(lobbyHead.status, 308, 'lobby HEAD /forum 308s home');
-  assert.equal(lobbyHead.headers.get('location'), 'https://www.getdasha.com/');
+  assert.equal(lobbyHead.status, 200, 'lobby HEAD /forum is worker-served');
+  assert.equal(lobbyHead.headers.get('x-dasha-edge'), 'forum');
+  assert.equal(await lobbyHead.text(), '');
   const staleLobbySri = 'sha384-fet8Bw+WiNBtGR2I4mj67Pk8Xv3WsVe4FvNEHBsjIoUvglQBomg5UPprS72dKEKb';
   const chatOnly = `<!doctype html><html><body><main><div id="dasha-lobby" data-lobby-url="wss://lobby.getdasha.com/ws"></div></main><script>(function(){var s=document.createElement('script');s.src='https://lobby.getdasha.com/client/lobby.js';s.integrity='${staleLobbySri}';s.crossOrigin='anonymous';s.defer=true;document.head.appendChild(s)})();</script></body></html>`;
   const leftoverQuiz = `${chatOnly}<style id="dasha-quiz-style">#dasha-quiz{margin-top:2rem}</style><div id="dasha-quiz" class="dasha-quiz"><div id="dasha-simp-board"><noscript>x</noscript></div></div><script>(function(){var s=document.createElement('script');s.src='https://lobby.getdasha.com/client/simp-board.js';s.integrity='${SIMP_BOARD_SRI}';s.crossOrigin='anonymous';s.defer=true;document.head.appendChild(s)})();</script>`;
@@ -1939,8 +1990,8 @@ ${liveHomeFooter}
       assert.doesNotMatch(html, /href=["']https:\/\/lobby\.getdasha\.com\/chess/, `${host} / leftover Chess href must be same-origin or gone`);
       assert.doesNotMatch(html, /href=["']https:\/\/lobby\.getdasha\.com\/forum/, `${host} / leftover Forum href must become \/forum or drop`);
       const lobby = await workerModule.default.fetch(new Request(`https://${host}/lobby`), {});
-      assert.equal(lobby.status, 308, `${host} /lobby must 308 home`);
-      assert.equal(lobby.headers.get('location'), 'https://www.getdasha.com/');
+      assert.equal(lobby.status, 308, `${host} /lobby must 308 to forum`);
+      assert.equal(lobby.headers.get('location'), 'https://www.getdasha.com/forum');
     }
   } finally {
     globalThis.fetch = nativeFetch;

@@ -170,7 +170,8 @@ assert.match(source, /@media\(max-width:560px\)\{[\s\S]*?\.dasha-slim\{flex-wrap
 assert.doesNotMatch(source, /dasha-menu|aria-label="Menu">Menu</, 'chess must not render a Menu');
 assert.doesNotMatch(source, /<nav aria-label="Dasha">|<nav aria-label="Rooms">/, 'chess must not render a room list');
 assert.doesNotMatch(source, /href="\/chess">Chess</, 'chess chrome must not door to itself');
-assert.doesNotMatch(source, /href="\/forum">Forum</, 'chess chrome must hide Forum');
+assert.doesNotMatch(source.match(/<header class="dasha-slim[\s\S]*?<\/header>/)?.[0] || '', /\/forum|>Forum</, 'chess slim bar hides Forum');
+assert.match(source, /href="https:\/\/www\.getdasha\.com\/forum">Forum</, 'chess footer Forum is last');
 assert.doesNotMatch(source, /Holder chess · 10\+5/);
 assert.doesNotMatch(source, /href="\/studio"|How to buy/);
 assert.match(source, /TimeControl/, 'PGN must document the live 10+5 increment');
