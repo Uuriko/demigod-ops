@@ -1,13 +1,20 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import workerModule, {
+  atsCompanyHomeHref,
+  canonicalCompanyPath,
   companiesIndexHtml,
+  companyNameSlug,
   companyPageHtml,
+  findMapCompanyByNameOrSlug,
   injectBountiesBoard,
   isCompaniesPath,
   isCompanyPath,
+  isStartupsPath,
   normalizeBountiesFeed,
+  resolveMapCompany,
   rewriteCdnPin,
+  rewriteCompanyNameAtsLinks,
   rewriteStaleSnapshotDates,
   stripGoldAccent,
 } from './demigod-html-worker.mjs';
@@ -339,10 +346,14 @@ function urlOf(input) {
   assert.equal(isCompanyPath('/c/wd:Q16153666'), true);
   assert.equal(isCompanyPath('/c/hn:job-boards.greenhouse.io/verkada'), true);
   assert.equal(isCompanyPath('/c/unknown'), true);
+  assert.equal(isCompanyPath('/c/openai'), true);
   assert.equal(isCompanyPath('/c/'), false);
   assert.equal(isCompanyPath('/c'), false);
   assert.equal(isCompanyPath('/companies'), false);
   assert.equal(isCompanyPath('/companies/yc:abundant'), false);
+  assert.equal(isStartupsPath('/startups'), true);
+  assert.equal(isStartupsPath('/startups/'), true);
+  assert.equal(isStartupsPath('/companies'), false);
 }
 
 const TINY_MAP = {
@@ -398,7 +409,10 @@ const TINY_MAP = {
 {
   const html = companiesIndexHtml(TINY_MAP);
   assert.match(html, /Abundant/);
-  assert.match(html, /\/c\/yc:abundant/);
+  assert.match(html, /<td><a href="\/c\/yc:abundant">Abundant<\/a><\/td>/);
+  assert.doesNotMatch(html, /<td><a href="https:\/\/jobs\.ashbyhq\.com/);
+  assert.doesNotMatch(html, /<td><a href="https:\/\/(?:boards|job-boards)\.greenhouse\.io/);
+  assert.doesNotMatch(html, /<td><a href="https:\/\/www\.abundant\.ai/);
   assert.match(html, /Ashby/);
   assert.match(html, /engineering/);
   assert.match(html, /2026-08-14/);
@@ -555,7 +569,8 @@ const TINY_MAP = {
       const html = await page.text();
       assert.equal(page.status, 200, path);
       assert.equal(page.headers.get('x-demigod-edge'), 'companies');
-      assert.match(html, /Abundant/);
+      assert.match(html, /<td><a href="\/c\/yc:abundant">Abundant<\/a><\/td>/);
+      assert.doesNotMatch(html, /href="https:\/\/jobs\.ashbyhq\.com/);
       assert.doesNotMatch(html, /ZeroCorp/);
       assert.doesNotMatch(html, /webflow miss/);
     }
@@ -586,6 +601,164 @@ const TINY_MAP = {
     assert.doesNotMatch(await slashId.text(), /webflow miss/);
 
     assert.equal(fetched.every((u) => u.includes('cdn.jsdelivr.net') && !/trydemigod\.com/.test(u)), true);
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
+}
+
+const SLUG_MAP = {
+  generatedAt: '2026-08-14T15:20:31.483Z',
+  companies: [
+    ...TINY_MAP.companies,
+    {
+      id: 'wd:Q21708200',
+      name: 'OpenAI',
+      website: 'https://openai.com/',
+      jobsUrl: 'https://jobs.ashbyhq.com/openai',
+      openRoles: 603,
+      atsSource: 'Ashby',
+      roleMix: { engineering: 1 },
+    },
+    {
+      id: 'yc:stripe',
+      name: 'Stripe',
+      website: 'https://stripe.com/',
+      jobsUrl: 'https://boards.greenhouse.io/stripe',
+      openRoles: 265,
+      atsSource: 'Greenhouse',
+      roleMix: { engineering: 1 },
+    },
+    {
+      id: 'yc:atlas-2',
+      name: 'Atlas',
+      openRoles: 0,
+    },
+    {
+      id: 'yc:atlas-3',
+      name: 'Atlas',
+      jobsUrl: 'https://jobs.ashbyhq.com/atlas',
+      openRoles: 8,
+      atsSource: 'Ashby',
+      roleMix: { engineering: 1 },
+    },
+    {
+      id: 'hn:jobs.ashbyhq.com/fathom.video',
+      name: 'Fathom – AI Notetaker',
+      jobsUrl: 'https://jobs.ashbyhq.com/fathom.video',
+      openRoles: 6,
+      atsSource: 'Ashby',
+      roleMix: { engineering: 1 },
+    },
+  ],
+};
+
+{
+  assert.equal(companyNameSlug('OpenAI'), 'openai');
+  assert.equal(companyNameSlug('open-ai'), 'openai');
+  assert.equal(canonicalCompanyPath('wd:Q21708200'), '/c/wd%3AQ21708200');
+  assert.equal(canonicalCompanyPath('yc:stripe'), '/c/yc%3Astripe');
+  assert.equal(atsCompanyHomeHref('https://jobs.ashbyhq.com/openai'), 'https://jobs.ashbyhq.com/openai');
+  assert.equal(atsCompanyHomeHref('https://jobs.ashbyhq.com/openai/'), 'https://jobs.ashbyhq.com/openai');
+  assert.equal(atsCompanyHomeHref('https://jobs.ashbyhq.com/openai/role-1'), '');
+  assert.equal(atsCompanyHomeHref('https://job-boards.greenhouse.io/affirm/jobs/7819999003'), '');
+  assert.equal(atsCompanyHomeHref('https://openai.com/'), '');
+  assert.equal(resolveMapCompany(SLUG_MAP, 'wd:Q21708200')?.id, 'wd:Q21708200');
+  assert.equal(resolveMapCompany(SLUG_MAP, 'openai')?.id, 'wd:Q21708200');
+  assert.equal(resolveMapCompany(SLUG_MAP, 'OpenAI')?.id, 'wd:Q21708200');
+  assert.equal(resolveMapCompany(SLUG_MAP, 'STRIPE')?.id, 'yc:stripe');
+  assert.equal(resolveMapCompany(SLUG_MAP, 'yc:abundant')?.id, 'yc:abundant');
+  assert.equal(findMapCompanyByNameOrSlug(SLUG_MAP, 'atlas'), null);
+  assert.equal(resolveMapCompany(SLUG_MAP, 'atlas'), null);
+  assert.equal(resolveMapCompany(SLUG_MAP, 'not-a-company'), null);
+}
+
+{
+  const openaiIndex = companiesIndexHtml(SLUG_MAP);
+  assert.match(openaiIndex, /<td><a href="\/c\/wd:Q21708200">OpenAI<\/a><\/td>/);
+  assert.doesNotMatch(openaiIndex, /href="https:\/\/jobs\.ashbyhq\.com\/openai"/);
+}
+
+const STARTUPS_NAME_FIXTURE = `<!doctype html><html><head><title>Startups</title></head>
+<body>
+<details class="dg-static" data-generated-at="2026-08-14">
+<ul>
+<li><a href="https://jobs.ashbyhq.com/openai" rel="nofollow noopener">OpenAI — 603 open roles on Ashby</a></li>
+<li><a href="https://boards.greenhouse.io/stripe" rel="nofollow noopener">Stripe — 265 open roles on Greenhouse</a></li>
+<li><a href="https://jobs.ashbyhq.com/openai/role-1" rel="nofollow noopener">OpenAI — Founding Engineer</a></li>
+<li><a href="https://job-boards.greenhouse.io/affirm/jobs/7819999003" rel="nofollow noopener">Affirm — Staff Analytics Analyst</a></li>
+<li><a href="https://jobs.ashbyhq.com/unknownco" rel="nofollow noopener">Unknown Co — 1 open role on Ashby</a></li>
+<li><a href="https://jobs.ashbyhq.com/atlas" rel="nofollow noopener">Atlas — 8 open roles on Ashby</a></li>
+<li><a href="https://jobs.ashbyhq.com/fathom.video" rel="nofollow noopener">Fathom – AI Notetaker — 6 open roles on Ashby</a></li>
+</ul>
+</details>
+</body></html>`;
+
+{
+  const out = rewriteCompanyNameAtsLinks(STARTUPS_NAME_FIXTURE, SLUG_MAP);
+  assert.match(out, /href="\/c\/wd%3AQ21708200"/);
+  assert.match(out, /href="\/c\/yc%3Astripe"/);
+  assert.match(out, /href="\/c\/yc%3Aatlas-3"/);
+  assert.match(out, /href="\/c\/hn%3Ajobs.ashbyhq.com%2Ffathom.video"/);
+  assert.doesNotMatch(out, /href="https:\/\/jobs\.ashbyhq\.com\/openai"/);
+  assert.doesNotMatch(out, /href="https:\/\/boards\.greenhouse\.io\/stripe"/);
+  assert.match(out, /href="https:\/\/jobs\.ashbyhq\.com\/openai\/role-1"/);
+  assert.match(out, /href="https:\/\/job-boards\.greenhouse\.io\/affirm\/jobs\/7819999003"/);
+  assert.match(out, /href="https:\/\/jobs\.ashbyhq\.com\/unknownco"/);
+  assert.equal(rewriteCompanyNameAtsLinks(STARTUPS_NAME_FIXTURE, null), STARTUPS_NAME_FIXTURE);
+}
+
+{
+  const nativeFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async (input) => {
+      const u = urlOf(input);
+      if (u.includes('sf-startup-map.json')) {
+        return new Response(JSON.stringify(SLUG_MAP), { headers: { 'Content-Type': 'application/json' } });
+      }
+      if (u.includes('roles-feed.json')) {
+        return new Response(JSON.stringify({ roles: [] }), { headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response(STARTUPS_NAME_FIXTURE, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    };
+
+    const openai = await workerModule.fetch(new Request('https://www.trydemigod.com/c/openai'), {});
+    assert.equal(openai.status, 302);
+    assert.equal(openai.headers.get('location'), '/c/wd%3AQ21708200');
+    assert.equal(openai.headers.get('x-demigod-edge'), 'company');
+
+    const mixed = await workerModule.fetch(new Request('https://www.trydemigod.com/c/OpenAI'), {});
+    assert.equal(mixed.status, 302);
+    assert.equal(mixed.headers.get('location'), '/c/wd%3AQ21708200');
+
+    const stripe = await workerModule.fetch(new Request('https://www.trydemigod.com/c/stripe'), {});
+    assert.equal(stripe.status, 302);
+    assert.equal(stripe.headers.get('location'), '/c/yc%3Astripe');
+
+    const known = await workerModule.fetch(new Request('https://www.trydemigod.com/c/yc:abundant'), {});
+    assert.equal(known.status, 200);
+    assert.match(await known.text(), /<h1>Abundant<\/h1>/);
+
+    const canon = await workerModule.fetch(new Request('https://www.trydemigod.com/c/wd%3AQ21708200'), {});
+    assert.equal(canon.status, 200);
+    assert.match(await canon.text(), /<h1>OpenAI<\/h1>/);
+
+    const ambiguous = await workerModule.fetch(new Request('https://www.trydemigod.com/c/atlas'), {});
+    const ambiguousHtml = await ambiguous.text();
+    assert.equal(ambiguous.status, 404);
+    assert.match(ambiguousHtml, /Company not found/);
+
+    const missing = await workerModule.fetch(new Request('https://www.trydemigod.com/c/not-a-company'), {});
+    assert.equal(missing.status, 404);
+    assert.match(await missing.text(), /Company not found/);
+
+    const startups = await workerModule.fetch(new Request('https://www.trydemigod.com/startups'), {});
+    const startupsHtml = await startups.text();
+    assert.equal(startups.status, 200);
+    assert.equal(startups.headers.get('x-demigod-edge'), 'html-rewrite');
+    assert.match(startupsHtml, /href="\/c\/wd%3AQ21708200"/);
+    assert.match(startupsHtml, /href="\/c\/yc%3Astripe"/);
+    assert.doesNotMatch(startupsHtml, /href="https:\/\/jobs\.ashbyhq\.com\/openai"/);
+    assert.match(startupsHtml, /href="https:\/\/jobs\.ashbyhq\.com\/openai\/role-1"/);
   } finally {
     globalThis.fetch = nativeFetch;
   }
