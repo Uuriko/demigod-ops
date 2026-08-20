@@ -16,7 +16,7 @@ Public site is the matching desk, not a people dump. No candidate names, no inve
 
 Same page. No extra nav. Alternating ink `#0B120F` and bone `#EFE9DD`. Artifact bands 1–5 plus `WHO THIS IS FOR` and `TWO DOORS`.
 
-1. Hero (ink). Header: `SF BAY AREA` · wordmark `Demigod` · `EST. 2025`. Kicker: `CHAPTER ONE`. Headline: `A motley crew is assembled quietly.` Body: `You're not filling a seat. You're deciding who's in the boat. The first five people decide what the company becomes — so we don't send names into the world automatically. A person reads the fit, then knocks once.` Tonight: honest, no person names, no invented counts. Default: `A person reads every brief.` / `Names move after mutual yes.` Primary: `Start a brief` → `/hire`. Secondary: `Join the network` → `/hire?wiz=engineer`.
+1. Hero (ink). Header: `SF BAY AREA` · wordmark `Demigod` · `EST. 2025`. Kicker: `CHAPTER ONE`. Headline: `A motley crew is assembled quietly.` Body: `You're not filling a seat. You're deciding who's in the boat. The first five people decide what the company becomes — so we don't send names into the world automatically. A person reads the fit, then knocks once.` Tonight: honest, no person names, no invented counts. Default: `A person reads every brief.` / `Names move after mutual yes.` Primary: `Start a brief` → `/?wiz=startup`. Secondary: `Join the network` → `/?wiz=engineer`. Motley home does not load `foot-latest.js`.
 2. How it goes (bone). Kicker: `HOW IT GOES`. Headline: `Every crew starts with two people who recognised each other.` Steps: `01 You say it once` / `02 A person chooses` / `03 You meet`.
 3. What gets checked (ink). Headline: `Some things arrive like weather.` 4-up hairline grid of field kinds only: `ROLE` the actual work / `COMP` the real range / `LOCATION` SF Bay / `REVIEWED BY` a person. Do not ship `MATCH NO. 0412`, `Founding engineer`, `180–220K`, or `Ellis`.
 4. Pricing (bone). Headline: `We're paid only if someone joins you.` Body: `10% of first-year salary, invoiced after they start.` `Talent pays nothing.` Founder quote is anonymous — no name, no company.
@@ -51,7 +51,7 @@ Quiet. Specific. No marketplace lecture. No SLA. No “guarantee.” No “AI-ma
 
 ## Pages
 
-`/` this bible. `/hire` still takes the brief and talent join. `/companies` and `/c/:id` stay public-safe. `/events` stays honest. Do not publish an ATS dump.
+`/` this bible (no `wiz` or `p=`). `/?wiz=` falls through to Webflow+foot so the form opens, then `paintHireMotley` (`home-wiz`). `/hire?wiz=` GET/HEAD 308s to `/?wiz=<kind>` (`hire-wiz`). Bare `/hire` stays hire-motley. `/companies` and `/c/:id` stay public-safe. `/events` stays honest. Do not publish an ATS dump.
 
 ## Kill
 

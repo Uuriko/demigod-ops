@@ -6,11 +6,14 @@ import workerModule, {
   injectBountiesBoard,
   isCompaniesPath,
   isCompanyPath,
+  isHirePath,
   isHomePath,
   normalizeBountiesFeed,
+  paintHireMotley,
   rewriteCdnPin,
   rewriteStaleSnapshotDates,
   stripGoldAccent,
+  wizardKind,
 } from './demigod-html-worker.mjs';
 import { demigodHomeHtml } from './demigod-home-motley.mjs';
 
@@ -102,6 +105,7 @@ assert.match(workerSrc, /roles-feed\.json/);
 assert.match(workerSrc, /#03140d|#f3f0e7|#10c674/);
 assert.match(workerSrc, /demigod-home-motley/);
 assert.match(workerSrc, /home-motley/);
+assert.match(workerSrc, /wizardKind|home-wiz|hire-wiz|hire-motley|paintHireMotley/);
 assert.doesNotMatch(workerSrc, /cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]{40}\/(sf-startup-map|roles-feed)/);
 assert.match(bible, /47e4ad1c-c427-468d-a837-eb46437d634d/);
 assert.match(siteMaster, /DEMIGOD-BIBLE\.md/);
@@ -117,6 +121,9 @@ assert.match(homeSrc, /The first five decide what it becomes/);
 assert.match(homeSrc, /WHO THIS IS FOR/);
 assert.match(homeSrc, /TWO DOORS/);
 assert.match(homeSrc, /Talent pays nothing/);
+assert.match(homeSrc, /href=\\"\/\?wiz=startup\\"/);
+assert.match(homeSrc, /href=\\"\/\?wiz=engineer\\"/);
+assert.doesNotMatch(homeSrc, /href=\\"\/hire/);
 assert.match(homeSrc, /#0B120F|#EFE9DD|#D3A093|#E4DED2|#23211D/);
 assert.match(homeSrc, /Instrument Serif|IM Fell English|Hanken Grotesk|JetBrains Mono|Sorts Mill Goudy/);
 
@@ -199,7 +206,7 @@ function urlOf(input) {
     globalThis.fetch = async () => new Response(PIN_FIXTURE(CDN_PIN_FROM), {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
     });
-    const pinned = await workerModule.fetch(new Request('https://www.trydemigod.com/hire'), {});
+    const pinned = await workerModule.fetch(new Request('https://www.trydemigod.com/startups'), {});
     const pinnedHtml = await pinned.text();
     assert.equal(pinned.headers.get('x-demigod-edge'), 'html-rewrite');
     assert.doesNotMatch(pinnedHtml, new RegExp(CDN_PIN_FROM));
@@ -208,14 +215,14 @@ function urlOf(input) {
     globalThis.fetch = async () => new Response(PIN_FIXTURE(CDN_PIN_TO), {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
     });
-    const alreadyHtml = await (await workerModule.fetch(new Request('https://www.trydemigod.com/hire'), {})).text();
+    const alreadyHtml = await (await workerModule.fetch(new Request('https://www.trydemigod.com/startups'), {})).text();
     assert.equal(alreadyHtml.split(CDN_PIN_TO).length - 1, 3);
 
     const noPin = '<!doctype html><html lang="en"><body><p>no cdn pin</p></body></html>';
     globalThis.fetch = async () => new Response(noPin, {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
     });
-    const bareHtml = await (await workerModule.fetch(new Request('https://www.trydemigod.com/hire'), {})).text();
+    const bareHtml = await (await workerModule.fetch(new Request('https://www.trydemigod.com/contact'), {})).text();
     assert.doesNotMatch(bareHtml, new RegExp(CDN_PIN_FROM));
     assert.doesNotMatch(bareHtml, new RegExp(CDN_PIN_TO));
     assert.match(bareHtml, /<p>no cdn pin<\/p>/);
@@ -229,10 +236,10 @@ function urlOf(input) {
     assert.doesNotMatch(startupsHtml, /2026-08-02/);
     assert.match(startupsHtml, new RegExp(`"generatedAt":"${LIVE_MAP_GENERATED_AT}"`));
     assert.match(startupsHtml, /"firstObservedAt":"2026-08-06"/);
-    const hireDated = await (await workerModule.fetch(new Request('https://www.trydemigod.com/hire'), {})).text();
-    assert.doesNotMatch(hireDated, /2026-08-02/);
-    assert.match(hireDated, new RegExp(`"generatedAt":"${LIVE_MAP_GENERATED_AT}"`));
-    assert.match(hireDated, /first observed 2026-08-06/);
+    const contactDated = await (await workerModule.fetch(new Request('https://www.trydemigod.com/contact'), {})).text();
+    assert.doesNotMatch(contactDated, /2026-08-02/);
+    assert.match(contactDated, new RegExp(`"generatedAt":"${LIVE_MAP_GENERATED_AT}"`));
+    assert.match(contactDated, /first observed 2026-08-06/);
   } finally {
     globalThis.fetch = nativeFetch;
   }
@@ -363,8 +370,11 @@ function urlOf(input) {
   assert.match(homeHtml, /CHAPTER ONE/);
   assert.match(homeHtml, /SF BAY AREA/);
   assert.match(homeHtml, /EST\. 2025/);
-  assert.match(homeHtml, /href="\/hire">Start a brief</);
-  assert.match(homeHtml, /href="\/hire\?wiz=engineer">Join the network</);
+  assert.match(homeHtml, /href="\/\?wiz=startup"/);
+  assert.match(homeHtml, /href="\/\?wiz=engineer"/);
+  assert.match(homeHtml, /href="\/\?wiz=startup">Start a brief</);
+  assert.match(homeHtml, /href="\/\?wiz=engineer">Join the network</);
+  assert.doesNotMatch(homeHtml, /href="\/hire/);
   assert.match(homeHtml, /TONIGHT/);
   assert.match(homeHtml, /A person reads every brief\./);
   assert.match(homeHtml, /Names move after mutual yes\./);
@@ -401,6 +411,48 @@ function urlOf(input) {
   assert.doesNotMatch(homeHtml, /MATCH NO\. 0412|Founding engineer|180–220K|180-220K|hello@/);
   assert.doesNotMatch(homeHtml, /\bMenu\b|statue|pantheon|testimonial|\bFAQ\b|sample roles/i);
   assert.doesNotMatch(homeHtml, /href="\/(?:companies|events|team|faq)"/);
+}
+
+{
+  assert.equal(isHirePath('/hire'), true);
+  assert.equal(isHirePath('/hire/'), true);
+  assert.equal(isHirePath('/'), false);
+  assert.equal(isHirePath('/startups'), false);
+
+  const startupAliases = ['startup', 'founder', 'hire', 'brief', 'company', 'STARTUP', 'Founder'];
+  const engineerAliases = ['engineer', 'talent', 'join', 'jobseeker', 'candidate', 'profile', 'ENGINEER', 'Talent'];
+  for (const raw of startupAliases) {
+    assert.equal(wizardKind(new URL(`https://www.trydemigod.com/?wiz=${raw}`)), 'startup', raw);
+    assert.equal(wizardKind(new URL(`https://www.trydemigod.com/hire?wiz=${raw}`)), 'startup', `hire ${raw}`);
+  }
+  for (const raw of engineerAliases) {
+    assert.equal(wizardKind(new URL(`https://www.trydemigod.com/?wiz=${raw}`)), 'engineer', raw);
+    assert.equal(wizardKind(new URL(`https://www.trydemigod.com/hire?wiz=${raw}`)), 'engineer', `hire ${raw}`);
+  }
+  assert.equal(wizardKind(new URL('https://www.trydemigod.com/')), '');
+  assert.equal(wizardKind(new URL('https://www.trydemigod.com/?wiz=')), '');
+  assert.equal(wizardKind(new URL('https://www.trydemigod.com/?wiz=unknown')), '');
+  assert.equal(wizardKind(new URL('https://www.trydemigod.com/hire')), '');
+
+  const painted = paintHireMotley(`<!doctype html><html class="dg-route-boot"><head></head><body>
+<nav id="dg-nav-directory"></nav><div id="dg-bar"></div>
+<a data-dg-page="sample" href="/sample">sample</a>
+<a data-dg-page="legal" href="/legal">legal</a>
+<a data-dg-page="faq" href="/faq">faq</a>
+<a data-dg-page="bounties" href="/bounties">bounties</a>
+<a class="w-button" href="/hire">Go</a>
+</body></html>`);
+  assert.match(painted, /id="dg-hire-motley"/);
+  assert.match(painted, /--dg-night:#0B120F/);
+  assert.match(painted, /--dg-phosphor:#E4DED2/);
+  assert.match(painted, /--dg-signal:#D3A093/);
+  assert.match(painted, /#dg-nav-directory,#dg-bar/);
+  assert.match(painted, /\[data-dg-page="sample"\]/);
+  assert.match(painted, /\[data-dg-page="legal"\]/);
+  assert.match(painted, /\[data-dg-page="faq"\]/);
+  assert.match(painted, /\[data-dg-page="bounties"\]/);
+  assert.match(painted, /\.button,\.w-button\{border-radius:0/);
+  assert.equal(paintHireMotley(painted), painted);
 }
 
 {
@@ -442,6 +494,74 @@ function urlOf(input) {
       assert.equal(await head.text(), '');
     }
     assert.equal(fetched.length, 0, 'home must not fetch Webflow');
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
+}
+
+{
+  const nativeFetch = globalThis.fetch;
+  const fetched = [];
+  const WIZ_FIXTURE = `<!doctype html><html class="dg-route-boot"><head><title>Hire</title>
+<link href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@${CDN_PIN_FROM}/head-latest.css">
+<script src="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@${CDN_PIN_FROM}/foot-latest.js"></script>
+</head><body>
+<nav id="dg-nav-directory"></nav><div id="dg-bar"></div>
+<a class="w-button" href="#go">Go</a>
+${STARTUPS_DATE_FIXTURE}
+</body></html>`;
+  try {
+    globalThis.fetch = async (input) => {
+      fetched.push(urlOf(input));
+      return new Response(WIZ_FIXTURE, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    };
+
+    const hireWiz = await workerModule.fetch(new Request('https://www.trydemigod.com/hire?wiz=engineer'), {});
+    assert.equal(hireWiz.status, 308);
+    assert.equal(hireWiz.headers.get('x-demigod-edge'), 'hire-wiz');
+    assert.equal(hireWiz.headers.get('location'), 'https://www.trydemigod.com/?wiz=engineer');
+    assert.equal(await hireWiz.text(), '');
+
+    const hireWizHead = await workerModule.fetch(new Request('https://www.trydemigod.com/hire?wiz=talent', { method: 'HEAD' }), {});
+    assert.equal(hireWizHead.status, 308);
+    assert.equal(hireWizHead.headers.get('x-demigod-edge'), 'hire-wiz');
+    assert.equal(hireWizHead.headers.get('location'), 'https://www.trydemigod.com/?wiz=engineer');
+
+    const hireWizStartup = await workerModule.fetch(new Request('https://www.trydemigod.com/hire?wiz=founder'), {});
+    assert.equal(hireWizStartup.status, 308);
+    assert.equal(hireWizStartup.headers.get('location'), 'https://www.trydemigod.com/?wiz=startup');
+
+    fetched.length = 0;
+    const hire = await workerModule.fetch(new Request('https://www.trydemigod.com/hire'), {});
+    const hireHtml = await hire.text();
+    assert.equal(hire.status, 200);
+    assert.equal(hire.headers.get('x-demigod-edge'), 'hire-motley');
+    assert.notEqual(hire.headers.get('x-demigod-edge'), 'html-rewrite');
+    assert.match(hireHtml, /id="dg-hire-motley"/);
+    assert.match(hireHtml, /foot-latest/);
+    assert.doesNotMatch(hireHtml, new RegExp(CDN_PIN_FROM));
+    assert.match(hireHtml, new RegExp(CDN_PIN_TO));
+    assert.doesNotMatch(hireHtml, /2026-08-02/);
+    assert.ok(fetched.some((u) => /trydemigod\.com\/hire$/.test(u) || u === 'https://www.trydemigod.com/hire'));
+
+    fetched.length = 0;
+    const homeWiz = await workerModule.fetch(new Request('https://www.trydemigod.com/?wiz=startup'), {});
+    const homeWizHtml = await homeWiz.text();
+    assert.equal(homeWiz.status, 200);
+    assert.equal(homeWiz.headers.get('x-demigod-edge'), 'home-wiz');
+    assert.match(homeWizHtml, /id="dg-hire-motley"/);
+    assert.match(homeWizHtml, /--dg-night:#0B120F/);
+    assert.match(homeWizHtml, /--dg-phosphor:#E4DED2/);
+    assert.match(homeWizHtml, /--dg-signal:#D3A093/);
+    assert.match(homeWizHtml, /#dg-nav-directory,#dg-bar/);
+    assert.match(homeWizHtml, /border-radius:0/);
+    assert.match(homeWizHtml, /foot-latest/);
+    assert.ok(fetched.length > 0, '/?wiz= must fetch Webflow+foot');
+
+    fetched.length = 0;
+    const unknownWiz = await workerModule.fetch(new Request('https://www.trydemigod.com/?wiz=unknown'), {});
+    assert.equal(unknownWiz.headers.get('x-demigod-edge'), 'home-motley');
+    assert.equal(fetched.length, 0, 'unknown wiz stays worker-owned home');
   } finally {
     globalThis.fetch = nativeFetch;
   }

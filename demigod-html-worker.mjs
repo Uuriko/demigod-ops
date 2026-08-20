@@ -1,7 +1,9 @@
 /**
  * Demigod product HTML edge — Cloudflare Worker for www.trydemigod.com.
  * Fetch Webflow, then rewrite first HTML. Separate zone/brand from Dasha.
- * Home `/` is worker-owned (DEMIGOD-BIBLE.md). Do not fetch Webflow for it.
+ * Bare `/` (no wiz / p=) is worker-owned (DEMIGOD-BIBLE.md). Do not fetch Webflow for it.
+ * `/?wiz=` falls through to Webflow+foot, then paintHireMotley (home-wiz).
+ * `/hire?wiz=` 308s to `/?wiz=<kind>` (hire-wiz). Bare `/hire` is hire-motley.
  */
 import { demigodHomeHtml } from './demigod-home-motley.mjs';
 
@@ -62,8 +64,52 @@ function isBountiesPath(pathname) {
   return pathname === '/bounties' || pathname === '/bounties/';
 }
 
+const STARTUP_WIZ = new Set(['startup', 'founder', 'hire', 'brief', 'company']);
+const ENGINEER_WIZ = new Set(['engineer', 'talent', 'join', 'jobseeker', 'candidate', 'profile']);
+
+const HIRE_MOTLEY_STYLE =
+  '<style id="dg-hire-motley">:root{--g:#D3A093!important;--gl:#E4DED2!important;--cr:#E4DED2!important;--dk:#0B120F!important;--mu:#8a8378!important;--card:#0B120F!important;--dg-night:#0B120F!important;--dg-phosphor:#E4DED2!important;--dg-signal:#D3A093!important;--dg-paper:#E4DED2!important;--dg-paper-mute:#8a8378!important}html.dg-route-boot::before{background:#0B120F!important;color:#E4DED2!important;font-family:Georgia,serif!important;font-weight:400!important;letter-spacing:0!important}html,body,#dg-page{background:#0B120F!important;color:#E4DED2!important}#dg-nav-directory,#dg-bar,[data-dg-page="sample"],[data-dg-page="legal"],[data-dg-page="faq"],[data-dg-page="bounties"]{display:none!important}.dg-p-actions a,a.hire,a.talent,.button,.w-button{border-radius:0!important}</style>';
+
 export function isHomePath(pathname) {
   return pathname === '/';
+}
+
+export function isHirePath(pathname) {
+  const path = String(pathname || '').replace(/\/+$/, '');
+  return path === '/hire';
+}
+
+/** Map `wiz=` aliases to the two real doors. Unknown / empty → ''. */
+export function wizardKind(url) {
+  let parsed = url;
+  if (!(parsed instanceof URL)) {
+    try {
+      parsed = new URL(String(url || ''));
+    } catch {
+      return '';
+    }
+  }
+  const raw = String(parsed.searchParams.get('wiz') || '').trim().toLowerCase();
+  if (STARTUP_WIZ.has(raw)) return 'startup';
+  if (ENGINEER_WIZ.has(raw)) return 'engineer';
+  return '';
+}
+
+function homeHasProfile(url) {
+  return String(url.searchParams.get('p') || '').trim() !== '';
+}
+
+/**
+ * Remap phosphor tokens to ink / bone / clay. Hide directory, bar, and
+ * sample/legal/faq/bounties page links. Square buttons.
+ */
+export function paintHireMotley(html) {
+  const page = String(html || '');
+  if (/id=["']dg-hire-motley["']/.test(page)) return page;
+  const close = page.search(/<\/head>/i);
+  if (close >= 0) return page.slice(0, close) + HIRE_MOTLEY_STYLE + page.slice(close);
+  const body = page.search(/<\/body>/i);
+  return body >= 0 ? page.slice(0, body) + HIRE_MOTLEY_STYLE + page.slice(body) : page + HIRE_MOTLEY_STYLE;
 }
 
 export function isCompaniesPath(pathname) {
@@ -445,6 +491,32 @@ function homeEdge(request) {
   return new Response(request.method === 'HEAD' ? null : html, { status, headers });
 }
 
+function hireWizRedirect(kind) {
+  const headers = new Headers();
+  headers.set('Location', `https://www.trydemigod.com/?wiz=${kind}`);
+  headers.set('Cache-Control', 'public, max-age=300');
+  headers.set('X-Demigod-Edge', 'hire-wiz');
+  return new Response(null, { status: 308, headers });
+}
+
+async function paintedProductEdge(request, edge) {
+  const upstream = await fetch(request);
+  const ct = String(upstream.headers.get('content-type') || '');
+  if (request.method === 'HEAD') {
+    const headers = applyHtmlSecurity(new Headers(upstream.headers));
+    headers.set('X-Demigod-Edge', edge);
+    return new Response(null, { status: upstream.status, statusText: upstream.statusText, headers });
+  }
+  if (request.method !== 'GET' || !ct.includes('text/html')) return upstream;
+  let html = await upstream.text();
+  html = paintHireMotley(rewriteStaleSnapshotDates(rewriteCdnPin(stripGoldAccent(html))));
+  html = ensureHtmlLang(html);
+  const headers = applyHtmlSecurity(new Headers(upstream.headers));
+  headers.delete('content-length');
+  headers.set('X-Demigod-Edge', edge);
+  return new Response(html, { status: upstream.status, statusText: upstream.statusText, headers });
+}
+
 async function companiesEdge(request, url) {
   const map = await loadCdnJson('sf-startup-map.json').catch(() => null);
   if (isCompanyPath(url.pathname)) {
@@ -489,10 +561,19 @@ export default {
       });
     }
     if (isProductHost(url.hostname)) {
-      // Worker-owned first paint. Do not fetch Webflow for `/` — head-latest /
-      // foot-latest / gold statue must not paint the home hero.
-      if ((request.method === 'GET' || request.method === 'HEAD') && isHomePath(url.pathname)) {
-        return homeEdge(request);
+      const pageGet = request.method === 'GET' || request.method === 'HEAD';
+      if (pageGet && isHirePath(url.pathname)) {
+        const kind = wizardKind(url);
+        if (kind) return hireWizRedirect(kind);
+        return paintedProductEdge(request, 'hire-motley');
+      }
+      // Worker-owned first paint when `/` has no wiz / p=. Do not fetch
+      // Webflow for that path — head-latest / foot-latest / gold statue must
+      // not paint the home hero. `/?wiz=` falls through so the real form opens.
+      if (pageGet && isHomePath(url.pathname)) {
+        const kind = wizardKind(url);
+        if (kind) return paintedProductEdge(request, 'home-wiz');
+        if (!homeHasProfile(url)) return homeEdge(request);
       }
       // Worker-owned 200s. Do not fetch Webflow — /companies and /c/:id are 404 there,
       // and foot JS cannot rescue an upstream 404.
