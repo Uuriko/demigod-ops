@@ -83,6 +83,8 @@ export async function runStrangerLoop() {
       }
       return {
         canvasW: canvas?.width,
+        canvasH: canvas?.height,
+        format: root.querySelector('#formats')?.value || '',
         pngOk,
         status,
         share: Boolean(root.querySelector('#share')),
@@ -92,7 +94,8 @@ export async function runStrangerLoop() {
         coldCopy: /change one thing|today/i.test(status),
       };
     });
-    step('L1-cold-open', cold.pngOk && cold.share && !cold.wallet && cold.canvasW === 1080 && cold.coldCopy, cold);
+    const expectedSize = { square: [1080, 1080], story: [1080, 1920], banner: [1200, 628] }[cold.format];
+    step('L1-cold-open', cold.pngOk && cold.share && !cold.wallet && expectedSize?.[0] === cold.canvasW && expectedSize[1] === cold.canvasH && cold.coldCopy, cold);
 
     await rootEval(page, (root) => {
       const line = root.querySelector('#line');

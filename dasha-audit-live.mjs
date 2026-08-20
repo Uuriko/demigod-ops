@@ -53,6 +53,7 @@ export const SOFT_LAG = new Set([
   'robots-empty',
   'seo-no-canonical', // only if we cannot see Webflow shell; embed-only pages vary
 ]);
+if (args.has('--worker-behind')) SOFT_LAG.add('assets-hash-match');
 
 const t0 = Date.now();
 const hard = [];
@@ -239,7 +240,7 @@ export function executionViolations(html) {
       src === 'https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js' ||
       /^https:\/\/d3e54v103j8qbb\.cloudfront\.net\/js\/jquery-3\.5\.1\.min\.dc5e7f18c8\.js(?:\?|$)/.test(src) ||
       /^https:\/\/cdn\.prod\.website-files\.com\/5f1458122ba25e70a3ff2bd0\/js\/webflow\.(?:schunk\.)?[a-z0-9.]+\.js$/.test(src);
-    const dashaClient = /^https:\/\/lobby\.getdasha\.com\/client\/(?:lobby|simp-board|studio)\.js$/.test(src);
+    const dashaClient = /^https:\/\/lobby\.getdasha\.com\/client\/(?:lobby|simp-board|studio|x-connect)\.js$/.test(src);
     const pinned = /^sha384-[A-Za-z0-9+/=]+$/.test(attrs.integrity || '') && (attrs.crossorigin || '').toLowerCase() === 'anonymous';
     if (!platform && !(dashaClient && pinned)) violations.push(src || 'script-without-src');
   }
@@ -776,12 +777,12 @@ async function auditSite() {
     note(
       'site',
       'howto-swap-step',
-      /data-n=["']03["'][^>]*>[\s\S]{0,160}<h2>Swap<\/h2>/i.test(howto.text),
+      /data-n=["']03["'][^>]*>[\s\S]{0,160}<h2>Swap(?: SOL → \$dasha)?<\/h2>/i.test(howto.text),
     );
     note(
       'site',
       'howto-concise',
-      howto.text.includes('SOL → match mint') || howto.text.includes('match mint'),
+      /SOL → match (?:the full )?mint/i.test(howto.text),
     );
   } else if (strict) {
     note('site', 'howto-live', false, { status: howto.status });

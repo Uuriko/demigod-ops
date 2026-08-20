@@ -24,7 +24,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { stripDuplicateOgImage } from './dasha-webflow-metadata.mjs';
+import { WEBFLOW_METADATA, stripDuplicateOgImage, webflowPageUpdate } from './dasha-webflow-metadata.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const args = new Set(process.argv.slice(2));
@@ -352,6 +352,7 @@ function fastGate(changed, receipt) {
 function strictGate() {
   log('gate:strict:start');
   run('npm', ['run', 'dasha:test:all'], { shell: false });
+  run('npm', ['run', 'dasha:test:login'], { shell: false });
   run('node', ['dasha-studio-embed-build.mjs', '--check']);
   log('gate:strict:pass');
 }
@@ -451,20 +452,19 @@ async function syncSocialMetadata(client) {
     log('metadata:done', { card: SOCIAL_CARD, fixture: true });
     return;
   }
-  const pages = [SURFACES.home.pageId, SURFACES.lobby.pageId];
-  for (const page_id of pages) {
-    const { result } = await callTool(client, ['data_pages_tool', 'webflow__data_pages_tool'], {
-      context: 'Align Dasha page social cards with the release-owned Worker asset before publishing the verified Webflow checkpoint.',
-      actions: [{ label: 'read_social_card', get_page_metadata: { page_id } }],
-    });
-    const metadata = JSON.parse(result?.content?.[0]?.text || '{}')?.result;
-    if (metadata?.openGraph?.imageUrl !== SOCIAL_CARD) {
-      await callTool(client, ['data_pages_tool', 'webflow__data_pages_tool'], {
-        context: 'Align Dasha page social cards with the release-owned Worker asset before publishing the verified Webflow checkpoint.',
-        actions: [{ label: 'set_social_card', update_page_settings: { page_id, openGraph: { imageUrl: SOCIAL_CARD } } }],
-      });
-    }
-  }
+  const pages = Object.values(WEBFLOW_METADATA).filter(({ pageId }) => pageId);
+  await callTool(client, ['data_pages_tool', 'webflow__data_pages_tool'], {
+    siteId: SITE,
+    pageId: pages[0].pageId,
+    context: 'Align all Dasha SEO and social metadata with repository truth before publishing the verified Webflow checkpoint.',
+    actions: [{
+      label: 'set_page_metadata',
+      bulk_update_pages: {
+        site_id: SITE,
+        pages: pages.map((page) => ({ id: page.pageId, ...webflowPageUpdate(page) })),
+      },
+    }],
+  });
   const home = SURFACES.home.pageId;
   const { result: headResult } = await callTool(client, ['data_scripts_tool', 'webflow__data_scripts_tool'], {
     context: 'Remove the duplicate Dasha homepage Open Graph image while preserving all unrelated page-level head code.',
@@ -478,16 +478,48 @@ async function syncSocialMetadata(client) {
       actions: [{ label: 'set_home_head', set_page_freeform_code: { page_id: home, location: 'head', content: clean } }],
     });
   }
-  for (const page_id of pages) {
+  for (const expected of pages) {
     const { result } = await callTool(client, ['data_pages_tool', 'webflow__data_pages_tool'], {
+      siteId: SITE,
+      pageId: expected.pageId,
       context: 'Verify each Dasha page now owns one current social card before publication.',
-      actions: [{ label: 'verify_social_card', get_page_metadata: { page_id } }],
+      actions: [{ label: 'verify_social_card', get_page_metadata: { page_id: expected.pageId } }],
     });
-    if (JSON.parse(result?.content?.[0]?.text || '{}')?.result?.openGraph?.imageUrl !== SOCIAL_CARD) {
-      throw new Error(`Webflow social-card readback differs for page ${page_id}`);
+    const actual = JSON.parse(result?.content?.[0]?.text || '{}')?.result;
+    if (actual?.seo?.title !== expected.title
+      || actual?.seo?.description !== expected.description
+      || actual?.openGraph?.title !== expected.ogTitle
+      || actual?.openGraph?.description !== expected.ogDescription
+      || actual?.openGraph?.imageUrl !== expected.ogImage) {
+      throw new Error(`Webflow metadata readback differs for page ${expected.pageId}`);
     }
   }
-  log('metadata:done', { card: SOCIAL_CARD });
+  log('metadata:done', { pages: pages.length });
+}
+
+async function syncNavigation(client) {
+  if (process.env.DASHA_SHIP_FAKE_MCP === '1') return;
+  const component = '907e5838-43de-5cdf-ed67-4413f867f7f3';
+  const id = { component, element: '907e5838-43de-5cdf-ed67-4413f867f800' };
+  await callTool(client, ['data_element_tool', 'webflow__data_element_tool'], {
+    siteId: SITE,
+    pageId: SURFACES.home.pageId,
+    context: 'Replace the dead Dasha Graph navigation item with the live Bounties destination before the guarded site publish.',
+    actions: [
+      { label: 'set_bounties_link', set_link: { id, linkType: 'url', link: '/bounties', scope_component_id: component } },
+      { label: 'set_bounties_text', set_text: { id, text: 'bounties', scope_component_id: component } },
+    ],
+  });
+  const { result } = await callTool(client, ['data_element_tool', 'webflow__data_element_tool'], {
+    siteId: SITE,
+    pageId: SURFACES.home.pageId,
+    context: 'Read back the repaired shared Dasha navigation item before publishing it to every page that uses the component.',
+    actions: [{ label: 'verify_bounties_link', query_elements: { queries: [{ element_id: id, scope_component_id: component, children_depth: 1 }] } }],
+  });
+  const readback = result?.content?.[0]?.text || '';
+  if (!readback.includes('"href":"/bounties"') || !readback.includes('"textContent":"bounties"')) {
+    throw new Error('Webflow navigation readback differs after Graph → Bounties repair');
+  }
 }
 
 /**
@@ -804,7 +836,7 @@ async function verifyLive() {
   if (!only.length && want.publish) {
     const audit = join(LOBBY_ROOT, 'dasha-audit-live.mjs');
     if (!existsSync(audit)) throw new Error(`broad live audit missing: ${audit}`);
-    const result = spawnSync(process.execPath, [audit, want.strict ? '--strict' : '--fast'], {
+    const result = spawnSync(process.execPath, [audit, want.strict ? '--strict' : '--fast', ...(args.has('--worker-behind') ? ['--worker-behind'] : [])], {
       cwd: LOBBY_ROOT,
       encoding: 'utf8',
       timeout: 90_000,
@@ -1030,6 +1062,7 @@ async function main() {
     else if (want.push) log('push:skip', { reason: 'no changed surfaces' });
     if (want.publish && ((changed.length && !receipt.stages.published) || args.has('--force-publish'))) {
       await syncSocialMetadata(client);
+      await syncNavigation(client);
     }
     if (want.publish && changed.length && !receipt.stages.published) {
       await publishSite(client);

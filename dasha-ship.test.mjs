@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { executionViolations } from './dasha-audit-live.mjs';
 
 const root = path.dirname(new URL(import.meta.url).pathname);
 const shipSource = fs.readFileSync(path.join(root, 'dasha-ship.mjs'), 'utf8');
@@ -15,9 +16,16 @@ assert.match(shipSource, /dasha-audit-live\.mjs/, 'site-wide ship must run the c
 assert.match(shipSource, /dasha-browser-gate\.mjs/, 'browser gates must use the CDP fallback');
 assert.match(shipSource, /deskBrowser[^\n]+changed\.includes\('deskShell'\)/, 'Desk shell changes must run the Desk browser gate');
 assert.match(shipSource, /scopeKeys/, 'scoped --only= ships must not restage every surface on publish');
+assert.match(shipSource, /Graph → Bounties/, 'site-wide ship must repair the dead shared Graph navigation item');
+assert.match(shipSource, /bulk_update_pages/, 'site-wide ship must synchronize every release-owned page metadata record');
 assert.match(shipSource, /args\.has\('--no-prep'\)/, 'ship must honor --no-prep');
 assert.match(browserGateSource, /chromium\.launch[\s\S]*remote-debugging-port=9223/, 'CDP fallback must launch installed headless Chromium');
 assert.match(shipSource, /verify:broad/, 'broad live-audit result must be visible in release logs');
+assert.match(shipSource, /args\.has\('--worker-behind'\)[^\n]+\['--worker-behind'\]/,
+  'split-tree ships must carry worker-behind into broad verification');
+const pinnedXConnect = '<script src="https://lobby.getdasha.com/client/x-connect.js" integrity="sha384-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" crossorigin="anonymous"></script>';
+assert.deepEqual(executionViolations(pinnedXConnect), [], 'SRI-pinned X connect is an allowed first-party client');
+assert.deepEqual(executionViolations(pinnedXConnect.replace(/ integrity="[^"]+"/, '')), ['https://lobby.getdasha.com/client/x-connect.js'], 'unpinned X connect stays blocked');
 /* The homepage's second embed element belongs to another tree, which publishes the chess board into
    it. This tree once mapped it to a /lobby bridge; that bridge was retired and its file emptied, but
    the mapping stayed — and `detected` falls back to every surface whenever the manifest is not
