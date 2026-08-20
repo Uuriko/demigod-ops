@@ -15,6 +15,23 @@ const BODY =
   'You’re not filling a seat. You’re deciding who’s in the boat. The first five people decide what the company becomes — so we don’t send names into the world automatically. A person reads the fit, then knocks once.';
 const TONIGHT_A = 'A person reads every brief.';
 const TONIGHT_B = 'Names move after mutual yes.';
+const CHAPTERS = [
+  {
+    kicker: 'CHAPTER TWO',
+    title: 'How a name moves.',
+    body: 'You send a brief. A person reads it. If there’s a fit, both sides say yes before any name moves. Then one knock.',
+  },
+  {
+    kicker: 'CHAPTER THREE',
+    title: 'Who this is for.',
+    body: 'SF Bay Area. The first engineering seats. Seed and Series A. You’re deciding who’s in the boat.',
+  },
+  {
+    kicker: 'CHAPTER FOUR',
+    title: 'The fee.',
+    body: '10% when you hire. Nothing until then. Talent is free.',
+  },
+];
 
 const CSS = `
 :root{--night:${NIGHT};--paper:${PAPER};--mute:${MUTE};--line:${LINE};--ink:${INK}}
@@ -40,7 +57,11 @@ h1{margin:0 0 1.15rem;max-width:14ch;font:700 clamp(2.35rem,5.4vw,3.55rem)/1.08 
 .tonight{padding:0 0 .15rem}
 .tonight ul{list-style:none;margin:.7rem 0 0;padding:0}
 .tonight li{margin:0 0 .4rem;color:var(--mute);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
-.foot{margin:5.5rem 0 0;color:var(--mute);font-size:.85rem}
+.chapters{margin:3.5rem 0 0;padding:1rem 0 0;border-top:1px solid var(--line)}
+.chapter{max-width:38rem;padding:2.15rem 0;border-bottom:1px solid var(--line)}
+.chapter h2{margin:.55rem 0 .7rem;font:400 1.65rem/1.15 "Iowan Old Style",Palatino,"Palatino Linotype",Georgia,serif}
+.chapter p{margin:0;color:var(--paper)}
+.foot{margin:3.25rem 0 0;color:var(--mute);font-size:.85rem}
 .foot a{color:var(--mute)}
 @media (max-width:800px){
   .mast{grid-template-columns:1fr 1fr;row-gap:.55rem}
@@ -84,6 +105,13 @@ export function demigodHomeHtml() {
 <li>${TONIGHT_B}</li>
 </ul>
 </aside>
+</div>
+<div class="chapters">
+${CHAPTERS.map((chapter) => `<section class="chapter">
+<p class="kicker">${chapter.kicker}</p>
+<h2>${chapter.title}</h2>
+<p>${chapter.body}</p>
+</section>`).join('')}
 </div>
 <footer class="foot"><a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a></footer>
 </div>

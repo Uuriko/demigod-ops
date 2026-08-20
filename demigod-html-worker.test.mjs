@@ -109,6 +109,9 @@ assert.doesNotMatch(siteMaster, /Gold `#C9A84C` \/ black \/ stone system consist
 assert.doesNotMatch(homeSrc, /Manrope|Cinzel/);
 assert.doesNotMatch(homeSrc, /#C9A84C|#10c674|#a6ffcb|#03140d/);
 assert.doesNotMatch(homeSrc, /Ellis|3 briefs open|Tech Matched|HIRE TALENT|FIND TALENT/);
+assert.match(homeSrc, /How a name moves\./);
+assert.match(homeSrc, /Who this is for\./);
+assert.match(homeSrc, /The fee\./);
 assert.match(homeSrc, /#0d0d0d|#efe8dc|#8a847a/);
 
 {
@@ -358,10 +361,20 @@ function urlOf(input) {
   assert.match(homeHtml, /href="\/hire\?wiz=engineer">Join the network</);
   assert.match(homeHtml, /A person reads every brief\./);
   assert.match(homeHtml, /Names move after mutual yes\./);
+  assert.match(homeHtml, /CHAPTER TWO/);
+  assert.match(homeHtml, /<h2>How a name moves\.<\/h2>/);
+  assert.match(homeHtml, /You send a brief\. A person reads it\./);
+  assert.match(homeHtml, /CHAPTER THREE/);
+  assert.match(homeHtml, /<h2>Who this is for\.<\/h2>/);
+  assert.match(homeHtml, /The first engineering seats/);
+  assert.match(homeHtml, /CHAPTER FOUR/);
+  assert.match(homeHtml, /<h2>The fee\.<\/h2>/);
+  assert.match(homeHtml, /10% when you hire\. Nothing until then\./);
   assert.doesNotMatch(homeHtml, /foot-latest|head-latest|Manrope|Cinzel/);
   assert.doesNotMatch(homeHtml, /#C9A84C|#10c674|#a6ffcb|#03140d/);
   assert.doesNotMatch(homeHtml, /Ellis|3 briefs open|1 intro pending|Tech Matched|HIRE TALENT|FIND TALENT/);
-  assert.doesNotMatch(homeHtml, /\bMenu\b|statue|pantheon/i);
+  assert.doesNotMatch(homeHtml, /\bMenu\b|statue|pantheon|testimonial|FAQ|\bevents\b|sample roles/i);
+  assert.doesNotMatch(homeHtml, /href="\/(?:companies|events|team|faq)"/);
   assert.match(homeHtml, /#0d0d0d|#efe8dc|#8a847a/);
 }
 
@@ -385,6 +398,9 @@ function urlOf(input) {
       assert.match(html, /Join the network/);
       assert.match(html, /A person reads every brief\./);
       assert.match(html, /Names move after mutual yes\./);
+      assert.match(html, /How a name moves\./);
+      assert.match(html, /Who this is for\./);
+      assert.match(html, /The fee\./);
       assert.doesNotMatch(html, /webflow home|foot-latest|head-latest/);
       assert.doesNotMatch(html, /Ellis|3 briefs open|Tech Matched|HIRE TALENT|FIND TALENT/);
       assert.doesNotMatch(html, /#C9A84C|#10c674|#a6ffcb|#03140d/);

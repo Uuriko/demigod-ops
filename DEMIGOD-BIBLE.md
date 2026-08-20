@@ -22,7 +22,12 @@ Primary: `Start a brief` → `/hire`
 Secondary: `Join the network` → `/hire?wiz=engineer`
 Tonight card: honest, no person names, no invented counts. Default: `A person reads every brief.` / `Names move after mutual yes.`
 
-No Menu. No statue. No pantheon. No sample roles. No “Tech Matched.” No HIRE TALENT / FIND TALENT pair on home.
+Below the fold, same page, no extra nav:
+Chapter two: `How a name moves.` `You send a brief. A person reads it. If there’s a fit, both sides say yes before any name moves. Then one knock.`
+Chapter three: `Who this is for.` `SF Bay Area. The first engineering seats. Seed and Series A. You’re deciding who’s in the boat.`
+Chapter four: `The fee.` `10% when you hire. Nothing until then. Talent is free.`
+
+No Menu. No statue. No pantheon. No sample roles. No “Tech Matched.” No HIRE TALENT / FIND TALENT pair on home. No team, FAQ, testimonials, events, or company list on home.
 
 ## Palette
 
