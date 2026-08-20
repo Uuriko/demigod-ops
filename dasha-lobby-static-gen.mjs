@@ -2252,4 +2252,4 @@ footer.dasha-foot .buy-dasha{background:#dfff00;color:#070608;padding:0 1rem}
 </body>
 </html>
 `;
-export const ASSET_HASH = "794d878752cdec19";
+export const ASSET_HASH = "f139fa40d62bdf76";

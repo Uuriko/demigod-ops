@@ -3289,6 +3289,52 @@ async function handleOAuth(request, env, allowedOrigin) {
   return null;
 }
 
+const BOUNTIES_FEED_SCHEMA = 'dasha-bounties-feed/v1';
+const BOUNTIES_FEED_SOURCES = [
+  'https://uuriko.github.io/dasha-desk/bounties.json',
+  'https://raw.githubusercontent.com/Uuriko/dasha-desk/main/bounties.json',
+];
+
+export function normalizeBountiesFeed(raw) {
+  const listings = Array.isArray(raw?.listings)
+    ? raw.listings.filter((row) => row && typeof row === 'object').map((row) => {
+        const payTo = typeof row.payTo === 'string' ? row.payTo.trim() : '';
+        return payTo ? { ...row, payTo } : { ...row, payTo: null, payoutStatus: 'not_implemented' };
+      })
+    : [];
+  return {
+    name: typeof raw?.name === 'string' && raw.name.trim() ? raw.name.trim() : 'dasha bounties',
+    schema: BOUNTIES_FEED_SCHEMA,
+    note: "USDC on Solana. We don't hold it.",
+    url: typeof raw?.url === 'string' && raw.url.trim() ? raw.url.trim() : 'https://www.getdasha.com/bounties',
+    listings,
+  };
+}
+
+async function loadBountiesFeed() {
+  for (const url of BOUNTIES_FEED_SOURCES) {
+    try {
+      const response = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(5000) });
+      const raw = response.ok ? await response.json() : null;
+      if (raw && (raw.schema === BOUNTIES_FEED_SCHEMA || Array.isArray(raw.listings))) return normalizeBountiesFeed(raw);
+    } catch { /* try the next trusted mirror */ }
+  }
+  return normalizeBountiesFeed(null);
+}
+
+async function bountiesFeedResponse(request) {
+  return new Response(request.method === 'HEAD' ? null : JSON.stringify(await loadBountiesFeed()), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'public, max-age=120',
+      'Access-Control-Allow-Origin': '*',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Dasha-Edge': 'bounties-feed',
+    },
+  });
+}
+
 function isProductHost(host) {
   const h = String(host || '').toLowerCase();
   return h === 'www.getdasha.com' || h === 'getdasha.com';
@@ -3343,6 +3389,9 @@ async function productEdge(request, url, env) {
         'X-Dasha-Edge': 'sitemap',
       },
     });
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && /^\/bounties\.json\/?$/.test(url.pathname)) {
+    return bountiesFeedResponse(request);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/login' || url.pathname === '/login/')) {
     return new Response(request.method === 'HEAD' ? null : LOGIN_PAGE_HTML, {
@@ -3993,6 +4042,13 @@ export default {
       });
     }
 
+    if (url.pathname.startsWith('/oauth/github')) {
+      const status = url.pathname === '/oauth/github/status';
+      return json(status
+        ? { configured: false, linked: false, github: null, error: 'not_configured' }
+        : { configured: false, error: 'not_configured' }, status ? 200 : 501, allowedOrigin, { credentials: true });
+    }
+
     if (url.pathname.startsWith('/oauth/x')) {
       const oauthRes = await handleOAuth(request, env, allowedOrigin);
       if (oauthRes) return oauthRes;
@@ -4109,6 +4165,9 @@ export default {
           'Cache-Control': 'public, max-age=300',
         },
       });
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && /^\/bounties\.json\/?$/.test(url.pathname)) {
+      return bountiesFeedResponse(request);
     }
     if (
       (request.method === 'GET' || request.method === 'HEAD') &&
