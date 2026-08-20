@@ -112,8 +112,11 @@ assert.doesNotMatch(homeSrc, /Ellis|3 briefs open|Tech Matched|HIRE TALENT|FIND 
 assert.doesNotMatch(homeSrc, /MATCH NO\. 0412|Founding engineer|180–220K|180-220K|hello@/);
 assert.match(homeSrc, /HOW IT GOES/);
 assert.match(homeSrc, /Some things arrive like weather/);
-assert.match(homeSrc, /We’re paid only if someone joins you/);
+assert.match(homeSrc, /We.re paid only if someone joins you/);
 assert.match(homeSrc, /The first five decide what it becomes/);
+assert.match(homeSrc, /WHO THIS IS FOR/);
+assert.match(homeSrc, /TWO DOORS/);
+assert.match(homeSrc, /Talent pays nothing/);
 assert.match(homeSrc, /#0B120F|#EFE9DD|#D3A093|#E4DED2|#23211D/);
 assert.match(homeSrc, /Instrument Serif|IM Fell English|Hanken Grotesk|JetBrains Mono|Sorts Mill Goudy/);
 
@@ -356,7 +359,7 @@ function urlOf(input) {
 
   const homeHtml = demigodHomeHtml();
   assert.match(homeHtml, /<h1>A motley crew is assembled quietly\.<\/h1>/);
-  assert.match(homeHtml, /You’re not filling a seat/);
+  assert.match(homeHtml, /You.re not filling a seat/);
   assert.match(homeHtml, /CHAPTER ONE/);
   assert.match(homeHtml, /SF BAY AREA/);
   assert.match(homeHtml, /EST\. 2025/);
@@ -379,15 +382,19 @@ function urlOf(input) {
   assert.match(homeHtml, /SF Bay/);
   assert.match(homeHtml, /REVIEWED BY/);
   assert.match(homeHtml, /a person/);
-  assert.match(homeHtml, /We’re paid only if someone joins you/);
-  assert.match(homeHtml, /10% of first-year salary after they start/);
-  assert.match(homeHtml, /— a founder/);
+  assert.match(homeHtml, /We.re paid only if someone joins you/);
+  assert.match(homeHtml, /10% of first-year salary/);
+  assert.match(homeHtml, /Talent pays nothing/);
+  assert.match(homeHtml, /WHO THIS IS FOR/);
+  assert.match(homeHtml, /The first seats\. The ones who stay\./);
+  assert.match(homeHtml, /TWO DOORS/);
+  assert.match(homeHtml, /A brief, or a profile\. Once\./);
   assert.match(homeHtml, /The first five decide what it becomes/);
   assert.match(homeHtml, /potter@trydemigod\.com/);
   assert.match(homeHtml, /#0B120F|#EFE9DD|#D3A093/);
   assert.match(homeHtml, /Instrument Serif/);
   assert.match(homeHtml, /border-radius:0/);
-  assert.match(homeHtml, /class="grain"/);
+  assert.match(homeHtml, /class="grain /);
   assert.doesNotMatch(homeHtml, /foot-latest|head-latest|Manrope|Cinzel/);
   assert.doesNotMatch(homeHtml, /#C9A84C|#10c674|#a6ffcb|#03140d/);
   assert.doesNotMatch(homeHtml, /Ellis|3 briefs open|1 intro pending|Tech Matched|HIRE TALENT|FIND TALENT/);
@@ -411,14 +418,17 @@ function urlOf(input) {
       assert.equal(page.headers.get('x-demigod-edge'), 'home-motley');
       assert.equal(page.headers.get('x-dasha-edge'), null);
       assert.match(html, /A motley crew is assembled quietly\./);
-      assert.match(html, /You’re not filling a seat/);
+      assert.match(html, /You.re not filling a seat/);
       assert.match(html, /Start a brief/);
       assert.match(html, /Join the network/);
       assert.match(html, /A person reads every brief\./);
       assert.match(html, /Names move after mutual yes\./);
       assert.match(html, /HOW IT GOES/);
       assert.match(html, /Some things arrive like weather/);
-      assert.match(html, /We’re paid only if someone joins you/);
+      assert.match(html, /We.re paid only if someone joins you/);
+      assert.match(html, /WHO THIS IS FOR/);
+      assert.match(html, /TWO DOORS/);
+      assert.match(html, /Talent pays nothing/);
       assert.match(html, /The first five decide what it becomes/);
       assert.match(html, /potter@trydemigod\.com/);
       assert.doesNotMatch(html, /webflow home|foot-latest|head-latest/);
