@@ -109,10 +109,13 @@ assert.doesNotMatch(siteMaster, /Gold `#C9A84C` \/ black \/ stone system consist
 assert.doesNotMatch(homeSrc, /Manrope|Cinzel/);
 assert.doesNotMatch(homeSrc, /#C9A84C|#10c674|#a6ffcb|#03140d/);
 assert.doesNotMatch(homeSrc, /Ellis|3 briefs open|Tech Matched|HIRE TALENT|FIND TALENT/);
-assert.match(homeSrc, /How a name moves\./);
-assert.match(homeSrc, /Who this is for\./);
-assert.match(homeSrc, /The fee\./);
-assert.match(homeSrc, /#0d0d0d|#efe8dc|#8a847a/);
+assert.doesNotMatch(homeSrc, /MATCH NO\. 0412|Founding engineer|180–220K|180-220K|hello@/);
+assert.match(homeSrc, /HOW IT GOES/);
+assert.match(homeSrc, /Some things arrive like weather/);
+assert.match(homeSrc, /We’re paid only if someone joins you/);
+assert.match(homeSrc, /The first five decide what it becomes/);
+assert.match(homeSrc, /#0B120F|#EFE9DD|#D3A093|#E4DED2|#23211D/);
+assert.match(homeSrc, /Instrument Serif|IM Fell English|Hanken Grotesk|JetBrains Mono|Sorts Mill Goudy/);
 
 {
   const out = stripGoldAccent(HOME_FIXTURE);
@@ -359,23 +362,38 @@ function urlOf(input) {
   assert.match(homeHtml, /EST\. 2025/);
   assert.match(homeHtml, /href="\/hire">Start a brief</);
   assert.match(homeHtml, /href="\/hire\?wiz=engineer">Join the network</);
+  assert.match(homeHtml, /TONIGHT/);
   assert.match(homeHtml, /A person reads every brief\./);
   assert.match(homeHtml, /Names move after mutual yes\./);
-  assert.match(homeHtml, /CHAPTER TWO/);
-  assert.match(homeHtml, /<h2>How a name moves\.<\/h2>/);
-  assert.match(homeHtml, /You send a brief\. A person reads it\./);
-  assert.match(homeHtml, /CHAPTER THREE/);
-  assert.match(homeHtml, /<h2>Who this is for\.<\/h2>/);
-  assert.match(homeHtml, /The first engineering seats/);
-  assert.match(homeHtml, /CHAPTER FOUR/);
-  assert.match(homeHtml, /<h2>The fee\.<\/h2>/);
-  assert.match(homeHtml, /10% when you hire\. Nothing until then\./);
+  assert.match(homeHtml, /HOW IT GOES/);
+  assert.match(homeHtml, /recognised each other/);
+  assert.match(homeHtml, /You say it once/);
+  assert.match(homeHtml, /A person chooses/);
+  assert.match(homeHtml, /You meet/);
+  assert.match(homeHtml, /Some things arrive like weather/);
+  assert.match(homeHtml, /ROLE/);
+  assert.match(homeHtml, /the actual work/);
+  assert.match(homeHtml, /COMP/);
+  assert.match(homeHtml, /the real range/);
+  assert.match(homeHtml, /LOCATION/);
+  assert.match(homeHtml, /SF Bay/);
+  assert.match(homeHtml, /REVIEWED BY/);
+  assert.match(homeHtml, /a person/);
+  assert.match(homeHtml, /We’re paid only if someone joins you/);
+  assert.match(homeHtml, /10% of first-year salary after they start/);
+  assert.match(homeHtml, /— a founder/);
+  assert.match(homeHtml, /The first five decide what it becomes/);
+  assert.match(homeHtml, /potter@trydemigod\.com/);
+  assert.match(homeHtml, /#0B120F|#EFE9DD|#D3A093/);
+  assert.match(homeHtml, /Instrument Serif/);
+  assert.match(homeHtml, /border-radius:0/);
+  assert.match(homeHtml, /class="grain"/);
   assert.doesNotMatch(homeHtml, /foot-latest|head-latest|Manrope|Cinzel/);
   assert.doesNotMatch(homeHtml, /#C9A84C|#10c674|#a6ffcb|#03140d/);
   assert.doesNotMatch(homeHtml, /Ellis|3 briefs open|1 intro pending|Tech Matched|HIRE TALENT|FIND TALENT/);
-  assert.doesNotMatch(homeHtml, /\bMenu\b|statue|pantheon|testimonial|FAQ|\bevents\b|sample roles/i);
+  assert.doesNotMatch(homeHtml, /MATCH NO\. 0412|Founding engineer|180–220K|180-220K|hello@/);
+  assert.doesNotMatch(homeHtml, /\bMenu\b|statue|pantheon|testimonial|\bFAQ\b|sample roles/i);
   assert.doesNotMatch(homeHtml, /href="\/(?:companies|events|team|faq)"/);
-  assert.match(homeHtml, /#0d0d0d|#efe8dc|#8a847a/);
 }
 
 {
@@ -398,11 +416,14 @@ function urlOf(input) {
       assert.match(html, /Join the network/);
       assert.match(html, /A person reads every brief\./);
       assert.match(html, /Names move after mutual yes\./);
-      assert.match(html, /How a name moves\./);
-      assert.match(html, /Who this is for\./);
-      assert.match(html, /The fee\./);
+      assert.match(html, /HOW IT GOES/);
+      assert.match(html, /Some things arrive like weather/);
+      assert.match(html, /We’re paid only if someone joins you/);
+      assert.match(html, /The first five decide what it becomes/);
+      assert.match(html, /potter@trydemigod\.com/);
       assert.doesNotMatch(html, /webflow home|foot-latest|head-latest/);
       assert.doesNotMatch(html, /Ellis|3 briefs open|Tech Matched|HIRE TALENT|FIND TALENT/);
+      assert.doesNotMatch(html, /MATCH NO\. 0412|Founding engineer|hello@/);
       assert.doesNotMatch(html, /#C9A84C|#10c674|#a6ffcb|#03140d/);
 
       const head = await workerModule.fetch(new Request(`https://${host}/`, { method: 'HEAD' }), {});
