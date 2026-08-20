@@ -1,12 +1,17 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import workerModule, {
+  VENDORED_X_WEEK_ROLES,
   companiesIndexHtml,
   companyPageHtml,
   injectBountiesBoard,
+  injectXWeekBand,
   isCompaniesPath,
   isCompanyPath,
+  isStartupsPath,
+  loadXWeekRoles,
   normalizeBountiesFeed,
+  normalizeXWeekRoles,
   rewriteCdnPin,
   rewriteStaleSnapshotDates,
   stripGoldAccent,
@@ -45,13 +50,12 @@ const STALE_ROLES_GENERATED_AT = '2026-08-06T14:33:36.175Z';
 const STARTUPS_DATE_FIXTURE = `<!doctype html><html><head><title>Startups</title></head>
 <body>
 <script id="demigod-public-roles-data">window.__dgPublicRoles={"schema":"demigod.public-roles/1","generatedAt":"${STALE_ROLES_GENERATED_AT}","roles":[{"company":"Affirm","title":"Staff Analytics Analyst","firstObservedAt":"2026-08-06"}]}</script>
-<noscript>
+<style>.dg-static{max-width:76rem}</style>
 <details class="dg-static" data-generated-at="2026-08-02">
 <summary>Browse 501 companies with verified open roles in this 2026-08-02 snapshot</summary>
 <p>11442 open roles observed 2026-08-02. Counts are a dated snapshot.</p>
 <p>Affirm — Staff Analytics Analyst · first observed 2026-08-06</p>
 </details>
-</noscript>
 </body></html>`;
 
 {
@@ -94,8 +98,9 @@ assert.match(workerSrc, /demigod-bounties-feed\/v1/);
 assert.match(workerSrc, /bounties-feed\.json/);
 assert.match(workerSrc, /sf-startup-map\.json/);
 assert.match(workerSrc, /roles-feed\.json/);
+assert.match(workerSrc, /x-week-roles\.json/);
 assert.match(workerSrc, /#03140d|#f3f0e7|#10c674/);
-assert.doesNotMatch(workerSrc, /cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]{40}\/(sf-startup-map|roles-feed)/);
+assert.doesNotMatch(workerSrc, /cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]{40}\/(sf-startup-map|roles-feed|x-week-roles)/);
 
 {
   const out = stripGoldAccent(HOME_FIXTURE);
@@ -202,14 +207,21 @@ function urlOf(input) {
     });
     const startups = await workerModule.fetch(new Request('https://www.trydemigod.com/startups'), {});
     const startupsHtml = await startups.text();
-    assert.equal(startups.headers.get('x-demigod-edge'), 'html-rewrite');
+    assert.equal(startups.headers.get('x-demigod-edge'), 'x-week-roles');
     assert.doesNotMatch(startupsHtml, /2026-08-02/);
     assert.match(startupsHtml, new RegExp(`"generatedAt":"${LIVE_MAP_GENERATED_AT}"`));
     assert.match(startupsHtml, /"firstObservedAt":"2026-08-06"/);
+    assert.match(startupsHtml, /id="demigod-x-week"/);
+    assert.match(startupsHtml, /From X this week/);
+    assert.match(startupsHtml, /Bella @nazzari/);
+    const startupsBand = startupsHtml.match(/<section\b[^>]*id=["']demigod-x-week["'][\s\S]*?<\/section>/i)?.[0] || '';
+    assert.match(startupsBand, /From X this week/);
+    assert.doesNotMatch(startupsBand, /first observed|firstObservedAt/);
     const homeDated = await (await workerModule.fetch(new Request('https://www.trydemigod.com/'), {})).text();
     assert.doesNotMatch(homeDated, /2026-08-02/);
     assert.match(homeDated, new RegExp(`"generatedAt":"${LIVE_MAP_GENERATED_AT}"`));
     assert.match(homeDated, /first observed 2026-08-06/);
+    assert.doesNotMatch(homeDated, /id="demigod-x-week"/);
   } finally {
     globalThis.fetch = nativeFetch;
   }
@@ -334,6 +346,10 @@ function urlOf(input) {
   assert.equal(isCompaniesPath('/company'), false);
   assert.equal(isCompaniesPath('/c/yc:abundant'), false);
   assert.equal(isCompaniesPath('/startups'), false);
+  assert.equal(isStartupsPath('/startups'), true);
+  assert.equal(isStartupsPath('/startups/'), true);
+  assert.equal(isStartupsPath('/'), false);
+  assert.equal(isStartupsPath('/companies'), false);
   assert.equal(isCompanyPath('/c/yc:abundant'), true);
   assert.equal(isCompanyPath('/c/yc:abundant/'), true);
   assert.equal(isCompanyPath('/c/wd:Q16153666'), true);
@@ -586,6 +602,136 @@ const TINY_MAP = {
     assert.doesNotMatch(await slashId.text(), /webflow miss/);
 
     assert.equal(fetched.every((u) => u.includes('cdn.jsdelivr.net') && !/trydemigod\.com/.test(u)), true);
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
+}
+
+{
+  const vendoredFile = JSON.parse(await readFile(new URL('./x-week-roles.json', root), 'utf8'));
+  assert.deepEqual(VENDORED_X_WEEK_ROLES, vendoredFile);
+  assert.equal(VENDORED_X_WEEK_ROLES.schema, 'demigod.x-week-roles/1');
+  assert.equal(VENDORED_X_WEEK_ROLES.roles.length, 14);
+  assert.equal(VENDORED_X_WEEK_ROLES.source.credit, 'Bella @nazzari');
+  assert.equal(VENDORED_X_WEEK_ROLES.source.date, '2026-08-14');
+  assert.doesNotMatch(JSON.stringify(VENDORED_X_WEEK_ROLES), /firstObservedAt|payTo|"counts"/);
+  const normalized = normalizeXWeekRoles(VENDORED_X_WEEK_ROLES);
+  assert.equal(normalized.roles.length, 14);
+  assert.equal(normalized.roles[0].company, 'Rivet');
+  assert.equal(normalized.roles[13].company, 'Brown University');
+  assert.equal(normalized.roles.some((row) => 'firstObservedAt' in row), false);
+  assert.equal(normalized.roles.filter((row) => row.company === 'xAI').length, 3);
+}
+
+{
+  const empty = normalizeXWeekRoles({ schema: 'demigod.x-week-roles/1', roles: [] });
+  assert.equal(empty.roles.length, 0);
+  const atsShaped = normalizeXWeekRoles({
+    schema: 'demigod.roles-feed/1',
+    roles: [{ company: 'Affirm', title: 'Ghost', url: 'https://job-boards.greenhouse.io/affirm/jobs/1', firstObservedAt: '2026-08-06' }],
+  });
+  assert.equal(atsShaped.roles.length, 0);
+  const dropped = normalizeXWeekRoles({
+    schema: 'demigod.x-week-roles/1',
+    roles: [
+      { company: 'Rivet', title: 'Engineer (Rust/actors/OSS)', url: 'https://x.com/NathanFlurry/status/2087625596797083966' },
+      { company: 'Nope', title: 'Missing url' },
+      { company: 'Nope', title: 'Javascript', url: 'javascript:alert(1)' },
+      { firstObservedAt: '2026-08-06', company: 'Affirm', title: 'Staff', url: 'https://job-boards.greenhouse.io/affirm/jobs/1' },
+    ],
+  });
+  assert.equal(dropped.roles.length, 2);
+  assert.equal(dropped.roles[0].company, 'Rivet');
+  assert.equal(dropped.roles[1].company, 'Affirm');
+  assert.equal('firstObservedAt' in dropped.roles[1], false);
+}
+
+{
+  const injected = injectXWeekBand(STARTUPS_DATE_FIXTURE, VENDORED_X_WEEK_ROLES);
+  const band = injected.match(/<section\b[^>]*id=["']demigod-x-week["'][\s\S]*?<\/section>/i)?.[0] || '';
+  assert.match(band, /From X this week/);
+  assert.match(band, /Bella @nazzari/);
+  assert.match(band, /2026-08-14/);
+  assert.match(band, /nazzari\/status\/2088312787915399337/);
+  assert.match(band, /Rivet — Engineer \(Rust\/actors\/OSS\)/);
+  assert.match(band, /Remote/);
+  assert.match(band, /xAI — Software Engineer, Search Infrastructure/);
+  assert.match(band, /Brown University — Economics \/ Watson faculty/);
+  assert.match(band, /Not first-observed ATS board sightings/);
+  assert.doesNotMatch(band, /first observed|firstObservedAt|payTo/);
+  assert.doesNotMatch(band, /#dfff00|#ff3b81|#dasha-bounties/);
+  const detailsAt = injected.indexOf('<details class="dg-static"');
+  const bandAt = injected.indexOf('id="demigod-x-week"');
+  assert.ok(bandAt >= 0 && detailsAt >= 0 && bandAt < detailsAt);
+  const rolesScript = injected.match(/<script id="demigod-public-roles-data">[\s\S]*?<\/script>/)?.[0] || '';
+  assert.match(rolesScript, /"firstObservedAt":"2026-08-06"/);
+  assert.doesNotMatch(rolesScript, /Rivet|nazzari|Brown University/);
+  assert.match(injected, /first observed 2026-08-06/);
+  const xss = injectXWeekBand('<body></body>', {
+    schema: 'demigod.x-week-roles/1',
+    source: { credit: '<script>alert(1)</script>', date: '2026-08-14', url: 'https://x.com/nazzari/status/2088312787915399337' },
+    roles: [{ company: '<img src=x>', title: 'Title', url: 'https://x.com/ok' }],
+  });
+  assert.doesNotMatch(xss, /<script>alert|<img src=x>/);
+  assert.match(xss, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+}
+
+{
+  const nativeFetch = globalThis.fetch;
+  const fetched = [];
+  try {
+    globalThis.fetch = async (input) => {
+      const u = urlOf(input);
+      fetched.push(u);
+      if (u.includes('x-week-roles.json')) {
+        return new Response(JSON.stringify({
+          schema: 'demigod.x-week-roles/1',
+          source: { credit: 'Bella @nazzari', date: '2026-08-14', url: 'https://x.com/nazzari/status/2088312787915399337' },
+          roles: [{ company: 'CDN Co', title: 'Overlay Role', location: 'SF', url: 'https://x.com/cdn/status/1' }],
+        }), { headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response(STARTUPS_DATE_FIXTURE, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    };
+    const page = await workerModule.fetch(new Request('https://www.trydemigod.com/startups'), {});
+    const html = await page.text();
+    assert.equal(page.headers.get('x-demigod-edge'), 'x-week-roles');
+    assert.match(html, /CDN Co — Overlay Role/);
+    assert.doesNotMatch(html, /Rivet — Engineer/);
+    assert.match(html, /"firstObservedAt":"2026-08-06"/);
+    assert.match(html, /first observed 2026-08-06/);
+    const slash = await (await workerModule.fetch(new Request('https://www.trydemigod.com/startups/'), {})).text();
+    assert.match(slash, /CDN Co — Overlay Role/);
+    const home = await (await workerModule.fetch(new Request('https://www.trydemigod.com/'), {})).text();
+    assert.doesNotMatch(home, /id="demigod-x-week"/);
+    assert.equal(fetched.some((u) => u.includes(CDN_PIN_TO) && u.endsWith('x-week-roles.json')), true);
+
+    globalThis.fetch = async (input) => {
+      const u = urlOf(input);
+      if (u.includes('x-week-roles.json')) {
+        return new Response(JSON.stringify({
+          schema: 'demigod.roles-feed/1',
+          roles: [{ company: 'Affirm', title: 'Staff', url: 'https://job-boards.greenhouse.io/affirm/jobs/1', firstObservedAt: '2026-08-06' }],
+        }), { headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response(STARTUPS_DATE_FIXTURE, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    };
+    const fallback = await (await workerModule.fetch(new Request('https://www.trydemigod.com/startups'), {})).text();
+    const fallbackBand = fallback.match(/<section\b[^>]*id=["']demigod-x-week["'][\s\S]*?<\/section>/i)?.[0] || '';
+    assert.match(fallbackBand, /Rivet — Engineer/);
+    assert.doesNotMatch(fallbackBand, /Affirm — Staff/);
+    assert.match(fallback, /"firstObservedAt":"2026-08-06"/);
+
+    globalThis.fetch = async (input) => {
+      if (urlOf(input).includes('x-week-roles.json')) throw new Error('offline');
+      return new Response(STARTUPS_DATE_FIXTURE, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    };
+    const offline = await (await workerModule.fetch(new Request('https://www.trydemigod.com/startups'), {})).text();
+    assert.match(offline, /Rivet — Engineer/);
+    assert.match(offline, /Bella @nazzari/);
+
+    const loaded = await loadXWeekRoles();
+    assert.equal(loaded.roles.length, 14);
+    assert.equal(loaded.roles[0].company, 'Rivet');
   } finally {
     globalThis.fetch = nativeFetch;
   }
