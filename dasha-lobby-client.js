@@ -15,6 +15,7 @@
   var MAX_NICK = 18;
   var MAX_SOCKETS = 80;
   var MAX_TEXT_LINKED = 280;
+  var MAX_TEXT_HOLDER = 500;
   var FULL_RETRY_MS = 20000;
   var LINK_HOSTS = {
     'www.getdasha.com': 1,
@@ -37,6 +38,14 @@
     'www.github.com': 1,
   };
 
+  function withTimeout(p, ms) {
+    return Promise.race([
+      p,
+      new Promise(function (_, rej) {
+        setTimeout(function () { rej(new Error('copy-timeout')); }, ms);
+      }),
+    ]);
+  }
   function el(tag, cls, text) {
     var n = document.createElement(tag);
     if (cls) n.className = cls;
@@ -140,7 +149,7 @@
   }
 
   function forumThreadUrl(id) {
-    return 'https://lobby.getdasha.com/forum?t=' + encodeURIComponent(id);
+    return 'https://www.getdasha.com/lobby?t=' + encodeURIComponent(id);
   }
 
   function linkCopiedOk(got, want) {
@@ -185,6 +194,36 @@
     var lastQuery = '';
     var pendingQuote = null;
     var say = function (msg) { status.textContent = msg || ''; };
+    function seenKey() { return 'dasha-forum-seen:' + (meHandle || 'guest'); }
+    function seenMap() {
+      try { return JSON.parse(localStorage.getItem(seenKey()) || '{}'); } catch (e) { return {}; }
+    }
+    function markSeen(id, ts) {
+      try {
+        var seen = seenMap();
+        seen[id] = Number(ts) || Date.now();
+        localStorage.setItem(seenKey(), JSON.stringify(seen));
+      } catch (e) {}
+    }
+    function draftKey(scope) {
+      return 'dasha-forum-draft:' + (meHandle || 'linked') + ':' + encodeURIComponent(String(scope || '').slice(0, 80));
+    }
+    function readDraft(key) {
+      try {
+        var value = JSON.parse(sessionStorage.getItem(key) || '{}');
+        return {
+          title: String(value.title || '').slice(0, 80),
+          body: String(value.body || '').slice(0, 2000),
+        };
+      } catch (e) { return { title: '', body: '' }; }
+    }
+    function saveDraft(key, title, body) {
+      try {
+        var value = { title: String(title || '').slice(0, 80), body: String(body || '').slice(0, 2000) };
+        if (!value.title && !value.body) sessionStorage.removeItem(key);
+        else sessionStorage.setItem(key, JSON.stringify(value));
+      } catch (e) {}
+    }
     var base = originFromWs(root.getAttribute('data-forum-api') || root.getAttribute('data-lobby-url') || DEFAULT_WS);
     var api = function (path, opts) {
       return fetch(base + path, Object.assign({
@@ -210,30 +249,40 @@
       wrap.appendChild(input);
       return { wrap: wrap, input: input };
     }
-    function copyLink(id) {
+    function shareLink(id, title) {
       var b = el('button', 'df-back df-copy');
       b.type = 'button';
-      b.textContent = 'Copy link';
-      b.addEventListener('click', function () {
-        var want = forumThreadUrl(id);
-        var label = b.textContent;
-        var done = function (text) {
-          b.textContent = text;
-          setTimeout(function () { b.textContent = label; }, 1800);
-        };
+      b.textContent = 'Share';
+      var idleLabel = b.textContent;
+      var want = forumThreadUrl(id);
+      function copy() {
         if (!navigator.clipboard || !navigator.clipboard.writeText) {
           done('Select');
-          return;
+          return Promise.resolve();
         }
-        navigator.clipboard.writeText(want).then(function () {
+        return withTimeout(navigator.clipboard.writeText(want), 800).then(function () {
           if (!navigator.clipboard.readText) {
             done('Copied');
             return;
           }
-          return navigator.clipboard.readText().then(function (got) {
+          return withTimeout(navigator.clipboard.readText(), 800).then(function (got) {
             done(linkCopiedOk(got, want) ? 'Copied' : 'Select');
           });
         }).catch(function () { done('Select'); });
+      }
+      function done(text) {
+        b.textContent = text;
+        setTimeout(function () { b.textContent = idleLabel; }, 1800);
+      }
+      b.addEventListener('click', function () {
+        if (!navigator.share) { copy(); return; }
+        b.disabled = true;
+        var shared;
+        try { shared = navigator.share({ title: String(title || 'Dasha thread'), url: want }); }
+        catch (e) { shared = Promise.reject(e); }
+        Promise.resolve(shared).then(function () { done('Shared'); }).catch(function (e) {
+          if (!e || e.name !== 'AbortError') return copy();
+        }).finally(function () { b.disabled = false; });
       });
       return b;
     }
@@ -342,6 +391,7 @@
     }
     function threadRow(t) {
       var row = el('article', 'df-row');
+      var unread = Number(t.lastTs || t.ts) > Number(seenMap()[t.id] || 0);
       row.appendChild(forumAvatar(t.avatar));
       var main = el('div', 'df-row-main');
       var btn = el('button', 'df-open');
@@ -351,7 +401,9 @@
       var meta = el('p', 'df-meta', '@' + t.handle + ' · ' + (t.replies || 0) + (t.replies === 1 ? ' reply' : ' replies') + ' · ' + timeLabel(t.lastTs || t.ts) + (t.locked ? ' · locked' : ''));
       main.appendChild(btn);
       main.appendChild(meta);
+      if (t.snippet) main.appendChild(el('p', 'df-snippet', String(t.snippet).slice(0, 180)));
       row.appendChild(main);
+      if (unread) row.appendChild(el('span', 'df-new', 'NEW'));
       return row;
     }
     function postRow(p, threadId) {
@@ -402,8 +454,10 @@
       }
       return art;
     }
-    function composer(onSend, withTitle) {
+    function composer(onSend, withTitle, scope) {
       var form = el('form', 'df-composer');
+      var key = draftKey(scope);
+      var saved = readDraft(key);
       var title = withTitle
         ? field('Title', 'input', { type: 'text', maxlength: '80', required: 'required', placeholder: 'What is this about?' })
         : null;
@@ -413,6 +467,11 @@
         required: 'required',
         placeholder: 'Say it plainly.',
       });
+      if (title) title.input.value = saved.title;
+      body.input.value = saved.body;
+      function remember() { saveDraft(key, title ? title.input.value : '', body.input.value); }
+      if (title) title.input.addEventListener('input', remember);
+      body.input.addEventListener('input', remember);
       if (title) form.appendChild(title.wrap);
       form.appendChild(body.wrap);
       var send = el('button', 'df-send');
@@ -426,6 +485,7 @@
         onSend(title ? title.input.value : null, body.input.value, function (ok, err) {
           send.disabled = false;
           if (ok) {
+            saveDraft(key, '', '');
             if (title) title.input.value = '';
             body.input.value = '';
             say('');
@@ -469,7 +529,7 @@
             } else done(false, failWrite(rr));
           })
           .catch(function () { done(false, 'Network error.'); });
-      }, false);
+      }, false, 'reply:' + id);
       wrap.appendChild(form);
       view.appendChild(wrap);
       var ta = form.querySelector('textarea');
@@ -510,9 +570,12 @@
               } else done(false, failWrite(r));
             })
             .catch(function () { done(false, 'Network error.'); });
-        }, true));
+        }, true, 'new-thread'));
       }
       var list = el('div', 'df-list');
+      var seen = seenMap();
+      var unread = threads.filter(function (t) { return Number(t.lastTs || t.ts) > Number(seen[t.id] || 0); }).length;
+      if (unread) list.appendChild(el('p', 'df-newcount', unread + (unread === 1 ? ' new thread' : ' new threads')));
       if (!threads.length) {
         list.appendChild(el('p', 'df-empty', q ? 'Nothing matches that search.' : 'No threads yet. Start the first one.'));
       }
@@ -541,11 +604,12 @@
           load(lastQuery);
         });
         bar.appendChild(back);
-        bar.appendChild(copyLink(id));
+        bar.appendChild(shareLink(id, r.body.thread.title));
         view.appendChild(bar);
         view.appendChild(el('h2', 'df-title', r.body.thread.title));
         var posts = el('div', 'df-posts');
         var rows = r.body.posts || [];
+        markSeen(id, rows.length ? rows[rows.length - 1].ts : Date.now());
         for (var i = 0; i < rows.length; i++) posts.appendChild(postRow(rows[i], id));
         view.appendChild(posts);
         if (r.body.thread && r.body.thread.locked) {
@@ -716,10 +780,12 @@
     var coolTimer = null;
     var coolUntil = 0;
     var linked = false;
+    var holder = false;
     var linkedHandle = null;
     var linkedAvatar = null;
     var xConfigured = false;
     var maxTextNow = MAX_TEXT;
+    var serverMaxText = null;
     var lastActivity = Date.now();
     var idleTimer = null;
     var IDLE_MS = 20 * 60 * 1000;
@@ -779,8 +845,14 @@
       }
     }
 
+    function applyServerPerks(perks) {
+      holder = Boolean(linked && perks && perks.holder);
+      var max = Number(perks && perks.maxText);
+      serverMaxText = Number.isInteger(max) && max >= MAX_TEXT && max <= MAX_TEXT_HOLDER ? max : null;
+    }
+
     function applyLinkedUi() {
-      maxTextNow = linked ? MAX_TEXT_LINKED : MAX_TEXT;
+      maxTextNow = linked ? serverMaxText || MAX_TEXT_LINKED : MAX_TEXT;
       textIn.maxLength = maxTextNow;
       if (linked && linkedHandle) {
         nickIn.value = '@' + linkedHandle;
@@ -798,11 +870,11 @@
         }
         xStatus.appendChild(document.createTextNode('@' + linkedHandle + ' · '));
         var boardA = document.createElement('a');
-        boardA.href = 'https://www.getdasha.com/#simp';
+        boardA.href = 'https://www.getdasha.com/simp';
         boardA.textContent = 'Simp Board';
-        boardA.style.cssText = 'color:#7ec8ff;font-weight:800;text-underline-offset:3px';
+        boardA.style.cssText = 'color:#dfff00;font-weight:800;text-underline-offset:3px';
         xStatus.appendChild(boardA);
-        xStatus.appendChild(document.createTextNode(' · longer chat'));
+        xStatus.appendChild(document.createTextNode(holder ? ' · 500-char holder chat' : ' · longer chat'));
         xBtn.hidden = true;
         xUnlink.hidden = false;
       } else {
@@ -838,6 +910,8 @@
             linkedAvatar = data.x.avatar || null;
           } else {
             linked = false;
+            holder = false;
+            serverMaxText = null;
             linkedHandle = null;
             linkedAvatar = null;
           }
@@ -943,6 +1017,11 @@
       } else {
         meta.appendChild(document.createTextNode(metaText));
       }
+      if (extra && extra.holder) {
+        var holderBadge = el('span', 'lobby-holder-badge', '$dasha holder');
+        holderBadge.title = 'Holder proof current when sent';
+        meta.appendChild(holderBadge);
+      }
       row.appendChild(meta);
       var msg = el('span', 'lobby-body');
       if (kind === 'chat') fillBody(msg, body);
@@ -965,8 +1044,9 @@
           linked = true;
           linkedHandle = data.x.handle;
           linkedAvatar = data.x.avatar || null;
-          applyLinkedUi();
         }
+        applyServerPerks(data.perks);
+        applyLinkedUi();
         if (typeof data.remaining === 'number' && typeof data.max === 'number') {
           presenceStrip.textContent = data.remaining + ' seats open · max ' + data.max;
         }
@@ -996,8 +1076,9 @@
           linked = true;
           linkedHandle = data.x.handle;
           linkedAvatar = data.x.avatar || null;
-          applyLinkedUi();
         }
+        applyServerPerks(data.perks);
+        applyLinkedUi();
         if (data.presence) paintPresence(data.presence);
         var count =
           (data.presence && data.presence.count) ||
@@ -1037,6 +1118,7 @@
                 linked: Boolean(m.linked),
                 handle: m.handle || null,
                 avatar: m.avatar || null,
+                holder: Boolean(m.holder),
               });
           });
           ensureEmpty();
@@ -1049,6 +1131,7 @@
           linked: Boolean(data.linked),
           handle: data.handle || null,
           avatar: data.avatar || null,
+          holder: Boolean(data.holder),
         });
         return;
       }
@@ -1114,6 +1197,9 @@
       setStatus('Connecting…');
       ready = false;
       helloSent = false;
+      holder = false;
+      serverMaxText = null;
+      applyLinkedUi();
 
       var cap = capacityUrl();
       var startWs = function () {
@@ -1212,6 +1298,8 @@
       fetch(httpBase() + '/oauth/x/logout', { method: 'POST', credentials: 'include', mode: 'cors' })
         .then(function () {
           linked = false;
+          holder = false;
+          serverMaxText = null;
           linkedHandle = null;
           linkedAvatar = null;
           applyLinkedUi();

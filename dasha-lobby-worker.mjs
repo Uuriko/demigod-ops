@@ -34,6 +34,8 @@ import {
   exchangeCode,
   fetchXUser,
   createSessionToken,
+  createWalletSessionToken,
+  authSessionFromRequest,
   sessionFromRequest,
   cookieHeader,
   clearLegacyCookieHeader,
@@ -59,6 +61,7 @@ import {
   quizResultForAttempt,
   storedQuizTitle,
   submitQuiz,
+  setSimpSpotlight,
 } from './dasha-simp-score.mjs';
 import {
   activateReferral,
@@ -80,6 +83,7 @@ import {
   snapshotSeason,
   submitClaim,
   verifyEd25519,
+  walletLoginMessage,
   walletMessage,
 } from './dasha-simp-actions.mjs';
 import {
@@ -96,6 +100,7 @@ import {
   HOWTO_HTML,
   CHESS_PAGE_HTML,
   LOBBY_PAGE_HTML,
+  LOGIN_PAGE_HTML,
   ASSET_HASH,
 } from './dasha-lobby-static-gen.mjs';
 
@@ -111,7 +116,6 @@ const SITEMAP_XML = `<?xml version="1.0" encoding="UTF-8"?>
   <url><loc>https://www.getdasha.com/how-to-buy</loc></url>
   <url><loc>https://www.getdasha.com/privacy</loc></url>
   <url><loc>https://www.getdasha.com/chess</loc></url>
-  <url><loc>https://lobby.getdasha.com/forum</loc></url>
 </urlset>
 `;
 void GENERATED_SITEMAP_XML;
@@ -166,11 +170,13 @@ import {
   editPost,
   lockThread,
   newThread,
+  paginateIndex,
   pruneIndex,
   publicPost,
   publicThread,
   searchThreads,
   validateReport,
+  visibleReplies,
 } from './dasha-forum.mjs';
 
 
@@ -227,6 +233,18 @@ export function ensureHtmlLang(html) {
     /\blang\s*=/i.test(attrs) ? tag : `<html lang="en"${attrs}>`);
 }
 
+/** Webflow's shared nav opens X in a new tab; enforce isolation at the edge too. */
+export function hardenBlankTargets(html) {
+  return String(html || '').replace(/<a\b[^>]*\btarget=(['"])_blank\1[^>]*>/gi, (tag) => {
+    const rel = tag.match(/\brel=(['"])(.*?)\1/i);
+    if (!rel) return tag.replace(/>$/, ' rel="noopener noreferrer">');
+    const tokens = new Set(rel[2].toLowerCase().split(/\s+/).filter(Boolean));
+    tokens.add('noopener');
+    tokens.add('noreferrer');
+    return tag.replace(rel[0], `rel="${[...tokens].join(' ')}"`);
+  });
+}
+
 /** Exact tags dasha-live-verify looks for. Webflow pages often omit them. */
 /** Designer chrome still links /graph, a page that 404s. Strip it at the edge so first-visit
  *  HTML does not fail live-verify while the Webflow symbol is mid-claim. */
@@ -254,9 +272,25 @@ export function ensureCanonical(html, pageUrl) {
  * from the leading <style> block (CSS leaking into the tab).
  */
 export function asStandaloneLobbyPage(html) {
-  const src = String(html || '');
+  /* Lobby host `/` is health JSON. The embed fragment's ← $dasha must not land there. */
+  const src = String(html || '').replace(
+    /(<a class="lp-back" href=")\/(")/,
+    '$1https://www.getdasha.com/$2',
+  );
   if (/<title[\s>]/i.test(src)) return src;
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>$dasha lobby</title><meta name="description" content="Public chat for $dasha."><link rel="canonical" href="https://www.getdasha.com/lobby"><meta name="theme-color" content="#070608"></head><body>${src}</body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>$dasha lobby</title><meta name="description" content="Public chat for $dasha."><link rel="canonical" href="https://www.getdasha.com/lobby"><meta name="theme-color" content="#070608"><meta property="og:type" content="website"><meta property="og:url" content="https://www.getdasha.com/lobby"><meta property="og:title" content="$dasha lobby"><meta property="og:description" content="Public chat for $dasha."><meta property="og:image" content="https://lobby.getdasha.com/og/dasha-social-card.png"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="$dasha lobby"><meta name="twitter:description" content="Public chat for $dasha."><meta name="twitter:image" content="https://lobby.getdasha.com/og/dasha-social-card.png"></head><body>${src}</body></html>`;
+}
+
+/** Forum is the threads pane of the lobby. Keep ?t= so copied thread links still open. */
+export function forumToLobbyRedirect(url) {
+  const dest = new URL('https://www.getdasha.com/lobby');
+  const src = url instanceof URL ? url : null;
+  const t = src ? src.searchParams.get('t') : '';
+  if (t) dest.searchParams.set('t', t);
+  /* Hash-only #threads is dropped by some redirect clients. pane= is the durable first-visit signal. */
+  dest.searchParams.set('pane', 'threads');
+  dest.hash = 'threads';
+  return Response.redirect(dest.href, 308);
 }
 
 function securityTxt(host) {
@@ -423,7 +457,7 @@ export function handoffToStudioHash(state) {
   return p.toString();
 }
 
-export function handoffCardHtml(id, state) {
+export function handoffCardHtml(id, state, { autoRedirect = true } = {}) {
   const pageUrl = `https://lobby.getdasha.com/h/${id}`;
   const studioUrl = `https://www.getdasha.com/studio#${handoffToStudioHash(state)}`;
   const title = escapeHtml(state.line.slice(0, 80) || '$dasha Studio');
@@ -431,7 +465,7 @@ export function handoffCardHtml(id, state) {
   const formatBit = escapeHtml(String(state.format || 'square'));
   const description = escapeHtml(`${state.look || 'poster'} · ${state.format || 'square'} · Your turn — change one thing, pass it on.`);
   const imageUrl = `https://lobby.getdasha.com/h/${id}/og.png`;
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><link rel="canonical" href="${escapeHtml(pageUrl)}"><meta name="description" content="${description}"><meta property="og:type" content="website"><meta property="og:site_name" content="getdasha"><meta property="og:url" content="${escapeHtml(pageUrl)}"><meta property="og:title" content="${title}"><meta property="og:description" content="${description}"><meta property="og:image" content="${escapeHtml(imageUrl)}"><meta property="og:image:secure_url" content="${escapeHtml(imageUrl)}"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="600"><meta property="og:image:height" content="314"><meta property="og:image:alt" content="${title}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${title}"><meta name="twitter:description" content="${description}"><meta name="twitter:image" content="${escapeHtml(imageUrl)}"><style>body{margin:0;background:#070608;color:#f4eddb;font:18px/1.45 Arial,Helvetica,sans-serif;min-height:100vh;display:grid;place-items:center}.c{max-width:28rem;padding:32px 20px;text-align:left}b{color:#dfff00;font-size:12px;letter-spacing:.12em;text-transform:uppercase}.meta{margin:0 0 10px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#e6dcc4}h1{margin:8px 0 16px;font-size:clamp(28px,7vw,44px);line-height:.95;letter-spacing:-.04em;text-transform:uppercase}p{margin:0 0 20px;color:#e6dcc4}a.cta{display:inline-flex;min-height:52px;align-items:center;padding:0 20px;background:#dfff00;color:#070608;font-weight:900;text-decoration:none;text-transform:uppercase;letter-spacing:.04em}a.ghost{display:inline-flex;min-height:44px;align-items:center;margin-left:12px;color:#f4eddb;font-weight:800}</style></head><body><main class="c"><b>Your turn · $dasha</b><p class="meta">${lookBit} · ${formatBit}</p><h1>${title}</h1><p>${description}</p><p><a class="cta" href="${escapeHtml(studioUrl)}">Open Studio</a><a class="ghost" href="https://www.getdasha.com/">Home</a></p></main><script>location.replace(${JSON.stringify(studioUrl)})</script></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><link rel="canonical" href="${escapeHtml(pageUrl)}"><meta name="description" content="${description}"><meta property="og:type" content="website"><meta property="og:site_name" content="getdasha"><meta property="og:url" content="${escapeHtml(pageUrl)}"><meta property="og:title" content="${title}"><meta property="og:description" content="${description}"><meta property="og:image" content="${escapeHtml(imageUrl)}"><meta property="og:image:secure_url" content="${escapeHtml(imageUrl)}"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="600"><meta property="og:image:height" content="314"><meta property="og:image:alt" content="${title}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${title}"><meta name="twitter:description" content="${description}"><meta name="twitter:image" content="${escapeHtml(imageUrl)}"><style>body{margin:0;background:#070608;color:#f4eddb;font:18px/1.45 Arial,Helvetica,sans-serif;min-height:100vh;display:grid;place-items:center}.c{max-width:28rem;padding:32px 20px;text-align:left}b{color:#dfff00;font-size:12px;letter-spacing:.12em;text-transform:uppercase}.meta{margin:0 0 10px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#e6dcc4}h1{margin:8px 0 16px;font-size:clamp(28px,7vw,44px);line-height:.95;letter-spacing:-.04em;text-transform:uppercase}p{margin:0 0 20px;color:#e6dcc4}a.cta{display:inline-flex;min-height:52px;align-items:center;padding:0 20px;background:#dfff00;color:#070608;font-weight:900;text-decoration:none;text-transform:uppercase;letter-spacing:.04em}a.ghost{display:inline-flex;min-height:44px;align-items:center;margin-left:12px;color:#f4eddb;font-weight:800}</style></head><body><main class="c"><b>Your turn · $dasha</b><p class="meta">${lookBit} · ${formatBit}</p><h1>${title}</h1><p>${description}</p><p><a class="cta" href="${escapeHtml(studioUrl)}">Open Studio</a><a class="ghost" href="https://www.getdasha.com/">Home</a></p></main>${autoRedirect ? `<script>location.replace(${JSON.stringify(studioUrl)})</script>` : ''}</body></html>`;
 }
 const emptyChessMetrics = since => ({ since, pageOpens: 0, linkIntents: 0, enrollmentIntents: 0, holderProofIntents: 0, queueIntents: 0, buyIntents: 0, gamesStarted: 0, gamesCompleted: 0, rematchesOffered: 0, rematchesAccepted: 0, replayOpens: 0, replayPlayIntents: 0, replayShareIntents: 0, replayShareHandoffs: 0, challengesCreated: 0, challengesAccepted: 0, challengeShareIntents: 0, tournamentsCreated: 0, tournamentJoins: 0, tournamentsStarted: 0, tournamentsCompleted: 0, tournamentShareIntents: 0 });
 const CHESS_TOURNAMENT_REGISTRATION_MS = 24 * 60 * 60_000;
@@ -459,10 +493,14 @@ export function publicFunnelSummary(studio = {}, quiz = {}, chess = {}, threshol
       editToExport: ratio(studio.exports, studio.firstEdits),
       shareIntents: cell(studio.shareIntents),
       shareApiResolutions: cell(studio.shareSuccesses),
+      editToShareIntent: ratio(studio.shareIntents, studio.firstEdits),
+      intentToShareSuccess: ratio(studio.shareSuccesses, studio.shareIntents),
       copyEditableLinks: cell(studio.copyEditableLinks),
       handoffMints: cell(studio.handoffMints),
       handoffOpens: cell(studio.handoffOpens),
-      mintToOpen: ratio(studio.handoffOpens, studio.handoffMints),
+      mintToOpen: Number(studio.handoffOpens) >= threshold && Number(studio.handoffMints) >= threshold
+        ? Math.min(1, Number((Number(studio.handoffOpens) / Number(studio.handoffMints)).toFixed(3)))
+        : null,
     },
     quiz: {
       starts: cell(quiz.starts),
@@ -617,35 +655,38 @@ function send(ws, obj) {
   }
 }
 
-function htmlPage(title, body) {
-  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
-<style>body{font:16px/1.45 system-ui;background:#070608;color:#f4eddb;max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:#dfff00}code{color:#c8b6ff}</style>
-<body>${body}</body></html>`;
+function htmlPage(title, body, { path = '', description = '', robots = '' } = {}) {
+  const url = path ? `https://www.getdasha.com${path}` : '';
+  const social = url ? `<meta name="description" content="${description}"><link rel="canonical" href="${url}"><meta property="og:type" content="website"><meta property="og:url" content="${url}"><meta property="og:title" content="${title}"><meta property="og:description" content="${description}"><meta property="og:image" content="https://lobby.getdasha.com/og/dasha-social-card.png"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${title}"><meta name="twitter:description" content="${description}"><meta name="twitter:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">` : '';
+  const robot = robots ? `<meta name="robots" content="${robots}">` : '';
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>${robot}${social}
+<style>body{font:16px/1.45 Arial,Helvetica,sans-serif;background:#070608;color:#f4eddb;max-width:28rem;margin:3rem auto;padding:0 1rem}a,code{color:#dfff00}.skip-link{position:absolute;left:-9999px;top:0;z-index:100;padding:12px 16px;background:#dfff00;color:#070608!important;font-weight:900;text-decoration:none}.skip-link:focus{left:12px;top:12px;outline:3px solid #f4eddb;outline-offset:2px}</style></head>
+<body><a class="skip-link" href="#dasha-page">Skip to content</a><main id="dasha-page">${body}</main></body></html>`;
 }
 
 const NOT_FOUND_HTML = htmlPage('Not found — $dasha', `<h1>Not this page.</h1>
-<p>Studio, Simp Board, Desk, and how to buy live on getdasha.com. This URL is not one of them.</p>
+<p>Studio, Simp Board, Desk, the faucet, and how to buy live on getdasha.com. This URL is not one of them.</p>
 <p><code>53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump</code></p>
-<p><a href="https://www.getdasha.com/">Home</a> · <a href="https://www.getdasha.com/studio">Studio</a> · <a href="https://www.getdasha.com/simp">Simp</a> · <a href="https://www.getdasha.com/how-to-buy">How to buy</a></p>`);
+<p><a href="https://www.getdasha.com/">Home</a> · <a href="https://www.getdasha.com/studio">Studio</a> · <a href="https://www.getdasha.com/simp">Simp</a> · <a href="https://www.getdasha.com/lobby">Lobby</a> · <a href="https://www.getdasha.com/faucet">Faucet</a> · <a href="https://www.getdasha.com/how-to-buy">How to buy</a> · <a href="https://www.getdasha.com/privacy">Privacy</a></p>`, { robots: 'noindex,follow' });
 
 const BOUNTIES_HTML = htmlPage('Bounties — $dasha', `<h1>Bounties</h1>
 <p>USDC on Solana. We don’t hold it. A Pay button only appears when a listing names a payTo address.</p>
 <p>Current listings have no payTo — nothing to send.</p>
 <p><a href="https://github.com/Uuriko/dasha-desk/issues/8">dasha-desk#8</a> · 25 USDC</p>
-<p><a href="https://www.getdasha.com/">Home</a></p>`);
+<p><a href="https://www.getdasha.com/">Home</a> · <a href="https://www.getdasha.com/how-to-buy">How to buy</a> · <a href="https://www.getdasha.com/privacy">Privacy</a></p>`, { path: '/bounties', description: 'Open $dasha contribution bounties.' });
 
 const PRIVACY_HTML = htmlPage('Dasha privacy', `<h1>Privacy</h1>
-<p>Updated August 10, 2026.</p>
+<p>Updated August 20, 2026.</p>
 <h2>What Dasha uses</h2>
-<p>Linking X reads your X account ID, handle, display name, avatar, and verification type. The browser session lasts up to 30 days. Dasha does not store the X access token.</p>
+<p>Logging in with X reads your X account ID, handle, display name, avatar, and verification type. Wallet login stores the signed-in public address only in the signed browser session; it checks no balance and sends no transaction. Either browser session lasts up to 30 days. Dasha does not store the X access token.</p>
 <p>If you join the Simp Board or finish its scored quiz, Dasha stores your linked identity, score, badges, contribution links, referral milestones, and dated holder-badge status. Referral links record the inviter and invited X-linked Board identities until either person leaves; uncompleted claims are removed after expiry on the next Board or referral request. The wallet address and balance used for that optional badge are checked once and are not retained. Lobby history is limited to roughly 30 minutes and 40 messages. Completed chess games are public replays showing both X handles, ratings, moves, result, and completion time. Studio, quiz, referral, and chess funnel counts are aggregate only.</p>
 <h2>How it is used</h2>
 <p>The data provides linked chat identity, Board ranking, quiz results, contribution review, moderation, and optional holder recognition. Public Board rows and season snapshots can show your handle, avatar, score, badges, and accepted evidence links. Dasha does not post to X or sell identity data.</p>
-<p>Webflow serves the site and Cloudflare hosts the service. X processes OAuth and serves some public images; other public images may load from Wikimedia. Those image hosts receive ordinary request metadata without a page referrer. A Solana RPC receives a wallet address only during an optional holder check.</p>
+<p>Webflow serves the site and Cloudflare hosts the service. X processes OAuth and serves some public images; other public images may load from Wikimedia. Those image hosts receive ordinary request metadata without a page referrer. A Solana RPC receives a wallet address only during an optional holder check; wallet login itself does not query the chain.</p>
 <h2>Control and deletion</h2>
 <p>Unlink clears the signed browser session. Leave Board removes your profile, referral identity, claims, active quiz state, current linked result, holder challenge, chess rating, games and tournaments involving you, and your rows from retained season snapshots. Anonymous aggregate counts remain.</p>
 <p>For access or deletion requests, use the repository's <a href="https://github.com/Uuriko/dasha-desk/security/advisories/new">private report</a>. Do not include wallet keys or seed phrases.</p>
-<p><a href="https://www.getdasha.com/">Back to Dasha</a></p>`);
+<p><a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="https://www.getdasha.com/how-to-buy">How to buy</a></p>`, { path: '/privacy', description: 'What Dasha stores, and how to leave.' });
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
@@ -676,11 +717,18 @@ async function chessPageForRequest(request, env) {
   const challengeId = url.searchParams.get('challenge');
   const valid = value => /^[A-Za-z0-9_-]{6,24}$/.test(value || '');
   const apiPath = valid(gameId) ? `/chess/replay/${gameId}` : valid(challengeId) ? `/chess/challenge/${challengeId}` : valid(tournamentId) ? `/chess/tournament/${tournamentId}` : '';
-  if (!apiPath) return CHESS_PAGE_HTML;
+  const generic = isProductHost(url.hostname)
+    ? personalizeChessPage(CHESS_PAGE_HTML, {
+        title: 'Dasha Chess',
+        description: 'Dasha versus Anna. Holder-only rated chess.',
+        url: 'https://www.getdasha.com/chess',
+      })
+    : CHESS_PAGE_HTML;
+  if (!apiPath) return generic;
   try {
     const room = env.LOBBY.idFromName('public');
     const response = await env.LOBBY.get(room).fetch(new Request(`https://lobby.getdasha.com${apiPath}`));
-    if (!response.ok) return CHESS_PAGE_HTML;
+    if (!response.ok) return generic;
     const data = await response.json();
     if (data.replay) {
       const replay = data.replay;
@@ -717,7 +765,7 @@ async function chessPageForRequest(request, env) {
   } catch {
     /* generic card remains available */
   }
-  return CHESS_PAGE_HTML;
+  return generic;
 }
 
 const oauthStateCookie = (token = '') => `${OAUTH_COOKIE}=${token}; Path=/; Max-Age=${token ? 900 : 0}; HttpOnly; Secure; SameSite=Lax`;
@@ -916,6 +964,7 @@ export class DashaLobby {
     this.chessGames = {};
     this.forumIndex = [];
     this.forumReports = [];
+    this.forumAudit = [];
     this.chessRatings = {};
     this.chessCurrent = {};
     this.chessQueue = [];
@@ -953,6 +1002,8 @@ export class DashaLobby {
       }
       const forumReports = await this.state.storage.get('forum:reports');
       if (Array.isArray(forumReports)) this.forumReports = forumReports.slice(0, 100);
+      const forumAudit = await this.state.storage.get('forum:audit');
+      if (Array.isArray(forumAudit)) this.forumAudit = forumAudit.slice(0, 100);
       const flags = await this.state.storage.get('flags');
       if (flags && typeof flags === 'object') {
         this.shield = Boolean(flags.shield);
@@ -1300,9 +1351,62 @@ export class DashaLobby {
     const path = url.pathname.replace(/\/$/, '') || '/';
     const cred = { credentials: true };
 
+    if (path === '/auth/wallet/challenge') {
+      if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405, allowedOrigin, cred);
+      if (!allowedOrigin) return json({ error: 'origin required' }, 403, null);
+      if (!this.env.LOBBY_SESSION_SECRET) return json({ error: 'wallet login unavailable' }, 503, allowedOrigin, cred);
+      const publicKey = String((await requestJson(request)).publicKey || '');
+      if (!isValidSolanaAddress(publicKey)) return json({ error: 'valid Solana address required' }, 400, allowedOrigin, cred);
+      const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+      const ipAllowed = simpRate(this.simpRates, `wallet-login-ip:${ip}`, 12);
+      if (!ipAllowed.ok) return json({ error: 'wallet login rate limited', waitMs: ipAllowed.waitMs }, 429, allowedOrigin, cred);
+      const allowed = simpRate(this.simpRates, `wallet-login-challenge:${publicKey}`, 6);
+      if (!allowed.ok) return json({ error: 'wallet login rate limited', waitMs: allowed.waitMs }, 429, allowedOrigin, cred);
+      const issuedAt = Date.now(), expiresAt = issuedAt + 5 * 60_000;
+      const nonce = [...crypto.getRandomValues(new Uint8Array(16))].map(byte => byte.toString(16).padStart(2, '0')).join('');
+      const proofOrigin = new URL(allowedOrigin);
+      const message = walletLoginMessage({ publicKey, nonce, issuedAt, expiresAt, domain: proofOrigin.host, uri: `${proofOrigin.origin}/login` });
+      const challenge = await signPayload(this.env.LOBBY_SESSION_SECRET, { kind: 'wallet_login', publicKey, nonce, message, origin: proofOrigin.origin, exp: expiresAt });
+      const saved = await this.state.storage.get('walletLogins');
+      const live = Object.fromEntries(Object.entries(saved && typeof saved === 'object' ? saved : {})
+        .filter(([, row]) => Number(row?.exp) > issuedAt));
+      live[publicKey] = { nonce, exp: expiresAt };
+      const bounded = Object.fromEntries(Object.entries(live).sort((a, b) => b[1].exp - a[1].exp).slice(0, 100));
+      await this.state.storage.put('walletLogins', bounded);
+      return json({ ok: true, message, challenge, expiresAt }, 200, allowedOrigin, cred);
+    }
+
+    if (path === '/auth/wallet/verify') {
+      if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405, allowedOrigin, cred);
+      if (!allowedOrigin) return json({ error: 'origin required' }, 403, null);
+      const body = await requestJson(request);
+      const challenge = await verifyPayload(this.env.LOBBY_SESSION_SECRET, body.challenge);
+      if (!challenge || challenge.kind !== 'wallet_login' || challenge.publicKey !== body.publicKey || challenge.origin !== allowedOrigin) {
+        return json({ error: 'invalid wallet login challenge' }, 401, allowedOrigin, cred);
+      }
+      const allowed = simpRate(this.simpRates, `wallet-login-verify:${body.publicKey}`, 4);
+      if (!allowed.ok) return json({ error: 'wallet login rate limited', waitMs: allowed.waitMs }, 429, allowedOrigin, cred);
+      const signatureOk = await verifyEd25519(challenge.message, body.publicKey, body.signature).catch(() => false);
+      if (!signatureOk) return json({ error: 'invalid wallet signature' }, 400, allowedOrigin, cred);
+      const logins = await this.state.storage.get('walletLogins');
+      const pending = logins && typeof logins === 'object' ? logins[body.publicKey] : null;
+      if (!pending || pending.nonce !== challenge.nonce || pending.exp < Date.now()) return json({ error: 'wallet login challenge already used' }, 409, allowedOrigin, cred);
+      delete logins[body.publicKey];
+      if (Object.keys(logins).length) await this.state.storage.put('walletLogins', logins);
+      else await this.state.storage.delete('walletLogins');
+      const token = await createWalletSessionToken(this.env, body.publicKey);
+      return json({ ok: true, provider: 'wallet' }, 200, allowedOrigin, {
+        credentials: true,
+        headers: { 'Set-Cookie': cookieHeader(token) },
+      });
+    }
+
     if (path === '/studio/event' && request.method === 'POST') {
       if (!allowedOrigin) return json({ error: 'origin required' }, 403, null);
       const input = await requestJson(request);
+      if (input?.event === 'handoff_mint' || input?.event === 'handoff_open') {
+        return json({ ok: true, counted: false, reason: 'server-authoritative' }, 200, allowedOrigin);
+      }
       const key = {
         open: 'opens',
         first_edit: 'firstEdits',
@@ -1384,9 +1488,13 @@ export class DashaLobby {
           },
         });
       }
-      this.studioMetrics.handoffOpens = (this.studioMetrics.handoffOpens || 0) + 1;
-      await this.state.storage.put('studioMetrics', this.studioMetrics);
-      const html = handoffCardHtml(id, row.state);
+      const bot = /bot|crawl|spider|slurp|facebookexternalhit|Twitterbot|LinkedInBot|Discordbot|Slackbot|WhatsApp|TelegramBot|Preview/i.test(request.headers.get('user-agent') || '');
+      if (!headOnly && !bot && !row.opened) {
+        row.opened = Date.now();
+        this.studioMetrics.handoffOpens = (this.studioMetrics.handoffOpens || 0) + 1;
+        await this.state.storage.put({ studioHandoffs: this.studioHandoffs, studioMetrics: this.studioMetrics });
+      }
+      const html = handoffCardHtml(id, row.state, { autoRedirect: !bot });
       return new Response(headOnly ? null : html, {
         headers: htmlHeaders({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=120' }),
       });
@@ -1655,6 +1763,21 @@ export class DashaLobby {
         points: result.points,
         donate: result.donate,
       }, 200, allowedOrigin, cred);
+    }
+
+    if (path === '/simp/spotlight') {
+      if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405, allowedOrigin, cred);
+      if (!allowedOrigin) return json({ error: 'origin required' }, 403, null);
+      const session = await sessionFromRequest(this.env, request);
+      const xId = String(session?.xId || '');
+      const rate = simpRate(this.simpRates, `simp-spotlight:${xId || 'anon'}`, 6);
+      if (!rate.ok) return json({ error: 'spotlight updates rate limited', waitMs: rate.waitMs }, 429, allowedOrigin, cred);
+      const input = await requestJson(request);
+      const result = setSimpSpotlight(this.simpProfiles, session, input?.url);
+      if (!result.ok) return json({ error: result.error }, result.status || 400, allowedOrigin, cred);
+      this.simpProfiles = result.store;
+      await this.persistSimpState();
+      return json({ ok: true, spotlight: result.spotlight, ...meStatus(this.simpProfiles, session) }, 200, allowedOrigin, cred);
     }
 
     if (path === '/simp/join') {
@@ -2578,6 +2701,12 @@ export class DashaLobby {
     for (const id of evicted) await this.state.storage.delete(this.forumKey(id));
   }
 
+  async logForumAudit(action, id, by, ts = Date.now()) {
+    this.forumAudit.unshift({ action, id, by, ts });
+    this.forumAudit = this.forumAudit.slice(0, 100);
+    await this.state.storage.put('forum:audit', this.forumAudit);
+  }
+
   /** Ids dropped from the index by a prune, so their posts can go too. */
   forumPrune(next, now) {
     const before = new Set(this.forumIndex.map((t) => t.id));
@@ -2608,7 +2737,16 @@ export class DashaLobby {
       if (evicted.length) await this.persistForumIndex(evicted);
       const q = url.searchParams.get('q') || '';
       const list = q ? searchThreads(this.forumIndex, q) : this.forumIndex;
-      return json({ ok: true, threads: list.map(publicThread) }, 200, allowedOrigin, cred);
+      const page = paginateIndex(list, {
+        cursor: url.searchParams.get('cursor') || '',
+        limit: url.searchParams.get('limit') || 50,
+      });
+      return json({ ok: true, threads: page.threads.map(publicThread), next: page.next }, 200, allowedOrigin, cred);
+    }
+
+    if (path === '/forum/reports' && request.method === 'GET') {
+      if (!modAllowed(request, this.env)) return json({ error: 'mod denied' }, 403, allowedOrigin, cred);
+      return json({ ok: true, reports: this.forumReports, audit: this.forumAudit }, 200, allowedOrigin, cred);
     }
 
     if (path === '/forum/threads' && request.method === 'POST') {
@@ -2645,7 +2783,7 @@ export class DashaLobby {
         const replied = addReply(posts, { text: input?.text, handle, avatar, now, id: `${id}-${posts.length}` });
         if (!replied.ok) return json({ error: replied.error }, 400, allowedOrigin, cred);
         posts.push(replied.post);
-        summary.replies = posts.length - 1;
+        summary.replies = visibleReplies(posts);
         summary.lastTs = now;
         /* Posts first: if the index write fails the thread still has the reply, which is recoverable.
            The other order can acknowledge a post that was never stored. */
@@ -2679,6 +2817,8 @@ export class DashaLobby {
         const removed = deletePost(posts, { id: postId, handle });
         if (!removed.ok) return json({ error: removed.error }, 400, allowedOrigin, cred);
         await this.state.storage.put(this.forumKey(id), removed.posts);
+        summary.replies = visibleReplies(removed.posts);
+        await this.persistForumIndex([]);
         return json({ ok: true, post: publicPost(removed.post) }, 200, allowedOrigin, cred);
       }
     }
@@ -2688,10 +2828,12 @@ export class DashaLobby {
       if (!modAllowed(request, this.env)) return json({ error: 'mod denied' }, 403, allowedOrigin, cred);
       const id = lockMatch[1];
       const summary = this.forumIndex.find((t) => t.id === id);
-      const locked = lockThread(summary, { locked: true });
+      const input = await requestJson(request);
+      const locked = lockThread(summary, { locked: input?.locked !== false });
       if (!locked.ok) return json({ error: locked.error }, 404, allowedOrigin, cred);
       Object.assign(summary, locked.summary);
       await this.persistForumIndex([]);
+      await this.logForumAudit(locked.summary.locked ? 'lock' : 'unlock', id, session?.handle || 'operator', now);
       return json({ ok: true, thread: publicThread(summary) }, 200, allowedOrigin, cred);
     }
 
@@ -2739,6 +2881,7 @@ export class DashaLobby {
 
     if (
       url.pathname.startsWith('/simp/') ||
+      url.pathname.startsWith('/auth/wallet/') ||
       url.pathname.startsWith('/studio/') ||
       url.pathname.startsWith('/chess/') ||
       url.pathname.startsWith('/forum/') ||
@@ -2769,6 +2912,8 @@ export class DashaLobby {
     }
 
     const link = await sessionFromRequest(this.env, request);
+    const holder = Boolean(link?.xId && Number(this.simpProfiles[String(link.xId)]?.holderUntil) > Date.now());
+    const limits = linkedLimits(Boolean(link), holder);
     const count = this.liveCount();
     const seat = mayJoinRoom({ count, maxSockets: MAX_SOCKETS, linked: Boolean(link) });
     if (!seat.ok) {
@@ -2832,8 +2977,10 @@ export class DashaLobby {
             fasterRate: true,
             reservedSeats: true,
             badge: true,
+            holder,
+            maxText: limits.maxText,
           }
-        : { linked: false },
+        : { linked: false, holder: false, maxText: limits.maxText },
     });
     send(server, this.presence());
     // Quiet joins — no system spam; debounced presence only.
@@ -2851,7 +2998,8 @@ export class DashaLobby {
 
     const att = ws.deserializeAttachment() || { id: id(), nick: null };
     const linked = Boolean(att.linked && att.handle);
-    const limits = linkedLimits(linked);
+    const holder = Boolean(linked && Number(this.simpProfiles[String(att.xId)]?.holderUntil) > Date.now());
+    const limits = linkedLimits(linked, holder);
     this.touch(ws, att);
 
     const parsed = parseClientFrame(raw, {
@@ -2895,8 +3043,8 @@ export class DashaLobby {
           ? publicLink({ handle: att.handle, avatar: att.avatar, verifiedType: null })
           : null,
         perks: linked
-          ? { linked: true, longerMessages: true, fasterRate: true, reservedSeats: true, badge: true }
-          : { linked: false },
+          ? { linked: true, longerMessages: true, fasterRate: true, reservedSeats: true, badge: true, holder, maxText: limits.maxText }
+          : { linked: false, holder: false, maxText: limits.maxText },
       });
       // Quiet: no "joined" spam (Twitch-style less noise).
       this.schedulePresence();
@@ -2980,6 +3128,7 @@ export class DashaLobby {
         text: parsed.text,
         ts: Date.now(),
         linked,
+        holder,
         handle: att.handle || undefined,
         avatar: att.avatar || undefined,
       });
@@ -3195,6 +3344,16 @@ async function productEdge(request, url, env) {
       },
     });
   }
+  if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/login' || url.pathname === '/login/')) {
+    return new Response(request.method === 'HEAD' ? null : LOGIN_PAGE_HTML, {
+      status: 200,
+      headers: htmlHeaders({
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'public, max-age=120',
+        'X-Dasha-Edge': 'login',
+      }),
+    });
+  }
   if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/' || url.pathname === '')) {
     const dest = challengeRedirectPath(url.searchParams);
     if (dest) return Response.redirect(`https://www.getdasha.com${dest}`, 308);
@@ -3275,7 +3434,7 @@ async function productEdge(request, url, env) {
     });
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/studio' || url.pathname === '/studio/')) {
-    const studioHtml = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dasha Meme Studio</title><link rel="canonical" href="https://www.getdasha.com/studio"><meta property="og:url" content="https://www.getdasha.com/studio"><meta name="theme-color" content="#070608"><style>@view-transition { navigation: auto; }</style></head><body style="margin:0;background:#070608"><div class="dasha-studio-embed" style="display:block;min-height:100vh;background:#070608"><div class="dasha-studio-shell" data-studio-shell style="box-sizing:border-box;margin:0 auto;padding:28px 16px 40px;max-width:40rem;color:#f4eddb;font:16px/1.45 Arial,Helvetica,sans-serif;background:#070608"><p style="margin:0 0 8px;font-size:12px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:#dfff00">Dasha Meme Studio</p><h1 style="margin:0 0 14px;font-size:clamp(28px,6vw,42px);line-height:1;font-weight:900;letter-spacing:-.04em;text-transform:uppercase">Make one. Pass it on.</h1><p style="margin:0 0 16px;color:#e6dcc4">Six looks · square, story, banner · PNG + GIF · no wallet, no account, nothing uploaded. Runs in your browser.</p><p style="margin:0 0 8px;font-size:13px;word-break:break-all"><span style="color:#dfff00;font-weight:900">CA</span> 53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump</p><p style="margin:0;font-size:13px"><a href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" style="color:#dfff00;font-weight:900" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a> · <a href="/" style="color:#f4eddb;font-weight:800">Home</a></p><p style="margin:18px 0 0;font-size:13px;color:#e6dcc4">Loading studio…</p><p style="margin:12px 0 0;font-size:12px;color:#e6dcc4;max-width:42ch">CC0 for what you make here, except Dasha's name or likeness which stays hers.</p></div></div><script src="https://lobby.getdasha.com/client/studio.js" integrity="${STUDIO_CLIENT_SRI}" crossorigin="anonymous"></script></body></html>`;
+    const studioHtml = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dasha Studio — make one, pass it on</title><meta name="description" content="Make Dasha posts, stories, banners, and GIFs."><link rel="canonical" href="https://www.getdasha.com/studio"><meta property="og:type" content="website"><meta property="og:url" content="https://www.getdasha.com/studio"><meta property="og:title" content="Dasha Studio — make one, pass it on"><meta property="og:description" content="Make Dasha posts, stories, banners, and GIFs."><meta property="og:image" content="https://cdn.prod.website-files.com/5f1458122ba25e70a3ff2bd0/6a776335157ed9bc2f06777c_dasha-card-studio-v1.png"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Dasha Studio — make one, pass it on"><meta name="twitter:description" content="Make Dasha posts, stories, banners, and GIFs."><meta name="twitter:image" content="https://cdn.prod.website-files.com/5f1458122ba25e70a3ff2bd0/6a776335157ed9bc2f06777c_dasha-card-studio-v1.png"><meta name="theme-color" content="#070608"><style>@view-transition { navigation: auto; }.skip-link{position:absolute;left:-9999px;top:0;z-index:100;padding:12px 16px;background:#dfff00;color:#070608!important;font-weight:900;text-decoration:none}.skip-link:focus{left:12px;top:12px;outline:3px solid #f4eddb;outline-offset:2px}</style></head><body style="margin:0;background:#070608"><a class="skip-link" href="#dasha-studio">Skip to studio</a><main id="dasha-studio" class="dasha-studio-embed" style="display:block;min-height:100vh;background:#070608"><div class="dasha-studio-shell" data-studio-shell style="box-sizing:border-box;margin:0 auto;padding:28px 16px 40px;max-width:40rem;color:#f4eddb;font:16px/1.45 Arial,Helvetica,sans-serif;background:#070608"><p style="margin:0 0 8px;font-size:12px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:#dfff00">Dasha Meme Studio</p><h1 style="margin:0 0 14px;font-size:clamp(28px,6vw,42px);line-height:1;font-weight:900;letter-spacing:-.04em;text-transform:uppercase">Make one. Pass it on.</h1><p style="margin:0 0 16px;color:#e6dcc4">Six looks · square, story, banner · PNG + GIF · no wallet, no account, nothing uploaded. Runs in your browser.</p><p style="margin:0 0 8px;font-size:13px;word-break:break-all"><span style="color:#dfff00;font-weight:900">CA</span> 53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump</p><p style="margin:0;font-size:13px"><a href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" style="color:#dfff00;font-weight:900" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a> · <a href="/how-to-buy" style="color:#f4eddb;font-weight:800">How to buy</a> · <a href="/privacy" style="color:#f4eddb;font-weight:800">Privacy</a> · <a href="/" style="color:#f4eddb;font-weight:800">Home</a></p><p style="margin:18px 0 0;font-size:13px;color:#e6dcc4">Loading studio…</p><p style="margin:12px 0 0;font-size:12px;color:#e6dcc4;max-width:42ch">CC0 for what you make here, except Dasha's name or likeness which stays hers.</p></div></main><script src="https://lobby.getdasha.com/client/studio.js" integrity="${STUDIO_CLIENT_SRI}" crossorigin="anonymous"></script></body></html>`;
     return new Response(request.method === 'HEAD' ? null : studioHtml, {
       status: 200,
       headers: htmlHeaders({
@@ -3313,18 +3472,7 @@ async function productEdge(request, url, env) {
     return Response.redirect('https://www.getdasha.com/how-to-buy', 308);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/forum' || url.pathname === '/forum/')) {
-    const host = (url.hostname || '').toLowerCase();
-    if (host === 'www.getdasha.com' || host === 'getdasha.com') {
-      return Response.redirect('https://lobby.getdasha.com/forum', 308);
-    }
-    return new Response(request.method === 'HEAD' ? null : FORUM_PAGE_HTML, {
-      status: 200,
-      headers: htmlHeaders({
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'public, max-age=120',
-        'X-Dasha-Edge': 'forum',
-      }),
-    });
+    return forumToLobbyRedirect(url);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/bounties' || url.pathname === '/bounties/')) {
     return new Response(request.method === 'HEAD' ? null : BOUNTIES_HTML, {
@@ -3345,12 +3493,28 @@ async function productEdge(request, url, env) {
   // public product site is getdasha-only. Source of truth for clean schema is also in embeds.
   const upstream = await fetch(request);
   const ct = String(upstream.headers.get('content-type') || '');
+  if (
+    upstream.status === 404 &&
+    ct.includes('text/html') &&
+    (request.method === 'GET' || request.method === 'HEAD')
+  ) {
+    return new Response(request.method === 'HEAD' ? null : NOT_FOUND_HTML, {
+      status: 404,
+      headers: htmlHeaders({
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'public, max-age=120',
+        'X-Robots-Tag': 'noindex, nofollow',
+        'X-Dasha-Edge': 'html-404',
+      }),
+    });
+  }
   if (request.method !== 'GET' || !ct.includes('text/html')) return upstream;
   let html = await upstream.text();
   const originalHtml = html;
   html = sanitizePublicJsonLd(html);
   const stripped = html !== originalHtml;
   html = ensureHtmlLang(html);
+  html = hardenBlankTargets(html);
   const pageUrl = url.pathname === '/' || url.pathname === ''
     ? 'https://www.getdasha.com/'
     : `https://www.getdasha.com${url.pathname.replace(/\/$/, '')}`;
@@ -3494,7 +3658,12 @@ export class DashaFaucet {
       }
     }
     const status = buildStatus(cfgTip, inventory);
-    return { ...status, ...limits, signer: true };
+    return {
+      ...status,
+      ...limits,
+      signer: true,
+      ...(inventory.rpcTried ? { rpcTried: inventory.rpcTried } : {}),
+    };
   }
 
   async handleFaucet(request, allowedOrigin) {
@@ -3804,6 +3973,26 @@ export default {
       });
     }
 
+    if (url.pathname === '/auth/status' && request.method === 'GET') {
+      const session = await authSessionFromRequest(env, request);
+      const wallet = session?.provider === 'wallet' ? session.wallet : '';
+      return json({
+        loggedIn: Boolean(session),
+        provider: session?.provider || null,
+        x: session?.provider === 'x' ? publicLink(session) : null,
+        wallet: wallet ? { address: wallet, display: `${wallet.slice(0, 4)}…${wallet.slice(-4)}` } : null,
+      }, 200, allowedOrigin, { credentials: true });
+    }
+
+    if (url.pathname === '/auth/logout') {
+      if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405, allowedOrigin, { credentials: true });
+      if (!allowedOrigin) return json({ error: 'origin required' }, 403, null);
+      return json({ ok: true, loggedIn: false }, 200, allowedOrigin, {
+        credentials: true,
+        headers: { 'Set-Cookie': cookieHeader('', { clear: true }) },
+      });
+    }
+
     if (url.pathname.startsWith('/oauth/x')) {
       const oauthRes = await handleOAuth(request, env, allowedOrigin);
       if (oauthRes) return oauthRes;
@@ -3815,11 +4004,17 @@ export default {
         headers: htmlHeaders({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' }),
       });
     }
+    if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/login' || url.pathname === '/login/')) {
+      return new Response(request.method === 'HEAD' ? null : LOGIN_PAGE_HTML, {
+        status: 200,
+        headers: htmlHeaders({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=120', 'X-Dasha-Edge': 'login' }),
+      });
+    }
     if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/.well-known/security.txt') {
       return securityTxtResponse(request, url.hostname);
     }
 
-    if (url.pathname.startsWith('/simp/photo/') || url.pathname.startsWith('/simp/card/') || url.pathname.startsWith('/og/') || url.pathname === '/client/faucet.png' || url.pathname === '/client/faucet.avif') {
+    if (url.pathname.startsWith('/simp/photo/') || url.pathname.startsWith('/simp/card/') || url.pathname.startsWith('/og/') || url.pathname === '/client/faucet.png' || url.pathname === '/client/faucet.avif' || url.pathname === '/client/faucet.webp') {
       const asset = await env.ASSETS.fetch(request);
       const headers = new Headers(asset.headers);
       headers.set('Access-Control-Allow-Origin', '*');
@@ -3836,8 +4031,21 @@ export default {
       return env.FAUCET.get(id).fetch(request);
     }
 
+    // Bare /simp is the board page. /simp/* APIs still go to the lobby DO below.
+    if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/simp' || url.pathname === '/simp/')) {
+      return new Response(request.method === 'HEAD' ? null : simpPageHtml(), {
+        status: 200,
+        headers: htmlHeaders({
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=120',
+          'X-Dasha-Edge': 'simp',
+        }),
+      });
+    }
+
     if (
       url.pathname.startsWith('/simp/') ||
+      url.pathname.startsWith('/auth/wallet/') ||
       url.pathname.startsWith('/studio/') ||
       url.pathname.startsWith('/h/') ||
       (url.pathname.startsWith('/forum/') && url.pathname !== '/forum/') ||
@@ -3924,6 +4132,18 @@ export default {
     if ((request.method === 'GET' || request.method === 'HEAD') && RETIRED_SEO_PATHS.has(url.pathname)) {
       return Response.redirect('https://www.getdasha.com/', 308);
     }
+    if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/studio' || url.pathname === '/studio/')) {
+      return Response.redirect('https://www.getdasha.com/studio', 308);
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/desk' || url.pathname === '/desk/')) {
+      return Response.redirect('https://www.getdasha.com/dasha', 308);
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/how' || url.pathname === '/how/')) {
+      return Response.redirect('https://www.getdasha.com/how-to-buy', 308);
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/quiz' || url.pathname === '/quiz/')) {
+      return Response.redirect('https://www.getdasha.com/simp', 308);
+    }
     if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/faucet' || url.pathname === '/faucet/')) {
       return new Response(request.method === 'HEAD' ? null : FAUCET_PAGE_HTML, {
         status: 200,
@@ -3941,6 +4161,26 @@ export default {
           'Content-Type': 'text/html; charset=utf-8',
           'Cache-Control': 'public, max-age=120',
           'X-Dasha-Edge': 'lobby-page',
+        }),
+      });
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/simp' || url.pathname === '/simp/')) {
+      return new Response(request.method === 'HEAD' ? null : simpPageHtml(), {
+        status: 200,
+        headers: htmlHeaders({
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=120',
+          'X-Dasha-Edge': 'simp',
+        }),
+      });
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/bounties' || url.pathname === '/bounties/')) {
+      return new Response(request.method === 'HEAD' ? null : BOUNTIES_HTML, {
+        status: 200,
+        headers: htmlHeaders({
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=120',
+          'X-Dasha-Edge': 'bounties',
         }),
       });
     }
@@ -3986,18 +4226,7 @@ export default {
     }
 
     if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/forum' || url.pathname === '/forum/')) {
-      const host = (url.hostname || '').toLowerCase();
-      if (host === 'www.getdasha.com' || host === 'getdasha.com') {
-        return Response.redirect('https://lobby.getdasha.com/forum', 308);
-      }
-      return new Response(request.method === 'HEAD' ? null : FORUM_PAGE_HTML, {
-        status: 200,
-        headers: htmlHeaders({
-          'Content-Type': 'text/html; charset=utf-8',
-          'Cache-Control': 'public, max-age=120',
-          'X-Dasha-Edge': 'forum',
-        }),
-      });
+      return forumToLobbyRedirect(url);
     }
 
     if (url.pathname === '/ws' || url.pathname === '/lobby/ws') {
@@ -4006,6 +4235,17 @@ export default {
       return stub.fetch(request);
     }
 
+    if (request.method === 'GET' || request.method === 'HEAD') {
+      return new Response(request.method === 'HEAD' ? null : NOT_FOUND_HTML, {
+        status: 404,
+        headers: htmlHeaders({
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'no-store',
+          'X-Robots-Tag': 'noindex, nofollow',
+          'X-Dasha-Edge': 'not-found',
+        }),
+      });
+    }
     return json({ error: 'not found' }, 404, allowedOrigin);
   },
 };

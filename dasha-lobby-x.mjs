@@ -11,6 +11,7 @@ export const COOKIE = '__Host-dasha_x';
 export const LEGACY_COOKIE = 'dasha_x';
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30d
 export const MAX_TEXT_LINKED = 280;
+export const MAX_TEXT_HOLDER = 500;
 export const RATE_MS_LINKED = 1200;
 export const MAX_PER_MIN_LINKED = 20;
 /** When room is this full, only X-linked users may join (until hard MAX_SOCKETS). */
@@ -124,15 +125,16 @@ export function displayNickFromLink(link) {
 }
 
 /** Linked perks applied when validating chat / rate. */
-export function linkedLimits(linked) {
+export function linkedLimits(linked, holder = false) {
   if (!linked) {
     return { maxText: 200, rateMs: 2500, maxPerMin: 12, linked: false };
   }
   return {
-    maxText: MAX_TEXT_LINKED,
+    maxText: holder ? MAX_TEXT_HOLDER : MAX_TEXT_LINKED,
     rateMs: RATE_MS_LINKED,
     maxPerMin: MAX_PER_MIN_LINKED,
     linked: true,
+    holder: Boolean(holder),
   };
 }
 
@@ -228,17 +230,48 @@ export async function createSessionToken(env, user) {
   });
 }
 
-export async function sessionFromRequest(env, request) {
+/** Wallet login proves control of one address. It does not imply holdings or an X identity. */
+export async function createWalletSessionToken(env, publicKey) {
+  const wallet = String(publicKey || '');
+  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(wallet)) throw new Error('bad wallet');
+  const now = Date.now();
+  return signPayload(env.LOBBY_SESSION_SECRET, {
+    v: 1,
+    wallet,
+    iat: now,
+    exp: now + SESSION_TTL_MS,
+  });
+}
+
+/** Read either supported login without granting provider-specific perks. */
+export async function authSessionFromRequest(env, request) {
   if (!env?.LOBBY_SESSION_SECRET) return null;
   const raw = readCookie(request.headers.get('Cookie'));
   if (!raw) return null;
   const payload = await verifyPayload(env.LOBBY_SESSION_SECRET, raw);
-  if (payload?.v !== 1 || !payload?.handle || !payload?.xId || !Number.isFinite(payload.exp)) return null;
+  if (payload?.v !== 1 || !Number.isFinite(payload.exp)) return null;
   const handle = normalizeHandle(payload.handle);
-  if (!handle) return null;
+  if (payload.xId && handle) {
+    return {
+      provider: 'x',
+      xId: String(payload.xId),
+      handle,
+      name: payload.name || '',
+      verifiedType: payload.verifiedType || null,
+      avatar: typeof payload.avatar === 'string' ? payload.avatar.slice(0, 300) : null,
+    };
+  }
+  const wallet = String(payload.wallet || '');
+  if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(wallet)) return { provider: 'wallet', wallet };
+  return null;
+}
+
+export async function sessionFromRequest(env, request) {
+  const payload = await authSessionFromRequest(env, request);
+  if (payload?.provider !== 'x') return null;
   return {
-    xId: String(payload.xId),
-    handle,
+    xId: payload.xId,
+    handle: payload.handle,
     name: payload.name || '',
     verifiedType: payload.verifiedType || null,
     avatar: typeof payload.avatar === 'string' ? payload.avatar.slice(0, 300) : null,

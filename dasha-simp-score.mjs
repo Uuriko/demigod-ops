@@ -208,8 +208,46 @@ export const ZERO_POINT_SOURCES = [
   'purchases',
   'token balances',
   'bag size',
-  'payments',
+  'payments for goods or access',
 ];
+
+export const SIMP_SPOTLIGHT_UNLOCK = 25;
+
+/** One earned outbound link, restricted to recognizable profile hosts. Never fetched server-side. */
+export function normalizeSimpSpotlight(raw) {
+  const value = String(raw || '').trim();
+  if (!value) return { ok: true, spotlight: null };
+  if (value.length > 300) return { ok: false, error: 'link is too long' };
+  let url;
+  try { url = new URL(value); } catch { return { ok: false, error: 'invalid link' }; }
+  if (url.protocol !== 'https:' || url.username || url.password || url.port || url.search || url.hash) {
+    return { ok: false, error: 'use a clean https profile link' };
+  }
+  const host = url.hostname.toLowerCase();
+  if (host === 'github.com' || host === 'www.github.com') {
+    const match = url.pathname.match(/^\/([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?)\/?$/);
+    if (!match || match[1].includes('--')) return { ok: false, error: 'use a GitHub profile link' };
+    return { ok: true, spotlight: { platform: 'GitHub', url: `https://github.com/${match[1]}` } };
+  }
+  if (host === 'youtube.com' || host === 'www.youtube.com') {
+    const match = url.pathname.match(/^\/@([A-Za-z0-9._-]{3,30})\/?$/);
+    if (!match) return { ok: false, error: 'use a YouTube handle link' };
+    return { ok: true, spotlight: { platform: 'YouTube', url: `https://www.youtube.com/@${match[1]}` } };
+  }
+  if (host === 'twitch.tv' || host === 'www.twitch.tv') {
+    const match = url.pathname.match(/^\/([A-Za-z0-9_]{4,25})\/?$/);
+    if (!match) return { ok: false, error: 'use a Twitch channel link' };
+    return { ok: true, spotlight: { platform: 'Twitch', url: `https://www.twitch.tv/${match[1].toLowerCase()}` } };
+  }
+  if (host === 'bsky.app') {
+    const match = url.pathname.match(/^\/profile\/([^/]+)\/?$/);
+    const handle = String(match?.[1] || '').toLowerCase();
+    const valid = /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$/.test(handle);
+    if (!valid || handle.length > 253) return { ok: false, error: 'use a Bluesky profile link' };
+    return { ok: true, spotlight: { platform: 'Bluesky', url: `https://bsky.app/profile/${handle}` } };
+  }
+  return { ok: false, error: 'use a GitHub, YouTube, Twitch, or Bluesky profile link' };
+}
 
 export const PERRY_EDITORIAL = {
   handle: 'perryalpha',
@@ -578,6 +616,7 @@ export function rankProfiles(profiles, { now = Date.now() } = {}) {
       holder: Number(p.holderUntil) > now,
       holderCheckedAt: Number(p.holderCheckedAt) || null,
       badges: badgesForProfile(p, { now }),
+      spotlight: normalizeSimpSpotlight(p.spotlight?.url).spotlight,
       quiz: p.quiz?.version === QUIZ_VERSION ? { correct: p.quiz.correct, total: p.quiz.total, title: p.quiz.title, lane: p.quiz.lane, resultUrl: p.quiz.resultUrl } : null,
       ...scored,
     });
@@ -602,6 +641,7 @@ export function publicMeasuredEntry(row, rank) {
     holder: row.badges.includes('holder'),
     holderCheckedAt: row.holderCheckedAt,
     badges: [...row.badges],
+    spotlight: row.total >= SIMP_SPOTLIGHT_UNLOCK ? row.spotlight : null,
     quiz: row.quiz,
   };
 }
@@ -664,11 +704,17 @@ export function rulesPublic() {
       floor_dasha: DONATE_UNIT_DASHA,
       cap_rolling_7d: DONATE_CAP_7D,
       note:
-        'Sending $dasha to the faucet treasury (it is re-tipped to strangers). Only from a wallet you signed for; pasted addresses do not earn. Evidence is the public tx page. Buying or holding $dasha earns nothing.',
+        'Optional refill of the public faucet, which re-tips the tokens to strangers. Only from a wallet you signed for; pasted addresses do not earn. Evidence is the public tx page. Buying, holding, or paying for goods or access earns nothing.',
     },
     holder: {
       points: 0,
       note: 'Badge only when a later signed-wallet proof exists. Zero points in v1.',
+    },
+    spotlight: {
+      unlock_points: SIMP_SPOTLIGHT_UNLOCK,
+      platforms: ['GitHub', 'YouTube', 'Twitch', 'Bluesky'],
+      points: 0,
+      note: 'At 25 points, add one user-selected profile link. It does not prove ownership or affect score.',
     },
     zero_points: ZERO_POINT_SOURCES,
     ranking: 'total desc, then most recent evidenced contribution, then enrollment time, then handle',
@@ -827,6 +873,23 @@ export function joinBoard(store, session, { now = Date.now() } = {}) {
   return { ok: true, created: true, profile, store: { ...store, [xId]: profile } };
 }
 
+/** Set or remove the signed-in member's earned, score-neutral public profile link. */
+export function setSimpSpotlight(store, session, raw, { now = Date.now() } = {}) {
+  const xId = String(session?.xId || '');
+  const profile = store?.[xId];
+  if (!xId || !profile) return { ok: false, status: 401, error: 'join board first' };
+  const parsed = normalizeSimpSpotlight(raw);
+  if (!parsed.ok) return { ...parsed, status: 400 };
+  const scored = scoreProfile(profile, { now });
+  if (parsed.spotlight && scored.total < SIMP_SPOTLIGHT_UNLOCK) {
+    return { ok: false, status: 403, error: `${SIMP_SPOTLIGHT_UNLOCK} points required` };
+  }
+  const updated = { ...profile, updatedAt: now };
+  if (parsed.spotlight) updated.spotlight = { ...parsed.spotlight, updatedAt: now };
+  else delete updated.spotlight;
+  return { ok: true, spotlight: parsed.spotlight, profile: updated, store: { ...store, [xId]: updated } };
+}
+
 /**
  * Scored quiz finish: enrolls on Board if needed, then stores latest quiz result.
  * Retakes replace the previous score (no one-shot lock). Practice path is unused.
@@ -899,6 +962,12 @@ export function meStatus(store, session) {
           holder: Number(profile.holderUntil) > now,
           holderCheckedAt: Number(profile.holderCheckedAt) || null,
           badges: badgesForProfile(profile, { now }),
+          spotlight: scored.total >= SIMP_SPOTLIGHT_UNLOCK ? normalizeSimpSpotlight(profile.spotlight?.url).spotlight : null,
+          spotlightUnlock: {
+            points: SIMP_SPOTLIGHT_UNLOCK,
+            unlocked: scored.total >= SIMP_SPOTLIGHT_UNLOCK,
+            remaining: Math.max(0, SIMP_SPOTLIGHT_UNLOCK - scored.total),
+          },
         }
       : null,
   };

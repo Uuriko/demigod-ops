@@ -91,6 +91,8 @@
   .line-meta{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;margin-top:6px}
   .line-count{font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--muted)}
   .line-count.hot{color:var(--acid)}
+  .chart-dir{display:grid;gap:6px;margin-top:10px}
+  .chart-dir button[aria-pressed=true]{border-color:var(--acid);background:rgba(223,255,0,.12);color:var(--acid)}
   .duet{display:flex;gap:0;border:1px solid var(--line);width:fit-content;max-width:100%}
   .duet button{min-height:36px;padding:6px 14px;border:0;background:transparent;color:var(--muted);font:inherit;font-size:11px;
     font-weight:900;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
@@ -215,6 +217,13 @@
         <div class="line-meta">
           <span class="line-count" id="line-count">0/120</span>
           <div class="tool-row"><button type="button" class="ghost-chip" id="surprise">New idea</button></div>
+        </div>
+        <div class="chart-dir" id="chart-dir" hidden>
+          <span class="field-label">Direction</span>
+          <div class="tool-row" role="group" aria-label="Chart direction">
+            <button type="button" class="ghost-chip" id="chart-moon" aria-pressed="true">Moon</button>
+            <button type="button" class="ghost-chip" id="chart-tank" aria-pressed="false">Tank</button>
+          </div>
         </div>
       </div>
 
@@ -838,6 +847,7 @@ const HISTORY_MAX = 5;
 let viewMode = 'now';
 let activeMood = '';
 let capsOn = false;
+let chartMoon = true;
 let historyQuiet = false;
 
 function applyLookFormatEffect(nextLookId, nextFormatId, nextEffectId, nextSticker) {
@@ -1076,13 +1086,13 @@ function hideAfterShare() {
 async function copyPostText() {
   const text = shareText();
   try {
-    if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
+    if (navigator.clipboard?.writeText) await withTimeout(navigator.clipboard.writeText(text), 800);
     else {
       const ta = Object.assign(document.createElement('textarea'), { value: text });
       document.body.append(ta); ta.select(); document.execCommand('copy'); ta.remove();
     }
     if (navigator.clipboard?.readText) {
-      const got = await navigator.clipboard.readText();
+      const got = await withTimeout(navigator.clipboard.readText(), 800);
       if (!handoffCopiedOk(got, text)) {
         setStatus('Could not copy post text.');
         return;
@@ -1594,8 +1604,9 @@ const draw = {
     drawMark(940, 1018, 58, ACID);
   },
 
-  /* A fake price chart. The punchline is the direction: a line ending in ! moons, anything else
-     tanks past the bottom of the frame. Hot is the risk line by art-direction law. */
+  /* A fake price chart. The punchline is the direction, and it is an explicit Moon/Tank control
+     rather than a hidden ! suffix: a bullish caption should not silently render as a crash. Hot is
+     the risk line by art-direction law. */
   chart(text, t = 0) {
     ctx.fillStyle = INK; ctx.fillRect(0, 0, 1080, 1080);
     ctx.strokeStyle = 'rgba(244,237,219,.12)'; ctx.lineWidth = 2;
@@ -1603,7 +1614,7 @@ const draw = {
     for (let y = 200; y <= 760; y += 90) { ctx.beginPath(); ctx.moveTo(140, y); ctx.lineTo(960, y); ctx.stroke(); }
     ctx.fillStyle = 'rgba(244,237,219,.55)'; ctx.font = '700 22px ui-monospace,Menlo,Consolas,monospace';
     ctx.fillText('$DASHA', 140, 180); ctx.textAlign = 'right'; ctx.fillText('TIME', 960, 800); ctx.textAlign = 'left';
-    const moon = /!$/.test(String(text).trim());
+    const moon = chartMoon;
     ctx.strokeStyle = HOT; ctx.lineWidth = 8; ctx.beginPath();
     for (let i = 0; i <= 40; i++) {
       const x = 140 + i * (820 / 40);
@@ -1924,6 +1935,10 @@ const shareText = () => `${$('line').value.trim() || look.line}\n\n$dasha \u{1F3
 function handoffCopiedOk(got, want) {
   return String(got || '') === String(want || '');
 }
+/* writeText/readText can hang with no reject. 800ms then fall through. */
+function withTimeout(p, ms) {
+  return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('copy-timeout')), ms))]);
+}
 
 function save(blob, name = fileName()) {
   const link = document.createElement('a');
@@ -2001,13 +2016,13 @@ $('download').addEventListener('click', async () => {
 $('copy-link').addEventListener('click', async () => {
   const url = await ensureHandoffUrl();
   try {
-    if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(url);
+    if (navigator.clipboard?.writeText) await withTimeout(navigator.clipboard.writeText(url), 800);
     else {
       const ta = Object.assign(document.createElement('textarea'), { value: url });
       document.body.append(ta); ta.select(); document.execCommand('copy'); ta.remove();
     }
     if (navigator.clipboard?.readText) {
-      const got = await navigator.clipboard.readText();
+      const got = await withTimeout(navigator.clipboard.readText(), 800);
       if (!handoffCopiedOk(got, url)) {
         setStatus('Could not copy the link. Select the address bar after Share.');
         return;
@@ -2030,7 +2045,7 @@ $('copy').addEventListener('click', async () => {
     const blob = await png();
     try {
       if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
-        await navigator.clipboard.write([new ClipboardItem({ 'image/png': Promise.resolve(blob) })]);
+        await withTimeout(navigator.clipboard.write([new ClipboardItem({ 'image/png': Promise.resolve(blob) })]), 800);
         $('status').textContent = 'Image copied.';
         trackStudio('export'); trackStudio('completion');
         feMark('export');
@@ -2257,6 +2272,16 @@ function refreshPhotoUi() {
   if (isPhoto && !photo && !isBusyStatus($('status')?.textContent)) {
     setStatus('Photo look · pick or paste an image');
   }
+  refreshChartUi();
+}
+function refreshChartUi() {
+  const dir = $('chart-dir');
+  if (!dir) return;
+  dir.hidden = look.id !== 'chart';
+  const moon = $('chart-moon');
+  const tank = $('chart-tank');
+  if (moon) moon.setAttribute('aria-pressed', chartMoon ? 'true' : 'false');
+  if (tank) tank.setAttribute('aria-pressed', chartMoon ? 'false' : 'true');
 }
 fillSelect('looks', LOOKS, look);
 fillSelect('formats', FORMATS, format);
@@ -2523,6 +2548,22 @@ if ($('shuffle-line')) $('shuffle-line').addEventListener('click', () => {
   render();
   setStatus('Line shuffled');
 });
+if ($('chart-moon')) $('chart-moon').addEventListener('click', () => {
+  if (chartMoon) return;
+  chartMoon = true;
+  trackStudio('first_edit');
+  refreshChartUi();
+  render();
+  setStatus('Chart · moon');
+});
+if ($('chart-tank')) $('chart-tank').addEventListener('click', () => {
+  if (!chartMoon) return;
+  chartMoon = false;
+  trackStudio('first_edit');
+  refreshChartUi();
+  render();
+  setStatus('Chart · tank');
+});
 if ($('view-now')) $('view-now').addEventListener('click', () => {
   viewMode = 'now';
   syncDuetUi();
@@ -2639,7 +2680,7 @@ if (!inbound && !fragmentHasState && !imageOnly) {
   render();
   afterStatePaint({ pulseFormat: true });
   const lookName = LOOKS.find((option) => option.id === ritual.look)?.name || ritual.look;
-  setStatus('');
+  setStatus('Change one thing, then Share.');
   for (const id of ['surprise', 'ritual-today']) {
     const chip = $(id);
     if (chip) {

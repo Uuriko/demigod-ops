@@ -176,6 +176,24 @@ export function pruneIndex(index, now) {
     .slice(0, MAX_THREADS);
 }
 
+export function paginateIndex(index, { cursor = '', limit = 50 } = {}) {
+  const list = Array.isArray(index) ? index : [];
+  const lim = Math.max(1, Math.min(50, Number(limit) || 50));
+  let start = 0;
+  if (cursor) {
+    const i = list.findIndex((t) => t && t.id === cursor);
+    if (i >= 0) start = i + 1;
+  }
+  const threads = list.slice(start, start + lim);
+  const next = start + lim < list.length ? (threads[threads.length - 1]?.id ?? null) : null;
+  return { threads, next };
+}
+
+export function visibleReplies(posts) {
+  const list = Array.isArray(posts) ? posts : [];
+  return Math.max(0, list.filter((p) => p && !p.deleted).length - 1);
+}
+
 /* Explicit field lists, not a delete-the-secrets pass. Whatever the worker starts storing
    alongside a thread — an IP, a session id, a moderation note — stays server-side by default
    instead of shipping the first time someone adds a field. */

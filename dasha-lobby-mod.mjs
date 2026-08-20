@@ -306,12 +306,13 @@ export function avatarOk(url) {
   }
 }
 
-export function publicMessage({ id, nick, text, ts, linked, handle, avatar }) {
+export function publicMessage({ id, nick, text, ts, linked, handle, avatar, holder }) {
   const base = { type: 'chat', id, nick, text, ts };
   if (linked && handle) {
     base.linked = true;
     base.handle = handle;
     if (avatar && avatarOk(avatar)) base.avatar = String(avatar).slice(0, 300);
+    if (holder) base.holder = true;
   }
   return Object.freeze(base);
 }
