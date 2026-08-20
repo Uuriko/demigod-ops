@@ -36,7 +36,7 @@ Never map both Webflow “FIND TALENT” and “HIRE TALENT” to company. Secon
 
 ### Visual / UX
 - [ ] Hero H1 readable, contrast, no layout thrash
-- [ ] Gold `#C9A84C` / black / stone system consistent
+- [ ] First paint and palette: `DEMIGOD-BIBLE.md` (this gold `#C9A84C` line is dead)
 - [ ] Spacing rhythm; cards not cramped
 - [ ] Trust / how-it-works / pricing / FAQ scannable
 - [ ] Modals: focus trap, labels, 16px inputs mobile, review step intact

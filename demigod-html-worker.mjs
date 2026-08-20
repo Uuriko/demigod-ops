@@ -1,7 +1,10 @@
 /**
  * Demigod product HTML edge — Cloudflare Worker for www.trydemigod.com.
  * Fetch Webflow, then rewrite first HTML. Separate zone/brand from Dasha.
+ * Home `/` is worker-owned (DEMIGOD-BIBLE.md). Do not fetch Webflow for it.
  */
+import { demigodHomeHtml } from './demigod-home-motley.mjs';
+
 const FEED_SCHEMA = 'demigod-bounties-feed/v1';
 const FEED_NOTE =
   "Declared USDC. We don't hold it. Unused bounty rail — not the 10% on-hire matching fee. Demigod listings only — not extraSeed/dasha-desk.";
@@ -57,6 +60,10 @@ function isProductHost(host) {
 
 function isBountiesPath(pathname) {
   return pathname === '/bounties' || pathname === '/bounties/';
+}
+
+export function isHomePath(pathname) {
+  return pathname === '/';
 }
 
 export function isCompaniesPath(pathname) {
@@ -433,6 +440,11 @@ function htmlResponse(html, status, edge) {
   return { html, status, headers };
 }
 
+function homeEdge(request) {
+  const { html, status, headers } = htmlResponse(demigodHomeHtml(), 200, 'home-motley');
+  return new Response(request.method === 'HEAD' ? null : html, { status, headers });
+}
+
 async function companiesEdge(request, url) {
   const map = await loadCdnJson('sf-startup-map.json').catch(() => null);
   if (isCompanyPath(url.pathname)) {
@@ -477,6 +489,11 @@ export default {
       });
     }
     if (isProductHost(url.hostname)) {
+      // Worker-owned first paint. Do not fetch Webflow for `/` — head-latest /
+      // foot-latest / gold statue must not paint the home hero.
+      if ((request.method === 'GET' || request.method === 'HEAD') && isHomePath(url.pathname)) {
+        return homeEdge(request);
+      }
       // Worker-owned 200s. Do not fetch Webflow — /companies and /c/:id are 404 there,
       // and foot JS cannot rescue an upstream 404.
       if (

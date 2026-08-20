@@ -6,16 +6,21 @@ import workerModule, {
   injectBountiesBoard,
   isCompaniesPath,
   isCompanyPath,
+  isHomePath,
   normalizeBountiesFeed,
   rewriteCdnPin,
   rewriteStaleSnapshotDates,
   stripGoldAccent,
 } from './demigod-html-worker.mjs';
+import { demigodHomeHtml } from './demigod-home-motley.mjs';
 
 const root = new URL('./', import.meta.url);
 const workerSrc = await readFile(new URL('./demigod-html-worker.mjs', root), 'utf8');
+const homeSrc = await readFile(new URL('./demigod-home-motley.mjs', root), 'utf8');
 const wrangler = await readFile(new URL('./demigod-html-wrangler.jsonc', root), 'utf8');
 const dashaWrangler = await readFile(new URL('./dasha-lobby-wrangler.jsonc', root), 'utf8');
+const siteMaster = await readFile(new URL('./docs/process/SITE-MASTER-PROMPT.md', root), 'utf8');
+const bible = await readFile(new URL('./DEMIGOD-BIBLE.md', root), 'utf8');
 
 const CDN_PIN_FROM = 'e0fe769c0dca9fc8804f6676e928f42092570d6c';
 const CDN_PIN_TO = '85246d21f8e0794a45adbe5f9a9ac5b2add0b6d2';
@@ -95,7 +100,16 @@ assert.match(workerSrc, /bounties-feed\.json/);
 assert.match(workerSrc, /sf-startup-map\.json/);
 assert.match(workerSrc, /roles-feed\.json/);
 assert.match(workerSrc, /#03140d|#f3f0e7|#10c674/);
+assert.match(workerSrc, /demigod-home-motley/);
+assert.match(workerSrc, /home-motley/);
 assert.doesNotMatch(workerSrc, /cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]{40}\/(sf-startup-map|roles-feed)/);
+assert.match(bible, /47e4ad1c-c427-468d-a837-eb46437d634d/);
+assert.match(siteMaster, /DEMIGOD-BIBLE\.md/);
+assert.doesNotMatch(siteMaster, /Gold `#C9A84C` \/ black \/ stone system consistent/);
+assert.doesNotMatch(homeSrc, /Manrope|Cinzel/);
+assert.doesNotMatch(homeSrc, /#C9A84C|#10c674|#a6ffcb|#03140d/);
+assert.doesNotMatch(homeSrc, /Ellis|3 briefs open|Tech Matched|HIRE TALENT|FIND TALENT/);
+assert.match(homeSrc, /#0d0d0d|#efe8dc|#8a847a/);
 
 {
   const out = stripGoldAccent(HOME_FIXTURE);
@@ -176,7 +190,7 @@ function urlOf(input) {
     globalThis.fetch = async () => new Response(PIN_FIXTURE(CDN_PIN_FROM), {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
     });
-    const pinned = await workerModule.fetch(new Request('https://www.trydemigod.com/'), {});
+    const pinned = await workerModule.fetch(new Request('https://www.trydemigod.com/hire'), {});
     const pinnedHtml = await pinned.text();
     assert.equal(pinned.headers.get('x-demigod-edge'), 'html-rewrite');
     assert.doesNotMatch(pinnedHtml, new RegExp(CDN_PIN_FROM));
@@ -185,14 +199,14 @@ function urlOf(input) {
     globalThis.fetch = async () => new Response(PIN_FIXTURE(CDN_PIN_TO), {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
     });
-    const alreadyHtml = await (await workerModule.fetch(new Request('https://www.trydemigod.com/'), {})).text();
+    const alreadyHtml = await (await workerModule.fetch(new Request('https://www.trydemigod.com/hire'), {})).text();
     assert.equal(alreadyHtml.split(CDN_PIN_TO).length - 1, 3);
 
     const noPin = '<!doctype html><html lang="en"><body><p>no cdn pin</p></body></html>';
     globalThis.fetch = async () => new Response(noPin, {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
     });
-    const bareHtml = await (await workerModule.fetch(new Request('https://www.trydemigod.com/'), {})).text();
+    const bareHtml = await (await workerModule.fetch(new Request('https://www.trydemigod.com/hire'), {})).text();
     assert.doesNotMatch(bareHtml, new RegExp(CDN_PIN_FROM));
     assert.doesNotMatch(bareHtml, new RegExp(CDN_PIN_TO));
     assert.match(bareHtml, /<p>no cdn pin<\/p>/);
@@ -206,10 +220,10 @@ function urlOf(input) {
     assert.doesNotMatch(startupsHtml, /2026-08-02/);
     assert.match(startupsHtml, new RegExp(`"generatedAt":"${LIVE_MAP_GENERATED_AT}"`));
     assert.match(startupsHtml, /"firstObservedAt":"2026-08-06"/);
-    const homeDated = await (await workerModule.fetch(new Request('https://www.trydemigod.com/'), {})).text();
-    assert.doesNotMatch(homeDated, /2026-08-02/);
-    assert.match(homeDated, new RegExp(`"generatedAt":"${LIVE_MAP_GENERATED_AT}"`));
-    assert.match(homeDated, /first observed 2026-08-06/);
+    const hireDated = await (await workerModule.fetch(new Request('https://www.trydemigod.com/hire'), {})).text();
+    assert.doesNotMatch(hireDated, /2026-08-02/);
+    assert.match(hireDated, new RegExp(`"generatedAt":"${LIVE_MAP_GENERATED_AT}"`));
+    assert.match(hireDated, /first observed 2026-08-06/);
   } finally {
     globalThis.fetch = nativeFetch;
   }
@@ -235,21 +249,21 @@ function urlOf(input) {
         });
       }
       const path = new URL(u).pathname;
-      const body = path === '/' || path === '' ? HOME_FIXTURE : BOUNTIES_SHELL;
+      const body = path === '/contact' ? HOME_FIXTURE : BOUNTIES_SHELL;
       return new Response(body, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     };
 
-    const home = await workerModule.fetch(new Request('https://www.trydemigod.com/'), {});
-    const homeHtml = await home.text();
-    assert.equal(home.status, 200);
-    assert.equal(home.headers.get('x-demigod-edge'), 'html-rewrite');
-    assert.equal(home.headers.get('x-dasha-edge'), null);
-    assert.doesNotMatch(homeHtml, /title-accent-gold/);
-    const homeH1 = homeHtml.match(/<h1 class="hero-title">[\s\S]*?<\/h1>/)?.[0] || '';
-    assert.doesNotMatch(homeH1, /SF Startup Talent/);
-    assert.match(homeH1, /title-accent-red/);
-    assert.match(homeH1, /title-accent-blue/);
-    assert.doesNotMatch(homeHtml, /id="demigod-bounties"/);
+    const rewritePage = await workerModule.fetch(new Request('https://www.trydemigod.com/contact'), {});
+    const rewriteHtml = await rewritePage.text();
+    assert.equal(rewritePage.status, 200);
+    assert.equal(rewritePage.headers.get('x-demigod-edge'), 'html-rewrite');
+    assert.equal(rewritePage.headers.get('x-dasha-edge'), null);
+    assert.doesNotMatch(rewriteHtml, /title-accent-gold/);
+    const rewriteH1 = rewriteHtml.match(/<h1 class="hero-title">[\s\S]*?<\/h1>/)?.[0] || '';
+    assert.doesNotMatch(rewriteH1, /SF Startup Talent/);
+    assert.match(rewriteH1, /title-accent-red/);
+    assert.match(rewriteH1, /title-accent-blue/);
+    assert.doesNotMatch(rewriteHtml, /id="demigod-bounties"/);
 
     for (const path of ['/bounties', '/bounties/']) {
       const page = await workerModule.fetch(new Request(`https://www.trydemigod.com${path}`), {});
@@ -323,6 +337,64 @@ function urlOf(input) {
     assert.match(section, /25 USDC/);
     assert.doesNotMatch(section, /payTo:""/);
     assert.doesNotMatch(section, /\bClaim\b|\bPay\b|log\s*in/i);
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
+}
+
+{
+  assert.equal(isHomePath('/'), true);
+  assert.equal(isHomePath('/hire'), false);
+  assert.equal(isHomePath('/companies'), false);
+  assert.equal(isHomePath(''), false);
+
+  const homeHtml = demigodHomeHtml();
+  assert.match(homeHtml, /<h1>A motley crew is assembled quietly\.<\/h1>/);
+  assert.match(homeHtml, /You’re not filling a seat/);
+  assert.match(homeHtml, /CHAPTER ONE/);
+  assert.match(homeHtml, /SF BAY AREA/);
+  assert.match(homeHtml, /EST\. 2025/);
+  assert.match(homeHtml, /href="\/hire">Start a brief</);
+  assert.match(homeHtml, /href="\/hire\?wiz=engineer">Join the network</);
+  assert.match(homeHtml, /A person reads every brief\./);
+  assert.match(homeHtml, /Names move after mutual yes\./);
+  assert.doesNotMatch(homeHtml, /foot-latest|head-latest|Manrope|Cinzel/);
+  assert.doesNotMatch(homeHtml, /#C9A84C|#10c674|#a6ffcb|#03140d/);
+  assert.doesNotMatch(homeHtml, /Ellis|3 briefs open|1 intro pending|Tech Matched|HIRE TALENT|FIND TALENT/);
+  assert.doesNotMatch(homeHtml, /\bMenu\b|statue|pantheon/i);
+  assert.match(homeHtml, /#0d0d0d|#efe8dc|#8a847a/);
+}
+
+{
+  const nativeFetch = globalThis.fetch;
+  const fetched = [];
+  try {
+    globalThis.fetch = async (input) => {
+      fetched.push(urlOf(input));
+      return new Response('webflow home', { status: 200, headers: { 'Content-Type': 'text/html' } });
+    };
+    for (const host of ['www.trydemigod.com', 'trydemigod.com']) {
+      const page = await workerModule.fetch(new Request(`https://${host}/`), {});
+      const html = await page.text();
+      assert.equal(page.status, 200, host);
+      assert.equal(page.headers.get('x-demigod-edge'), 'home-motley');
+      assert.equal(page.headers.get('x-dasha-edge'), null);
+      assert.match(html, /A motley crew is assembled quietly\./);
+      assert.match(html, /You’re not filling a seat/);
+      assert.match(html, /Start a brief/);
+      assert.match(html, /Join the network/);
+      assert.match(html, /A person reads every brief\./);
+      assert.match(html, /Names move after mutual yes\./);
+      assert.doesNotMatch(html, /webflow home|foot-latest|head-latest/);
+      assert.doesNotMatch(html, /Ellis|3 briefs open|Tech Matched|HIRE TALENT|FIND TALENT/);
+      assert.doesNotMatch(html, /#C9A84C|#10c674|#a6ffcb|#03140d/);
+
+      const head = await workerModule.fetch(new Request(`https://${host}/`, { method: 'HEAD' }), {});
+      assert.equal(head.status, 200, `${host} HEAD`);
+      assert.equal(head.headers.get('x-demigod-edge'), 'home-motley');
+      assert.equal(await head.text(), '');
+    }
+    assert.equal(fetched.length, 0, 'home must not fetch Webflow');
   } finally {
     globalThis.fetch = nativeFetch;
   }
