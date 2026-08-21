@@ -174,6 +174,7 @@ assert.equal(copyFallback.focused && copyFallback.selected, true);
 assert.equal(copyFallback.button.textContent, 'Selected — copy');
 async function runMemberShare(share, { fileShare = false, blob = { type: 'image/png', size: 4379 } } = {}) {
   let click, shared = null, opened = null;
+  const downloads = [];
   const attrs = {
     'data-title': '@Maker_7 · #52 on the $dasha Simp Board',
     'data-text': '@Maker_7 · #52 on the $dasha Simp Board\n25 Simp Points · current measured rank.\n$dasha',
@@ -185,7 +186,11 @@ async function runMemberShare(share, { fileShare = false, blob = { type: 'image/
     constructor(parts, name, options) { this.parts = parts; this.name = name; this.type = options.type; }
   }
   runInNewContext(memberShareScript, {
-    document: { getElementById: id => id === 'dasha-member-share' ? button : null },
+    document: {
+      getElementById: id => id === 'dasha-member-share' ? button : null,
+      createElement: () => ({ click() { downloads.push({ href: this.href, download: this.download }); }, remove() {} }),
+      body: { appendChild() {} },
+    },
     navigator: share ? {
       share: data => { shared = data; return share(data); },
       ...(fileShare ? { canShare: data => Array.isArray(data.files) && data.files.length === 1 } : {}),
@@ -199,7 +204,7 @@ async function runMemberShare(share, { fileShare = false, blob = { type: 'image/
   await new Promise(resolve => setImmediate(resolve));
   click();
   await new Promise(resolve => setImmediate(resolve));
-  return { shared, opened, attrs };
+  return { shared, opened, attrs, downloads };
 }
 const nativeShare = await runMemberShare(() => Promise.resolve());
 assert.equal(JSON.stringify(nativeShare.shared), JSON.stringify({
@@ -208,6 +213,7 @@ assert.equal(JSON.stringify(nativeShare.shared), JSON.stringify({
   url: nativeShare.attrs['data-url'],
 }));
 assert.equal(nativeShare.opened, null);
+assert.deepEqual(nativeShare.downloads, []);
 const nativeFileShare = await runMemberShare(() => Promise.resolve(), { fileShare: true });
 assert.equal(nativeFileShare.shared.files[0].name, 'dasha-simp-maker_7.png');
 assert.equal(nativeFileShare.shared.files[0].type, 'image/png');
@@ -218,11 +224,14 @@ const oversizedFileShare = await runMemberShare(() => Promise.resolve(), { fileS
 assert.equal(oversizedFileShare.shared.files, undefined);
 const xFallback = await runMemberShare(null);
 assert.equal(xFallback.opened[1], '_blank');
+assert.deepEqual(xFallback.downloads, [{ href: xFallback.attrs['data-image'], download: 'dasha-simp-maker_7.png' }]);
 assert.equal(new URL(xFallback.opened[0]).searchParams.get('text'), xFallback.attrs['data-text'] + '\n' + xFallback.attrs['data-url']);
 const cancelledShare = await runMemberShare(() => Promise.reject({ name: 'AbortError' }));
 assert.equal(cancelledShare.opened, null);
+assert.deepEqual(cancelledShare.downloads, []);
 const blockedShare = await runMemberShare(() => Promise.reject({ name: 'NotAllowedError' }));
 assert.match(blockedShare.opened[0], /^https:\/\/x\.com\/intent\/post\?text=/);
+assert.equal(blockedShare.downloads[0].download, 'dasha-simp-maker_7.png');
 assert.doesNotMatch(simpMemberHtml({ handle: 'maker', rank: 2, total: 25, spotlight: { url: 'https://evil.example/maker' } }), /evil\.example/);
 assert.doesNotMatch(simpMemberHtml({ handle: 'maker', rank: 2, total: 25, holder: false }), /class="holder"|\/chess|\/lobby/);
 assert.doesNotMatch(simpMemberHtml({ handle: 'maker', rank: 2, total: 25, quiz: { correct: 99, total: 1, title: 'OWNED' } }), /OWNED/);
