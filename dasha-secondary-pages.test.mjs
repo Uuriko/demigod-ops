@@ -64,6 +64,29 @@ assert.match(await contribute.text(), /<link rel="canonical" href="https:\/\/www
 const contributeHead = await edge.fetch(new Request('https://www.getdasha.com/contribute', { method: 'HEAD' }), {});
 assert.equal(contributeHead.status, 200);
 assert.equal(await contributeHead.text(), '');
+
+const studio = await edge.fetch(new Request('https://www.getdasha.com/studio'), {});
+assert.equal(studio.status, 200, 'Studio must not be retired to Home');
+assert.equal(studio.headers.get('x-dasha-edge'), 'studio');
+const privacyRoute = await edge.fetch(new Request('https://www.getdasha.com/privacy'), {});
+assert.equal(privacyRoute.status, 200, 'Privacy must not be retired to Home');
+assert.equal(privacyRoute.headers.get('x-dasha-edge'), 'privacy');
+const desk = await edge.fetch(new Request('https://www.getdasha.com/desk'), {});
+assert.equal(desk.status, 308);
+assert.equal(desk.headers.get('location'), 'https://www.getdasha.com/dasha', 'Desk must lead to Dasha, not Home');
+const nativeFetch = globalThis.fetch;
+globalThis.fetch = async () => new Response('<!doctype html><title>Dasha Desk</title>', {
+  status: 200,
+  headers: { 'Content-Type': 'text/html; charset=utf-8' },
+});
+try {
+  const dasha = await edge.fetch(new Request('https://www.getdasha.com/dasha'), {});
+  assert.equal(dasha.status, 200, 'Dasha must not be retired to Home');
+  assert.equal(dasha.headers.get('location'), null);
+  assert.match(await dasha.text(), /Dasha Desk/);
+} finally {
+  globalThis.fetch = nativeFetch;
+}
 const liveVerifier = await readFile(new URL('./dasha-live-verify.mjs', import.meta.url), 'utf8');
 assert.match(liveVerifier, /const contribute = await get\('\/contribute'\)/);
 assert.match(liveVerifier, /SITEMAP_REQUIRED = \[[^\]]*'\/contribute'/);

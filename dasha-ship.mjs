@@ -146,6 +146,7 @@ const receiptInputHash = hashes => digest([
     'dasha-ship.mjs',
     'dasha-release-contract.json',
     'dasha-product-coherence.test.mjs',
+    'dasha-secondary-pages.test.mjs',
     'dasha-growth.test.mjs',
     'dasha-landing.test.mjs',
     'dasha-studio-embed.test.mjs',
@@ -332,6 +333,7 @@ function fastGate(changed, receipt) {
   run('node', ['dasha-studio-install.test.mjs']);
   run('node', ['dasha-desk/build.mjs', '--check']);
   gate(receipt, 'productCoherence', 'node', ['dasha-product-coherence.test.mjs'], 'required for every product release');
+  gate(receipt, 'canonicalRoutes', 'node', ['dasha-secondary-pages.test.mjs'], 'Studio, Desk, Dasha and Privacy must remain public');
   gate(receipt, 'growthTrust', 'node', ['dasha-growth.test.mjs'], 'required for every product release');
   // Disk love/identity radar (no network) — catches handoff/schema/mint drift before push.
   gate(receipt, 'loveRadar', 'node', ['dasha-radar.mjs'], 'identity + L1–L7 love-paths + handoff unit');
