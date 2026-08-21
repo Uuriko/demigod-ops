@@ -38,7 +38,7 @@ const read = (rel) => readFile(join(root, rel), 'utf8');
    claim instead. What that costs is stated plainly rather than hidden: the drawn looks still work
    with no network, but the gallery does not, and a photo host can rot or start refusing us at any
    time. The footer must therefore never claim the photos are ours to give away. */
-const LINKS = /^https:\/\/(creativecommons\.org|github\.com\/Uuriko|jup\.ag|x\.com|lobby\.getdasha\.com)/;
+const LINKS = /^https:\/\/(creativecommons\.org|github\.com\/Uuriko|jup\.ag|x\.com|(?:www\.|lobby\.)getdasha\.com)/;
 const PHOTO_HOSTS = /^https:\/\/(pbs\.twimg\.com|static1\.squarespace\.com|www\.moviemaker\.com|m\.media-amazon\.com|br\.web\.img2\.acsta\.net|avatars\.mds\.yandex\.net|upload\.wikimedia\.org)\//;
 const studio = await read('dasha-meme-studio.html');
 // Every absolute URL anywhere in the file — markup, CSS, or a string literal in the script.
