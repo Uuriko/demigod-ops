@@ -11,12 +11,15 @@ const sitemap = await readFile(new URL('./dasha-sitemap.xml', import.meta.url), 
 const notFound = await readFile(new URL('./dasha-404.html', import.meta.url), 'utf8');
 const mint = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
 const sol = 'So11111111111111111111111111111111111111112';
+const navHtml = html.match(/<nav class="nav wrap"[\s\S]*?<\/nav>/)?.[0] || '';
 
 assert(!/thesis|receipt-form|telegram/i.test(html), 'retired thesis/Telegram content leaked into homepage');
 assert(!/images\.weserv\.nl|files\.catbox\.moe|gpjyb0\.jpg/.test(html), 'old third-party casino hero image returned');
 assert(!/<img\b|pbs\.twimg\.com|cdn\.dexscreener\.com|Public tape|Stills from the timeline|Culture tape/.test(html), 'homepage gained a brittle or implied-curation image tape');
 assert(!/<img\b[^>]*(?:PerryALPHA|Perry)/i.test(html), 'Perry founding spot must not revive the retired image tape');
-for (const required of ['$dasha', mint, '/dasha', '/studio', '/lobby', 'href="/simp"', 'Make something', 'Simp board', 'Contribute', 'jup.ag/swap', 'geckoterminal.com', 'id="chess-door"', 'Dasha vs Anna', 'lobby.getdasha.com/chess']) assert(html.includes(required), `missing ${required}`);
+for (const required of ['$dasha', mint, '/dasha', '/studio', '/lobby', 'href="/simp"', 'Make something', 'Simp board', 'Contribute', 'jup.ag/swap', 'geckoterminal.com', 'id="chess-door"', 'Dasha vs Anna', 'href="/chess"', 'www.getdasha.com/chess', 'id="grwm"', 'grwm-loop.mp4', 'Play GRWM']) assert(html.includes(required), `missing ${required}`);
+assert.doesNotMatch(html, /lobby\.getdasha\.com\/chess/, 'Home must link and share the canonical www Chess URL');
+assert.match(html, /prefers-reduced-motion:reduce[\s\S]*grwm[\s\S]*removeAttribute\('autoplay'\)|matchMedia\('\(prefers-reduced-motion:reduce\)'\)/, 'GRWM must not autoplay when the visitor asked for less motion');
 assert(!html.includes('id="dasha-simp-board"') && !html.includes('/client/simp-board.js'), 'Home must link to the first-class Simp Board without embedding it');
 assert(/location\.hash==='\#simp'.*q\.has\('quiz'\).*q\.has\('challenge'\).*location\.replace\('\/simp'\+location\.search\)/.test(html), 'legacy Home Simp links must redirect to /simp and preserve the query');
 assert(!/plugin\.jup\.ag|window\.Jupiter|Jupiter\.init/.test(html), 'unpinned Jupiter code returned; Buy must stay an exact external link');
@@ -26,8 +29,11 @@ assert(!/culture coin (?:behind|powering|required for|unlocks) (?:an |the )?open
 assert(!/self-custody wallet|Confirm the mint|Swap through <strong>Jupiter<\/strong>/.test(html), 'explanatory buy tutorial returned');
 assert(!/wrong one|never trust|fakes exist|old coin|not the dev/i.test(html), 'negative coin copy returned');
 assert(html.includes('href="/how-to-buy"') && !html.includes('href="/rally"'), 'homepage route set drifted');
-assert.match(html, /class="navlinks"[^>]*>[\s\S]*href="\/how-to-buy"/, 'first-paint nav must expose How to buy next to Buy');
+assert.match(html, /class="navlinks"[^>]*>[\s\S]*href="\/how-to-buy"/, 'first-paint nav must expose the buy guide');
+assert.doesNotMatch(navHtml, /buy-dasha/, 'nav must not duplicate the mint-adjacent Buy action');
 assert.match(html, /class="linkrow"[^>]*>[\s\S]*href="\/how-to-buy"/, 'mint card must link How to buy at the swap moment');
+assert.match(html, /class="linkrow"[^>]*>[\s\S]*href="\/simp#holder"[^>]*aria-label="[^"]*current \$dasha holder proof[^"]*zero Simp Points"[^>]*>24h holder perks: Chess \+ chat<\/a>/,
+  'the mint card must expose existing score-neutral holder utility without another button');
 assert(!html.includes('class="buy-guide"'), 'removed buy guide returned');
 assert.ok(notFound.includes(`jup.ag/swap?sell=${sol}&amp;buy=${mint}`), '404 Buy must use exact wrapped-SOL + mint');
 assert.ok(!notFound.includes('So11111111111111111111111111111111111112&'), '404 must not truncate wrapped SOL');
@@ -52,9 +58,10 @@ assert(!/\braid\b|buy pressure|buys\/hr|buy the dip|referral|telegram|t\.me/i.te
    sitemap entry that disagrees with a page's own canonical only asks a crawler to pick between them.
    The list stays exact rather than becoming a length check: the point is that adding or dropping a
    public route is a deliberate edit here, not something that happens quietly somewhere else. */
-assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]), ['https://www.getdasha.com/','https://www.getdasha.com/simp','https://www.getdasha.com/studio','https://www.getdasha.com/lobby','https://www.getdasha.com/dasha','https://www.getdasha.com/how-to-buy','https://www.getdasha.com/privacy','https://www.getdasha.com/chess','https://lobby.getdasha.com/forum'], 'bounded sitemap must contain the intended canonical public routes');
-assert(!html.includes('href="/bounties"') && !html.includes('href="/faq"'), 'home must not advertise removed bounties or faq routes');
-assert(html.includes('href="https://lobby.getdasha.com/forum"'), 'home footer must open the official room');
+assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]), ['https://www.getdasha.com/','https://www.getdasha.com/simp','https://www.getdasha.com/studio','https://www.getdasha.com/lobby','https://www.getdasha.com/dasha','https://www.getdasha.com/faucet','https://www.getdasha.com/bounties','https://www.getdasha.com/contribute','https://www.getdasha.com/how-to-buy','https://www.getdasha.com/privacy','https://www.getdasha.com/chess','https://www.getdasha.com/which','https://www.getdasha.com/llms.txt','https://www.getdasha.com/llms-full.txt','https://www.getdasha.com/ai.txt'], 'bounded sitemap must contain the intended canonical public routes');
+assert(!html.includes('href="/faq"'), 'home must not advertise the removed faq route');
+assert(html.includes('href="/lobby"'), 'home footer must open the official room');
+assert(!html.includes('lobby.getdasha.com/forum'), 'forum is the lobby — no second community door');
 assert(!/lastmod|thesis|receipt|forecast/i.test(sitemap), 'sitemap contains stale dates or retired routes');
 assert(!/<priority>|<changefreq>/.test(sitemap), 'sitemap restored crawler hints Google ignores');
 assert.equal([...html.matchAll(/class="poster-tile"/g)].length, 3, 'homepage must stay to three concise editable lines');
@@ -73,7 +80,7 @@ for (const width of [320, 390, 1440]) {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${width}px overflows horizontally`);
   assert.deepEqual(await page.$eval('h1', heading => ({ text: heading.innerText.replace(/\s+/g, ' ').trim(), stroke: heading.querySelector('.stroke')?.textContent })), { text: 'It’s time $dasha.', stroke: '$dasha.' }, 'hero lost its sourced voice or emphasis');
   /* Shape pinned, wording not. This asserted the literal 'Contribute ↗' until the label was
-     qualified to 'Contribute to open source ↗' — on a page with a Buy button in the same nav, a bare
+     qualified to 'Contribute to open source ↗' — on a page with a Buy button elsewhere, a bare
      "Contribute" reads as a request for money, which is the one thing this site must never imply by
      accident. The structure is what protects the hero: exactly two actions, the product one primary,
      the contribution one not, and the second must still say what it is. Same reasoning as the
@@ -84,7 +91,7 @@ for (const width of [320, 390, 1440]) {
   assert.equal(heroActions[1].primary, false, 'the contribution link must not compete with the product action');
   assert.match(heroActions[1].text, /contribute/i, 'hero lost its contribution path');
   assert.match(heroActions[1].text, /open source|code|github/i, `the hero contribution label must say what is being contributed — got "${heroActions[1].text}"`);
-  assert.match(heroActions[1].href, /^https:\/\/github\.com\//, 'the contribution link must point at the public repo');
+  assert.equal(heroActions[1].href, '/contribute', 'the contribution link must open the first-party onboarding page');
   assert.equal(await page.$eval('body', el => parseFloat(getComputedStyle(el).fontSize) >= 16), true, 'body copy fell below readable size');
   assert.equal(await page.$eval('footer', el => parseFloat(getComputedStyle(el).fontSize) >= 14), true, 'footer risk copy fell below readable size');
   for (const selector of ['.ca code', '.linkrow a', 'footer a']) assert.equal(await page.$eval(selector, el => getComputedStyle(el).color), 'rgb(244, 237, 219)', `${selector} lost contrast under legacy Webflow styles`);
@@ -96,13 +103,15 @@ for (const width of [320, 390, 1440]) {
   assert.equal(await page.$eval('#simp-door a.pill', a => a.getAttribute('href')), '/simp', 'Simp door CTA must open /simp');
   assert.equal(await page.$eval('#chess-door', section => section.scrollWidth <= section.clientWidth), true, `${width}px chess door overflows its section`);
   assert.match(await page.$eval('#chess-door .door-line', el => el.textContent), /link|Anna/i, 'chess door must say the share is a game for two');
-  assert.equal(await page.$eval('#chess-door a.pill.primary', a => a.getAttribute('href')), 'https://lobby.getdasha.com/chess', 'chess door must open the chess page');
+  assert.equal(await page.$eval('#chess-door a.pill.primary', a => a.getAttribute('href')), '/chess', 'chess door must open the canonical site page');
   assert.ok(await page.$('#chess-copy'), 'chess door must expose Copy challenge link on first paint');
+  assert.equal(await page.$$eval('a.buy-dasha', links => links.length), 1, 'home must expose one Buy action');
+  assert.equal(await page.$$eval('.navlinks a.buy-dasha', links => links.length), 0, 'nav must stay free of a duplicate Buy action');
   assert.deepEqual(await page.$$eval('.poster-tile', links => links.map(link => { const url=new URL(link.getAttribute('href'),'https://www.getdasha.com'),state=new URLSearchParams(url.hash.slice(1));return [state.get('look'),state.get('format'),state.get('line')]; })), [['poster','square','How u crying at the casino and u can’t even get in'],['ticket','story','It’s time $dasha'],['signal','banner','Well im still alive']], 'hero collage does not open the exact sourced editable lines it depicts');
   assert.equal(await page.$$eval('a[href],button', nodes => nodes.filter(node => !node.getAttribute('href') && node.tagName === 'A').length), 0, 'empty clickable link');
   if (width === 390) assert.deepEqual(await page.$eval('.navlinks', nav => [...nav.children].map(link => [link.textContent.trim(), getComputedStyle(link).display !== 'none'])), [
-    ['Studio', false], ['Lobby', false], ['CA 53ux…pump', false], ['How to buy', false], ['Buy $dasha ↗', true],
-  ], 'mobile nav must keep only the verified buy handoff visible');
+    ['Studio', false], ['Lobby', false], ['CA 53ux…pump', false], ['How to buy', false], ['Log in', true],
+  ], 'mobile nav must keep login visible while Buy stays beside the full mint');
   if (width === 390) {
     await page.$eval('#token', section => section.scrollIntoView());
     await page.waitForFunction(() => document.querySelector('#token').getBoundingClientRect().top < innerHeight);
@@ -112,6 +121,11 @@ for (const width of [320, 390, 1440]) {
   await page.click('.copy');
   await page.waitForFunction(() => window.__copied);
   assert.equal(await page.evaluate(() => window.__copied), mint, 'copy contract button failed');
+  if (width === 390) {
+    await page.evaluate(() => { navigator.clipboard.writeText = () => new Promise(() => {}); });
+    await page.click('#chess-copy');
+    await page.waitForFunction(() => /select/i.test(document.querySelector('#chess-copy').textContent), { timeout: 2000 });
+  }
   await page.addScriptTag({path:new URL('./node_modules/axe-core/axe.min.js',import.meta.url).pathname});
   const axe=await page.evaluate(()=>window.axe.run());
   assert.deepEqual(axe.violations.filter(item=>['critical','serious'].includes(item.impact)&&!['document-title','html-has-lang'].includes(item.id)).map(item=>item.id),[],`${width}px accessibility regression`);
@@ -125,7 +139,7 @@ for (const width of [320, 390, 1440]) {
   await page.setViewport({ width: 390, height: 900 });
   await page.setContent(rendered, { waitUntil: 'domcontentloaded' });
   const buys = await page.$$eval('a.buy-dasha', links => links.map(a => a.href));
-  assert.equal(buys.length, 2, 'homepage must keep one header and one mint-card Buy CTA');
+  assert.equal(buys.length, 1, 'homepage must keep one mint-adjacent Buy CTA');
   for (const href of buys) {
     assert.ok(href.includes('jup.ag/swap'), `Buy CTA not Jupiter: ${href}`);
     assert.ok(href.includes(mint), `Buy CTA missing exact mint: ${href}`);

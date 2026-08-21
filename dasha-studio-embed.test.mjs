@@ -11,14 +11,53 @@
  */
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
+import { appendFileSync, copyFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
-import { dirname } from 'node:path';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import puppeteer from 'puppeteer-core';
 
 const here = (f) => new URL(`./${f}`, import.meta.url);
+
+/* A clean bundle must pass; changing the Worker-served Studio client without regenerating its SRI
+   must fail. The fixture keeps the negative test off the shared ship-bound files. */
+{
+  const fixture = mkdtempSync(join(tmpdir(), 'dasha-studio-sri-'));
+  const files = [
+    'dasha-lobby-assets-build.mjs', 'dasha-lobby-static-gen.mjs', 'dasha-lobby-client.js',
+    'dasha-simp-board-client.js', 'dasha-studio-embed.js', 'dasha-faucet-client.js',
+    'dasha-x-connect-prompt.js', 'dasha-robots.txt', 'dasha-sitemap.xml', 'dasha-landing.html',
+    'dasha-how-to-buy.html', 'dasha-chess-page.html', 'dasha-lobby-page.html',
+    'dasha-login-page.html', 'dasha-faucet-page.html', 'dasha-lobby-worker.mjs',
+    'dasha-lobby-wrangler.jsonc', 'dasha-studio-embed.html', 'dasha-studio.webmanifest',
+    'dasha-lobby-mod.mjs', 'dasha-lobby-x.mjs', 'dasha-lobby-github.mjs', 'dasha-simp-actions.mjs',
+    'dasha-simp-score.mjs', 'dasha-chess.mjs', 'dasha-faucet.mjs',
+    'dasha-faucet-solana.mjs', 'dasha-forum.mjs', 'dasha-handoff-og.mjs',
+    'dasha-simp-share-html.mjs', 'dasha-worker-assets/client/dasha-icon-192.png',
+    'dasha-worker-assets/client/dasha-icon-512.png', 'dasha-worker-assets/og/dasha-social-card.png',
+  ];
+  try {
+    for (const file of files) {
+      const target = join(fixture, file);
+      mkdirSync(dirname(target), { recursive: true });
+      copyFileSync(here(file), target);
+    }
+    const check = () => spawnSync(process.execPath, ['dasha-lobby-assets-build.mjs', '--check'],
+      { cwd: fixture, encoding: 'utf8' });
+    const clean = check();
+    assert.equal(clean.status, 0, clean.stderr || clean.stdout);
+    appendFileSync(join(fixture, 'dasha-studio-embed.js'), '\nvoid 0;\n');
+    const stale = check();
+    assert.notEqual(stale.status, 0, 'changed Studio client must invalidate the generated bundle and SRI');
+    assert.match(stale.stderr + stale.stdout, /OUT OF SYNC/);
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+}
+
 const embed = await readFile(here('dasha-studio-embed.html'), 'utf8');
 const externalScript = await readFile(here('dasha-studio-embed.js'), 'utf8');
 const axeSrc = await readFile(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8');

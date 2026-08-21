@@ -451,7 +451,7 @@ export const ROBOTS_TXT = `# getdasha.com — public crawl rules (also served at
 # Deliberately permissive otherwise. Everything here is public and CC0, there is nothing to hide from
 # a crawler, and AI search indexes are a real discovery path for a site nobody links to yet.
 #
-# Machine-readable identity: /llms.txt (index) and /llms-full.txt (full markdown).
+# Machine-readable identity: /ai.txt, /llms.txt (index), /llms-full.txt (full markdown).
 
 User-agent: *
 Allow: /
@@ -459,8 +459,10 @@ Allow: /studio
 Allow: /dasha
 Allow: /chess
 Allow: /faucet
+Allow: /which
 Allow: /llms.txt
 Allow: /llms-full.txt
+Allow: /ai.txt
 
 Sitemap: https://www.getdasha.com/sitemap.xml
 Sitemap: https://lobby.getdasha.com/sitemap.xml
@@ -508,6 +510,9 @@ export const SITEMAP_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </url>
   <url>
     <loc>https://www.getdasha.com/llms-full.txt</loc>
+  </url>
+  <url>
+    <loc>https://www.getdasha.com/ai.txt</loc>
   </url>
 </urlset>
 `;
@@ -795,7 +800,7 @@ footer a{display:inline-flex;align-items:center;min-height:44px;color:var(--mute
   </section>
 
   <footer>
-    <p><a href="/">Home</a> · <a href="/studio">Studio</a> · <a href="https://lobby.getdasha.com/chess">Chess</a> · <a href="/dasha">Desk</a> · <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats ↗</a></p>
+    <p><a href="/">Home</a> · <a href="/studio">Studio</a> · <a href="/chess">Chess</a> · <a href="/dasha">Desk</a> · <a href="/privacy">Privacy</a> · <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats ↗</a></p>
   </footer>
 </main>
 <script>
@@ -977,7 +982,7 @@ main{padding:clamp(34px,6vw,72px) 0 72px}.hero{display:flex;align-items:end;just
 </head>
 <body>
 <a class="skip-link" href="#gate">Skip to play</a>
-<header class="top wrap"><a class="brand" href="https://www.getdasha.com/" aria-label="Dasha home">$<span>DASHA</span></a><nav class="top-links" aria-label="Chess"><a class="back" href="https://www.getdasha.com/">Home</a><a class="back buy" id="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer" aria-label="Buy $dasha on Jupiter using the exact mint">Buy $dasha ↗</a></nav></header>
+<header class="top wrap"><a class="brand" href="https://www.getdasha.com/" aria-label="Dasha home">$<span>DASHA</span></a><nav class="top-links" aria-label="Chess"><a class="back" href="https://www.getdasha.com/">Home</a><a class="back" href="https://www.getdasha.com/how-to-buy">How to buy</a><a class="back" href="https://www.getdasha.com/privacy">Privacy</a><a class="back buy" id="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer" aria-label="Buy $dasha on Jupiter using the exact mint">Buy $dasha ↗</a></nav></header>
 <main class="wrap">
   <div class="hero"><div><h1>Dasha <span class="anna">vs Anna</span></h1><ul class="facts" aria-label="Game format"><li>instant practice</li><li>10+5 rated</li><li class="w">Dasha white</li><li class="b">Anna black</li></ul></div></div>
   <div class="app">
@@ -2197,6 +2202,8 @@ export const LOBBY_PAGE_HTML = `<style>
   <a class="skip-link" href="#dasha-lobby">Skip to now</a>
   <header class="lp-top">
     <a class="lp-back" href="/">← $dasha</a>
+    <a class="lp-back" href="https://www.getdasha.com/how-to-buy">How to buy</a>
+    <a class="lp-back" href="https://www.getdasha.com/privacy">Privacy</a>
     <span class="lp-id"><h1>$<span>dasha</span> room</h1></span>
     <p class="lp-room">Now + threads. Official. No Telegram. No Discord.</p>
   </header>
@@ -2258,11 +2265,12 @@ export const LOGIN_PAGE_HTML = `<!doctype html>
   <meta name="theme-color" content="#070608">
   <style>
     :root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--line:rgba(244,237,219,.24)}
-    *{box-sizing:border-box}body{margin:0;min-height:100svh;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at 70% 15%,rgba(124,77,255,.3),transparent 25rem),var(--ink);color:var(--paper);font:16px/1.45 Arial,Helvetica,sans-serif}.login{width:min(28rem,100%);padding:28px;border:1px solid var(--line);background:#120c18;box-shadow:10px 10px 0 var(--hot)}.brand{color:var(--acid);font-size:13px;font-weight:900;letter-spacing:.12em;text-decoration:none;text-transform:uppercase}h1{margin:14px 0 8px;font-size:clamp(2.5rem,12vw,4.5rem);line-height:.9;letter-spacing:-.06em}p{margin:0 0 18px;color:rgba(244,237,219,.78)}.methods{display:grid;gap:12px}.button{display:flex;align-items:center;justify-content:center;min-height:52px;padding:0 18px;border:1px solid var(--paper);border-radius:999px;background:transparent;color:var(--paper);font:900 14px/1 Arial,Helvetica,sans-serif;letter-spacing:.04em;text-decoration:none;cursor:pointer}.button.primary{border-color:var(--acid);background:var(--acid);color:var(--ink);box-shadow:4px 4px 0 var(--hot)}.button:disabled{opacity:.6;cursor:wait}.status{min-height:1.45em;margin:16px 0 0;font-size:14px}.status[data-kind=ok]{color:var(--acid)}.status[data-kind=bad]{color:var(--hot)}.note{margin:14px 0 0;font-size:13px}.note a{color:var(--paper)}[hidden]{display:none!important}:focus-visible{outline:3px solid var(--acid);outline-offset:4px}
+    *{box-sizing:border-box}body{margin:0;min-height:100svh;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at 70% 15%,rgba(124,77,255,.3),transparent 25rem),var(--ink);color:var(--paper);font:16px/1.45 Arial,Helvetica,sans-serif}.skip-link{position:absolute;left:-9999px;top:0;z-index:100;padding:12px 16px;background:var(--acid);color:var(--ink)!important;font-weight:900;text-decoration:none}.skip-link:focus{left:12px;top:12px;outline:3px solid var(--paper);outline-offset:2px}.login{width:min(28rem,100%);padding:28px;border:1px solid var(--line);background:#120c18;box-shadow:10px 10px 0 var(--hot)}.brand{color:var(--acid);font-size:13px;font-weight:900;letter-spacing:.12em;text-decoration:none;text-transform:uppercase}h1{margin:14px 0 8px;font-size:clamp(2.5rem,12vw,4.5rem);line-height:.9;letter-spacing:-.06em}p{margin:0 0 18px;color:rgba(244,237,219,.78)}.methods{display:grid;gap:12px}.button{display:flex;align-items:center;justify-content:center;min-height:52px;padding:0 18px;border:1px solid var(--paper);border-radius:999px;background:transparent;color:var(--paper);font:900 14px/1 Arial,Helvetica,sans-serif;letter-spacing:.04em;text-decoration:none;cursor:pointer}.button.primary{border-color:var(--acid);background:var(--acid);color:var(--ink);box-shadow:4px 4px 0 var(--hot)}.button:disabled{opacity:.6;cursor:wait}.status{min-height:1.45em;margin:16px 0 0;font-size:14px}.status[data-kind=ok]{color:var(--acid)}.status[data-kind=bad]{color:var(--hot)}.note{margin:14px 0 0;font-size:13px}.note a{display:inline-flex;align-items:center;min-height:44px;color:var(--paper)}[hidden]{display:none!important}:focus-visible{outline:3px solid var(--acid);outline-offset:4px}
   </style>
 </head>
 <body>
-  <main class="login" data-dasha-login>
+  <a class="skip-link" href="#dasha-login">Skip to login</a>
+  <main class="login" id="dasha-login" data-dasha-login>
     <a class="brand" href="https://www.getdasha.com/">$dasha</a>
     <h1>Log in.</h1>
     <p>Use X for public community features, or prove control of a Solana wallet. One login at a time.</p>
@@ -2273,7 +2281,7 @@ export const LOGIN_PAGE_HTML = `<!doctype html>
     <button class="button" type="button" data-logout hidden>Log out</button>
     <p class="status" data-login-status role="status" aria-live="polite"></p>
     <p class="note" data-login-next hidden><a href="/simp#holder">Verify holder perks →</a></p>
-    <p class="note">Wallet login signs a five-minute message. It sends no transaction, checks no balance, and grants no points. <a href="https://www.getdasha.com/privacy">Privacy</a></p>
+    <p class="note">Wallet login signs a five-minute message. It sends no transaction, checks no balance, and grants no points. <a href="https://www.getdasha.com/how-to-buy">How to buy</a> · <a href="https://www.getdasha.com/privacy">Privacy</a></p>
   </main>
   <script src="https://lobby.getdasha.com/client/x-connect.js" integrity="sha384-pF9pJa2E4m1ec3sbkjve5zpRsWdDNj6/rTNDT+KrPBM3Z3AaciDDfANfMfmqzbjY" crossorigin="anonymous" defer></script>
 </body>
@@ -2349,6 +2357,7 @@ footer.dasha-foot .buy-dasha{background:#dfff00;color:#070608;padding:0 1rem}
     <a href="https://www.getdasha.com/">$dasha</a> ·
     <a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a> ·
     <a href="https://www.getdasha.com/how-to-buy">How to buy</a> ·
+    <a href="https://www.getdasha.com/privacy">Privacy</a> ·
     <a href="/lobby">Lobby</a> ·
     <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a>
   </p>
@@ -2383,4 +2392,4 @@ export const STUDIO_WEBMANIFEST = `{
   ]
 }
 `;
-export const ASSET_HASH = "a00125d75dbc0985";
+export const ASSET_HASH = "372726b5c1c6a820";

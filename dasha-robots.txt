@@ -16,7 +16,7 @@
 # Deliberately permissive otherwise. Everything here is public and CC0, there is nothing to hide from
 # a crawler, and AI search indexes are a real discovery path for a site nobody links to yet.
 #
-# Machine-readable identity: /llms.txt (index) and /llms-full.txt (full markdown).
+# Machine-readable identity: /ai.txt, /llms.txt (index), /llms-full.txt (full markdown).
 
 User-agent: *
 Allow: /
@@ -24,8 +24,10 @@ Allow: /studio
 Allow: /dasha
 Allow: /chess
 Allow: /faucet
+Allow: /which
 Allow: /llms.txt
 Allow: /llms-full.txt
+Allow: /ai.txt
 
 Sitemap: https://www.getdasha.com/sitemap.xml
 Sitemap: https://lobby.getdasha.com/sitemap.xml

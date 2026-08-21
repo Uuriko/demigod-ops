@@ -46,6 +46,24 @@ const ROUTES = [
   ['/how-to-buy', 'dasha-how-to-buy.html', null, SITE_CARD],
 ];
 
+/* D15: every public route owes a JS-off H1 — real text in the first HTML, before any client
+   mounts. These carry no per-route source file here, so they are H1/canonical-only live checks,
+   not card checks. A 404 with a branded H1 is still a fail for a route on this list: the H1 must
+   belong to a page that exists. */
+const H1_ROUTES = ['/simp', '/chess', '/faucet', '/bounties', '/contribute', '/privacy', '/which'];
+
+/* First-H1 text with nested markup stripped: `<h1>$<span>dasha</span> room</h1>` reads as
+   "$dasha room", not "$". Empty, missing, and placeholder ("Loading…") all fail. */
+function h1Text(html) {
+  const open = html.match(/<h1\b[^>]*>/i);
+  if (!open) return null;
+  const close = html.indexOf('</h1>', open.index);
+  if (close === -1) return null;
+  return html.slice(open.index + open[0].length, close)
+    .replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+}
+const h1Count = (html) => (String(html || '').match(/<h1\b[^>]*>/gi) || []).length;
+
 /** Structured data must parse, be the right thing, and not claim anything we cannot support. */
 function checkJsonLd(where, html, expectedType) {
   const blocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
@@ -86,9 +104,15 @@ check(!/webflow\.io/.test(sitemap), 'dasha-sitemap.xml advertises a staging URL'
    check here). Chess is listed at its declared www canonical, not lobby. Forum is not public. */
 const EXTRA_SITEMAP_URLS = [
   `${ORIGIN}/simp`,
+  `${ORIGIN}/faucet`,
+  `${ORIGIN}/bounties`,
+  `${ORIGIN}/contribute`,
   `${ORIGIN}/privacy`,
   `${ORIGIN}/chess`,
-  'https://lobby.getdasha.com/forum',
+  `${ORIGIN}/which`,
+  `${ORIGIN}/llms.txt`,
+  `${ORIGIN}/llms-full.txt`,
+  `${ORIGIN}/ai.txt`,
 ];
 for (const url of EXTRA_SITEMAP_URLS) {
   check(sitemap.includes(url), `dasha-sitemap.xml is missing ${url}`);
@@ -112,6 +136,14 @@ if (local) {
     const html = await res.text();
     check(res.ok, `${route}: HTTP ${res.status}`);
     if (type) checkJsonLd(`live ${route}`, html, type);
+
+    // D15: the H1 must be in the first HTML, not mounted later. A page that 404s with a branded
+    // "Not this page." H1 still fails here — res.ok is checked above, but the H1 check must not
+    // pass on the 404 body when the status itself was a transport error we could not read.
+    const h1 = h1Text(html);
+    const h1s = h1Count(html);
+    check(res.ok && h1s === 1 && !!h1 && !/^loading/i.test(h1),
+      `${route}: ${h1s !== 1 ? `expected one H1 in the first HTML, found ${h1s}` : h1 === '' ? 'H1 is empty' : /^loading/i.test(h1 || '') ? `H1 is a placeholder ("${h1}")` : 'no JS-off H1'} — JS-off visitors and crawlers get nothing`);
 
     // Canonical must be absolute and point at the route it is on, or duplicates get indexed.
     const canonical = html.match(/<link rel="canonical" href="([^"]+)"/)?.[1];
@@ -227,6 +259,23 @@ if (local) {
      (four routes, three files) and it sat red for long enough to stop meaning anything. */
   const own = ROUTES.map(([, , , card]) => card).filter((card) => card !== SITE_CARD);
   check(new Set(own).size === own.length, 'two routes share a card file — the per-route cards collapsed');
+
+  /* D15: H1 for the routes with no card/file row of their own. /contribute and /which have been
+     prepared in the Worker more than once without a deploy reaching them; until they ship, this
+     says "404 with our own branded H1" — which is exactly the drift D15 exists to catch, so it
+     fails here rather than passing on the 404 body. */
+  for (const route of H1_ROUTES) {
+    const res = await get(ORIGIN + route, { redirect: 'manual' });
+    if (!res) continue;
+    const html = await res.text();
+    const h1 = h1Text(html);
+    const h1s = h1Count(html);
+    check(res.ok, `${route}: HTTP ${res.status} — ${h1 === 'Not this page.' ? 'the branded 404 is answering for it' : 'not a live page'}`);
+    if (res.ok) {
+      check(h1s === 1 && !!h1 && !/^loading/i.test(h1),
+        `${route}: ${h1s !== 1 ? `expected one H1 in the first HTML, found ${h1s}` : h1 === '' ? 'H1 is empty' : `H1 is a placeholder ("${h1}")`} — JS-off visitors and crawlers get nothing`);
+    }
+  }
 
   report();
 }

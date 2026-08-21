@@ -137,7 +137,7 @@ const ROBOTS_TXT = `# getdasha.com — public crawl rules (also served at lobby.
 # Deliberately permissive otherwise. Everything here is public and CC0, there is nothing to hide from
 # a crawler, and AI search indexes are a real discovery path for a site nobody links to yet.
 #
-# Machine-readable identity: /llms.txt (index) and /llms-full.txt (full markdown).
+# Machine-readable identity: /ai.txt, /llms.txt (index), and /llms-full.txt (full markdown).
 
 User-agent: *
 Allow: /
@@ -145,6 +145,7 @@ Allow: /studio
 Allow: /dasha
 Allow: /chess
 Allow: /faucet
+Allow: /ai.txt
 Allow: /llms.txt
 Allow: /llms-full.txt
 
@@ -167,6 +168,7 @@ const SITEMAP_XML = `<?xml version="1.0" encoding="UTF-8"?>
   <url><loc>https://www.getdasha.com/which</loc><lastmod>2026-08-21</lastmod></url>
   <url><loc>https://www.getdasha.com/llms.txt</loc><lastmod>2026-08-21</lastmod></url>
   <url><loc>https://www.getdasha.com/llms-full.txt</loc><lastmod>2026-08-21</lastmod></url>
+  <url><loc>https://www.getdasha.com/ai.txt</loc><lastmod>2026-08-21</lastmod></url>
 </urlset>
 `;
 void GENERATED_ROBOTS_TXT;
@@ -267,6 +269,15 @@ The other Dasha is VVAIFU FQ1tyso61AH1tzodyJfSwmzsD3GToybbRNoZxUBz21p8 — not t
 - [Full text](https://www.getdasha.com/llms-full.txt)
 `;
 
+const AI_TXT = `# $dasha
+
+dash_eats on Solana. Site https://www.getdasha.com/.
+associated mint 53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump
+
+index https://www.getdasha.com/llms.txt
+full https://www.getdasha.com/llms-full.txt
+`;
+
 const LLMS_FULL_TXT = `# $dasha is dash_eats on Solana
 
 > dash_eats on Solana. Site https://www.getdasha.com/. Associated mint 53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump. Pair 9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7. CoinGecko dash_eats. Jupiter is jup.ag with that mint.
@@ -333,6 +344,7 @@ Contribute: no application, wallet or points gate; open a pull request. https://
 
 ## Machine files
 
+- https://www.getdasha.com/ai.txt
 - https://www.getdasha.com/llms.txt
 - https://www.getdasha.com/llms-full.txt
 - https://www.getdasha.com/sitemap.xml
@@ -4932,6 +4944,17 @@ export default {
       return new Response(null, {
         status: 308,
         headers: { Location: url.href, 'Cache-Control': 'public, max-age=3600' },
+      });
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/ai.txt') {
+      return new Response(request.method === 'HEAD' ? null : AI_TXT, {
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Cache-Control': 'public, max-age=300',
+          'Strict-Transport-Security': 'max-age=31536000',
+          'X-Content-Type-Options': 'nosniff',
+          'X-Dasha-Edge': 'ai',
+        },
       });
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/llms.txt') {
