@@ -66,6 +66,11 @@ const liveSpotlightPlatforms = Array.isArray(liveBoard?.rules?.spotlight?.platfo
 const spotlightPlatformsPrepared = liveSpotlightPlatforms
   ? JSON.stringify(liveSpotlightPlatforms) === JSON.stringify(preparedSpotlightPlatforms)
   : null;
+const preparedBurnEnabled = rulesPublic().burn.enabled;
+const liveBurnEnabled = typeof liveBoard?.rules?.burn?.enabled === 'boolean'
+  ? liveBoard.rules.burn.enabled
+  : null;
+const burnAvailabilityPrepared = liveBurnEnabled === null ? null : liveBurnEnabled === preparedBurnEnabled;
 const served = (page) => page.status === 200;
 /* Canonical surfaces per DASHA-DOCS.md + the 2026-08-15 direction call: /simp and /chess are
    first-class and Studio/Desk stay active. A redirect here is a live defect, not a gate bug. */
@@ -220,6 +225,7 @@ if (strict) {
   assert.ok(contributeCurrent, 'strict: /contribute onboarding is missing or misleading');
   assert.ok(contributorGuideCurrent, 'strict: live contributor guide misstates inactive OSS points');
   assert.equal(spotlightPlatformsPrepared, true, `strict: live Spotlight platforms ${JSON.stringify(liveSpotlightPlatforms)} differ from prepared ${JSON.stringify(preparedSpotlightPlatforms)}`);
+  assert.equal(burnAvailabilityPrepared, true, `strict: live burn availability ${liveBurnEnabled} differs from prepared ${preparedBurnEnabled}`);
   assert.ok(whichCurrent, 'strict: /which identity page is missing or ambiguous');
   assert.ok(homeSimpDoor && homeBoardAbsent, 'strict: Home must link to /simp without embedding it');
   assert.ok(deskAaOk, 'strict: desk primary CTA is not AA (acid-on-ink or #5b21b6)');
@@ -239,6 +245,7 @@ if (!sitemapCurrent) lag.push('sitemap-not-live');
 if (!contributeCurrent) lag.push('contribute-not-live');
 if (!contributorGuideCurrent) lag.push('contributor-guide-points-misleading');
 if (spotlightPlatformsPrepared === false) lag.push('spotlight-platforms-not-prepared');
+if (burnAvailabilityPrepared !== true) lag.push('burn-availability-not-prepared');
 if (!whichCurrent) lag.push('which-not-live');
 if (!homeSimpDoor || !homeBoardAbsent) lag.push('home-simp-not-door-only');
 if (deskAaOk === false || deskLegacyGradient) lag.push('desk-aa-gradient');
@@ -258,6 +265,8 @@ if (!contributeCurrent) warnings.push('/contribute must expose real issues, the 
 if (!contributorGuideCurrent) warnings.push('live GitHub CONTRIBUTING must say the OSS points lane is inactive');
 if (spotlightPlatformsPrepared === false) warnings.push(`live Spotlight platforms ${liveSpotlightPlatforms.join(', ')} differ from prepared ${preparedSpotlightPlatforms.join(', ')}`);
 if (spotlightPlatformsPrepared === null) warnings.push('live Spotlight platform rules could not be read');
+if (burnAvailabilityPrepared === false) warnings.push(`live burn availability ${liveBurnEnabled} differs from prepared ${preparedBurnEnabled}`);
+if (burnAvailabilityPrepared === null) warnings.push('live burn availability rule could not be read');
 if (!whichCurrent) warnings.push('/which must identify the associated mint before VVAIFU and declare its canonical URL');
 if (deskAaOk === false) warnings.push('desk Buy CTA is not AA (need acid-on-ink or #5b21b6)');
 if (deskLegacyGradient) warnings.push('desk still has legacy #a78bfa→#7c3aed primary gradient');
@@ -303,6 +312,9 @@ console.log(JSON.stringify({
   liveSpotlightPlatforms,
   preparedSpotlightPlatforms,
   spotlightPlatformsPrepared,
+  liveBurnEnabled,
+  preparedBurnEnabled,
+  burnAvailabilityPrepared,
   whichCurrent,
   homeSimpDoor,
   homeBoardAbsent,

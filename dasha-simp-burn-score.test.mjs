@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   BURN_CAP_7D,
   BURN_POINTS_PER_UNIT,
@@ -43,5 +44,10 @@ assert.equal(creditBurn({}, { xId: '42', handle: 'burner' }, {
   signature: signature(33), amountRaw: 1_000n * 10n ** 6n, proven: false, at: now,
 }).error, 'dest not proven');
 assert.doesNotMatch(JSON.stringify(buildPublicBoard(Object.values(burned.store), { now }).measured[0]), /"(?:wallet|signature|sig)"\s*:/i);
+
+const liveVerifier = readFileSync(new URL('./dasha-live-verify.mjs', import.meta.url), 'utf8');
+assert.match(liveVerifier, /preparedBurnEnabled = rulesPublic\(\)\.burn\.enabled/);
+assert.match(liveVerifier, /assert\.equal\(burnAvailabilityPrepared, true/);
+assert.match(liveVerifier, /burnAvailabilityPrepared !== true\) lag\.push\('burn-availability-not-prepared'\)/);
 
 console.log('dasha simp burn score: math, weekly cap, wallet proof, and public privacy passed');
