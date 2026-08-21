@@ -68,6 +68,7 @@ assert.equal(await contributeHead.text(), '');
 const studio = await edge.fetch(new Request('https://www.getdasha.com/studio'), {});
 assert.equal(studio.status, 200, 'Studio must not be retired to Home');
 assert.equal(studio.headers.get('x-dasha-edge'), 'studio');
+assert.match(await studio.text(), /<link rel="canonical" href="https:\/\/www\.getdasha\.com\/studio">[\s\S]*id="dasha-studio"/);
 const privacyRoute = await edge.fetch(new Request('https://www.getdasha.com/privacy'), {});
 assert.equal(privacyRoute.status, 200, 'Privacy must not be retired to Home');
 assert.equal(privacyRoute.headers.get('x-dasha-edge'), 'privacy');
@@ -75,15 +76,20 @@ const desk = await edge.fetch(new Request('https://www.getdasha.com/desk'), {});
 assert.equal(desk.status, 308);
 assert.equal(desk.headers.get('location'), 'https://www.getdasha.com/dasha', 'Desk must lead to Dasha, not Home');
 const nativeFetch = globalThis.fetch;
-globalThis.fetch = async () => new Response('<!doctype html><title>Dasha Desk</title>', {
-  status: 200,
-  headers: { 'Content-Type': 'text/html; charset=utf-8' },
-});
+const upstreamPaths = [];
+globalThis.fetch = async request => {
+  upstreamPaths.push(new URL(request.url).pathname);
+  return new Response('<!doctype html><title>Dasha Desk</title>', {
+    status: 200,
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  });
+};
 try {
   const dasha = await edge.fetch(new Request('https://www.getdasha.com/dasha'), {});
   assert.equal(dasha.status, 200, 'Dasha must not be retired to Home');
   assert.equal(dasha.headers.get('location'), null);
   assert.match(await dasha.text(), /Dasha Desk/);
+  assert.deepEqual(upstreamPaths, ['/dasha'], 'Dasha must pass its own path to Webflow');
 } finally {
   globalThis.fetch = nativeFetch;
 }

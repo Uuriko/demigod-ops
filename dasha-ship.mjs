@@ -1032,6 +1032,7 @@ async function main() {
         deploymentWouldChange: expectedLobbyAssets() !== release.lobby?.assets,
         plannedGates: {
           productCoherence: 'required',
+          canonicalRoutes: 'required',
           growthTrust: 'required',
           landingBrowser: (changed.includes('home') || changed.includes('studio') || changed.includes('desk') || changed.includes('deskShell')) ? 'required because home/studio/desk shell changed' : 'skipped because home/studio/desk shell hashes unchanged',
           studioBrowser: changed.includes('studio') ? 'required because Studio changed' : 'skipped because Studio hash is unchanged',
