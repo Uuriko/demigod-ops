@@ -261,7 +261,8 @@ export function normalizeSimpSpotlight(raw) {
   }
   if (host === 'farcaster.xyz' || host === 'www.farcaster.xyz') {
     const match = url.pathname.match(/^\/([a-z0-9][a-z0-9-]{0,15}(?:\.eth)?)\/?$/i);
-    if (!match) return { ok: false, error: 'use a Farcaster profile link' };
+    const reserved = ['settings', 'miniapps', 'login-desktop', 'login-mobile', 'login-wallet', 'login-web'];
+    if (!match || reserved.includes(match[1].toLowerCase())) return { ok: false, error: 'use a Farcaster profile link' };
     return { ok: true, spotlight: { platform: 'Farcaster', url: `https://farcaster.xyz/${match[1].toLowerCase()}` } };
   }
   return { ok: false, error: 'use a GitHub, YouTube, Twitch, Bluesky, LinkedIn, Instagram, or Farcaster profile link' };
