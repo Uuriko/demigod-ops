@@ -68,13 +68,19 @@ assert.equal(await contributeHead.text(), '');
 const studio = await edge.fetch(new Request('https://www.getdasha.com/studio'), {});
 assert.equal(studio.status, 200, 'Studio must not be retired to Home');
 assert.equal(studio.headers.get('x-dasha-edge'), 'studio');
-assert.match(await studio.text(), /<link rel="canonical" href="https:\/\/www\.getdasha\.com\/studio">[\s\S]*id="dasha-studio"/);
+const studioText = await studio.text();
+assert.match(studioText, /<link rel="canonical" href="https:\/\/www\.getdasha\.com\/studio">[\s\S]*id="dasha-studio"/);
+assert.match(studioText, /CC0/, 'Studio must keep the public-domain dedication');
+assert.match(studioText, /name or likeness/i, 'Studio must keep the likeness carve-out');
 const privacyRoute = await edge.fetch(new Request('https://www.getdasha.com/privacy'), {});
 assert.equal(privacyRoute.status, 200, 'Privacy must not be retired to Home');
 assert.equal(privacyRoute.headers.get('x-dasha-edge'), 'privacy');
 const desk = await edge.fetch(new Request('https://www.getdasha.com/desk'), {});
-assert.equal(desk.status, 308);
+assert.equal(desk.status, 301);
 assert.equal(desk.headers.get('location'), 'https://www.getdasha.com/dasha', 'Desk must lead to Dasha, not Home');
+const leftover = await edge.fetch(new Request('https://www.getdasha.com/airdrop'), {});
+assert.equal(leftover.status, 308);
+assert.equal(leftover.headers.get('location'), 'https://www.getdasha.com/', 'leftover rooms 308 home');
 const nativeFetch = globalThis.fetch;
 const upstreamPaths = [];
 globalThis.fetch = async request => {
@@ -90,6 +96,17 @@ try {
   assert.equal(dasha.headers.get('location'), null);
   assert.match(await dasha.text(), /Dasha Desk/);
   assert.deepEqual(upstreamPaths, ['/dasha'], 'Dasha must pass its own path to Webflow');
+  globalThis.fetch = async request => {
+    upstreamPaths.push(new URL(request.url).pathname);
+    return new Response(null, {
+      status: 308,
+      headers: { Location: 'https://www.getdasha.com/' },
+    });
+  };
+  const rescued = await edge.fetch(new Request('https://www.getdasha.com/dasha'), {});
+  assert.equal(rescued.status, 200, 'a leftover-room 308 must not retire Desk to Home');
+  assert.equal(rescued.headers.get('location'), null);
+  assert.match(await rescued.text(), /chart on GeckoTerminal/);
 } finally {
   globalThis.fetch = nativeFetch;
 }
