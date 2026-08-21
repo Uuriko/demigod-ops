@@ -12,7 +12,7 @@
  *   node dasha-ship.mjs --push       # push embeds only (no publish)
  *   node dasha-ship.mjs --publish    # site publish only
  *   node dasha-ship.mjs --ship --only=studio   # focus gates + push only Studio (publish is still site-wide CDN)
- *   node dasha-ship.mjs --preflight  # auth/site/domain check only
+ *   node dasha-ship.mjs --preflight  # auth/site/domain/public-guide check only
  *   node dasha-ship.mjs --verify     # curl live markers only
  *   node dasha-ship.mjs --status     # local/live-manifest delta, no network
  *   node dasha-ship.mjs --status --write-now # also regenerate DASHA-NOW.md
@@ -24,7 +24,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { WEBFLOW_METADATA, stripDuplicateOgImage, webflowPageUpdate } from './dasha-webflow-metadata.mjs';
+import { WEBFLOW_METADATA, ensureStudioManifestLink, stripDuplicateOgImage, webflowPageUpdate } from './dasha-webflow-metadata.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const args = new Set(process.argv.slice(2));
@@ -140,6 +140,7 @@ const artifactHashes = () =>
   Object.fromEntries(Object.entries(SURFACES).map(([key, surface]) => [key, digest(read(surface.file))]));
 const receiptInputHash = hashes => digest([
   JSON.stringify(hashes),
+  expectedLobbyAssets(),
   ...[
     'dasha-ship.mjs',
     'dasha-release-contract.json',
@@ -147,7 +148,9 @@ const receiptInputHash = hashes => digest([
     'dasha-growth.test.mjs',
     'dasha-landing.test.mjs',
     'dasha-studio-embed.test.mjs',
+    'dasha-studio-install.test.mjs',
     'dasha-desk.test.mjs',
+    'dasha-live-verify.mjs',
     'dasha-audit-live.mjs',
     'dasha-domain-check.mjs',
   ].map(read),
@@ -325,6 +328,7 @@ function fastGate(changed, receipt) {
   // Both product source and deployed thin loader must be fresh.
   run('node', ['dasha-studio-embed-build.mjs', '--check']);
   run('node', ['dasha-lobby-assets-build.mjs', '--check']);
+  run('node', ['dasha-studio-install.test.mjs']);
   run('node', ['dasha-desk/build.mjs', '--check']);
   gate(receipt, 'productCoherence', 'node', ['dasha-product-coherence.test.mjs'], 'required for every product release');
   gate(receipt, 'growthTrust', 'node', ['dasha-growth.test.mjs'], 'required for every product release');
@@ -367,16 +371,21 @@ function strictGate() {
    unless it is there, and nothing is logged — the token never leaves this process except as a
    Bearer header. */
 function credentialStoreToken() {
-  const store = `${process.env.HOME}/.claude/.credentials.json`;
-  if (!existsSync(store)) return null;
   try {
-    const oauth = JSON.parse(readFileSync(store, 'utf8'))?.mcpOAuth || {};
+    const oauth = JSON.parse(readFileSync(`${process.env.HOME}/.claude/.credentials.json`, 'utf8'))?.mcpOAuth || {};
     const entry = Object.entries(oauth).find(([key]) => key.startsWith('webflow'))?.[1];
-    if (!entry?.accessToken) return null;
-    // An expired one is worse than none: it fails after the push, mid-run.
-    if (entry.expiresAt && Date.now() > entry.expiresAt) return null;
-    return entry.accessToken;
-  } catch { return null; }
+    if (entry?.accessToken && (!entry.expiresAt || Date.now() < entry.expiresAt)) return entry.accessToken;
+  } catch {}
+  try {
+    const stores = JSON.parse(readFileSync(`${process.env.HOME}/.grok/mcp_credentials.json`, 'utf8')) || {};
+    const entry = Object.entries(stores).find(([key]) => key.startsWith('webflow:'))?.[1];
+    const receivedAt = Number(entry?.token_received_at) * 1000;
+    const expiresAt = receivedAt + Number(entry?.token_response?.expires_in) * 1000;
+    if (entry?.token_response?.access_token && Number.isFinite(expiresAt) && Date.now() < expiresAt) {
+      return entry.token_response.access_token;
+    }
+  } catch {}
+  return null;
 }
 
 function token() {
@@ -446,6 +455,19 @@ async function preflight(client) {
   log('preflight:pass', { tool: name });
 }
 
+async function preflightContributorGuide() {
+  log('preflight:contributor-guide:start');
+  const text = process.env.DASHA_SHIP_FAKE_CONTRIBUTOR_GUIDE ?? await fetch(
+    'https://raw.githubusercontent.com/Uuriko/dasha-desk/main/CONTRIBUTING.md',
+    { signal: AbortSignal.timeout(8000) },
+  ).then((response) => response.ok ? response.text() : '');
+  const current = /Prepared Simp Points lane/i.test(text)
+    && /not active yet[\s\S]*no current pull request earns Simp Points/i.test(text)
+    && !/A merged pull request scores points/i.test(text);
+  if (!current) throw new Error('Public dasha-desk CONTRIBUTING still misstates the inactive OSS points lane');
+  log('preflight:contributor-guide:pass');
+}
+
 async function syncSocialMetadata(client) {
   log('metadata:start');
   if (process.env.DASHA_SHIP_FAKE_MCP === '1') {
@@ -476,6 +498,19 @@ async function syncSocialMetadata(client) {
     await callTool(client, ['data_scripts_tool', 'webflow__data_scripts_tool'], {
       context: 'Remove the duplicate Dasha homepage Open Graph image while preserving all unrelated page-level head code.',
       actions: [{ label: 'set_home_head', set_page_freeform_code: { page_id: home, location: 'head', content: clean } }],
+    });
+  }
+  const studio = WEBFLOW_METADATA.studio.pageId;
+  const { result: studioHeadResult } = await callTool(client, ['data_scripts_tool', 'webflow__data_scripts_tool'], {
+    context: 'Link the first-party Studio web app manifest without changing unrelated page-level head code.',
+    actions: [{ label: 'read_studio_head', get_page_freeform_code: { page_id: studio, location: 'head' } }],
+  });
+  const studioHead = JSON.parse(studioHeadResult?.content?.[0]?.text || '{}')?.result?.content || '';
+  const studioHeadWithManifest = ensureStudioManifestLink(studioHead);
+  if (studioHeadWithManifest !== studioHead) {
+    await callTool(client, ['data_scripts_tool', 'webflow__data_scripts_tool'], {
+      context: 'Link the first-party Studio web app manifest without changing unrelated page-level head code.',
+      actions: [{ label: 'set_studio_head', set_page_freeform_code: { page_id: studio, location: 'head', content: studioHeadWithManifest } }],
     });
   }
   for (const expected of pages) {
@@ -1042,6 +1077,8 @@ async function main() {
         receipt.stages.preflight = true;
         checkpoint(receipt);
       }
+      // Public repository truth is live state: recheck it on every publish before Worker/Webflow writes.
+      if (want.preflight || want.publish) await preflightContributorGuide();
       // Webflow auth preflight is resumable; Worker parity is live state and must never be cached.
       if (want.publish) await preflightLobbyAssets(receipt);
     }

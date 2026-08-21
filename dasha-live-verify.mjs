@@ -6,9 +6,12 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { SIMP_BOARD_SRI, STUDIO_WEBMANIFEST } from './dasha-lobby-static-gen.mjs';
+import { rulesPublic } from './dasha-simp-score.mjs';
 const MINT = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
 const contract = JSON.parse(readFileSync(new URL('./dasha-release-contract.json', import.meta.url)));
 const base = process.env.DASHA_LIVE_BASE || 'https://www.getdasha.com';
+const serviceBase = process.env.DASHA_SERVICE_BASE || 'https://lobby.getdasha.com';
 const strict = process.env.DASHA_LIVE_STRICT === '1';
 /* Never follow redirects. /studio, /dasha and /desk 308 to home; a followed redirect handed
    home's HTML back as that surface's content, so every studio/desk marker check was really
@@ -19,16 +22,54 @@ async function get(path) {
   const location = r.headers.get('location');
   return { status: r.status, text: location ? '' : await r.text(), location: location || null };
 }
+async function getExternal(url) {
+  try {
+    const r = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(8000) });
+    return { status: r.status, text: r.status === 200 ? await r.text() : '' };
+  } catch {
+    return { status: 0, text: '' };
+  }
+}
 const home = await get('/');
 const desk = await get('/dasha');
 const studio = await get('/studio');
+const studioManifest = await get('/studio.webmanifest');
+const expectedStudioManifest = JSON.parse(STUDIO_WEBMANIFEST);
+const studioIcons = await Promise.all(expectedStudioManifest.icons.map(async (icon) => {
+  try {
+    const response = await fetch(base + icon.src, { redirect: 'manual' });
+    const bytes = Buffer.from(await response.arrayBuffer());
+    return {
+      status: response.status,
+      type: response.headers.get('content-type') || '',
+      size: bytes.length >= 24 && bytes.subarray(1, 4).toString() === 'PNG'
+        ? `${bytes.readUInt32BE(16)}x${bytes.readUInt32BE(20)}`
+        : null,
+    };
+  } catch {
+    return { status: 0, type: '', size: null };
+  }
+}));
 const simp = await get('/simp');
 const chess = await get('/chess');
+const contribute = await get('/contribute');
+const contributorGuide = await getExternal('https://raw.githubusercontent.com/Uuriko/dasha-desk/main/CONTRIBUTING.md');
+const which = await get('/which');
 const sitemap = await get('/sitemap.xml');
+const liveBoard = await fetch(`${serviceBase}/simp/board`, { cache: 'no-store' })
+  .then((response) => response.ok ? response.json() : null)
+  .catch(() => null);
+const preparedSpotlightPlatforms = rulesPublic().spotlight.platforms;
+const liveSpotlightPlatforms = Array.isArray(liveBoard?.rules?.spotlight?.platforms)
+  ? liveBoard.rules.spotlight.platforms
+  : null;
+const spotlightPlatformsPrepared = liveSpotlightPlatforms
+  ? JSON.stringify(liveSpotlightPlatforms) === JSON.stringify(preparedSpotlightPlatforms)
+  : null;
 const served = (page) => page.status === 200;
 /* Canonical surfaces per DASHA-DOCS.md + the 2026-08-15 direction call: /simp and /chess are
    first-class and Studio/Desk stay active. A redirect here is a live defect, not a gate bug. */
-const redirected = Object.entries({ home, desk, studio, simp, chess })
+const redirected = Object.entries({ home, desk, studio, simp, chess, contribute })
   .filter(([, page]) => page.status >= 300 && page.status < 400)
   .map(([name, page]) => `${name}→${page.location}`);
 assert.equal(home.status, 200, 'home');
@@ -42,19 +83,20 @@ const matches = (page, surface) => contract.surfaces[surface].required.every(mar
 const homeCurrent = matches(home, 'home');
 /* A redirected surface has no text to match. Report it as redirected, not as content drift. */
 const studioCurrent = served(studio) ? matches(studio, 'studio') : null;
-const servedPages = [home, desk, studio].filter(served);
+const servedPages = [home, desk, studio, contribute].filter(served);
 const documentLang = servedPages.every(page => /<html\b[^>]*\blang=["']en["']/i.test(page.text));
 const canonicalMetadata = [
   [home, `${base}/`],
   [studio, `${base}/studio`],
   [desk, `${base}/dasha`],
+  [contribute, `${base}/contribute`],
 ].filter(([page]) => served(page))
   .every(([page, url]) => page.text.includes(`<link rel="canonical" href="${url}">`)
     && page.text.includes(`<meta property="og:url" content="${url}">`));
 /* Canonical route inventory. The four thin SEO traps are not in any canonical product doc and
    roadmap D8 wants retired paths on a branded 404 so crawlers drop them — they do not belong
    in the sitemap while they serve a heading and a Buy button. */
-const SITEMAP_REQUIRED = ['/', '/simp', '/chess', '/studio', '/dasha', '/bounties'];
+const SITEMAP_REQUIRED = ['/', '/simp', '/chess', '/studio', '/dasha', '/bounties', '/contribute', '/which'];
 /* `/faucet` was on this list until 2026-08-15. It is a real Worker-served tip page with its own
    Durable Object and payout caps, not a trap — it was measured as thin before the Worker that
    serves it was deployed. Keeping it here would have made a correct sitemap fail. */
@@ -65,6 +107,21 @@ const sitemapCurrent = sitemap.status === 200
   && !sitemapMissing.length
   && !sitemapTraps.length
   && !/retired|desk-rc|thesis|receipt/i.test(sitemap.text);
+const contributeCurrent = served(contribute)
+  && contribute.text.includes('<h1>Build Dasha.</h1>')
+  && contribute.text.includes('There’s nothing to join. Open a pull request and you’re a contributor')
+  && contribute.text.includes('github.com/Uuriko/dasha-desk/contribute')
+  && contribute.text.includes('blob/main/CONTRIBUTING.md')
+  && contribute.text.includes('PR points are not live yet.');
+const contributorGuideCurrent = contributorGuide.status === 200
+  && /Prepared Simp Points lane/i.test(contributorGuide.text)
+  && /not active yet[\s\S]*no current pull request earns Simp Points/i.test(contributorGuide.text)
+  && !/A merged pull request scores points/i.test(contributorGuide.text);
+const otherDashaMint = 'FQ1tyso61AH1tzodyJfSwmzsD3GToybbRNoZxUBz21p8';
+const whichCurrent = served(which)
+  && which.text.includes(`<link rel="canonical" href="${base}/which">`)
+  && which.text.indexOf(MINT) >= 0
+  && which.text.indexOf(MINT) < which.text.indexOf(otherDashaMint);
 
 const homeSimpDoor = home.text.includes('href="/simp"');
 const homeBoardAbsent = !home.text.includes('id="dasha-simp-board"')
@@ -109,6 +166,10 @@ const boardServed = boardPin
 /* null on either side = nothing to compare, not a pass: no pin means no embed, a failed fetch
    means no verdict. Only two known, differing hashes are a defect. */
 const boardSriOk = boardPin && boardServed ? boardPin === boardServed : null;
+const boardSriPrepared = boardPin && boardServed
+  ? boardPin === SIMP_BOARD_SRI && boardServed === SIMP_BOARD_SRI
+  : null;
+const boardSriPage = boardSrc ? (boardHost === simp ? '/simp' : '/') : null;
 
 /* Every internal link on live home must resolve. Nav and footer are edited in the Webflow Designer,
    which does not pass through dasha-ship.mjs, its SRI drift guard, or any source tree — so a link
@@ -134,6 +195,15 @@ const studioThinOk = served(studio)
     /dasha-studio-shell/.test(studio.text) &&
     !/attachShadow/.test(studio.text)
   : null;
+let liveStudioManifest = null;
+try { liveStudioManifest = JSON.parse(studioManifest.text); } catch {}
+const studioInstallable = served(studio)
+  && studio.text.includes('<link rel="manifest" href="/studio.webmanifest">')
+  && studioManifest.status === 200
+  && JSON.stringify(liveStudioManifest) === JSON.stringify(expectedStudioManifest)
+  && studioIcons.every((icon, index) => icon.status === 200
+    && icon.type.startsWith('image/png')
+    && icon.size === expectedStudioManifest.icons[index].sizes);
 const studioShadowLegacy = /attachShadow/.test(studio.text) && studio.text.length > 20_000;
 const allPages = home.text + desk.text + studio.text;
 const inkuPopAbsent = !/inkuPop/i.test(allPages);
@@ -147,12 +217,17 @@ if (strict) {
   assert.ok(documentLang, 'strict: published pages do not declare English');
   assert.ok(canonicalMetadata, 'strict: published pages lack exact canonical or Open Graph URLs');
   assert.ok(sitemapCurrent, 'strict: bounded sitemap is missing or stale');
+  assert.ok(contributeCurrent, 'strict: /contribute onboarding is missing or misleading');
+  assert.ok(contributorGuideCurrent, 'strict: live contributor guide misstates inactive OSS points');
+  assert.equal(spotlightPlatformsPrepared, true, `strict: live Spotlight platforms ${JSON.stringify(liveSpotlightPlatforms)} differ from prepared ${JSON.stringify(preparedSpotlightPlatforms)}`);
+  assert.ok(whichCurrent, 'strict: /which identity page is missing or ambiguous');
   assert.ok(homeSimpDoor && homeBoardAbsent, 'strict: Home must link to /simp without embedding it');
   assert.ok(deskAaOk, 'strict: desk primary CTA is not AA (acid-on-ink or #5b21b6)');
   assert.ok(studioThinOk, 'strict: studio is not the thin Worker loader');
+  assert.ok(studioInstallable, 'strict: Studio manifest or install icons are missing or stale');
   assert.ok(inkuPopAbsent, 'strict: 2020 inkuPop apple-touch icon still present');
   assert.ok(!homeDeadLinks.length, `strict: live home links to dead routes: ${homeDeadLinks.join(', ')}`);
-  assert.ok(boardSriOk !== false, `strict: home pins ${boardPin}, Worker serves ${boardServed} — board cannot mount`);
+  assert.equal(boardSriPrepared, true, `strict: ${boardSriPage || 'board page'} pins ${boardPin}, Worker serves ${boardServed}, prepared release expects ${SIMP_BOARD_SRI}`);
 }
 const lag = [];
 if (redirected.length) lag.push('canonical-surface-redirected');
@@ -161,26 +236,39 @@ if (studioCurrent === false) lag.push('studio-asset-not-current');
 if (!deskNeutral) lag.push('desk-not-neutral');
 if (!canonicalMetadata) lag.push('canonical-metadata-not-live');
 if (!sitemapCurrent) lag.push('sitemap-not-live');
+if (!contributeCurrent) lag.push('contribute-not-live');
+if (!contributorGuideCurrent) lag.push('contributor-guide-points-misleading');
+if (spotlightPlatformsPrepared === false) lag.push('spotlight-platforms-not-prepared');
+if (!whichCurrent) lag.push('which-not-live');
 if (!homeSimpDoor || !homeBoardAbsent) lag.push('home-simp-not-door-only');
 if (deskAaOk === false || deskLegacyGradient) lag.push('desk-aa-gradient');
 if (studioThinOk === false || studioShadowLegacy) lag.push('studio-not-thin-loader');
+if (!studioInstallable) lag.push('studio-install-not-live');
 if (!inkuPopAbsent) lag.push('inkuPop-apple-touch');
 if (homeDeadLinks.length) lag.push('home-links-dead-routes');
 if (boardSriOk === false) lag.push('board-sri-pin-mismatch');
+if (boardSriOk === true && boardSriPrepared === false) lag.push('board-sri-not-prepared');
 const warnings = [];
 if (!documentLang) warnings.push('document-lang-not-live');
 if (!homeSimpDoor || !homeBoardAbsent) warnings.push('Home must link to /simp without embedding its client');
 if (redirected.length) warnings.push(`canonical surfaces redirect away: ${redirected.join(', ')}`);
 if (sitemapMissing.length) warnings.push(`sitemap missing canonical routes: ${sitemapMissing.join(', ')}`);
 if (sitemapTraps.length) warnings.push(`sitemap advertises thin SEO traps: ${sitemapTraps.join(', ')}`);
+if (!contributeCurrent) warnings.push('/contribute must expose real issues, the guide, and honest points status');
+if (!contributorGuideCurrent) warnings.push('live GitHub CONTRIBUTING must say the OSS points lane is inactive');
+if (spotlightPlatformsPrepared === false) warnings.push(`live Spotlight platforms ${liveSpotlightPlatforms.join(', ')} differ from prepared ${preparedSpotlightPlatforms.join(', ')}`);
+if (spotlightPlatformsPrepared === null) warnings.push('live Spotlight platform rules could not be read');
+if (!whichCurrent) warnings.push('/which must identify the associated mint before VVAIFU and declare its canonical URL');
 if (deskAaOk === false) warnings.push('desk Buy CTA is not AA (need acid-on-ink or #5b21b6)');
 if (deskLegacyGradient) warnings.push('desk still has legacy #a78bfa→#7c3aed primary gradient');
 if (studioThinOk === false) warnings.push('studio missing thin Worker loader (studio.js + dasha-studio-shell)');
 if (studioShadowLegacy) warnings.push('studio looks like legacy shadow embed');
+if (!studioInstallable) warnings.push('Studio manifest link, manifest JSON, or exact 192/512 PNG icons are not live');
 if (!inkuPopAbsent) warnings.push('inkuPop 2020 template apple-touch still in live HTML');
 if (!dashaTouchPresent) warnings.push('dasha-icon-180.png apple-touch missing');
 if (homeDeadLinks.length) warnings.push(`live home links to dead routes: ${homeDeadLinks.join(', ')}`);
-if (boardSriOk === false) warnings.push(`board SRI mismatch: home pins ${boardPin}, Worker serves ${boardServed}`);
+if (boardSriOk === false) warnings.push(`board SRI mismatch: ${boardSriPage || 'board page'} pins ${boardPin}, Worker serves ${boardServed}`);
+if (boardSriOk === true && boardSriPrepared === false) warnings.push(`board SRI is internally consistent but stale: live uses ${boardPin}, prepared release expects ${SIMP_BOARD_SRI}`);
 /* An embed we cannot read the pin out of must not read as "no mismatch found". */
 if (!homeBoardAbsent && !boardPin) warnings.push('home embeds the board client but no SRI pin could be parsed — check is blind');
 console.log(JSON.stringify({
@@ -191,6 +279,9 @@ console.log(JSON.stringify({
   studio: studio.status,
   simp: simp.status,
   chess: chess.status,
+  contribute: contribute.status,
+  contributorGuide: contributorGuide.status,
+  which: which.status,
   sitemap: sitemap.status,
   redirected,
   sitemapMissing,
@@ -199,16 +290,27 @@ console.log(JSON.stringify({
   studioInline: true,
   studioCurrent,
   studioThinOk,
+  studioInstallable,
+  studioManifest: studioManifest.status,
+  studioIcons,
   deskNeutral,
   deskAaOk,
   documentLang,
   canonicalMetadata,
   sitemapCurrent,
+  contributeCurrent,
+  contributorGuideCurrent,
+  liveSpotlightPlatforms,
+  preparedSpotlightPlatforms,
+  spotlightPlatformsPrepared,
+  whichCurrent,
   homeSimpDoor,
   homeBoardAbsent,
   homeDeadLinks,
   boardSriOk,
-  boardSriPage: boardSrc ? (boardHost === simp ? '/simp' : '/') : null,
+  boardSriPrepared,
+  boardSriPreparedPin: SIMP_BOARD_SRI,
+  boardSriPage,
   inkuPopAbsent,
   dashaTouchPresent,
   shipLag: lag,

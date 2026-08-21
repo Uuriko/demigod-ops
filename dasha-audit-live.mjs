@@ -49,7 +49,6 @@ export const SOFT_LAG = new Set([
   'health-assets-mixed',
   'holder-rpc-public', // legacy label only if health still reports public-fallback
   'desk-shell-stale-chart-label',
-  'sitemap-404',
   'robots-empty',
   'seo-no-canonical', // only if we cannot see Webflow shell; embed-only pages vary
 ]);
@@ -148,6 +147,27 @@ export function hasCurrentStudio(html) {
   return /\$?dasha\s*(?:·|-)?\s*Meme Studio/i.test(html) && (studioExternal || studioInline);
 }
 
+export function stylesheetUrls(html, base = SITE) {
+  const urls = [];
+  for (const [tag] of String(html || '').matchAll(/<link\b[^>]*>/gi)) {
+    const attrs = Object.fromEntries([...tag.matchAll(/([\w:-]+)\s*=\s*(["'])(.*?)\2/gi)]
+      .map(match => [match[1].toLowerCase(), match[3]]));
+    if (!String(attrs.rel || '').toLowerCase().split(/\s+/).includes('stylesheet') || !attrs.href) continue;
+    try {
+      const url = new URL(attrs.href.replaceAll('&amp;', '&'), base);
+      if (url.protocol === 'https:' && !urls.includes(url.href)) urls.push(url.href);
+    } catch {
+      /* malformed stylesheet URLs are handled by the page policy audit */
+    }
+  }
+  return urls;
+}
+
+export function retiredFontFamilies(text) {
+  const found = new Set((String(text || '').match(/\b(?:Exo|Bangers|Raleway)\b/gi) || []).map(name => name.toLowerCase()));
+  return ['Exo', 'Bangers', 'Raleway'].filter(name => found.has(name.toLowerCase()));
+}
+
 const SITEMAP_AUDIT_CAP = 100;
 const SITEMAP_ORIGINS = new Set([new URL(SITE).origin, new URL(LOBBY).origin]);
 const sitemapLocs = xml => [...String(xml || '').matchAll(/<loc>\s*([^<]+?)\s*<\/loc>/gi)].map(match => match[1].replaceAll('&amp;', '&'));
@@ -183,15 +203,28 @@ export function sitemapUrls(xml) {
   return urls;
 }
 
+export function missingRequiredSitemapUrls(xml, base = SITE) {
+  const urls = sitemapUrls(xml);
+  return ['/', '/studio', '/dasha', '/bounties', '/how-to-buy', '/privacy']
+    .map(path => new URL(path, base).href).filter(url => !urls.includes(url));
+}
+
 export function homeOrphanedRoutes(xml, html) {
   const hrefs = new Set([...String(html || '').matchAll(/<a\b[^>]*\bhref=["']([^"']+)/gi)].map(match => {
     try { return new URL(match[1].replaceAll('&amp;', '&'), SITE).pathname.replace(/\/$/, '') || '/'; }
     catch { return ''; }
   }));
-  return sitemapUrls(xml).map(url => new URL(url).pathname.replace(/\/$/, '') || '/').filter(path => path !== '/' && !hrefs.has(path));
+  return sitemapUrls(xml).map(url => new URL(url).pathname.replace(/\/$/, '') || '/').filter(path =>
+    path !== '/' &&
+    !/^\/simp\/u\/[a-z0-9_]{1,15}$/i.test(path) &&
+    !['/which', '/ai.txt', '/llms.txt', '/llms-full.txt'].includes(path) &&
+    !hrefs.has(path));
 }
 
+const isHtmlPage = page => !page?.contentType || /^text\/html\b/i.test(page.contentType);
+
 export function indexabilityViolations(url, page) {
+  if (!isHtmlPage(page)) return page?.status === 200 ? [] : [`status:${page?.status || 0}`];
   const html = String(page?.text || '');
   const canonical = (html.match(/<link\b[^>]*\brel=["']canonical["'][^>]*\bhref=["']([^"']+)/i)
     || html.match(/<link\b[^>]*\bhref=["']([^"']+)["'][^>]*\brel=["']canonical["']/i))?.[1];
@@ -203,6 +236,7 @@ export function indexabilityViolations(url, page) {
 }
 
 export function socialCardViolations(page) {
+  if (!isHtmlPage(page)) return [];
   const html = String(page?.text || '');
   const tags = html.match(/<meta\b[^>]*>/gi) || [];
   const values = Object.fromEntries(tags.map(tag => {
@@ -216,6 +250,7 @@ export function socialCardViolations(page) {
 }
 
 export function htmlPolicyViolations(page) {
+  if (!isHtmlPage(page)) return [];
   const headers = page?.headers || new Headers();
   const csp = headers.get('content-security-policy') || '';
   const permissions = headers.get('permissions-policy') || '';
@@ -263,8 +298,9 @@ export function cryptoLinkViolations(html) {
     const host = url.hostname.toLowerCase().replace(/^www\./, '');
     if (!['getdasha.com', 'lobby.getdasha.com'].includes(host) && url.protocol !== 'https:') violations.push(`non-https:${href}`);
     if (host === 'jup.ag') {
-      if (url.pathname !== '/swap' || url.searchParams.get('buy') !== MINT || url.searchParams.get('sell') !== WSOL) violations.push(`jupiter-mint:${href}`);
-      if ([...url.searchParams.keys()].length !== 2 || url.searchParams.getAll('buy').length !== 1 || url.searchParams.getAll('sell').length !== 1) violations.push(`jupiter-params:${href}`);
+      const tokenPage = url.pathname.startsWith('/tokens/');
+      if (tokenPage ? url.pathname !== `/tokens/${MINT}` : url.pathname !== '/swap' || url.searchParams.get('buy') !== MINT || url.searchParams.get('sell') !== WSOL) violations.push(`jupiter-mint:${href}`);
+      if (tokenPage ? url.search || url.hash : [...url.searchParams.keys()].length !== 2 || url.searchParams.getAll('buy').length !== 1 || url.searchParams.getAll('sell').length !== 1) violations.push(`jupiter-params:${href}`);
     }
     if (host === 'pump.fun' && url.pathname !== `/coin/${MINT}`) violations.push(`pump-mint:${href}`);
     if (host === 'phantom.com' && url.pathname !== `/tokens/solana/${MINT}`) violations.push(`phantom-mint:${href}`);
@@ -599,6 +635,38 @@ async function auditWorker() {
     { status: board.status, error: board.error },
   );
 
+  const measuredMember = bj?.measured?.find((entry) => /^[A-Za-z0-9_]{1,15}$/.test(entry?.handle || ''));
+  if (measuredMember) {
+    const handle = String(measuredMember.handle).toLowerCase();
+    const memberUrl = `${SITE}/simp/u/${handle}`;
+    const memberPage = await get(memberUrl, { extraHeaders: { 'user-agent': 'Twitterbot/1.0' } });
+    note('worker', 'simp-member-card', memberPage.status === 200 &&
+      memberPage.text.includes(`${memberUrl}/card.png`) &&
+      /id="dasha-member-share"[^>]*>Share rank<\/button>/i.test(memberPage.text) &&
+      /og:image:width" content="600"/i.test(memberPage.text) &&
+      /og:image:height" content="314"/i.test(memberPage.text), {
+      status: memberPage.status,
+      url: memberUrl,
+    });
+    const memberCard = await get(`${memberUrl}/card.png`, {
+      asBytes: true,
+      extraHeaders: { 'user-agent': 'Twitterbot/1.0' },
+    });
+    note('worker', 'simp-member-image', memberCard.status === 200 &&
+      memberCard.contentType === 'image/png' &&
+      JSON.stringify(pngDimensions(memberCard.bytes)) === JSON.stringify({ width: 600, height: 314 }) &&
+      memberCard.bytes?.length > 800 && memberCard.bytes?.length <= 500_000, {
+      status: memberCard.status,
+      contentType: memberCard.contentType,
+      dimensions: pngDimensions(memberCard.bytes),
+      bytes: memberCard.bytes?.length || 0,
+      maxBytes: 500_000,
+    });
+  } else {
+    note('worker', 'simp-member-card', true, { skipped: 'no measured member' });
+    note('worker', 'simp-member-image', true, { skipped: 'no measured member' });
+  }
+
   const resultUrl = bj?.measured?.find((entry) => entry?.quiz?.resultUrl)?.quiz?.resultUrl;
   if (resultUrl) {
     const resultPage = await get(resultUrl, { extraHeaders: { 'user-agent': 'Twitterbot/1.0' } });
@@ -814,21 +882,25 @@ async function auditSite() {
   const sitemap = await get(`${SITE}/sitemap.xml`);
   if (sitemap.status === 200 && /<urlset|<url>/i.test(sitemap.text)) {
     note('site', 'sitemap-live', true, { status: 200, bytes: sitemap.text.length });
-    const hasHome = sitemap.text.includes('getdasha.com/');
-    const hasStudio = sitemap.text.includes('/studio');
-    const hasDesk = sitemap.text.includes('/dasha');
-    note('site', 'sitemap-routes', hasHome && hasStudio && hasDesk, {
-      hasHome,
-      hasStudio,
-      hasDesk,
-    });
     const urls = sitemapUrls(sitemap.text);
+    const missingRoutes = missingRequiredSitemapUrls(sitemap.text);
+    note('site', 'sitemap-routes', missingRoutes.length === 0, { missing: missingRoutes });
     const sitemapScopeViolations = sitemapUrlViolations(sitemap.text);
     note('site', 'sitemap-url-scope', sitemapScopeViolations.length === 0, { violations: sitemapScopeViolations });
     const orphaned = homeOrphanedRoutes(sitemap.text, home.text);
     note('site', 'home-sitemap-navigation', orphaned.length === 0, { routes: urls.length, orphaned });
     const routePages = await Promise.all(urls.map(async url => [url, knownByPath.get(new URL(url).pathname) || await get(url)]));
     auditPublicPages(routePages);
+    const stylesheetList = [...new Set(routePages.flatMap(([url, page]) => stylesheetUrls(page.text, url)))];
+    const stylesheetPages = await Promise.all(stylesheetList.map(async url => [url, await get(url, { cacheBust: false })]));
+    const retiredFonts = Object.fromEntries([
+      ...routePages.filter(([, page]) => isHtmlPage(page)).map(([url, page]) => [url, retiredFontFamilies(page.text)]),
+      ...stylesheetPages.map(([url, page]) => [url, page.status === 200 ? retiredFontFamilies(page.text) : [`HTTP ${page.status}`]]),
+    ].filter(([, violations]) => violations.length));
+    note('site', 'retired-fonts', Object.keys(retiredFonts).length === 0, {
+      stylesheets: stylesheetList.length,
+      violations: retiredFonts,
+    });
     const routeChecks = routePages.map(([url, page]) => [url, indexabilityViolations(url, page)]);
     const routeViolations = Object.fromEntries(routeChecks.filter(([, violations]) => violations.length));
     note('site', 'sitemap-indexable', urls.length > 0 && Object.keys(routeViolations).length === 0, {
@@ -847,13 +919,9 @@ async function auditSite() {
       routes: urls.length,
       violations: policyViolations,
     });
-  } else if (strict) {
-    auditPublicPages([...knownByPath].map(([path, page]) => [`${SITE}${path}`, page]));
-    note('site', 'sitemap-live', false, { status: sitemap.status });
   } else {
     auditPublicPages([...knownByPath].map(([path, page]) => [`${SITE}${path}`, page]));
-    checks.push({ layer: 'site', id: 'sitemap-404', ok: false, soft: true, status: sitemap.status });
-    if (!soft.includes('sitemap-404')) soft.push('sitemap-404');
+    note('site', 'sitemap-live', false, { status: sitemap.status });
   }
 
   const robots = await get(`${SITE}/robots.txt`);

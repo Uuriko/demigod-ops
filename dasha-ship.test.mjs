@@ -5,9 +5,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
+  cryptoLinkViolations,
   executionViolations,
+  homeOrphanedRoutes,
+  htmlPolicyViolations,
+  indexabilityViolations,
   missingRequiredSitemapUrls,
   retiredFontFamilies,
+  socialCardViolations,
   stylesheetUrls,
 } from './dasha-audit-live.mjs';
 import { scanBundleDir, secretLeakKinds } from './dasha-worker-leak-scan.mjs';
@@ -26,6 +31,7 @@ assert.match(shipSource, /deskBrowser[^\n]+changed\.includes\('deskShell'\)/, 'D
 assert.match(shipSource, /scopeKeys/, 'scoped --only= ships must not restage every surface on publish');
 assert.match(shipSource, /Graph → Bounties/, 'site-wide ship must repair the dead shared Graph navigation item');
 assert.match(shipSource, /bulk_update_pages/, 'site-wide ship must synchronize every release-owned page metadata record');
+assert.match(shipSource, /ensureStudioManifestLink\(studioHead\)/, 'site-wide ship must make Studio discover its manifest from the document head');
 assert.match(shipSource, /args\.has\('--no-prep'\)/, 'ship must honor --no-prep');
 assert.match(shipSource, /\.grok\/mcp_credentials\.json[\s\S]{0,500}token_received_at[\s\S]{0,300}expires_in/,
   'ship must reuse a current Grok Webflow OAuth token when Claude and the cache are expired');
@@ -59,6 +65,17 @@ const requiredSitemapPaths = ['/', '/studio', '/dasha', '/bounties', '/how-to-bu
 assert.deepEqual(missingRequiredSitemapUrls(sitemapFixture(requiredSitemapPaths)), []);
 assert.deepEqual(missingRequiredSitemapUrls(sitemapFixture(requiredSitemapPaths.filter(path => path !== '/bounties'))),
   ['https://www.getdasha.com/bounties'], 'a sitemap without Bounties must fail D14');
+assert.deepEqual(homeOrphanedRoutes(sitemapFixture(['/studio', '/simp/u/wannactress', '/which', '/llms.txt']), '<a href="/studio">Studio</a>'), [],
+  'machine discovery and dynamic member pages must not pretend to be Home navigation');
+assert.deepEqual(homeOrphanedRoutes(sitemapFixture(['/studio', '/contribute']), '<a href="/studio">Studio</a>'), ['/contribute'],
+  'a first-party onboarding page still needs a Home door');
+const plainTextPage = { status: 200, contentType: 'text/plain; charset=utf-8', text: 'machine discovery' };
+assert.deepEqual(indexabilityViolations('https://www.getdasha.com/llms.txt', plainTextPage), []);
+assert.deepEqual(socialCardViolations(plainTextPage), []);
+assert.deepEqual(htmlPolicyViolations(plainTextPage), []);
+const jupiterToken = `https://jup.ag/tokens/${'53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'}`;
+assert.deepEqual(cryptoLinkViolations(`<a href="${jupiterToken}">Token</a>`), []);
+assert.deepEqual(cryptoLinkViolations(`<a href="${jupiterToken}?ref=bad">Token</a>`), [`jupiter-params:${jupiterToken}?ref=bad`]);
 assert.deepEqual(stylesheetUrls('<link href="/dasha.css" media="all" rel="preload stylesheet">', 'https://www.getdasha.com/dasha'),
   ['https://www.getdasha.com/dasha.css']);
 assert.deepEqual(retiredFontFamilies('h1{font-family:Raleway,Exo}p{font-family:Arial}'), ['Exo', 'Raleway']);

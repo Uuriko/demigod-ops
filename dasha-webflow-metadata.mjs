@@ -32,10 +32,10 @@ export const WEBFLOW_METADATA = {
   lobby: {
     pageId: '6a77870a95e3872a95ef7337',
     path: '/lobby',
-    title: '$dasha lobby',
-    description: 'Public chat for $dasha.',
-    ogTitle: '$dasha lobby',
-    ogDescription: 'Public chat for $dasha.',
+    title: '$dasha community — chat and forum',
+    description: 'Live chat and lasting threads for $dasha.',
+    ogTitle: '$dasha community — chat and forum',
+    ogDescription: 'Live chat and lasting threads for $dasha.',
     ogImage: 'https://lobby.getdasha.com/og/dasha-social-card.png',
     canonical: 'https://www.getdasha.com/lobby',
   },
@@ -59,6 +59,16 @@ const attributes = (tag = '') => {
 
 export const stripDuplicateOgImage = (head = '') => String(head)
   .replace(/^[ \t]*<meta\b(?=[^>]*\bproperty=["']og:image["'])[^>]*>\s*\n?/gim, '');
+
+const STUDIO_MANIFEST_LINK = '<link rel="manifest" href="/studio.webmanifest">';
+const manifestLinks = head => String(head).match(/<link\b(?=[^>]*\brel=["'][^"']*\bmanifest\b[^"']*["'])[^>]*>\s*\n?/gi) || [];
+
+export const ensureStudioManifestLink = (head = '') => {
+  const source = String(head), links = manifestLinks(source);
+  if (links.length === 1 && /\bhref=["']\/studio\.webmanifest["']/i.test(links[0])) return source;
+  const clean = source.replace(/<link\b(?=[^>]*\brel=["'][^"']*\bmanifest\b[^"']*["'])[^>]*>\s*\n?/gi, '').trimEnd();
+  return `${clean}${clean ? '\n' : ''}${STUDIO_MANIFEST_LINK}\n`;
+};
 
 export function extractWebMetadata(html) {
   const source = String(html || '');
