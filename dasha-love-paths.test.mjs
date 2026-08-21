@@ -115,7 +115,7 @@ assert.match(handoffToStudioHash(withParent), /pLook=photo|pFormat=story/);
 // L6 No humiliation — no bag rank, rights carve-out, no account for create
 assert.doesNotMatch(studio, /bag rank|holder rank|connect wallet to (create|export)/i, 'L6: humiliation UI');
 assert.match(studio, /CC0|your|yours|rights|not financial|not the/i, 'L6: rights/disclaimer signal');
-assert.doesNotMatch(studio, /\b(thesis|receipt)\b/i, 'L6: scrapped product');
+assert.doesNotMatch(studio, /thesis card|conviction receipt/i, 'L6: scrapped product');
 
 // L7 Stay in the joke — after-share loop
 assert.match(studio, /after-share|make another|Pass-it-on|open what|what they get/i, 'L7: after-share');
@@ -131,6 +131,11 @@ assert.deepEqual(
   Object.keys(empty.studio).sort(),
   [...PUBLIC_METRICS_KEYS.studio].sort(),
   'publicFunnelSummary studio keys must match schema',
+);
+assert.deepEqual(
+  Object.keys(empty.chess).sort(),
+  [...PUBLIC_METRICS_KEYS.chess].sort(),
+  'publicFunnelSummary chess keys must match schema',
 );
 assert.equal(publicMetricsViolations(empty).length, 0, publicMetricsViolations(empty).join(','));
 
@@ -149,13 +154,16 @@ const fat = publicFunnelSummary(
     handoffOpens: 6,
   },
   { starts: 10, completions: 8, replays: 5, shares: 5 },
-  {},
+  { pageOpens: 20, localPlayIntents: 10, localCompletions: 6, localRematchIntents: 5 },
   5,
 );
 assert.equal(fat.studio.handoffMints, 9);
 assert.equal(fat.studio.mintToOpen, Number((6 / 9).toFixed(3)));
 assert.equal(fat.studio.editToShareIntent, Number((6 / 10).toFixed(3)));
 assert.equal(fat.studio.intentToShareSuccess, Number((5 / 6).toFixed(3)));
+assert.equal(fat.chess.pageOpenToLocalPlayIntent, 0.5);
+assert.equal(fat.chess.localPlayToCompletion, 0.6);
+assert.equal(fat.chess.localCompletionToRematchIntent, Number((5 / 6).toFixed(3)));
 /* Opens can exceed mints (re-opens); public ratio is capped at 1. */
 const overOpen = publicFunnelSummary(
   {

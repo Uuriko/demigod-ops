@@ -9,7 +9,9 @@ assert.match(studio, /studio\/handoff/, 'Studio missing handoff API path');
 assert.match(studio, /handoff_mint/, 'Studio never tracks handoff mint');
 assert.match(studio, /Pass-it-on link copied/, 'Studio lost handoff copy status');
 assert.match(studio, /function handoffCopiedOk/, 'copy-link must verify clipboard');
-assert.match(studio, /handoffCopiedOk\(got, text\)/, 'post-text copy must verify clipboard');
+assert.match(studio, /function forumDraftUrl/, 'Studio lost its Forum draft handoff');
+assert.match(studio, /getdasha\.com\/lobby#\$\{params\}/, 'Forum draft must stay in the URL fragment');
+assert.doesNotMatch(studio, /Copy post text/, 'redundant post-text action returned');
 assert.match(studio, /X did not open/, 'share must not claim an X tab that did not open');
 assert.doesNotMatch(studio, /\+simp|earn points|points for shar/i, 'C11: share must not award points');
 {
