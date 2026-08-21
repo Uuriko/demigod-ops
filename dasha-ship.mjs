@@ -137,7 +137,8 @@ function writeJson(file, value) {
 const digest = (value) => createHash('sha256').update(value).digest('hex');
 const expectedLobbyAssets = () => readFileSync(LOBBY_ASSETS, 'utf8').match(/ASSET_HASH\s*=\s*["']([^"']+)/)?.[1] || null;
 const artifactHashes = () =>
-  Object.fromEntries(Object.entries(SURFACES).map(([key, surface]) => [key, digest(read(surface.file))]));
+  Object.fromEntries(Object.entries(SURFACES).map(([key, surface]) =>
+    [key, existsSync(join(root, surface.file)) ? digest(read(surface.file)) : null]));
 const receiptInputHash = hashes => digest([
   JSON.stringify(hashes),
   expectedLobbyAssets(),
