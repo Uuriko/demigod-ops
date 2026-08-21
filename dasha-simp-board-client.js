@@ -1215,6 +1215,19 @@
           }
         } catch (e) {}
       }
+      if (navigator.share) {
+        navigator.share({ text: text }).then(function() {
+          setStatus('Shared · invite friends to beat your score', 'ok');
+        }).catch(function(err) {
+          if (err && err.name === 'AbortError') {
+            setStatus('', '');
+            return;
+          }
+          openXIntent(text);
+          setStatus('X compose opened — hit Post to publish your result', 'ok');
+        });
+        return;
+      }
       openXIntent(text);
       setStatus('X compose opened — hit Post to publish your result', 'ok');
     }
