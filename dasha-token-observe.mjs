@@ -142,13 +142,24 @@ export function clonesFrom(rows) {
 export function chainFrom(result) {
   const info = result?.value?.data?.parsed?.info;
   if (!info) return unreachable('mint account not returned');
+  const supply = String(info.supply ?? '');
+  if (!/^\d+$/.test(supply)) return unreachable(`mint supply unparseable: ${supply.slice(0, 24)}`);
   return {
     ok: true,
     decimals: info.decimals ?? null,
-    supply: info.supply ?? null,
+    supply,
     mintAuthorityRevoked: info.mintAuthority === null,
     freezeAuthorityRevoked: info.freezeAuthority === null,
   };
+}
+
+/** Exact raw-unit comparison, converted only after subtraction so small burns remain visible. */
+export function supplyDelta(previous, current) {
+  const before = previous?.chain, after = current?.chain;
+  if (!before?.ok || !after?.ok || before.decimals !== after.decimals
+    || !Number.isInteger(before.decimals) || before.decimals < 0 || before.decimals > 18
+    || !/^\d+$/.test(before.supply) || !/^\d+$/.test(after.supply)) return null;
+  return Number(BigInt(after.supply) - BigInt(before.supply)) / (10 ** before.decimals);
 }
 
 /**
@@ -272,6 +283,8 @@ function selftest() {
   const chain = chainFrom({ value: { data: { parsed: { info: { decimals: 6, supply: '999831949035000', mintAuthority: null, freezeAuthority: null } } } } });
   assert(chain.mintAuthorityRevoked && chain.freezeAuthorityRevoked, 'null authority reads as revoked');
   assert(chainFrom({}).ok === false, 'a missing mint account is unreachable, not an unrevoked mint');
+  assert(chainFrom({ value: { data: { parsed: { info: { decimals: 6, supply: null } } } } }).ok === false,
+    'a missing supply is unreachable, not zero');
   const live = chainFrom({ value: { data: { parsed: { info: { decimals: 6, supply: '1', mintAuthority: 'SomeAuthority', freezeAuthority: null } } } } });
   assert(live.mintAuthorityRevoked === false, 'a real authority reads as NOT revoked — the check can fail');
 
@@ -285,9 +298,13 @@ function selftest() {
     'a missing supply is unreachable, not zero — the whole claim turns on that difference');
 
   const d = deltas(
-    { market: { priceUsd: 0.00009, fdv: 90000, liquidityUsd: 30000, volume24hUsd: 5800 }, jupiter: { holderCount: 978, organicScore: 0 }, clones: { count: 11, largestLiquidityUsd: 2303 } },
-    { market: { priceUsd: 0.0001, fdv: 100000, liquidityUsd: 31000, volume24hUsd: 6000 }, jupiter: { holderCount: 1000, organicScore: 0 }, clones: { count: 12, largestLiquidityUsd: 2303 } },
+    { chain: { ok: true, decimals: 6, supply: '999831949035000' }, market: { priceUsd: 0.00009, fdv: 90000, liquidityUsd: 30000, volume24hUsd: 5800 }, jupiter: { holderCount: 978, organicScore: 0 }, clones: { count: 11, largestLiquidityUsd: 2303 } },
+    { chain: { ok: true, decimals: 6, supply: '999830949035000' }, market: { priceUsd: 0.0001, fdv: 100000, liquidityUsd: 31000, volume24hUsd: 6000 }, jupiter: { holderCount: 1000, organicScore: 0 }, clones: { count: 12, largestLiquidityUsd: 2303 } },
   );
+  assert(supplyDelta(
+    { chain: { ok: true, decimals: 6, supply: '999831949035000' } },
+    { chain: { ok: true, decimals: 6, supply: '999830949035000' } },
+  ) === -1000, 'a 1,000-token burn is visible as supply -1000');
   assert(d.find((r) => r.name === 'holders').change === 22, 'holder delta');
   assert(d.find((r) => r.name === 'clones').change === 1, 'a new clone shows as a change');
   const blind = deltas({ market: {} }, { market: { fdv: 100000 } });
@@ -313,6 +330,11 @@ if (isMain) {
         + `  clones ${c?.ok ? c.count : '—'}`);
     }
     if (rows.length > 1) {
+      const chainRows = rows.filter((row) => row.chain?.ok).slice(-2);
+      if (chainRows.length === 2) {
+        const change = supplyDelta(chainRows[0], chainRows[1]);
+        if (change !== null) console.log(`\nsupply since ${chainRows[0].at.slice(0, 16)}: ${change > 0 ? '+' : ''}${change} $dasha`);
+      }
       console.log('\nsince the previous observation:');
       for (const row of deltas(rows[rows.length - 2], rows[rows.length - 1])) {
         console.log(row.change === null
