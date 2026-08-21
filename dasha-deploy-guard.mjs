@@ -86,6 +86,28 @@ const WORKER_INPUTS = [
 
 const say = (line) => console.log(`deploy-guard: ${line}`);
 
+// ---- R0: CLAIMS.json exclusive-writer gate (same registry as dg-claim) ----------
+{
+  const preflight = process.env.DASHA_CLAIM_PREFLIGHT || join(ROOT, 'bin/dasha-claim-preflight');
+  const claimOwner = process.env.DASHA_AGENT || process.env.DG_CLAIM_OWNER || 'grok-bot';
+  const claimPaths = WORKER_INPUTS.filter((p) => p !== 'dasha-worker-assets');
+  const pf = spawnSync(preflight, ['--owner', claimOwner, ...claimPaths], { encoding: 'utf8' });
+  const out = `${pf.stdout || ''}${pf.stderr || ''}`.trim();
+  if (pf.status === 10) {
+    say('CLAIMS.json blocks this deploy (another owner holds Worker/static-gen/simp-board):');
+    for (const line of out.split('\n')) say(`  ${line}`);
+    say('Wait or bus the owner. --force does not override a live foreign claim.');
+    process.exit(10);
+  }
+  if (pf.status && pf.status !== 0) {
+    say(`claim preflight exited ${pf.status}${out ? `: ${out}` : ''}`);
+    process.exit(pf.status ?? 2);
+  }
+  if (out.startsWith('UNCLAIMED')) say(`claim preflight UNCLAIMED as ${claimOwner} — claim before a contested write`);
+  else if (out.startsWith('OWNED')) say(`claim preflight: ${claimOwner} already owns the overlapping claims`);
+}
+
+
 // ---- R1: refuse to ship someone else's unfinished work ------------------------
 const dirty = [
   ['root', ROOT],
@@ -124,6 +146,11 @@ for (const path of WORKER_INPUTS.filter((path) => path !== 'dasha-worker-assets'
     say(`root and dasha-2 Worker sources differ: ${path}`);
     process.exit(1);
   }
+}
+const routes = spawnSync(process.execPath, ['dasha-secondary-pages.test.mjs'], { cwd: ROOT, encoding: 'utf8' });
+if (routes.status !== 0) {
+  say(`canonical route contract failed; --force cannot retire public product routes:\n${routes.stderr || routes.stdout}`);
+  process.exit(1);
 }
 const assetHash = (cwd) => readFileSync(join(cwd, 'dasha-lobby-static-gen.mjs'), 'utf8')
   .match(/ASSET_HASH\s*=\s*["']([^"']+)/)?.[1] || null;
