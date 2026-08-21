@@ -1,9 +1,14 @@
 <style>
+  @view-transition { navigation: auto; }
+  @media (prefers-reduced-motion: reduce) {
+    @view-transition { navigation: none; }
+  }
+  ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .18s; }
   :root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--hot-deep:#c21f5a;--violet:#7c4dff;--line:rgba(244,237,219,.18)}
   *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--ink);color:var(--paper);font:16px/1.5 Arial,Helvetica,sans-serif}
   .dasha{min-height:100vh;overflow-x:hidden;color:var(--paper);background:radial-gradient(circle at 80% 5%,rgba(124,77,255,.35),transparent 32rem),radial-gradient(circle at 5% 65%,rgba(255,59,129,.2),transparent 28rem),var(--ink)}
-  .skip-link{position:absolute;left:-9999px;top:0;z-index:100;padding:12px 16px;background:var(--acid);color:var(--ink)!important;font-weight:900;text-decoration:none}.skip-link:focus{left:12px;top:12px;outline:3px solid var(--paper);outline-offset:2px}.dasha a{color:inherit!important}.dasha h1,.dasha h2,.dasha h3{font-family:Arial,Helvetica,sans-serif!important}.dasha h1,.dasha h2,.dasha h3{color:var(--paper)!important}.wrap{width:min(1180px,calc(100% - 32px));margin:auto}.nav{height:76px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
-  .brand{min-height:44px;display:inline-flex;align-items:center;font-weight:950;font-size:22px;letter-spacing:-1px;text-decoration:none}.brand span{color:var(--acid)}.navlinks{display:flex;align-items:center;gap:22px}.navlinks a{min-height:44px;display:inline-flex;align-items:center;text-decoration:none;font-size:14px;font-weight:800;letter-spacing:.03em}.navlinks a:hover{text-decoration:underline;text-underline-offset:5px}
+  .skip-link{position:absolute;left:-9999px;top:0;z-index:100;padding:12px 16px;background:var(--acid);color:var(--ink)!important;font-weight:900;text-decoration:none}.skip-link:focus{left:12px;top:12px;outline:3px solid var(--paper);outline-offset:2px}.dasha a,.dasha strong{color:inherit!important}#dasha-x-prompt strong{color:#f4eddb!important}.dasha h1,.dasha h2,.dasha h3{font-family:Arial,Helvetica,sans-serif!important}.dasha h1,.dasha h2,.dasha h3{color:var(--paper)!important}.wrap{width:min(1180px,calc(100% - 32px));margin:auto}.nav{height:76px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
+  .brand{min-height:44px;display:inline-flex;align-items:center;font-weight:950;font-size:22px;letter-spacing:-1px;text-decoration:none}.brand span{color:var(--acid)}.navlinks{display:flex;align-items:center;gap:22px}.navlinks a{min-height:44px;display:inline-flex;align-items:center;text-decoration:none;font-size:14px;font-weight:800;letter-spacing:.03em}.navlinks a:hover{text-decoration:underline;text-underline-offset:5px}.login-link{white-space:nowrap}
   .pill{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 22px;border:1px solid var(--paper);border-radius:999px;color:var(--paper)!important;text-decoration:none!important;font-weight:950!important;text-transform:uppercase;letter-spacing:.06em;box-shadow:4px 4px 0 var(--paper);transition:transform .18s,box-shadow .18s}.pill:hover{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--paper)}.pill.primary{background:var(--acid);border-color:var(--acid);color:var(--ink)!important;box-shadow:4px 4px 0 var(--hot)}
   .dasha-hero{min-height:640px;display:grid;grid-template-columns:1.1fr .9fr;gap:34px;align-items:center;padding:56px 0 64px}
   h1{margin:18px 0 24px;font-size:clamp(58px,10vw,132px);line-height:.86;letter-spacing:-.065em;font-weight:950}.stroke{color:var(--acid)}.actions{display:flex;flex-wrap:wrap;gap:16px;margin:30px 0}
@@ -14,7 +19,7 @@
   footer{padding:34px 0 44px;border-top:1px solid var(--line);font-size:14px;color:rgba(244,237,219,.78)}footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}footer p{margin:0;max-width:none;line-height:1.55}.dasha footer a{display:inline-flex;align-items:center;min-height:44px;color:var(--paper)!important;font-weight:800;text-underline-offset:3px}.dasha footer a:hover{text-decoration:underline}
   :focus-visible{outline:3px solid var(--acid);outline-offset:4px}.door-actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center}.door-actions .pill:not(.primary){background:var(--ink);color:var(--paper)!important}
 .door .copy-link{border:0;cursor:pointer;font:inherit}
-@media(max-width:800px){.navlinks>a:not(.pill){display:none}.dasha-hero{grid-template-columns:1fr;padding-top:45px}.poster{width:90%;margin:20px auto 0}.contract,.door{grid-template-columns:1fr}.section-title{margin-bottom:28px}section{padding:58px 0}}@media(max-width:480px){.wrap{width:min(100% - 22px,1180px)}.nav{height:68px}.pill{padding:0 17px}.dasha-hero{min-height:auto}.poster{width:94%;box-shadow:9px 9px 0 var(--hot)}.contract,.door{padding:24px}.ca{font-size:12px}.nav .pill{min-height:42px;font-size:12px}}
+@media(max-width:800px){.navlinks>a:not(.pill):not(.login-link){display:none}.dasha-hero{grid-template-columns:1fr;padding-top:45px}.poster{width:90%;margin:20px auto 0}.contract,.door{grid-template-columns:1fr}.section-title{margin-bottom:28px}section{padding:58px 0}}@media(max-width:480px){.wrap{width:min(100% - 22px,1180px)}.nav{height:68px}.navlinks{gap:12px}.pill{padding:0 17px}.dasha-hero{min-height:auto}.poster{width:94%;box-shadow:9px 9px 0 var(--hot)}.contract,.door{padding:24px}.ca{font-size:12px}.nav .pill{min-height:42px;font-size:12px}}
 .price{margin:22px 0 0;max-width:520px;display:grid;grid-template-columns:auto 1fr;grid-template-areas:"main spark" "note note";gap:6px 16px;align-items:center;padding:14px 16px;border:1px solid var(--line);background:rgba(255,255,255,.04)}.price[hidden]{display:none}.price-main{grid-area:main;display:inline-flex;align-items:baseline;gap:10px;min-height:44px;text-decoration:none!important}.price-now{font-size:clamp(20px,3vw,26px);font-weight:950;letter-spacing:-.02em;font-variant-numeric:tabular-nums}.price-chg{font-size:14px;font-weight:900;font-variant-numeric:tabular-nums}.price-chg.up{color:var(--acid)}.price-chg.down{color:#ff9db8}.spark{grid-area:spark;width:100%;height:44px;display:block}.price-note{grid-area:note;margin:0;font-size:14px;color:rgba(244,237,219,.82);line-height:1.45}@media(max-width:600px){.price{grid-template-columns:1fr;grid-template-areas:"main" "spark" "note"}}
 
   /* Motion, added as enhancement only.
@@ -26,9 +31,12 @@
      run layout on every frame, which is the thing that actually costs INP on a scrolling page. */
   @supports (animation-timeline: view()) {
     @media (prefers-reduced-motion: no-preference) {
-      @keyframes dasha-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
-      /* Sections arrive as they come into view. `both` matters: it holds the start state before
-         entry and the end state after, so nothing is left half-faded once the range is past. */
+      /* Transform only. Opacity here composites acid buttons over ink into #576305 (3.07:1)
+         while the mint row is mid-range — GRWM's 70svh phone parked it there at 390px, and
+         axe then fails .copy / Buy. The finished colors stay the default. */
+      @keyframes dasha-rise{from{transform:translateY(18px)}to{transform:none}}
+      /* Sections arrive as they come into view. `both` holds the start transform before
+         entry and the end state after, so nothing is left half-shifted once the range is past. */
       .dasha section,.contract{
         animation:dasha-rise linear both;
         animation-timeline:view();
@@ -55,27 +63,67 @@
 </style>
 <a class="skip-link" href="#content">Skip to content</a>
 <main class="dasha" id="top">
-  <nav class="nav wrap" aria-label="Main navigation"><a class="brand" href="#top">$<span>DASHA</span></a><div class="navlinks"><a href="/studio">Studio</a><a href="/lobby">Lobby</a><a href="#token">CA 53ux…pump</a><a href="/how-to-buy">How to buy</a><a class="pill primary buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a></div></nav>
+  <nav class="nav wrap" aria-label="Main navigation"><a class="brand" href="#top">$<span>DASHA</span></a><div class="navlinks"><a href="/studio">Studio</a><a href="/lobby">Lobby</a><a href="#token">CA 53ux…pump</a><a href="/how-to-buy">How to buy</a><a class="login-link" href="/login" data-dasha-login-link>Log in</a></div></nav>
   <header class="dasha-hero wrap" id="content">
-    <div><h1>It’s time<br><span class="stroke">$dasha.</span></h1><div class="actions"><a class="pill primary" href="/studio#look=signal&amp;format=story&amp;line=It%E2%80%99s%20time%20%24dasha">Make something →</a><a class="pill" href="https://github.com/Uuriko/dasha-desk" target="_blank" rel="noopener noreferrer" aria-label="Contribute code on GitHub — the Dasha tools are open source">Contribute to open source ↗</a></div><div class="price" id="price" hidden><a class="price-main" href="#token"><span class="price-now" id="price-now">—</span><span class="price-chg" id="price-chg"></span></a><svg class="spark" id="spark" viewBox="0 0 300 44" preserveAspectRatio="none" role="img" aria-hidden="true"><path id="spark-fill" fill="rgba(223,255,0,.14)" d=""></path><path id="spark-line" pathLength="1" fill="none" stroke="#dfff00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" d=""></path></svg><p class="price-note" id="price-note"></p></div></div>
+    <div><h1>It’s time<br><span class="stroke">$dasha.</span></h1><div class="actions"><a class="pill primary" href="/studio#look=signal&amp;format=story&amp;line=It%E2%80%99s%20time%20%24dasha">Make something →</a><a class="pill" href="/contribute" aria-label="Pick a good first issue and contribute code">Contribute code ↗</a></div><div class="price" id="price" hidden><a class="price-main" href="#token"><span class="price-now" id="price-now">—</span><span class="price-chg" id="price-chg"></span></a><svg class="spark" id="spark" viewBox="0 0 300 44" preserveAspectRatio="none" role="img" aria-hidden="true"><path id="spark-fill" fill="rgba(223,255,0,.14)" d=""></path><path id="spark-line" pathLength="1" fill="none" stroke="#dfff00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" d=""></path></svg><p class="price-note" id="price-note"></p></div></div>
     <div class="poster"><span class="sticker">CMON</span><div class="poster-grid" aria-label="Open an editable Dasha Studio starter"><a class="poster-tile" aria-label="Edit ‘How u crying at the casino and u can’t even get in’" href="/studio#look=poster&amp;format=square&amp;line=How%20u%20crying%20at%20the%20casino%20and%20u%20can%E2%80%99t%20even%20get%20in&amp;src=home"><strong>How u crying at the casino and u can’t even get in</strong></a><a class="poster-tile" aria-label="Edit ‘It’s time $dasha’" href="/studio#look=ticket&amp;format=story&amp;line=It%E2%80%99s%20time%20%24dasha&amp;src=home"><strong>It’s time $dasha</strong></a><a class="poster-tile" aria-label="Edit ‘Well im still alive’" href="/studio#look=signal&amp;format=banner&amp;line=Well%20im%20still%20alive&amp;src=home"><strong>Well im still alive</strong></a></div></div>
   </header>
   <div class="ticker" aria-label="Culture line"><p>It’s time $dasha.</p><div class="ticker-loop" aria-hidden="true">It’s time $dasha · CMON · It’s time $dasha · CMON · </div></div>
+  <section id="grwm" aria-label="Get ready with me">
+    <style>
+      #grwm{margin:0;padding:28px 0 8px;background:#070608}
+      #grwm .grwm-hold{display:grid;justify-items:center;gap:14px}
+      #grwm .grwm-kicker{margin:0;color:var(--acid);font-size:14px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+      #grwm .grwm-phone{position:relative;width:min(100%,calc(70svh * 720 / 1280));max-height:70svh;aspect-ratio:720/1280;box-sizing:border-box;padding:10px;background:#f4eddb}
+      #grwm video{display:block;width:100%;height:100%;object-fit:cover;background:#070608}
+      #grwm .grwm-go{position:absolute;inset:10px;display:grid;place-items:center;border:0;background:rgba(7,6,8,.28);cursor:pointer}
+      #grwm .grwm-go i{display:block;width:72px;height:72px;background:#dfff00;clip-path:polygon(32% 22%,82% 50%,32% 78%);box-shadow:6px 6px 0 #ff3b81}
+      #grwm.is-on .grwm-go{display:none}
+      @media (prefers-reduced-motion:reduce){#grwm video[autoplay]{autoplay:none}}
+    </style>
+    <div class="wrap grwm-hold">
+      <p class="grwm-kicker">Get ready with me</p>
+      <div class="grwm-phone">
+        <video muted loop playsinline autoplay preload="metadata" poster="https://lobby.getdasha.com/og/grwm.jpg" src="https://lobby.getdasha.com/og/grwm-loop.mp4" width="720" height="1280"></video>
+        <button type="button" class="grwm-go" aria-label="Play GRWM with sound"><i></i></button>
+      </div>
+    </div>
+    <script>
+    (function(){
+      var root=document.getElementById('grwm');if(!root)return;
+      var v=root.querySelector('video');var go=root.querySelector('.grwm-go');
+      var FULL='https://lobby.getdasha.com/og/grwm.mp4';
+      function on(){
+        if(root.classList.contains('is-on'))return;
+        root.classList.add('is-on');
+        if(!v)return;
+        v.loop=false;v.muted=false;v.controls=true;v.removeAttribute('autoplay');
+        if(v.getAttribute('src')!==FULL)v.src=FULL;
+        var p=v.play();if(p&&p.catch)p.catch(function(){});
+      }
+      if(go)go.addEventListener('click',on);
+      if(v)v.addEventListener('click',function(e){if(!root.classList.contains('is-on')){e.preventDefault();on()}});
+      if(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches&&v){
+        v.removeAttribute('autoplay');v.pause();v.preload='none';
+      }
+    })();
+    </script>
+  </section>
   <section id="simp-door" aria-labelledby="simp-title"><div class="wrap door">
     <div><p class="section-kicker">Play</p><h2 class="section-title" id="simp-title">Simp board.</h2><p class="door-line">Take the quiz. Post a row.</p></div>
     <a class="pill primary" href="/simp">Open the board →</a>
   </div></section>
   <section id="chess-door" aria-labelledby="chess-title"><div class="wrap door">
     <div><p class="section-kicker">Play</p><h2 class="section-title" id="chess-title">Dasha vs Anna.</h2><p class="door-line">Send a link. They take Anna.</p></div>
-    <div class="door-actions"><button class="pill copy-link" type="button" id="chess-copy">Copy challenge link</button><a class="pill primary" href="https://lobby.getdasha.com/chess">Open chess →</a></div>
+    <div class="door-actions"><button class="pill copy-link" type="button" id="chess-copy">Copy challenge link</button><a class="pill primary" href="/chess">Open chess →</a></div>
   </div></section>
-  <section id="token"><div class="wrap contract"><div><h2>$dasha.</h2><div class="ca"><code id="mint">53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump</code><button class="copy" type="button" aria-label="Copy contract address">COPY</button></div><p class="source-note">Source: <a href="https://x.com/dash_eats/status/2085405228078432279" target="_blank" rel="noopener noreferrer">@dash_eats ↗</a>.</p><div class="linkrow"><a href="/how-to-buy">How to buy</a><a href="https://www.geckoterminal.com/solana/pools/9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7" target="_blank" rel="noopener noreferrer">Chart ↗</a><a href="https://solscan.io/token/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Solscan ↗</a></div></div><a class="pill primary buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a></div></section>
-<footer><div class="wrap"><p><a href="/studio">Studio</a> · <a href="/simp">Simp</a> · <a href="/lobby">Lobby</a> · <a href="https://lobby.getdasha.com/forum">Forum</a> · <a href="https://lobby.getdasha.com/chess">Chess</a> · <a href="/dasha">Desk</a> · <a href="/how-to-buy">How to buy</a> · <a href="/privacy">Privacy</a> · <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats ↗</a> · <a href="https://github.com/Uuriko/dasha-desk" target="_blank" rel="noopener noreferrer">Source ↗</a></p></div></footer>
+  <section id="token"><div class="wrap contract"><div><h2>$dasha.</h2><div class="ca"><code id="mint">53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump</code><button class="copy" type="button" aria-label="Copy contract address">COPY</button></div><p class="source-note">Source: <a href="https://x.com/dash_eats/status/2085405228078432279" target="_blank" rel="noopener noreferrer">@dash_eats ↗</a>.</p><div class="linkrow"><a href="/how-to-buy">How to buy</a><a href="/simp#holder" aria-label="Verify a current $dasha holder proof for rated Chess, 500-character Lobby chat, and holder marks; adds zero Simp Points">24h holder perks: Chess + chat</a><a href="https://www.geckoterminal.com/solana/pools/9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7" target="_blank" rel="noopener noreferrer">Chart ↗</a><a href="https://solscan.io/token/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Solscan ↗</a></div></div><a class="pill primary buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a></div></section>
+<footer><div class="wrap"><p><a href="/studio">Studio</a> · <a href="/simp">Simp</a> · <a href="/lobby">Lobby</a> · <a href="/chess">Chess</a> · <a href="/dasha">Desk</a> · <a href="/how-to-buy">How to buy</a> · <a href="/privacy">Privacy</a> · <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats ↗</a> · <a href="https://github.com/Uuriko/dasha-desk" target="_blank" rel="noopener noreferrer">Source ↗</a></p></div></footer>
 </main>
 <script>(()=>{const q=new URLSearchParams(location.search);if(location.hash==='#simp'||q.has('quiz')||q.has('challenge'))location.replace('/simp'+location.search)})()</script>
 <script>(()=>{try{const L=[{id:"photo",line:"How u crying at the casino and u can’t even get in"},{id:"poster",line:"It’s time $dasha"},{id:"ticket",line:"You’re not gonna believe this"},{id:"print",line:"Well Im still alive"},{id:"marquee",line:"Go ahead and doubt me see what happens"},{id:"signal",line:"Cmon"},{id:"face",line:"They are angels actually"}];const F=["square","story","banner"];const E=["clean","fry","xerox"];const S=["","🍒","✦","♱","♢","☻"];const C=["How u crying at the casino and u can’t even get in","It’s time $dasha","Well im still alive","Friday in the 4HL you can really feel the pull of the weekend"];const d=new Date();const seed=d.getUTCFullYear()*10000+(d.getUTCMonth()+1)*100+d.getUTCDate();const pool=[...new Set([...C,...L.map(x=>x.line)])];const r={look:L[seed%L.length].id,format:F[seed%F.length],effect:E[seed%E.length],sticker:S[(seed>>3)%S.length],line:pool[seed%pool.length]||L[0].line};const p=new URLSearchParams();p.set("look",r.look);p.set("format",r.format);p.set("line",r.line);if(r.effect&&r.effect!=="clean")p.set("effect",r.effect);if(r.sticker)p.set("sticker",r.sticker);p.set("src","home");const href="/studio#"+p.toString();const nodes=document.querySelectorAll('a[href^="/studio"],a[href*="/studio#"]');for(const a of nodes){if(a.classList.contains("buy-dasha"))continue;/* The collage is excluded: each tile shows a specific poster and must open that exact one, or it depicted something it does not make. Rewriting them pointed all three at the same ritual, so the grid rendered the same line three times. The daily ritual belongs on the generic entries, which promise nothing in particular. */if(a.classList.contains("poster-tile"))continue;a.setAttribute("href",href);}const make=document.querySelector(".dasha-hero .actions a.primary");if(make)make.setAttribute("href",href);}catch(e){}})();</script>
-<script>(()=>{const CA='53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';function mintCopiedOk(got,want){return String(got||'').replace(/\s+/g,'')===String(want||'')}const b=document.querySelector('.copy'),m=document.querySelector('#mint');b?.addEventListener('click',async()=>{const want=(m&&m.textContent)||CA;try{await navigator.clipboard.writeText(want);if(navigator.clipboard.readText){const got=await navigator.clipboard.readText();b.textContent=mintCopiedOk(got,want)?'COPIED':'SELECT'}else b.textContent='COPIED'}catch{b.textContent='SELECT';const s=getSelection(),r=document.createRange();r.selectNodeContents(m);s.removeAllRanges();s.addRange(r)}setTimeout(()=>b.textContent='COPY',1800)});window.DashaHomeMint={CA,mintCopiedOk}})()</script>
-<script>(()=>{const CHESS='https://lobby.getdasha.com/chess';function linkCopiedOk(got,want){return String(got||'').replace(/\s+/g,'')===String(want||'')}const b=document.getElementById('chess-copy');b?.addEventListener('click',async()=>{const label=b.textContent;try{await navigator.clipboard.writeText(CHESS);if(navigator.clipboard.readText){const got=await navigator.clipboard.readText();b.textContent=linkCopiedOk(got,CHESS)?'Copied':'Select'}else b.textContent='Copied'}catch{b.textContent='Select'}setTimeout(()=>b.textContent=label,1800)});window.DashaHomeChess={URL:CHESS,linkCopiedOk}})()</script>
+<script>(()=>{const CA='53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';function mintCopiedOk(got,want){return String(got||'').replace(/\s+/g,'')===String(want||'')}function withTimeout(p,ms){return Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('copy-timeout')),ms))])}const b=document.querySelector('.copy'),m=document.querySelector('#mint');b?.addEventListener('click',async()=>{const want=(m&&m.textContent)||CA;try{await withTimeout(navigator.clipboard.writeText(want),800);if(navigator.clipboard.readText){const got=await withTimeout(navigator.clipboard.readText(),800);b.textContent=mintCopiedOk(got,want)?'COPIED':'SELECT'}else b.textContent='COPIED'}catch{b.textContent='SELECT';if(m){const s=getSelection(),r=document.createRange();r.selectNodeContents(m);s.removeAllRanges();s.addRange(r)}}setTimeout(()=>b.textContent='COPY',1800)});window.DashaHomeMint={CA,mintCopiedOk}})()</script>
+<script>(()=>{const CHESS='https://www.getdasha.com/chess';function linkCopiedOk(got,want){return String(got||'').replace(/\s+/g,'')===String(want||'')}function withTimeout(p,ms){return Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('copy-timeout')),ms))])}const b=document.getElementById('chess-copy');b?.addEventListener('click',async()=>{const label=b.textContent;try{await withTimeout(navigator.clipboard.writeText(CHESS),800);if(navigator.clipboard.readText){const got=await withTimeout(navigator.clipboard.readText(),800);b.textContent=linkCopiedOk(got,CHESS)?'Copied':'Select'}else b.textContent='Copied'}catch{b.textContent='Select'}setTimeout(()=>b.textContent=label,1800)});window.DashaHomeChess={URL:CHESS,linkCopiedOk}})()</script>
 <script>(()=>{try{
 /* Live pool price, drawn here rather than embedded. A third-party chart widget would put someone
    else's script in front of every visitor and watch them; this fetches numbers from our own worker
@@ -118,3 +166,4 @@ const every=setInterval(tick,30000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick()});
 window.addEventListener('pagehide',()=>clearInterval(every));
 }catch(e){}})();</script>
+<script src="https://lobby.getdasha.com/client/x-connect.js" integrity="sha384-pF9pJa2E4m1ec3sbkjve5zpRsWdDNj6/rTNDT+KrPBM3Z3AaciDDfANfMfmqzbjY" crossorigin="anonymous" defer></script>

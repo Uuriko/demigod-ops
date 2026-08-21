@@ -45,7 +45,16 @@
   var QUIZ_PHOTOS = Object.keys(QUIZ_CARDS).map(function(key) {
     return QUIZ_CARDS[key].image;
   });
-  var BOARD_CSS = '.simp-board-root{max-width:36rem;margin:0 auto;color:#f4eddb;font-family:Arial,Helvetica,sans-serif}.simp-lede{margin:0 0 1.25rem;font:900 clamp(1.35rem,3.4vw,2rem)/1.15 "Arial Black",Helvetica,Arial,sans-serif}.simp-home-actions,.simp-quiz-invite-actions{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 1.75rem;align-items:center}.simp-quiz-go,.simp-quiz-start,.simp-action,.simp-tool{display:inline-flex;align-items:center;justify-content:center;min-height:56px;padding:0 1.25rem;border:0;background:#dfff00;color:#070608;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif;text-decoration:none;box-shadow:4px 4px 0 #ff3b81;cursor:pointer}.simp-action:disabled,.simp-tool:disabled{opacity:.7;color:#070608}.simp-connect{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 1.25rem;border:1px solid #f4eddb;background:none;color:#f4eddb;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif;cursor:pointer}.simp-board{display:grid}.simp-row{display:grid;grid-template-columns:3.2rem minmax(0,1fr) auto auto;gap:.8rem;align-items:baseline;padding:.8rem 0;border-bottom:1px solid rgba(244,237,219,.18);background:none}.simp-rank{color:#dfff00;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}.simp-handle{color:#f4eddb;font-weight:900;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.simp-pts{color:rgba(244,237,219,.72);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.simp-beat{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 .75rem;border:0;background:#dfff00;color:#070608;font:900 .85rem/1 "Arial Black",Helvetica,Arial,sans-serif;text-decoration:none;box-shadow:3px 3px 0 #ff3b81;cursor:pointer;white-space:nowrap}.simp-types{margin:0 0 .75rem;color:rgba(244,237,219,.5);font:700 .85rem/1.35 Arial,Helvetica,sans-serif}.simp-types:empty{display:none}.simp-empty,.simp-status{margin:0;color:rgba(244,237,219,.42)}.simp-status:empty{display:none}.simp-more{margin:1.25rem 0 0;padding:0;border:0;background:none;color:#dfff00;font:900 1rem/1.2 "Arial Black",Helvetica,Arial,sans-serif;cursor:pointer}.simp-tools summary{min-height:48px;color:#f4eddb;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif;cursor:pointer}';
+  var BOARD_CSS = '.simp-board-root{max-width:36rem;margin:0 auto;color:#f4eddb;font-family:Arial,Helvetica,sans-serif}.simp-lede{margin:0 0 1.25rem;font:900 clamp(1.35rem,3.4vw,2rem)/1.15 "Arial Black",Helvetica,Arial,sans-serif}.simp-home-actions,.simp-quiz-invite-actions{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 1.75rem;align-items:center}.simp-quiz-go,.simp-quiz-start,.simp-action,.simp-tool{display:inline-flex;align-items:center;justify-content:center;min-height:56px;padding:0 1.25rem;border:0;background:#dfff00;color:#070608;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif;text-decoration:none;box-shadow:4px 4px 0 #ff3b81;cursor:pointer}.simp-action:disabled,.simp-tool:disabled{opacity:.7;color:#070608}.simp-connect{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 1.25rem;border:1px solid #f4eddb;background:none;color:#f4eddb;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif;cursor:pointer}.simp-board{display:grid}.simp-row{display:grid;grid-template-columns:3.2rem minmax(0,1fr) auto auto;gap:.8rem;align-items:baseline;padding:.8rem 0;border-bottom:1px solid rgba(244,237,219,.18);background:none}.simp-row:target{outline:2px solid #dfff00;outline-offset:4px}.simp-rank{color:#dfff00;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}.simp-identity{min-width:0}.simp-handle{display:block;color:#f4eddb;font-weight:900;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.simp-holder-mark{display:inline-block;margin-right:.45rem;padding:.12rem .35rem;border:1px solid #dfff00;color:#dfff00;font-size:.72rem;font-weight:900;text-transform:uppercase}.simp-spotlight-link{display:inline-flex;min-height:28px;align-items:center;color:#dfff00;font-size:.78rem;font-weight:900;text-underline-offset:3px}.simp-pts{color:rgba(244,237,219,.72);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.simp-beat{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 .75rem;border:0;background:#dfff00;color:#070608;font:900 .85rem/1 "Arial Black",Helvetica,Arial,sans-serif;text-decoration:none;box-shadow:3px 3px 0 #ff3b81;cursor:pointer;white-space:nowrap}.simp-types{margin:0 0 .75rem;color:rgba(244,237,219,.5);font:700 .85rem/1.35 Arial,Helvetica,sans-serif}.simp-types:empty{display:none}.simp-empty,.simp-status{margin:0;color:rgba(244,237,219,.42)}.simp-status:empty{display:none}.simp-more{margin:1.25rem 0 0;padding:0;border:0;background:none;color:#dfff00;font:900 1rem/1.2 "Arial Black",Helvetica,Arial,sans-serif;cursor:pointer}.simp-oss{margin:1rem 0 1.5rem}.simp-oss a{display:inline-flex;align-items:center;min-height:44px;color:#dfff00;font-weight:900;text-underline-offset:4px}.simp-tools summary{min-height:48px;color:#f4eddb;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif;cursor:pointer}.simp-spotlight-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin:14px 0}.simp-spotlight-form label,.simp-spotlight-progress,.simp-spotlight-note{grid-column:1/-1}.simp-spotlight-form input{min-height:48px;min-width:0;padding:0 12px;border:1px solid #f4eddb;background:#070608;color:#f4eddb}.simp-spotlight-form button{min-height:48px;padding:0 14px;border:1px solid #dfff00;background:#dfff00;color:#070608;font-weight:900;cursor:pointer}.simp-spotlight-progress{width:100%;height:8px;accent-color:#dfff00}.simp-spotlight-note{margin:0;color:rgba(244,237,219,.72);font-size:.85rem}';
+  BOARD_CSS += '.simp-holder-mark{display:inline-flex;align-items:center;min-height:28px}';
+  function withTimeout(p, ms) {
+    return Promise.race([
+      p,
+      new Promise(function (_, rej) {
+        setTimeout(function () { rej(new Error('copy-timeout')); }, ms);
+      }),
+    ]);
+  }
   function el(tag, cls, text) {
     var n = document.createElement(tag);
     if (cls) n.className = cls;
@@ -79,6 +88,18 @@
     } catch (e) {
       return false;
     }
+  }
+  function wantsHolderProof() {
+    try {
+      return String(location.hash || '').toLowerCase() === '#holder';
+    } catch (e) {
+      return false;
+    }
+  }
+  function proofTimeLeft(at, now) {
+    var minutes = Math.ceil((Number(at) - Number(now == null ? Date.now() : now)) / 60000);
+    if (!Number.isFinite(minutes) || minutes <= 0) return '';
+    return minutes > 60 ? Math.ceil(minutes / 60) + 'h left' : minutes + 'm left';
   }
   function gateDismissed() {
     try {
@@ -180,7 +201,7 @@
     root.setAttribute('role', 'region');
     root.setAttribute('aria-label', 'Dasha simp board');
     var style = document.createElement('style');
-    style.textContent = BOARD_CSS + '.simp-quiz{margin:0 0 26px;padding:clamp(20px,4vw,34px);border:1px solid var(--line,#665b70);background:rgba(255,255,255,.055);color:var(--paper,#f4eddb)}.simp-quiz-title{margin:0 0 6px;color:var(--paper,#f4eddb)!important;font-size:clamp(28px,4vw,42px)}.simp-quiz-note{margin:0 0 18px;color:var(--paper,#f4eddb)}.simp-quiz-stage{display:grid;gap:18px}.simp-quiz-count{margin:0;color:var(--paper,#f4eddb);font-size:13px;font-weight:800;letter-spacing:.08em}.simp-quiz-stage.is-correct .simp-quiz-count{color:var(--acid,#dfff00)}.simp-quiz-stage.is-wrong .simp-quiz-count{color:var(--hot,#ff3b81)}.simp-quiz-bar{height:4px;background:#44384d}.simp-quiz-fill{display:block;height:100%;background:var(--acid,#dfff00);transition:width .2s}.simp-quiz-media{display:block;width:100%;height:auto;min-height:180px;max-height:min(56svh,480px);object-fit:cover;margin:0 0 14px;background:#160f1d}.simp-quiz-question{margin:4px 0;color:var(--paper,#f4eddb)!important;font-size:clamp(25px,5vw,46px);line-height:1.08}.simp-quiz-choices{display:grid;gap:10px}.simp-quiz-choice{display:flex;gap:12px;align-items:center;width:100%;min-height:54px;padding:12px 14px;border:1px solid #f4eddb;background:#070608;color:#f4eddb;text-align:left;cursor:pointer;transition:border-color .12s,background .12s,transform .12s}.simp-quiz-key{display:grid;place-items:center;min-width:28px;height:28px;border:1px solid #aa9ab8;color:var(--acid,#dfff00)}.simp-quiz-choice:hover,.simp-quiz-choice:focus-visible{border-color:var(--acid,#dfff00)}.simp-quiz-choice.is-selected{border-color:var(--acid,#dfff00);background:rgba(223,255,0,.15);transform:translateX(3px)}.simp-quiz-feedback{margin:0;color:#f4eddb}.simp-quiz-source{color:var(--acid,#dfff00)}.simp-surprise{margin:4px 0 0;padding:12px 14px;border:1px dashed var(--acid,#dfff00);background:rgba(223,255,0,.1);display:grid;gap:4px}.simp-surprise strong{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--acid,#dfff00)}.simp-surprise p{margin:0;font-size:14px;line-height:1.35;color:var(--paper,#f4eddb)}.simp-quiz-close{display:none;justify-self:end;border:0;background:none;color:var(--paper,#f4eddb);font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif;min-height:48px;cursor:pointer}.simp-quiz-active .simp-quiz{min-height:calc(100svh - 48px);display:grid;align-content:center}.simp-quiz-active>.simp-status,.simp-quiz-active>.simp-privacy,.simp-quiz-active>.simp-board,.simp-quiz-active>.simp-actions,.simp-quiz-active>.simp-me,.simp-quiz-active>.simp-tools{display:none!important}.simp-quiz-active .simp-quiz-close{display:block}html.simp-quiz-open .buy-sticky,html.simp-result-open .buy-sticky{display:none!important}.simp-quiz-result-bar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:96;gap:10px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));background:rgba(7,6,8,.94);border-top:1px solid #665b70;backdrop-filter:blur(10px)}.simp-quiz-result-bar button,.simp-quiz-result-bar a{flex:1 1 auto;min-height:48px;display:inline-flex;align-items:center;justify-content:center;padding:0 14px;border-radius:999px;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif;letter-spacing:.04em;text-transform:uppercase;text-decoration:none!important;cursor:pointer;border:1px solid #dfff00;background:#dfff00;color:#070608}.simp-quiz-result-bar a.ghost{border-color:#f4eddb;background:transparent;color:#f4eddb;flex:0.9 1 auto}@media(max-width:720px){html.simp-result-open .simp-quiz-result-bar{display:flex}.simp-quiz-box{padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}}@media(max-width:520px){.simp-quiz{padding:18px}.simp-quiz-title{font-size:28px}.simp-quiz-question{font-size:30px}.simp-quiz-active .simp-quiz{min-height:calc(100svh - 22px);align-content:start;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}html.simp-result-open .simp-quiz{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}}@media(prefers-reduced-motion:reduce){.simp-quiz-fill,.simp-quiz-choice{transition:none}.simp-quiz-choice.is-selected{transform:none}}.simp-share-push{position:fixed;inset:0;z-index:98;display:grid;place-items:center;padding:16px;background:rgba(7,6,8,.82)}.simp-share-push-card{width:min(440px,100%);padding:22px 20px 18px;border:2px solid #dfff00;background:#120c18;color:#f4eddb;display:grid;gap:12px;box-shadow:12px 12px 0 #ff3b81}.simp-share-push-card h2{margin:0;font-size:clamp(26px,6vw,36px);line-height:1.05;text-transform:uppercase}.simp-share-push-card p{margin:0;font-size:15px;line-height:1.45}.simp-share-push-url{word-break:break-all;font:700 13px/1.4 ui-monospace,Menlo,Consolas,monospace;color:#dfff00;user-select:all}.simp-share-push-actions{display:flex;flex-wrap:wrap;gap:10px}.simp-share-push-actions button{min-height:48px;padding:0 16px;border:1px solid #dfff00;background:#dfff00;color:#070608;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}.simp-share-push-actions .ghost{border-color:#f4eddb;background:transparent;color:#f4eddb}.simp-result-type{margin:0 0 8px;color:#dfff00;font:900 clamp(2.6rem,11vw,4.6rem)/.88 "Arial Black",Helvetica,Arial,sans-serif;letter-spacing:-.03em}.simp-result-score{margin:0 0 6px;color:#f4eddb;font:900 clamp(1.35rem,4vw,2rem)/1.05 "Arial Black",Helvetica,Arial,sans-serif}.simp-result-vibe{margin:0 0 8px;color:#f4eddb;font:700 1rem/1.3 Arial,Helvetica,sans-serif}.simp-result-tick{margin:0 0 14px;color:#dfff00;font:900 1.15rem/1 "Arial Black",Helvetica,Arial,sans-serif}.simp-result-card{display:block;width:100%;height:auto;margin:0 0 14px}';
+    style.textContent = BOARD_CSS + '.simp-quiz{margin:0 0 26px;padding:clamp(20px,4vw,34px);border:1px solid var(--line,#665b70);background:rgba(255,255,255,.055);color:var(--paper,#f4eddb)}.simp-quiz-title{margin:0 0 6px;color:var(--paper,#f4eddb)!important;font-size:clamp(28px,4vw,42px)}.simp-quiz-note{margin:0 0 18px;color:var(--paper,#f4eddb)}.simp-quiz-stage{display:grid;gap:18px}.simp-quiz-count{margin:0;color:var(--paper,#f4eddb);font-size:13px;font-weight:800;letter-spacing:.08em}.simp-quiz-stage.is-correct .simp-quiz-count{color:var(--acid,#dfff00)}.simp-quiz-stage.is-wrong .simp-quiz-count{color:var(--hot,#ff3b81)}.simp-quiz-bar{height:4px;background:#44384d}.simp-quiz-fill{display:block;height:100%;background:var(--acid,#dfff00);transition:width .2s}.simp-quiz-media{display:block;width:100%;height:auto;min-height:180px;max-height:min(56svh,480px);object-fit:cover;margin:0 0 14px;background:#160f1d}.simp-quiz-question{margin:4px 0;color:var(--paper,#f4eddb)!important;font-size:clamp(25px,5vw,46px);line-height:1.08}.simp-quiz-choices{display:grid;gap:10px}.simp-quiz-choice{display:flex;gap:12px;align-items:center;width:100%;min-height:54px;padding:12px 14px;border:1px solid #f4eddb;background:#070608;color:#f4eddb;text-align:left;cursor:pointer;transition:border-color .12s,background .12s,transform .12s}.simp-quiz-key{display:grid;place-items:center;min-width:28px;height:28px;border:1px solid #aa9ab8;color:var(--acid,#dfff00)}.simp-quiz-choice:hover,.simp-quiz-choice:focus-visible{border-color:var(--acid,#dfff00)}.simp-quiz-choice.is-selected{border-color:var(--acid,#dfff00);background:rgba(223,255,0,.15);transform:translateX(3px)}.simp-quiz-feedback{margin:0;color:#f4eddb}.simp-quiz-source{color:var(--acid,#dfff00)}.simp-surprise{margin:4px 0 0;padding:12px 14px;border:1px dashed var(--acid,#dfff00);background:rgba(223,255,0,.1);display:grid;gap:4px}.simp-surprise strong{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--acid,#dfff00)}.simp-surprise p{margin:0;font-size:14px;line-height:1.35;color:var(--paper,#f4eddb)}.simp-quiz-close{display:none;justify-self:end;border:0;background:none;color:var(--paper,#f4eddb);font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif;min-height:48px;cursor:pointer}.simp-quiz-active .simp-quiz{min-height:calc(100svh - 48px);display:grid;align-content:center}.simp-quiz-active>.simp-status,.simp-quiz-active>.simp-privacy,.simp-quiz-active>.simp-board,.simp-quiz-active>.simp-actions,.simp-quiz-active>.simp-me,.simp-quiz-active>.simp-tools{display:none!important}.simp-quiz-active .simp-quiz-close{display:block}html.simp-quiz-open .buy-sticky,html.simp-result-open .buy-sticky{display:none!important}.simp-quiz-result-bar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:96;gap:10px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));background:rgba(7,6,8,.94);border-top:1px solid #665b70;backdrop-filter:blur(10px)}.simp-quiz-result-bar button,.simp-quiz-result-bar a{flex:1 1 auto;min-height:48px;display:inline-flex;align-items:center;justify-content:center;padding:0 14px;border-radius:999px;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif;letter-spacing:.04em;text-transform:uppercase;text-decoration:none!important;cursor:pointer;border:1px solid #dfff00;background:#dfff00;color:#070608}.simp-quiz-result-bar a.ghost{border-color:#f4eddb;background:transparent;color:#f4eddb;flex:0.9 1 auto}@media(max-width:720px){html.simp-result-open .simp-quiz-result-bar{display:flex}.simp-result-share-inline{display:none!important}.simp-quiz-box{padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}}@media(max-width:520px){.simp-quiz{padding:18px}.simp-quiz-title{font-size:28px}.simp-quiz-question{font-size:30px}.simp-quiz-active .simp-quiz{min-height:calc(100svh - 22px);align-content:start;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}html.simp-result-open .simp-quiz{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}}@media(prefers-reduced-motion:reduce){.simp-quiz-fill,.simp-quiz-choice{transition:none}.simp-quiz-choice.is-selected{transform:none}}.simp-share-push{position:fixed;inset:0;z-index:98;display:grid;place-items:center;padding:16px;background:rgba(7,6,8,.82)}.simp-share-push-card{width:min(440px,100%);padding:22px 20px 18px;border:2px solid #dfff00;background:#120c18;color:#f4eddb;display:grid;gap:12px;box-shadow:12px 12px 0 #ff3b81}.simp-share-push-card h2{margin:0;font-size:clamp(26px,6vw,36px);line-height:1.05;text-transform:uppercase}.simp-share-push-card p{margin:0;font-size:15px;line-height:1.45}.simp-share-push-url{word-break:break-all;font:700 13px/1.4 ui-monospace,Menlo,Consolas,monospace;color:#dfff00;user-select:all}.simp-share-push-actions{display:flex;flex-wrap:wrap;gap:10px}.simp-share-push-actions button{min-height:48px;padding:0 16px;border:1px solid #dfff00;background:#dfff00;color:#070608;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}.simp-share-push-actions .ghost{border-color:#f4eddb;background:transparent;color:#f4eddb}.simp-result-type{margin:0 0 8px;color:#dfff00;font:900 clamp(2.6rem,11vw,4.6rem)/.88 "Arial Black",Helvetica,Arial,sans-serif;letter-spacing:-.03em}.simp-result-score{margin:0 0 6px;color:#f4eddb;font:900 clamp(1.35rem,4vw,2rem)/1.05 "Arial Black",Helvetica,Arial,sans-serif}.simp-result-vibe{margin:0 0 8px;color:#f4eddb;font:700 1rem/1.3 Arial,Helvetica,sans-serif}.simp-result-tick{margin:0 0 14px;color:#dfff00;font:900 1.15rem/1 "Arial Black",Helvetica,Arial,sans-serif}.simp-result-card{display:block;width:100%;height:auto;margin:0 0 14px}';
     root.appendChild(style);
     var quiz = el('section', 'simp-quiz');
     var quizClose = el('button', 'simp-quiz-close', 'Close');
@@ -234,6 +255,11 @@
     root.appendChild(typesEl);
     var list = el('div', 'simp-board');
     root.appendChild(list);
+    var oss = el('p', 'simp-oss');
+    var ossLink = el('a', '', 'Contribute code ↗');
+    ossLink.href = 'https://www.getdasha.com/contribute';
+    oss.appendChild(ossLink);
+    root.appendChild(oss);
     var actions = el('div', 'simp-actions');
     var actionBtn = el('button', 'simp-action', '…');
     actionBtn.type = 'button';
@@ -243,22 +269,46 @@
     meLine.hidden = true;
     var tools = el('details', 'simp-tools');
     tools.hidden = true;
-    tools.appendChild(el('summary', '', 'More'));
+    var toolsSummary = el('summary', '', 'More');
+    tools.appendChild(toolsSummary);
     var toolActions = el('div', 'simp-tool-actions');
-    var shareBoardBtn = el('button', 'simp-tool', 'Share on X');
+    var shareBoardBtn = el('button', 'simp-tool', 'Share row');
     shareBoardBtn.type = 'button';
-    shareBoardBtn.setAttribute('aria-label', 'Share your Simp Board row on X');
+    shareBoardBtn.setAttribute('aria-label', 'Share your Simp Board row');
     var inviteToolBtn = el('button', 'simp-tool', 'Copy quiz invite');
     inviteToolBtn.type = 'button';
     inviteToolBtn.setAttribute('aria-label', 'Copy shareable quiz invite link');
-    var holderBtn = el('button', 'simp-tool', 'Prove holder badge');
+    var holderBtn = el('button', 'simp-tool', 'Verify holder · rated chess + longer chat');
     holderBtn.type = 'button';
+    holderBtn.id = 'simp-holder-proof';
+    holderBtn.title = '24h: rated chess, 500-character chat, and holder marks. Signs a message. No transaction or Simp Points.';
     toolActions.appendChild(shareBoardBtn);
     toolActions.appendChild(inviteToolBtn);
     toolActions.appendChild(holderBtn);
     tools.appendChild(toolActions);
     var seasonLine = el('p', 'simp-season', '');
     tools.appendChild(seasonLine);
+    var spotlightForm = el('form', 'simp-spotlight-form');
+    var spotlightLabel = el('label', '', 'Promote a profile');
+    var spotlightInput = el('input');
+    spotlightInput.type = 'url';
+    spotlightInput.maxLength = 300;
+    spotlightInput.placeholder = 'Paste profile URL';
+    spotlightInput.autocomplete = 'url';
+    spotlightInput.setAttribute('aria-label', 'GitHub, YouTube, Twitch, Bluesky, LinkedIn, Instagram, or Farcaster spotlight profile URL');
+    var spotlightSave = el('button', '', 'Save');
+    spotlightSave.type = 'submit';
+    var spotlightProgress = el('progress', 'simp-spotlight-progress');
+    spotlightProgress.max = 25;
+    spotlightProgress.value = 0;
+    spotlightProgress.setAttribute('aria-label', 'Spotlight unlock progress');
+    var spotlightNote = el('p', 'simp-spotlight-note', 'Unlocks at 25 points.');
+    spotlightForm.appendChild(spotlightLabel);
+    spotlightForm.appendChild(spotlightInput);
+    spotlightForm.appendChild(spotlightSave);
+    spotlightForm.appendChild(spotlightProgress);
+    spotlightForm.appendChild(spotlightNote);
+    tools.appendChild(spotlightForm);
     if (!homeBoard) {
       root.appendChild(actions);
       root.appendChild(meLine);
@@ -266,6 +316,8 @@
     }
     var boardData = null;
     var meData = null;
+    var boardShareCard = null;
+    var boardShareCardUrl = '';
     var quizState = null;
     var quizAttemptId = '';
     var quizAnswerBusy = false;
@@ -279,11 +331,27 @@
     var prevBodyOverflow = '';
     var gateKeyHandler = null;
     var gateFocusReturn = null;
+    var memberFocusDone = false;
+    var holderFocusDone = false;
     var askIo = null;
     var askScroll = null;
     function setStatus(t, kind) {
       status.textContent = t;
       status.dataset.kind = kind || '';
+    }
+    function routeHolderProof() {
+      if (homeBoard || !wantsHolderProof()) return;
+      if (!meData || !meData.enrolled) {
+        setStatus(meData && meData.linked ? 'Join the Board to verify holder perks.' : 'Link X to verify holder perks.', 'warn');
+        return;
+      }
+      tools.open = true;
+      if (!holderFocusDone) {
+        holderFocusDone = true;
+        holderBtn.scrollIntoView({ block: 'center' });
+        holderBtn.focus({ preventScroll: true });
+      }
+      setStatus(meData.board && meData.board.holder ? 'Holder proof active for 24h.' : 'Sign a message to verify holder perks. No transaction or Simp Points.', 'ok');
     }
     function paintChallengeNote() {
       if (!challengeResult || challengeResult.correct == null || challengeResult.total == null) return;
@@ -354,7 +422,7 @@
         document.documentElement.classList.remove('simp-result-open');
       } catch (e) {}
     }
-    function showResultSticky(onShare) {
+    function showResultSticky(result, onShare) {
       hideResultSticky();
       try {
         document.documentElement.classList.add('simp-result-open');
@@ -369,7 +437,11 @@
       share.addEventListener('click', function() {
         if (typeof onShare === 'function') onShare();
       });
+      var studio = el('a', 'ghost', 'Open Studio');
+      studio.href = studioSeedForResult(result);
+      studio.setAttribute('aria-label', 'Open this result as a tailored Dasha Studio starting point');
       bar.appendChild(share);
+      bar.appendChild(studio);
       document.body.appendChild(bar);
     }
     function showQuizChrome() {
@@ -432,6 +504,14 @@
       var q = entry && entry.quiz;
       if (!q || q.title == null || q.correct == null || q.total == null) return '';
       return String(q.title) + ' · ' + q.correct + '/' + q.total;
+    }
+    function boardLine(entry) {
+      var bits = [];
+      var score = Number(entry && entry.total);
+      if (entry && entry.total != null && Number.isInteger(score) && score >= 0) bits.push(score + ' pts');
+      var quiz = quizLine(entry);
+      if (quiz) bits.push(quiz);
+      return bits.join(' · ');
     }
     function challengeKey(entry) {
       if (entry && typeof entry.id === 'string' && /^[A-Za-z0-9_-]{6,20}$/.test(entry.id)) return entry.id;
@@ -496,19 +576,55 @@
       });
       return chip;
     }
+    function boardRowId(handle) {
+      var clean = String(handle || '').replace(/^@/, '');
+      return /^[A-Za-z0-9_]{1,15}$/.test(clean) ? 'member-' + clean.toLowerCase() : '';
+    }
+    function boardRowUrl(handle) {
+      var id = boardRowId(handle);
+      return id ? 'https://www.getdasha.com/simp/u/' + id.slice(7) : 'https://www.getdasha.com/simp';
+    }
+    function focusSharedRow() {
+      if (memberFocusDone || !/^#member-[a-z0-9_]{1,15}$/.test(location.hash)) return;
+      var target = document.getElementById(location.hash.slice(1));
+      if (!target || !list.contains(target)) return;
+      memberFocusDone = true;
+      target.tabIndex = -1;
+      target.scrollIntoView({ block: 'center' });
+      try { target.focus({ preventScroll: true }); } catch (e) {}
+    }
     function rowClean(entry) {
       var art = el('article', 'simp-row');
+      var rowId = boardRowId(entry && entry.handle);
+      if (rowId) art.id = rowId;
       art.appendChild(el('span', 'simp-rank', '#' + (entry.rank || '')));
-      var line = quizLine(entry);
+      var line = boardLine(entry);
       var handle = entry.display || (entry.handle ? '@' + entry.handle : '');
       if (entry.handle) {
+        var identity = el('div', 'simp-identity');
         var a = document.createElement('a');
         a.className = 'simp-handle';
-        a.href = entry.href || 'https://x.com/' + entry.handle;
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
+        a.href = entry.measured === true ? boardRowUrl(entry.handle) : entry.href || 'https://x.com/' + entry.handle;
+        if (entry.measured !== true) {
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+        }
         a.textContent = handle;
-        art.appendChild(a);
+        identity.appendChild(a);
+        if (entry.holder === true) {
+          var holderLink = el('a', 'simp-holder-mark', 'Current holder · play chess');
+          holderLink.href = 'https://www.getdasha.com/chess';
+          holderLink.setAttribute('aria-label', 'Current $dasha holder proof — play rated chess');
+          identity.appendChild(holderLink);
+        }
+        if (entry.spotlight && entry.spotlight.url && entry.spotlight.platform) {
+          var spotlight = el('a', 'simp-spotlight-link', entry.spotlight.platform + ' ↗');
+          spotlight.href = entry.spotlight.url;
+          spotlight.target = '_blank';
+          spotlight.rel = 'noopener noreferrer nofollow ugc';
+          identity.appendChild(spotlight);
+        }
+        art.appendChild(identity);
         art.appendChild(el('span', 'simp-pts', line));
       } else if (entry.href && line) {
         var r = document.createElement('a');
@@ -527,9 +643,12 @@
     }
     function paintTypes() {
       var types = boardData && boardData.types || [];
-      typesEl.textContent = types.length ? types.map(function(t) {
+      var bits = types.map(function(t) {
         return t.title + ' ' + t.count;
-      }).join(' · ') : '';
+      });
+      var unlock = boardData && boardData.rules && boardData.rules.spotlight && boardData.rules.spotlight.unlock_points || 25;
+      bits.push(unlock + ' pts: add one profile link', 'Holder proof: rated chess + longer chat');
+      typesEl.textContent = bits.join(' · ');
     }
     function paintBoard() {
       list.textContent = '';
@@ -549,6 +668,7 @@
       shown.forEach(function(entry) {
         list.appendChild(rowClean(entry));
       });
+      focusSharedRow();
       if (homeBoard && rows.length > 10 && !homeOpen) {
         var more = el('button', 'simp-more', 'Show more');
         more.type = 'button';
@@ -567,6 +687,7 @@
       actionBtn.hidden = false;
       actionBtn.disabled = false;
       tools.hidden = true;
+      spotlightForm.hidden = true;
       meLine.hidden = true;
       meLine.textContent = '';
       quizBtn.hidden = false;
@@ -575,8 +696,8 @@
       retakeBtn.disabled = false;
       connectBtn.hidden = !!(meData && meData.linked);
       if (!meData || !meData.linked) {
-        actionBtn.textContent = 'Link X to join';
-        actionBtn.setAttribute('aria-label', 'Link X to join the simp board');
+        actionBtn.textContent = wantsHolderProof() ? 'Link X for holder perks' : 'Link X to join';
+        actionBtn.setAttribute('aria-label', wantsHolderProof() ? 'Link X to verify holder perks' : 'Link X to join the simp board');
         actionBtn.dataset.mode = 'link';
         quizBtn.textContent = 'Take Quiz';
         quizBtn.dataset.mode = 'quiz';
@@ -592,8 +713,8 @@
       retakeBtn.setAttribute('aria-label', 'Retake the simp quiz and update your score');
       quizNote.textContent = quizResult ? quizResult.correct + '/' + quizResult.total + ' · ' + quizResult.title + ' · ' + (meData.board && meData.board.components ? meData.board.components.quiz || 0 : quizResult.points || 0) + ' pts' + (quizResult.vibeNote ? ' · ' + quizResult.vibeNote : '') + (quizResult.resultUrl ? ' · ' + quizResult.resultUrl : '') + ' · Share anytime · Retake updates score' : 'Take the quiz. Finishing joins the Board. Score = accuracy. Vibe is just for fun.';
       if (!meData.enrolled) {
-        actionBtn.textContent = 'Join board';
-        actionBtn.setAttribute('aria-label', 'Join the simp board with linked X account');
+        actionBtn.textContent = wantsHolderProof() ? 'Join board for holder perks' : 'Join board';
+        actionBtn.setAttribute('aria-label', wantsHolderProof() ? 'Join the simp board to verify holder perks' : 'Join the simp board with linked X account');
         actionBtn.dataset.mode = 'join';
         meLine.hidden = false;
         paintLinkedIdentity(' — not on the board yet.');
@@ -603,19 +724,36 @@
       actionBtn.setAttribute('aria-label', 'Leave the simp board and delete linked board data');
       actionBtn.dataset.mode = 'leave';
       tools.hidden = false;
+      spotlightForm.hidden = false;
       meLine.hidden = false;
       var b = meData.board || {};
       var c = b.components || {};
       var meBits = [];
+      if (b.rank) meBits.push('#' + b.rank);
+      if (b.total != null) meBits.push(b.total + ' pts');
       if (b.quiz && b.quiz.title && b.quiz.correct != null && b.quiz.total != null) {
         meBits.push(b.quiz.title + ' · ' + b.quiz.correct + '/' + b.quiz.total);
-      } else if (b.total != null) {
-        meBits.push(b.total + ' pts');
       }
       if (c.learn) meBits.push('learn ' + c.learn);
       if (c.creative) meBits.push('create ' + c.creative);
       if (c.community) meBits.push('community ' + c.community);
       if (c.oss) meBits.push('oss ' + c.oss);
+      var spotlightUnlock = b.spotlightUnlock || { points: 25, unlocked: false, remaining: 25 };
+      var addSpotlight = spotlightUnlock.unlocked && !b.spotlight;
+      var holderActive = b.holder === true;
+      var holderLeft = holderActive ? proofTimeLeft(b.holderExpiresAt) : '';
+      toolsSummary.textContent = addSpotlight ? 'Add profile' : holderActive ? 'Holder proof active' + (holderLeft ? ' · ' + holderLeft : '') : 'More';
+      holderBtn.textContent = holderActive ? 'Refresh holder proof' : 'Verify holder · rated chess + longer chat';
+      tools.open = addSpotlight || wantsHolderProof();
+      spotlightInput.disabled = !spotlightUnlock.unlocked;
+      spotlightSave.disabled = !spotlightUnlock.unlocked;
+      spotlightProgress.max = spotlightUnlock.points;
+      spotlightProgress.value = spotlightUnlock.points - spotlightUnlock.remaining;
+      spotlightProgress.hidden = spotlightUnlock.unlocked;
+      spotlightInput.value = b.spotlight && b.spotlight.url || '';
+      spotlightNote.textContent = spotlightUnlock.unlocked
+        ? 'GitHub · YouTube · Twitch · Bluesky · LinkedIn · Instagram · Farcaster. Clear + Save removes.'
+        : spotlightUnlock.points + ' points unlock one profile link · ' + spotlightUnlock.remaining + ' to go.';
       paintLinkedIdentity((meBits.length ? ' · ' + meBits.join(' · ') : '') + '. Leave removes linked Board data.');
     }
     function linkX() {
@@ -644,7 +782,7 @@
       }
       function verify() {
         if (navigator.clipboard && navigator.clipboard.readText) {
-          navigator.clipboard.readText().then(function(got) {
+          withTimeout(navigator.clipboard.readText(), 800).then(function(got) {
             if (linkCopiedOk(got, text)) done(); else miss();
           }).catch(done);
         } else done();
@@ -665,7 +803,7 @@
         }
       }
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(verify).catch(fallback);
+        withTimeout(navigator.clipboard.writeText(text), 800).then(verify).catch(fallback);
       } else fallback();
     }
     function shareQuizInviteOnX() {
@@ -975,16 +1113,47 @@
       var b = meData && meData.board;
       var handle = meData && meData.x && meData.x.display;
       if (!b || !handle) return '';
-      var bits = handle + ' · ' + (b.total != null ? b.total : 0) + ' simp pts on getdasha';
+      var bits = handle + (b.rank ? ' · #' + b.rank : '') + ' · ' + (b.total != null ? b.total : 0) + ' simp pts on getdasha';
       if (b.quiz) bits += '\nQuiz: ' + b.quiz.correct + '/' + b.quiz.total + ' · ' + b.quiz.title;
       if (b.badges && b.badges.length) bits += '\n' + b.badges.join(' · ');
-      bits += '\n\n$dasha ' + QUIZ_INVITE_URL;
+      bits += '\n\n$dasha ' + boardRowUrl(b.handle || meData.x.handle);
       return bits;
     }
-    function shareBoardOnX() {
+    function primeBoardShareCard() {
+      var b = meData && meData.board;
+      var id = boardRowId(b && (b.handle || meData && meData.x && meData.x.handle));
+      if (!id || !navigator.share || !navigator.canShare || typeof File !== 'function') return;
+      var wanted = boardRowUrl(id.slice(7)) + '/card.png';
+      if (wanted === boardShareCardUrl) return;
+      boardShareCardUrl = wanted;
+      boardShareCard = null;
+      fetch(wanted, { cache: 'force-cache' }).then(function(r) {
+        if (!r.ok) throw new Error('card');
+        return r.blob();
+      }).then(function(blob) {
+        if (wanted === boardShareCardUrl && blob.type === 'image/png' && blob.size > 0 && blob.size <= 1000000) {
+          boardShareCard = new File([ blob ], 'dasha-simp-' + id.slice(7) + '.png', { type: 'image/png' });
+        }
+      }).catch(function() {});
+    }
+    function shareBoardRow() {
       var text = boardShareText();
       if (!text) {
         setStatus('Join the board to share your row', 'warn');
+        return;
+      }
+      if (navigator.share) {
+        var payload = { title: 'Simp Board', text: text };
+        try {
+          if (boardShareCard && navigator.canShare({ files: [ boardShareCard ] })) payload.files = [ boardShareCard ];
+        } catch (e) {}
+        navigator.share(payload).then(function() {
+          setStatus('Shared your board row', 'ok');
+        }).catch(function(error) {
+          if (error && error.name === 'AbortError') return;
+          openXIntent(text);
+          setStatus('Opened X — post your board row', 'ok');
+        });
         return;
       }
       openXIntent(text);
@@ -1001,6 +1170,18 @@
       var score = result && result.correct != null && result.total != null && isFinite(Number(result.correct)) && isFinite(Number(result.total)) ? Number(result.correct) + '/' + Number(result.total) : '';
       var url = resultShareUrl(result && result.resultUrl);
       return [ (score ? 'Beat ' + score + ' · ' : '') + title, 'Beat this', '$dasha', url ].join('\n');
+    }
+    function studioSeedForResult(result) {
+      var card = QUIZ_CARDS[result && result.title] || QUIZ_CARDS['Dasha curious'];
+      var photo = card.image.split('/').pop().replace(/\.jpg$/, '');
+      if (photo === 'profile') photo = 'portrait';
+      return '/studio#' + new URLSearchParams({
+        look: 'photo',
+        format: 'square',
+        photo: photo,
+        line: card.quote,
+        src: 'quiz'
+      }).toString();
     }
     function sendQuizCard(result, blob) {
       var text = quizShareText(result);
@@ -1061,7 +1242,7 @@
       }
       function verify() {
         if (navigator.clipboard && navigator.clipboard.readText) {
-          navigator.clipboard.readText().then(function(got) {
+          withTimeout(navigator.clipboard.readText(), 800).then(function(got) {
             if (linkCopiedOk(got, text)) done(); else miss();
           }).catch(done);
         } else done();
@@ -1082,7 +1263,7 @@
         }
       }
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(verify).catch(fallback);
+        withTimeout(navigator.clipboard.writeText(text), 800).then(verify).catch(fallback);
       } else fallback();
     }
     function showSharePush(result, resultUrl) {
@@ -1190,7 +1371,7 @@
         }
         quizBox.appendChild(el('p', 'simp-result-tick', '$dasha'));
         var actions = el('div', 'simp-actions');
-        var share = el('button', 'simp-action', blob ? 'Share result' : 'Post result on X');
+        var share = el('button', 'simp-action simp-result-share-inline', blob ? 'Share result' : 'Post result on X');
         share.type = 'button';
         share.setAttribute('aria-label', blob ? 'Share quiz result card with image' : 'Open X to post your quiz result');
         share.addEventListener('click', function() {
@@ -1201,27 +1382,16 @@
         copy.type = 'button';
         copy.setAttribute('aria-label', 'Copy result text');
         copy.addEventListener('click', function() {
+          trackQuiz('share');
           copyText(quizShareText(result), copy, 'Copied');
         });
         actions.appendChild(copy);
         if (blob) {
-          var another = el('button', 'simp-action', 'Another photo');
-          another.type = 'button';
-          another.addEventListener('click', function() {
-            photoIndex++;
-            paintPreview();
-          });
-          actions.appendChild(another);
+          var studio = el('a', 'simp-action', 'Open Studio');
+          studio.href = studioSeedForResult(result);
+          studio.setAttribute('aria-label', 'Open this result as a tailored Dasha Studio starting point');
+          actions.appendChild(studio);
         }
-        var retake = el('button', 'simp-action', 'Retake quiz');
-        retake.type = 'button';
-        retake.addEventListener('click', function() {
-          if (previewUrl) URL.revokeObjectURL(previewUrl);
-          hideResultSticky();
-          quizBox.hidden = true;
-          showQuizChrome();
-          startQuiz();
-        });
         var done = el('button', 'simp-action', 'Done');
         done.type = 'button';
         done.addEventListener('click', function() {
@@ -1232,10 +1402,9 @@
           showQuizChrome();
           paintMe();
         });
-        actions.appendChild(retake);
         actions.appendChild(done);
         quizBox.appendChild(actions);
-        showResultSticky(function() {
+        showResultSticky(result, function() {
           sendQuizCard(result, cardBlob);
         });
         setStatus('', 'ok');
@@ -1302,20 +1471,16 @@
       panel.appendChild(el('strong', '', created ? 'You’re on the Simp Board' : 'You’re already on the board'));
       panel.appendChild(el('p', '', (meData && meData.x && meData.x.display ? meData.x.display + ' · ' : '') + 'Share your row · longer lobby chat · reserved seats when busy.'));
       var acts = el('div', 'simp-joined-actions');
-      var share = el('button', 'primary', 'Share on X');
+      var share = el('button', 'primary', 'Share row');
       share.type = 'button';
-      share.addEventListener('click', shareBoardOnX);
+      share.addEventListener('click', shareBoardRow);
       var invite = el('button', 'ghost', 'Copy quiz invite');
       invite.type = 'button';
       invite.addEventListener('click', function() {
         copyQuizInvite(invite);
       });
-      var inviteX = el('button', 'ghost', 'Invite on X');
-      inviteX.type = 'button';
-      inviteX.addEventListener('click', shareQuizInviteOnX);
       acts.appendChild(share);
       acts.appendChild(invite);
-      acts.appendChild(inviteX);
       panel.appendChild(acts);
       if (root.firstChild) root.insertBefore(panel, root.firstChild); else root.appendChild(panel);
       setStatus(created ? 'Joined board' : 'Already on board', 'ok');
@@ -1614,6 +1779,7 @@
           linked: false,
           enrolled: false
         };
+        primeBoardShareCard();
         if (meData.board && meData.board.quiz) lastQuizResult = meData.board.quiz;
         var seasons = pair[2].data && pair[2].data.seasons || [];
         seasonLine.textContent = seasons.length ? 'Latest snapshot: ' + seasons[0].title : 'Lifetime board · no season snapshot yet.';
@@ -1626,6 +1792,7 @@
           paintLinkedChip();
         }
         setStatus('', 'ok');
+        routeHolderProof();
       }).catch(function() {
         setStatus('Board API offline — editorial fallback', 'warn');
         boardData = {
@@ -1713,7 +1880,24 @@
         });
       }
     });
-    shareBoardBtn.addEventListener('click', shareBoardOnX);
+    shareBoardBtn.addEventListener('click', shareBoardRow);
+    spotlightForm.addEventListener('submit', function(event) {
+      event.preventDefault();
+      if (spotlightSave.disabled) return;
+      spotlightSave.disabled = true;
+      fetchJson(base + '/simp/spotlight', {
+        method: 'POST', credentials: 'include', mode: 'cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: spotlightInput.value })
+      }).then(function(res) {
+        if (!res.data || !res.data.ok) throw new Error(res.data && res.data.error || 'Spotlight update failed');
+        setStatus(res.data.spotlight ? 'Spotlight saved' : 'Spotlight removed', 'ok');
+        return refresh();
+      }).catch(function(error) {
+        setStatus(error.message || 'Spotlight update failed', 'bad');
+        spotlightSave.disabled = false;
+      });
+    });
     holderBtn.addEventListener('click', function() {
       var wallet = global.phantom && global.phantom.solana || global.solflare || global.solana;
       if (!wallet || !wallet.connect || !wallet.signMessage) {
@@ -1750,24 +1934,33 @@
         return wallet.signMessage((new TextEncoder).encode(challenge.message), 'utf8').then(function(signed) {
           var signature = signed.signature || signed;
           if (!signature) throw new Error('wallet returned an incomplete signature');
-          return fetchJson(base + '/simp/wallet/verify', {
-            method: 'POST',
-            credentials: 'include',
-            mode: 'cors',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
+          var body = JSON.stringify({
               challenge: challenge.challenge,
               publicKey: pair.publicKey,
               signature: base58(signature)
-            })
+          });
+          var verify = function() {
+            return fetchJson(base + '/simp/wallet/verify', {
+              method: 'POST',
+              credentials: 'include',
+              mode: 'cors',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: body
+            });
+          };
+          return verify().then(function(response) {
+            if (response.status !== 503) return response;
+            return new Promise(function(resolve) {
+              setTimeout(resolve, 600);
+            }).then(verify);
           });
         });
       }).then(function(res) {
         holderBtn.disabled = false;
         if (!res.data || !res.data.ok) throw new Error(res.data && res.data.error || 'holder proof failed');
-        setStatus('Holder verified. Access open for 24h.', 'ok');
+        setStatus('Holder verified for 24h · rated chess + longer chat + holder marks.', 'ok');
         return refresh();
       }).catch(function(err) {
         holderBtn.disabled = false;
@@ -1828,6 +2021,8 @@
     gateKey: GATE_LS,
     isHomePath: isHomePath,
     wantsQuizInvite: wantsQuizInvite,
+    wantsHolderProof: wantsHolderProof,
+    proofTimeLeft: proofTimeLeft,
     quizInviteUrl: QUIZ_INVITE_URL,
     linkCopiedOk: linkCopiedOk
   };

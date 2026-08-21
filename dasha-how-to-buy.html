@@ -22,6 +22,7 @@
 <style>
 :root{color-scheme:dark;--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--line:rgba(244,237,219,.18);--muted:rgba(244,237,219,.62);--panel:rgba(255,255,255,.04);--mono:ui-monospace,Menlo,Consolas,monospace}
 *{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--paper);font:16px/1.55 Arial,Helvetica,sans-serif}
+.skip-link{position:absolute;left:-9999px;top:0;z-index:100;padding:12px 16px;background:var(--acid);color:var(--ink)!important;font-weight:900;text-decoration:none}.skip-link:focus{left:12px;top:12px;outline:3px solid var(--paper);outline-offset:2px}
 .wrap{width:min(720px,calc(100% - 32px));margin:0 auto;padding:28px 0 64px}
 nav{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:28px;flex-wrap:wrap}
 nav a{color:var(--paper);text-decoration:none;font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:13px;min-height:44px;display:inline-flex;align-items:center}
@@ -56,14 +57,13 @@ footer a{display:inline-flex;align-items:center;min-height:44px;color:var(--mute
 .facts dt{color:var(--muted)}
 .facts dd{text-align:right;font-family:var(--mono);font-size:.85rem}
 .facts .fine{margin:12px 0 0;color:var(--muted);font-size:.9rem}
-.buy-sticky{display:none}@media(max-width:560px){.buy-sticky:not([hidden]){display:flex;position:fixed;inset:auto 0 0;z-index:10;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(7,6,8,.96);border-top:1px solid var(--line)}.buy-sticky .btn{width:100%;box-shadow:none}.wrap{padding-bottom:110px}}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#ca">Skip to mint</a>
 <main class="wrap">
   <nav aria-label="Dasha">
     <a href="/">$dasha</a>
-    <a class="btn" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a>
   </nav>
 
   <h1>How to buy $dasha</h1>
@@ -103,20 +103,18 @@ footer a{display:inline-flex;align-items:center;min-height:44px;color:var(--mute
     <h2>What you can check yourself</h2>
     <p class="when">Read from the Solana mint account on 18 August 2026 at finalized commitment. Every line is on-chain, so check it against Solscan rather than taking this page’s word.</p>
     <dl>
-      <div style="display:contents"><dt>Supply</dt><dd>999,831,949 · fixed</dd></div>
+      <div style="display:contents"><dt>Supply</dt><dd>999,831,949 · observed 18 Aug 2026</dd></div>
       <div style="display:contents"><dt>Mint authority</dt><dd>revoked</dd></div>
       <div style="display:contents"><dt>Freeze authority</dt><dd>revoked</dd></div>
-      <div style="display:contents"><dt>Pool LP tokens</dt><dd>0 outstanding</dd></div>
       <div style="display:contents"><dt>Top 10 wallets</dt><dd>42.5% of supply</dd></div>
     </dl>
-    <p class="fine">Revoked authorities mean no new supply can ever be created and no wallet can be frozen. Zero outstanding LP tokens mean nobody holds a claim to withdraw the liquidity currently in that pool. That is what those facts mean and all they mean — the pool still moves with every trade, anyone who adds liquidity later can withdraw what they added, and none of it says anything about price or whether anyone will buy it. The top-ten figure is here because publishing only the reassuring numbers is what makes the reassuring numbers worth doubting.</p>
+    <p class="fine">Revoked authorities mean no new supply can ever be created and no wallet can be frozen. Holders can still burn their own tokens, which lowers total supply. That is what those facts mean and all they mean — they say nothing about price, liquidity, or whether anyone will buy it. The top-ten figure is here because publishing only the reassuring numbers is what makes the reassuring numbers worth doubting.</p>
   </section>
 
   <footer>
     <p><a href="/">Home</a> · <a href="/studio">Studio</a> · <a href="https://lobby.getdasha.com/chess">Chess</a> · <a href="/dasha">Desk</a> · <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats ↗</a></p>
   </footer>
 </main>
-<div class="buy-sticky" id="buy-sticky" hidden><a class="btn" target="_blank" rel="noopener noreferrer" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Buy $dasha</a></div>
 <script>
 (function(){
   var CA='53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
@@ -164,13 +162,6 @@ footer a{display:inline-flex;align-items:center;min-height:44px;color:var(--mute
     out.textContent=r.message;
   }
   if(inp){ inp.addEventListener('input',paintCheck); inp.addEventListener('paste',function(){setTimeout(paintCheck,0);}); }
-  var sticky=document.getElementById('buy-sticky');
-  if(sticky&&inp&&window.matchMedia&&window.matchMedia('(max-width:560px)').matches){
-    function gateSticky(){ sticky.hidden = inp.getBoundingClientRect().bottom > 8; }
-    gateSticky();
-    addEventListener('scroll', gateSticky, {passive:true});
-    addEventListener('resize', gateSticky);
-  }
   window.DashaHowToBuy={ CA:CA, BUY:BUY, mintCopiedOk:mintCopiedOk, normalizeMint:normalizeMint, checkMint:checkMint };
 })();
 </script>

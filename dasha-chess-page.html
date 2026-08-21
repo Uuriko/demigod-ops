@@ -4,16 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Dasha Chess — holders play</title>
-<meta name="description" content="Dasha versus Anna. Holder-only rated chess.">
+<meta name="description" content="Play Dasha versus Anna instantly. No account for practice; link X and prove $dasha ownership for rated games.">
 <meta name="robots" content="index,follow">
-<link rel="canonical" href="https://lobby.getdasha.com/chess">
+<link rel="canonical" href="https://www.getdasha.com/chess">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%23070608%22%2F%3E%3Ccircle%20cx%3D%2217%22%20cy%3D%2245%22%20r%3D%2214%22%20fill%3D%22%23dfff00%22%2F%3E%3Ccircle%20cx%3D%2246%22%20cy%3D%2247%22%20r%3D%2212%22%20fill%3D%22%23dfff00%22%2F%3E%3C%2Fsvg%3E">
 <link rel="apple-touch-icon" sizes="180x180" href="https://cdn.prod.website-files.com/5f1458122ba25e70a3ff2bd0/6a767a48cdcf3c87b29fc830_dasha-icon-180.png">
 <meta name="theme-color" content="#08070a">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://lobby.getdasha.com/chess">
+<meta property="og:url" content="https://www.getdasha.com/chess">
 <meta property="og:title" content="Dasha Chess">
-<meta property="og:description" content="Dasha versus Anna. Holder-only rated chess.">
+<meta property="og:description" content="Play instantly with no account, or link X for rated holder games.">
 <meta property="og:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
 <meta property="og:image:secure_url" content="https://lobby.getdasha.com/og/dasha-social-card.png">
 <meta property="og:image:type" content="image/png">
@@ -22,17 +22,18 @@
 <meta property="og:image:alt" content="Dasha Chess">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Dasha Chess">
-<meta name="twitter:description" content="Dasha versus Anna. Holder-only rated chess.">
+<meta name="twitter:description" content="Play instantly with no account, or link X for rated holder games.">
 <meta name="twitter:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
 <meta name="twitter:image:alt" content="Dasha Chess">
 <style>
-:root{color-scheme:dark;--sq-light:#e8dcc4;--sq-dark:#5c1f28;--ink:#08070a;--paper:#f5eedf;--acid:#dfff00;--hot:#ff3b81;--anna:#72d6ff;--anna-dark:#152b42;--line:rgba(245,238,223,.2);--muted:rgba(245,238,223,.66)}
+:root{color-scheme:dark;--sq-light:#e8dcc4;--sq-dark:#5c1f28;--ink:#08070a;--paper:#f5eedf;--acid:#dfff00;--hot:#ff3b81;--violet:#7c4dff;--anna:#72d6ff;--anna-dark:#152b42;--line:rgba(245,238,223,.2);--muted:rgba(245,238,223,.66)}
 *{box-sizing:border-box}html{background:var(--ink)}body{margin:0;background:radial-gradient(circle at 25% 5%,rgba(255,59,129,.13),transparent 32rem),radial-gradient(circle at 90% 40%,rgba(114,214,255,.1),transparent 28rem),var(--ink);color:var(--paper);font:16px/1.45 Arial,Helvetica,sans-serif;min-height:100vh}
-a{color:inherit}.wrap{width:min(1120px,calc(100% - 28px));margin:auto}.top{min-height:68px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}.brand{font-size:20px;font-weight:950;text-decoration:none;letter-spacing:-.04em;min-height:44px;display:inline-flex;align-items:center}.brand span{color:var(--acid)}.top-links{display:flex;align-items:center;gap:18px}.back{min-height:44px;display:inline-flex;align-items:center;text-transform:uppercase;font-size:12px;font-weight:900;letter-spacing:.08em;text-decoration:none}.buy{color:var(--acid)}
+a{color:inherit}.skip-link{position:absolute;left:-9999px;top:0;z-index:100;padding:12px 16px;background:var(--acid);color:var(--ink)!important;font-weight:900;text-decoration:none}.skip-link:focus{left:12px;top:12px;outline:3px solid var(--paper);outline-offset:2px}.wrap{width:min(1120px,calc(100% - 28px));margin:auto}.top{min-height:68px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}.brand{font-size:20px;font-weight:950;text-decoration:none;letter-spacing:-.04em;min-height:44px;display:inline-flex;align-items:center}.brand span{color:var(--acid)}.top-links{display:flex;align-items:center;gap:18px}.back{min-height:44px;display:inline-flex;align-items:center;text-transform:uppercase;font-size:12px;font-weight:900;letter-spacing:.08em;text-decoration:none}.buy{color:var(--acid)}
 main{padding:clamp(34px,6vw,72px) 0 72px}.hero{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:28px}.kicker{color:var(--acid);font:900 12px/1 monospace;letter-spacing:.16em;text-transform:uppercase}.hero h1{margin:8px 0 0;font-size:clamp(46px,9vw,104px);line-height:.82;letter-spacing:-.075em;text-transform:uppercase}.hero h1 .anna{color:var(--anna);-webkit-text-stroke:1px var(--anna);color:transparent}.rule{max-width:24rem;color:var(--muted);margin:0;font-weight:700}
 .app{display:grid;grid-template-columns:minmax(0,720px) minmax(240px,1fr);gap:clamp(18px,3vw,34px);align-items:start}.app>*{min-width:0}.panel{border:1px solid var(--line);background:rgba(255,255,255,.035);padding:18px}.gate{min-height:150px;display:grid;align-content:center;justify-items:start;gap:10px}.gate h2{font-size:clamp(26px,4vw,44px);line-height:1;margin:0}.gate p{margin:0;color:var(--muted);max-width:42rem}.btn{min-height:48px;border:1px solid var(--acid);border-radius:999px;padding:0 20px;background:var(--acid);color:#08070a;font:900 13px/1 Arial;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;box-shadow:4px 4px 0 var(--hot)}.btn.ghost{background:transparent;color:var(--paper);border-color:var(--line);box-shadow:none}.btn:disabled{opacity:.5;cursor:wait}.btn:focus-visible,.sq:focus-visible,a:focus-visible{outline:3px solid var(--acid);outline-offset:3px}.status{min-height:1.4em;margin:0;color:var(--muted)}.status[data-kind=bad]{color:#ff8fb8}.status[data-kind=ok]{color:var(--acid)}
 [hidden]{display:none!important}.player{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}.player small{display:block;color:var(--muted);font:700 11px/1.2 monospace;letter-spacing:.08em}.player.dasha strong{color:var(--acid)}.player.anna strong{color:var(--anna)}.player-score{display:flex;align-items:center;gap:12px}.clock{min-width:4.7ch;padding:6px 8px;border:1px solid var(--line);border-radius:7px;text-align:center;font:950 20px/1 monospace}.clock.urgent{color:#08070a;background:var(--hot);border-color:var(--hot)}
 .board{width:100%;aspect-ratio:1;display:grid;grid-template-columns:repeat(8,1fr);border:2px solid var(--paper);box-shadow:10px 10px 0 rgba(255,59,129,.6);touch-action:manipulation}.sq{position:relative;display:grid;place-items:center;border:0;padding:0;min-width:0;min-height:0;background:var(--sq-light);color:#171319;font-size:clamp(29px,7vw,62px);line-height:1;cursor:pointer;font-family:"DejaVu Sans",Arial,sans-serif}.board[data-readonly=true] .sq{cursor:default}.sq.dark{background:var(--sq-dark)}.sq[data-side=w]{color:#fffaf0;text-shadow:0 1px 0 #2a0d16,0 -1px 0 #2a0d16,1px 0 0 #2a0d16,-1px 0 0 #2a0d16,0 3px 0 rgba(255,59,129,.85),0 0 14px rgba(223,255,0,.5)}.sq[data-side=b]{color:#0d1826;text-shadow:0 1px 0 rgba(114,214,255,.95),0 -1px 0 rgba(114,214,255,.35),1px 0 0 rgba(114,214,255,.35),-1px 0 0 rgba(114,214,255,.35),0 0 12px rgba(114,214,255,.55)}.sq[data-file]:before,.sq[data-rank]:after{position:absolute;z-index:2;color:#08070a;text-shadow:0 1px rgba(245,238,223,.55);font:900 10px/1 monospace;pointer-events:none}.sq[data-file]:before{content:attr(data-file);right:3px;bottom:2px}.sq[data-rank]:after{content:attr(data-rank);left:3px;top:3px}.sq.legal:after{content:"";width:22%;aspect-ratio:1;border-radius:50%;background:rgba(223,255,0,.78);position:absolute}.sq.capture:after{width:76%;background:transparent;border:4px solid var(--acid)}.sq.selected{box-shadow:inset 0 0 0 5px var(--acid)}.sq.last{box-shadow:inset 0 0 0 4px rgba(255,59,129,.72)}.sq.check{box-shadow:inset 0 0 0 5px var(--hot)}.sq span{position:relative;z-index:1;transform:translateY(-2%)}
+:root[data-dasha-holder] .board{border-color:var(--acid);box-shadow:10px 10px 0 var(--violet)}
 /* MOTION. draw() empties the board and rebuilds all 64 squares, so `transition` can never fire —
    every square is a new node on every render. CSS animations DO run on freshly inserted nodes, so
    every cue below is an animation. This is the whole reason the page had one transition and no
@@ -122,13 +123,14 @@ main{padding:clamp(34px,6vw,72px) 0 72px}.hero{display:flex;align-items:end;just
 </style>
 </head>
 <body>
+<a class="skip-link" href="#gate">Skip to play</a>
 <header class="top wrap"><a class="brand" href="https://www.getdasha.com/" aria-label="Dasha home">$<span>DASHA</span></a><nav class="top-links" aria-label="Chess"><a class="back" href="https://www.getdasha.com/">Home</a><a class="back buy" id="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer" aria-label="Buy $dasha on Jupiter using the exact mint">Buy $dasha ↗</a></nav></header>
 <main class="wrap">
-  <div class="hero"><div><h1>Dasha <span class="anna">vs Anna</span></h1><ul class="facts" aria-label="Game format"><li>10 min</li><li>+5s</li><li>rated</li><li class="w">Dasha white</li><li class="b">Anna black</li></ul></div></div>
+  <div class="hero"><div><h1>Dasha <span class="anna">vs Anna</span></h1><ul class="facts" aria-label="Game format"><li>instant practice</li><li>10+5 rated</li><li class="w">Dasha white</li><li class="b">Anna black</li></ul></div></div>
   <div class="app">
     <section>
-      <div class="gate panel" id="gate"><div class="kicker" id="gate-kicker">Challenge</div><h2 id="gate-title">Send a link</h2><p id="gate-copy"></p><div class="invite" id="invite"><label class="invite-label" for="invite-url">Table link</label><div class="invite-row"><input id="invite-url" readonly spellcheck="false" value="https://lobby.getdasha.com/chess"><button class="btn" id="invite-copy" type="button">Copy</button></div><p class="status" id="invite-hint" role="status" aria-live="polite">They take Anna.</p></div><button class="btn" id="gate-action" type="button" data-action="link">Link X</button><button class="btn ghost" id="gate-invite" type="button" hidden>Invite someone</button><p class="status" id="status" role="status" aria-live="polite"></p><div class="board board-preview" role="img" aria-label="Chess starting position. Dasha plays white and moves first, Anna plays black."><div class="psq light"><span>♜</span></div><div class="psq dark"><span>♞</span></div><div class="psq light"><span>♝</span></div><div class="psq dark"><span>♛</span></div><div class="psq light"><span>♚</span></div><div class="psq dark"><span>♝</span></div><div class="psq light"><span>♞</span></div><div class="psq dark"><span>♜</span></div><div class="psq dark"><span>♟</span></div><div class="psq light"><span>♟</span></div><div class="psq dark"><span>♟</span></div><div class="psq light"><span>♟</span></div><div class="psq dark"><span>♟</span></div><div class="psq light"><span>♟</span></div><div class="psq dark"><span>♟</span></div><div class="psq light"><span>♟</span></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq light"><span>♟</span></div><div class="psq dark"><span>♟</span></div><div class="psq light"><span>♟</span></div><div class="psq dark"><span>♟</span></div><div class="psq light"><span>♟</span></div><div class="psq dark"><span>♟</span></div><div class="psq light"><span>♟</span></div><div class="psq dark"><span>♟</span></div><div class="psq dark"><span>♜</span></div><div class="psq light"><span>♞</span></div><div class="psq dark"><span>♝</span></div><div class="psq light"><span>♛</span></div><div class="psq dark"><span>♚</span></div><div class="psq light"><span>♝</span></div><div class="psq dark"><span>♞</span></div><div class="psq light"><span>♜</span></div></div>
-<div class="game-actions preview-actions"><button class="btn" id="play-local" type="button">Play as Dasha</button><button class="btn ghost" id="play-black" type="button">Play as Anna</button><button class="btn ghost" id="local-resign" type="button" hidden>Resign</button><button class="btn ghost" id="local-undo" type="button" hidden>Take back</button><button class="btn ghost" id="local-again" type="button" hidden>New game</button><button class="btn ghost icon-btn" id="sound-toggle" type="button" aria-pressed="true" title="Sound">♪</button></div><p class="status" id="local-status" role="status" aria-live="polite"></p><p class="move-list" id="local-moves" hidden aria-label="Moves so far"></p><div class="game-actions promo-pick" id="local-promo" hidden role="group" aria-label="Choose a promotion piece"><button class="btn" type="button" data-promo="q">Queen</button><button class="btn ghost" type="button" data-promo="r">Rook</button><button class="btn ghost" type="button" data-promo="b">Bishop</button><button class="btn ghost" type="button" data-promo="n">Knight</button></div></div>
+      <div class="gate panel" id="gate"><div class="kicker" id="gate-kicker">Challenge</div><h2 id="gate-title">Send a link</h2><p id="gate-copy"></p><div class="invite" id="invite"><label class="invite-label" for="invite-url">Table link</label><div class="invite-row"><input id="invite-url" readonly spellcheck="false" value="https://www.getdasha.com/chess"><button class="btn" id="invite-copy" type="button">Copy</button></div><p class="status" id="invite-hint" role="status" aria-live="polite">They take Anna.</p></div><button class="btn" id="gate-action" type="button" data-action="link">Link X</button><button class="btn ghost" id="gate-invite" type="button" hidden>Invite someone</button><p class="status" id="status" role="status" aria-live="polite"></p><div class="board board-preview" role="img" aria-label="Chess starting position. Dasha plays white and moves first, Anna plays black."><div class="psq light"><span>♜</span></div><div class="psq dark"><span>♞</span></div><div class="psq light"><span>♝</span></div><div class="psq dark"><span>♛</span></div><div class="psq light"><span>♚</span></div><div class="psq dark"><span>♝</span></div><div class="psq light"><span>♞</span></div><div class="psq dark"><span>♜</span></div><div class="psq dark"><span>♟</span></div><div class="psq light"><span>♟</span></div><div class="psq dark"><span>♟</span></div><div class="psq light"><span>♟</span></div><div class="psq dark"><span>♟</span></div><div class="psq light"><span>♟</span></div><div class="psq dark"><span>♟</span></div><div class="psq light"><span>♟</span></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq dark"></div><div class="psq light"></div><div class="psq light"><span>♟</span></div><div class="psq dark"><span>♟</span></div><div class="psq light"><span>♟</span></div><div class="psq dark"><span>♟</span></div><div class="psq light"><span>♟</span></div><div class="psq dark"><span>♟</span></div><div class="psq light"><span>♟</span></div><div class="psq dark"><span>♟</span></div><div class="psq dark"><span>♜</span></div><div class="psq light"><span>♞</span></div><div class="psq dark"><span>♝</span></div><div class="psq light"><span>♛</span></div><div class="psq dark"><span>♚</span></div><div class="psq light"><span>♝</span></div><div class="psq dark"><span>♞</span></div><div class="psq light"><span>♜</span></div></div>
+<div class="game-actions preview-actions"><button class="btn" id="play-local" type="button">Play as Dasha</button><button class="btn ghost" id="play-black" type="button">Play as Anna</button><button class="btn ghost" id="local-resign" type="button" hidden>Resign</button><button class="btn ghost" id="local-undo" type="button" hidden>Take back</button><button class="btn ghost" id="local-again" type="button" hidden>New game</button><button class="btn ghost icon-btn" id="sound-toggle" type="button" aria-label="Play sounds" aria-pressed="true" title="Sound">♪</button></div><p class="status" id="local-status" role="status" aria-live="polite"></p><p class="status" id="local-streak" hidden></p><p class="move-list" id="local-moves" hidden aria-label="Moves so far"></p><div class="game-actions promo-pick" id="local-promo" hidden role="group" aria-label="Choose a promotion piece"><button class="btn" type="button" data-promo="q">Queen</button><button class="btn ghost" type="button" data-promo="r">Rook</button><button class="btn ghost" type="button" data-promo="b">Bishop</button><button class="btn ghost" type="button" data-promo="n">Knight</button></div></div>
       <div class="game panel" id="game" hidden>
         <div class="player anna"><div><small>Black · Anna</small><strong id="black-name">—</strong></div><div class="player-score"><time class="clock" id="black-clock" aria-label="Anna time remaining">10:00</time><b id="black-rating">1200</b></div></div>
         <div class="board" id="board" aria-label="Dasha chess board"></div>
@@ -210,25 +212,28 @@ window.DashaSound = (function () {
 <script>
 (function(){
 'use strict';
-var API='https://lobby.getdasha.com',me=null,game=null,replay=null,replayAt=0,tournament=null,challenge=null,selected='',focusSquare='',pendingPromotion=null,poll=0,tournamentPoll=0,clockTimer=0,clockExpiryPending=false,busy=false,shareBusy=false;
+var API='https://lobby.getdasha.com',PUBLIC_CHESS='https://www.getdasha.com/chess',me=null,game=null,replay=null,replayAt=0,tournament=null,challenge=null,selected='',focusSquare='',pendingPromotion=null,poll=0,tournamentPoll=0,clockTimer=0,clockExpiryPending=false,busy=false,shareBusy=false;
 var pieces={K:'♚',Q:'♛',R:'♜',B:'♝',N:'♞',P:'♟',k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟'};
 var names={K:'king',Q:'queen',R:'rook',B:'bishop',N:'knight',P:'pawn'};
 var $=function(id){return document.getElementById(id)};
+var practiceActions=document.querySelector('.preview-actions');
+if(practiceActions)$('gate').insertBefore(practiceActions,$('gate-action'));
 function fetchJson(path,init){return fetch(API+path,Object.assign({credentials:'include',mode:'cors'},init||{})).then(function(r){return r.json().catch(function(){return{error:'bad response'}}).then(function(data){return{ok:r.ok,status:r.status,data:data}})}).catch(function(){return{ok:false,status:0,data:{error:'Network unavailable'}}})}
 function setStatus(text,kind){$('status').textContent=text||'';$('status').dataset.kind=kind||''}
 function routeId(query,name){var value=query.get(name);return/^[A-Za-z0-9_-]{6,24}$/.test(value||'')?value:null}
 function post(path,body,options){return fetchJson(path,Object.assign({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})},options||{}))}
 function base58(bytes){var alphabet='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz',digits=[0],i,j,carry,out='';for(i=0;i<bytes.length;i++){carry=bytes[i];for(j=0;j<digits.length;j++){carry+=digits[j]<<8;digits[j]=carry%58;carry=(carry/58)|0}while(carry){digits.push(carry%58);carry=(carry/58)|0}}for(i=0;i<bytes.length-1&&bytes[i]===0;i++)out+='1';for(i=digits.length-1;i>=0;i--)out+=alphabet[digits[i]];return out}
-function rating(){var r=me&&me.rating;$('rating').textContent=r?r.rating:1200;$('record').textContent=r?(r.wins+'W · '+r.losses+'L · '+r.draws+'D · '+r.games+' games'):'0 games';$('identity').textContent=me&&me.x?me.x.display:''}
+function rating(){var r=me&&me.rating;$('rating').textContent=r?r.rating:1200;$('record').textContent=r?(r.wins+'W · '+r.losses+'L · '+r.draws+'D · '+r.games+' games'):'0 games';$('identity').textContent=me&&me.x?me.x.display+(me.holder?' · $dasha holder · acid frame':''):''}
 function formatClock(ms){var seconds=Math.max(0,Math.ceil(ms/1000));return Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0')}
 function paintClocks(){var c=game&&game.clock,tick=performance.now(),elapsed=c?Math.max(0,tick-(c.clientNow==null?(c.clientNow=tick):c.clientNow)):0,expired=false;['w','b'].forEach(function(side){var node=$(side==='w'?'white-clock':'black-clock'),left=c?c[side]-(c.active===side?elapsed:0):null;node.textContent=left==null?'—':formatClock(left);node.classList.toggle('urgent',left!=null&&left<=30000);node.setAttribute('datetime',left==null?'':('PT'+Math.max(0,Math.ceil(left/1000))+'S'));if(c&&c.active===side&&left<=0)expired=true});if(expired&&!replay&&!clockExpiryPending&&navigator.onLine){clockExpiryPending=true;loadGame().finally(function(){setTimeout(function(){clockExpiryPending=false},1000)})}}
 function gate(){
+  if(practiceActions)practiceActions.hidden=Boolean(challenge&&challenge.status==='open');
   $('game').hidden=Boolean(!game);$('gate').hidden=Boolean(game);$('rating-panel').hidden=Boolean(!me||!me.linked);rating();if(game){draw();return}
-  var b=$('gate-action'),invite=$('gate-invite');b.disabled=false;invite.hidden=true;renderInvite();
+  var b=$('gate-action'),invite=$('gate-invite');b.disabled=false;b.classList.toggle('ghost',!challenge&&(!me||!me.linked));invite.hidden=true;renderInvite();
   if(challenge&&challenge.status==='open'&&!challenge.creatorIsMe){$('gate-kicker').textContent='Challenge';$('gate-title').textContent=challenge.creator+' challenges you';$('gate-copy').textContent='Dasha has white. Take Anna.';if(!me||!me.linked){b.textContent='Link X';b.dataset.action='link'}else if(!me.enrolled){b.textContent='Join & enter';b.dataset.action='join'}else if(!me.holder){b.textContent='Prove $dasha';b.dataset.action='holder'}else{b.textContent='Accept';b.dataset.action='challenge-accept'}}
-  else if(!me||!me.linked){$('gate-kicker').textContent='Step 1';$('gate-title').textContent='Link X';$('gate-copy').textContent='Your X identity holds your rating.';b.textContent='Link X';b.dataset.action='link'}
+  else if(!me||!me.linked){$('gate-kicker').textContent='No account';$('gate-title').textContent='Pick a side';$('gate-copy').textContent='Play below. Link X only for rated holder games.';b.textContent='Rated: Link X';b.dataset.action='link'}
   else if(!me.enrolled){$('gate-kicker').textContent='Step 2';$('gate-title').textContent='Take your seat';$('gate-copy').textContent='Join the Simp Board to create your chess identity.';b.textContent='Join & enter';b.dataset.action='join'}
-  else if(!me.holder){$('gate-kicker').textContent='Step 3';$('gate-title').textContent='Prove holder';$('gate-copy').textContent='One signature. No transaction. 24h access.';b.textContent='Prove $dasha';b.dataset.action='holder'}
+  else if(!me.holder){$('gate-kicker').textContent='Step 3';$('gate-title').textContent='Prove holder';$('gate-copy').textContent='One signature. No transaction. Rated play + acid frame for 24h.';b.textContent='Prove $dasha';b.dataset.action='holder'}
   else if(challenge&&challenge.status==='open'&&challenge.creatorIsMe){$('gate-kicker').textContent='Challenge ready';$('gate-title').textContent='Your table is open';$('gate-copy').textContent='Dasha has white. Send the link.';b.textContent='Share';b.dataset.action='share-challenge'}
   else if(me.queued){$('gate-kicker').textContent='Matchmaking';$('gate-title').textContent='Looking for an opponent…';$('gate-copy').textContent='Dasha has the first move.';b.textContent='Cancel';b.dataset.action='cancel';invite.hidden=false;startPoll()}
   /* Invite belongs here, not only in the queue state. Challenging one named person was already
@@ -245,15 +250,16 @@ function draw(){if(!game)return;var readonly=Boolean(replay||game.status!=='acti
  $('white-name').textContent='@'+game.white.handle;$('black-name').textContent='@'+game.black.handle;$('white-rating').textContent=game.white.rating;$('black-rating').textContent=game.black.rating;clearInterval(clockTimer);paintClocks();if(game.clock&&game.status==='active'&&!replay)clockTimer=setInterval(paintClocks,250);
  var over=game.status==='finished',own=game.turn===game.side,recent=last&&((game.turn==='w'?'Anna':'Dasha')+' played '+(last.san||last.from+'–'+last.to)),needsProof=over&&!replay&&me&&!me.holder;$('turn').textContent=over?(game.result+' · '+game.reason):game.check?(game.turn==='w'?'Dasha in check':'Anna in check'):(game.turn==='w'?'Dasha to move':'Anna to move');$('turn').dataset.side=game.turn;$('game').dataset.turn=over?'over':game.turn;$('game').dataset.mine=String(own&&!over&&!replay);$('game-status').textContent=replay?'Move '+replayAt+' of '+(replay.frames.length-1):over?(game.rematchOffer==='theirs'?'Opponent wants a rematch':game.rematchOffer==='mine'?'Rematch offered':game.rated===false?'Game complete · unrated':'Rated game complete'):game.drawOffer==='theirs'?'Opponent offered a draw':game.check?(own?'Your king is in check':'Opponent is in check'):(own?'Your move':'Waiting for opponent…')+(recent?' · '+recent:'');$('resign').hidden=over;$('draw').hidden=over;$('draw').textContent=game.drawOffer==='theirs'?'Accept draw':game.drawOffer==='mine'?'Draw offered':'Offer draw';$('draw').disabled=game.drawOffer==='mine'||(game.moves||[]).length<2||(own&&game.drawOffer!=='theirs');$('again').hidden=!over||Boolean(replay);$('again').textContent=needsProof?'Verify to rematch':game.rematchOffer==='theirs'?'Accept rematch':game.rematchOffer==='mine'?'Rematch sent':'Rematch';$('again').disabled=!needsProof&&game.rematchOffer==='mine';$('replay-play').hidden=!replay;$('share').hidden=!over;$('pgn').hidden=!over;$('replay-controls').hidden=!replay;
  var moves=$('moves'),currentMove=null;moves.textContent='';(game.moves||[]).forEach(function(m,index){var li=document.createElement('li'),label=m.san||(m.from+'–'+m.to+(m.promotion?'='+m.promotion.toUpperCase():'')+(m.mate?'#':m.check?'+':''));if(replay){var jump=document.createElement('button');jump.type='button';jump.className='move-jump';jump.textContent=label;jump.setAttribute('aria-label','Move '+(index+1)+'. '+(index%2?'Anna':'Dasha')+': '+label);if(index+1===replayAt){jump.setAttribute('aria-current','step');currentMove=jump}jump.addEventListener('click',function(){replayAt=index+1;showReplay()});li.appendChild(jump)}else{li.textContent=label;if(index===game.moves.length-1)currentMove=li}moves.appendChild(li)});$('moves-empty').hidden=Boolean(game.moves&&game.moves.length);if(currentMove)setTimeout(function(){moves.scrollTop=replay?Math.max(0,currentMove.offsetTop-moves.clientHeight/2):moves.scrollHeight},0);if(restoreFocus)setTimeout(function(){var cell=board.querySelector('[data-square="'+focusSquare+'"]');if(cell)cell.focus()},0);if((!over&&!own)||(over&&!replay&&game.rematchOffer==='mine'))startPoll()}
-function replayUrl(){return'https://lobby.getdasha.com/chess?game='+encodeURIComponent(replay.id)+(replayAt===replay.frames.length-1?'':'&ply='+replayAt)}
+function replayUrl(){return PUBLIC_CHESS+'?game='+encodeURIComponent(replay.id)+(replayAt===replay.frames.length-1?'':'&ply='+replayAt)}
 function replayMark(index){if(!index)return'Start';var move=replay.frames[index].move,label=move.san||move.from+'–'+move.to;return(index%2?(index+1)/2+'. ':index/2+'... ')+label}
 function showReplay(){var url=new URL(location.href);$('replay-range').value=replayAt;$('replay-output').value=replayMark(replayAt);url.search='?game='+encodeURIComponent(replay.id);if(replayAt!==replay.frames.length-1)url.searchParams.set('ply',replayAt);history.replaceState(null,'',url.pathname+url.search);draw()}
 function loadReplay(id){fetchJson('/chess/replay/'+encodeURIComponent(id)).then(function(res){if(!res.ok)throw new Error(res.data.error||'Replay unavailable');replay=res.data.replay;game={id:replay.id,side:'w',status:'finished',result:replay.result,reason:replay.reason,board:replay.frames[0].board,turn:'w',moves:replay.moves,white:replay.white,black:replay.black,legal:[],finishedAt:replay.finishedAt};var raw=new URLSearchParams(location.search).get('ply'),requested=raw===null?NaN:Number(raw);replayAt=Number.isInteger(requested)?Math.max(0,Math.min(replay.frames.length-1,requested)):replay.frames.length-1;$('replay-range').max=replay.frames.length-1;$('rating-panel').hidden=true;if(replay.tournamentId){$('tournament-link').href='/chess?tournament='+encodeURIComponent(replay.tournamentId);$('tournament-link').hidden=false}$('gate').hidden=true;$('game').hidden=false;showReplay();trackEvent('replay_open','dasha-chess-replay-open:'+replay.id)}).catch(function(err){setStatus(err.message,'bad');$('gate-title').textContent='Replay unavailable';$('gate-copy').textContent='This game may still be in progress.';$('gate-action').hidden=true})}
 function trackEvent(event,key,keepalive){function retry(){try{sessionStorage.removeItem(key)}catch(e){}}try{if(sessionStorage.getItem(key))return;sessionStorage.setItem(key,'1')}catch(e){}post('/chess/event',{event:event},keepalive?{keepalive:true}:null).then(function(res){if(!res.ok)retry()}).catch(retry)}
+window.DashaChessTrack=trackEvent;
 function replayCard(){var canvas=document.createElement('canvas'),ctx=canvas.getContext('2d'),board=replay?replay.frames[replayAt].board:game.board,size=63,x=68,y=34,moveCount=Math.ceil(game.moves.length/2);canvas.width=1200;canvas.height=630;var cssVar=function(name,fallback){try{var v=getComputedStyle(document.documentElement).getPropertyValue(name).trim();return v||fallback}catch(e){return fallback}};var SQD=cssVar('--sq-dark','#5c1f28'),SQL=cssVar('--sq-light','#e8dcc4');ctx.fillStyle='#08070a';ctx.fillRect(0,0,1200,630);for(var i=0;i<64;i++){var r=Math.floor(i/8),c=i%8;ctx.fillStyle=(r+c)%2?SQD:SQL;ctx.fillRect(x+c*size,y+r*size,size,size);if(board[i]!=='.'){ctx.fillStyle=board[i]===board[i].toUpperCase()?'#fffaf0':'#0d1826';ctx.font='48px "DejaVu Sans",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(pieces[board[i]],x+c*size+size/2,y+r*size+size/2)}}ctx.textAlign='left';ctx.fillStyle='#dfff00';ctx.font='900 38px Arial';ctx.fillText('DASHA VS ANNA',620,130);ctx.fillStyle='#f5eedf';ctx.font='900 30px Arial';ctx.fillText('@'+game.white.handle,620,205);ctx.fillStyle='#72d6ff';ctx.fillText('@'+game.black.handle,620,255);ctx.fillStyle='#ff3b81';ctx.font='900 64px Arial';ctx.fillText(game.result,620,355);ctx.fillStyle='#f5eedf';ctx.font='700 24px Arial';ctx.fillText(game.reason+' · '+moveCount+' move'+(moveCount===1?'':'s'),620,410);ctx.fillStyle='#dfff00';ctx.font='900 25px Arial';ctx.fillText('$dasha · '+(replay?(replayAt?'after '+replayMark(replayAt):'replay start'):'replay every move'),620,535);return canvas}
 function openX(text,done){var href='https://x.com/intent/tweet?text='+encodeURIComponent(text),tab=window.open(href,'_blank');if(tab){try{tab.opener=null}catch(error){}}else location.href=href;if(done)done(!tab)}
-function shareGame(){if(!game||game.status!=='finished'||shareBusy)return;shareBusy=true;$('share').disabled=true;trackEvent('replay_share','dasha-chess-share:'+game.id);var url=replay?replayUrl():'https://lobby.getdasha.com/chess?game='+encodeURIComponent(game.id),lead=replay?(replayAt?'Replay after '+replayMark(replayAt):'Replay from the start'):'Replay every move',body='Dasha vs Anna\n@'+game.white.handle+' '+game.result+' @'+game.black.handle+'\n\n'+lead,text=body+': '+url+'\n\n$dasha',data={title:'Dasha Chess',text:body+'\n\n$dasha',url:url},release=function(){shareBusy=false;$('share').disabled=false},handoff=function(keepalive){trackEvent('replay_share_handoff','dasha-chess-share-handoff:'+game.id,keepalive)},fallback=function(){openX(text,handoff);release()},send=function(payload){try{Promise.resolve(navigator.share(payload)).then(handoff).catch(function(error){if(error&&error.name!=='AbortError')fallback()}).finally(release)}catch(error){fallback()}};if(!navigator.share)return fallback();if(!navigator.canShare||!navigator.canShare({files:[new File([],'dasha.png',{type:'image/png'})]}))return send(data);try{var raw=replayCard().toDataURL('image/png').split(',')[1],bytes=Uint8Array.from(atob(raw),function(char){return char.charCodeAt(0)});data.files=[new File([bytes],'dasha-chess-'+game.id+'.png',{type:'image/png'})]}catch(error){}send(data)}
-function pgn(){if(!game||game.status!=='finished')return'';var clean=function(value){return String(value||'').replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/[\r\n]+/g,' ')},stamp=new Date((game.moves&&game.moves[0]&&game.moves[0].at)||game.createdAt||game.finishedAt||Date.now()),date=stamp.toISOString().slice(0,10).replace(/-/g,'.'),headers=[['Event','Dasha Chess'],['Site','https://lobby.getdasha.com/chess?game='+game.id],['Date',date],['Round','?'],['White','@'+game.white.handle+' (Dasha)'],['Black','@'+game.black.handle+' (Anna)'],['Result',game.result],['Variant','Dasha vs Anna']],moves=[],lines=[],line='';(game.moves||[]).forEach(function(move,index){if(index%2===0)moves.push((Math.floor(index/2)+1)+'.');moves.push(move.san||move.from+move.to+(move.promotion||''))});moves.push(game.result);moves.forEach(function(token){if(line&&line.length+token.length+1>79){lines.push(line);line=token}else line+=(line?' ':'')+token});if(line)lines.push(line);return headers.map(function(row){return'['+row[0]+' "'+clean(row[1])+'"]'}).join('\n')+'\n\n'+lines.join('\n')+'\n'}
+function shareGame(){if(!game||game.status!=='finished'||shareBusy)return;shareBusy=true;$('share').disabled=true;trackEvent('replay_share','dasha-chess-share:'+game.id);var url=replay?replayUrl():PUBLIC_CHESS+'?game='+encodeURIComponent(game.id),lead=replay?(replayAt?'Replay after '+replayMark(replayAt):'Replay from the start'):'Replay every move',body='Dasha vs Anna\n@'+game.white.handle+' '+game.result+' @'+game.black.handle+'\n\n'+lead,text=body+': '+url+'\n\n$dasha',data={title:'Dasha Chess',text:body+'\n\n$dasha',url:url},release=function(){shareBusy=false;$('share').disabled=false},handoff=function(keepalive){trackEvent('replay_share_handoff','dasha-chess-share-handoff:'+game.id,keepalive)},fallback=function(){openX(text,handoff);release()},send=function(payload){try{Promise.resolve(navigator.share(payload)).then(handoff).catch(function(error){if(error&&error.name!=='AbortError')fallback()}).finally(release)}catch(error){fallback()}};if(!navigator.share)return fallback();if(!navigator.canShare||!navigator.canShare({files:[new File([],'dasha.png',{type:'image/png'})]}))return send(data);try{var raw=replayCard().toDataURL('image/png').split(',')[1],bytes=Uint8Array.from(atob(raw),function(char){return char.charCodeAt(0)});data.files=[new File([bytes],'dasha-chess-'+game.id+'.png',{type:'image/png'})]}catch(error){}send(data)}
+function pgn(){if(!game||game.status!=='finished')return'';var clean=function(value){return String(value||'').replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/[\r\n]+/g,' ')},stamp=new Date((game.moves&&game.moves[0]&&game.moves[0].at)||game.createdAt||game.finishedAt||Date.now()),date=stamp.toISOString().slice(0,10).replace(/-/g,'.'),headers=[['Event','Dasha Chess'],['Site',PUBLIC_CHESS+'?game='+game.id],['Date',date],['Round','?'],['White','@'+game.white.handle+' (Dasha)'],['Black','@'+game.black.handle+' (Anna)'],['Result',game.result],['Variant','Dasha vs Anna']],moves=[],lines=[],line='';(game.moves||[]).forEach(function(move,index){if(index%2===0)moves.push((Math.floor(index/2)+1)+'.');moves.push(move.san||move.from+move.to+(move.promotion||''))});moves.push(game.result);moves.forEach(function(token){if(line&&line.length+token.length+1>79){lines.push(line);line=token}else line+=(line?' ':'')+token});if(line)lines.push(line);return headers.map(function(row){return'['+row[0]+' "'+clean(row[1])+'"]'}).join('\n')+'\n\n'+lines.join('\n')+'\n'}
 function downloadPgn(){var blob=new Blob([pgn()],{type:'application/x-chess-pgn'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dasha-vs-anna-'+game.id+'.pgn';a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},0)}
 function sendMove(move){busy=true;$('game-status').textContent='Moving…';post('/chess/game/'+game.id,{from:move.from,to:move.to,promotion:move.promotion||'q',version:game.version}).then(function(res){if(!res.ok)throw new Error(res.data.error||'move failed');selected='';game=res.data.game;draw();loadLeaders();if(game.status==='finished')return loadMe()}).catch(recoverGame).finally(function(){busy=false})}
 /* Extracted so click and drag commit a move through ONE path. Two copies of the promotion branch
@@ -278,7 +284,7 @@ function choose(event){if(!canPlay())return;var sq=event.currentTarget.dataset.s
  board.addEventListener('pointerup',function(e){if(!from||e.pointerId!==pid)return;if(!active){cleanup();return}var to=squareAt(e.clientX,e.clientY),source=from;cleanup();if(to&&to!==source){if(commitMove(source,to))return}selected=source;draw()});
  board.addEventListener('pointercancel',function(){if(active){var s=from;cleanup();selected=s;draw()}else cleanup()});
 })();
-function loadMe(){return fetchJson('/chess/me').then(function(res){if(!res.ok)throw new Error(res.data.error||'status failed');me=res.data;game=me.game||null;gate();renderTournament();return me}).catch(function(err){me=null;game=null;$('game').hidden=true;$('gate').hidden=false;$('rating-panel').hidden=true;$('gate-action').hidden=false;$('gate-action').disabled=false;$('gate-action').textContent='Retry';$('gate-action').dataset.action='retry';renderInvite();setStatus(err.message,'bad');return null})}
+function loadMe(){return fetchJson('/chess/me').then(function(res){if(!res.ok)throw new Error(res.data.error||'status failed');me=res.data;document.documentElement.toggleAttribute('data-dasha-holder',Boolean(me.holder));game=me.game||null;gate();renderTournament();return me}).catch(function(err){me=null;document.documentElement.removeAttribute('data-dasha-holder');game=null;$('game').hidden=true;$('gate').hidden=false;$('rating-panel').hidden=true;$('gate-action').hidden=false;$('gate-action').disabled=false;$('gate-action').textContent='Retry';$('gate-action').dataset.action='retry';renderInvite();setStatus(err.message,'bad');return null})}
 function resumeRoute(){var query=new URLSearchParams(location.search),before=query.toString();['game','challenge','tournament'].forEach(function(name){if(query.has(name)&&!routeId(query,name))query.delete(name)});if(query.toString()!==before)history.replaceState(null,'',location.pathname+(query.size?'?'+query:''));var replayId=routeId(query,'game'),challengeId=routeId(query,'challenge');if(replayId)return loadReplay(replayId);return loadMe().then(function(loaded){if(!loaded)return;return challengeId?loadChallenge(challengeId):loadTournaments()})}
 function loadGame(preserveOnNetworkError){if(!game)return loadMe();var wasActive=game.status==='active';return fetchJson('/chess/game/'+game.id).then(function(res){if(res.ok){game=res.data.game;if(game.rematchGameId)return loadMe().then(function(){return true});draw();if(wasActive&&game.status==='finished'){loadLeaders();return loadMe().then(function(){return true})}return true}if(!preserveOnNetworkError||res.status)return loadMe();return false})}
 function retryReconcile(){clearTimeout(poll);if(document.hidden||!navigator.onLine)return;poll=setTimeout(function(){loadGame(true).then(function(ok){if(ok===false)retryReconcile()})},2500)}
@@ -332,22 +338,22 @@ function renderChallenge(){var body=$('tournament-body'),minutes=Math.max(1,Math
 function challengeAction(action,after){if(busy)return;busy=true;var send=function(){return action==='create'?post('/chess/challenges',{}):post('/chess/challenge/'+challenge.id,{action:action})};send().then(function(res){return action==='create'&&res.status===0?new Promise(function(resolve){setTimeout(resolve,600)}).then(send):res}).then(function(res){if(!res.ok)throw new Error(res.data.error||'challenge request failed');challenge=res.data.challenge;if(action==='create'){history.replaceState(null,'','/chess?challenge='+encodeURIComponent(challenge.id));if(me)me.queued=false}if(res.data.game){game=res.data.game;challenge=null;history.replaceState(null,'',location.pathname);renderTournament();gate()}else if(challenge.status!=='open'){challenge=null;history.replaceState(null,'',location.pathname);loadTournaments()}else{renderTournament();gate()}if(typeof after==='function')after()}).catch(function(err){var note=element('p',err.message,'status');note.dataset.kind='bad';$('tournament-body').append(note)}).finally(function(){busy=false})}
 /* One definition of the invite URL, used by the copy box and the share sheet alike. Two copies
    drifting apart would hand out a link that opens a different table than the one you are sitting at. */
-function challengeUrl(){return challenge?'https://lobby.getdasha.com/chess?challenge='+encodeURIComponent(challenge.id):''}
-/* navigator.share does not exist on desktop Firefox and is not guaranteed anywhere, and the old
+function challengeUrl(){return challenge?PUBLIC_CHESS+'?challenge='+encodeURIComponent(challenge.id):''}
+/* navigator.share does not exist on desktop Firefox and is not universally available, and the old
    fallback for a PRIVATE table was to open a public X composer — the one place you cannot send a
    game meant for a single person. Copy is the honest fallback; X stays a deliberate choice. */
+function withTimeout(p,ms){return Promise.race([p,new Promise(function(_,rej){setTimeout(function(){rej(new Error('copy-timeout'))},ms)})])}
 function copyText(text){
- /* writeText is missing on insecure HTTP and can reject when permission is denied. Fall through
-    to selecting the field the user is already looking at so Ctrl/Cmd+C still works. */
+ /* writeText is missing on insecure HTTP and can hang with no reject. 800ms then select the field. */
  return new Promise(function(resolve,reject){
   function fallback(){
    var field=$('invite-url');
    try{field.removeAttribute('readonly');field.focus();field.select();field.setSelectionRange(0,field.value.length);
     var ok=document.execCommand&&document.execCommand('copy');field.setAttribute('readonly','');
     ok?resolve():reject(new Error('copy blocked'))}catch(error){field.setAttribute('readonly','');reject(error)}}
-  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(text).then(resolve).catch(fallback);
+  if(navigator.clipboard&&navigator.clipboard.writeText)withTimeout(navigator.clipboard.writeText(text),800).then(resolve).catch(fallback);
   else fallback()})}
-function doorUrl(){return'https://lobby.getdasha.com/chess'}
+function doorUrl(){return PUBLIC_CHESS}
 function renderInvite(){
  var box=$('invite');
  if(!box)return;
@@ -366,7 +372,7 @@ function claimInviteCopy(url,privateTable){
 function writeInvite(url,privateTable){
  copyText(url).then(function(){
   if(navigator.clipboard&&navigator.clipboard.readText){
-   navigator.clipboard.readText().then(function(got){
+   withTimeout(navigator.clipboard.readText(),800).then(function(got){
     if(linkCopiedOk(got,url))claimInviteCopy(url,privateTable);else $('invite-hint').textContent='Copy did not stick — select and copy the link yourself.'
    }).catch(function(){claimInviteCopy(url,privateTable)})
   }else claimInviteCopy(url,privateTable)
@@ -383,12 +389,12 @@ function copyInvite(){
   return}
  writeInvite(doorUrl(),false)}
 function shareChallenge(){var url=challengeUrl(),lead=challenge.creator+' challenges you. Dasha has white. Take Anna.',text=lead+'\n\n'+url+'\n\n$dasha',fallback=function(){copyInvite()};trackEvent('challenge_share','dasha-chess-challenge-share:'+challenge.id);if(!navigator.share)return fallback();try{navigator.share({title:'Dasha Chess',text:lead+'\n\n$dasha',url:url}).catch(function(error){if(error&&error.name!=='AbortError')fallback()})}catch(error){fallback()}}
-function shareTournament(){var url='https://lobby.getdasha.com/chess?tournament='+encodeURIComponent(tournament.id),lead=tournament.status==='registration'?'Join the tournament':tournament.status==='active'?'Follow the bracket':'See the bracket',text=tournament.name+' · Dasha Chess\n'+tournament.entrants.length+'/'+tournament.maxPlayers+' players\n\n'+lead+': '+url+'\n\n$dasha',fallback=function(){openX(text)};trackEvent('tournament_share','dasha-chess-tournament-share:'+tournament.id);if(!navigator.share)return fallback();try{navigator.share({title:tournament.name+' — Dasha Chess',text:lead+' · '+tournament.entrants.length+'/'+tournament.maxPlayers+' players\n\n$dasha',url:url}).catch(function(error){if(error&&error.name!=='AbortError')fallback()})}catch(error){fallback()}}
+function shareTournament(){var url=PUBLIC_CHESS+'?tournament='+encodeURIComponent(tournament.id),lead=tournament.status==='registration'?'Join the tournament':tournament.status==='active'?'Follow the bracket':'See the bracket',text=tournament.name+' · Dasha Chess\n'+tournament.entrants.length+'/'+tournament.maxPlayers+' players\n\n'+lead+': '+url+'\n\n$dasha',fallback=function(){openX(text)};trackEvent('tournament_share','dasha-chess-tournament-share:'+tournament.id);if(!navigator.share)return fallback();try{navigator.share({title:tournament.name+' — Dasha Chess',text:lead+' · '+tournament.entrants.length+'/'+tournament.maxPlayers+' players\n\n$dasha',url:url}).catch(function(error){if(error&&error.name!=='AbortError')fallback()})}catch(error){fallback()}}
 function tournamentAction(action,name){if(busy)return;busy=true;var request=action==='create'?post('/chess/tournaments',{name:name}):post('/chess/tournament/'+tournament.id,{action:action});request.then(function(res){if(!res.ok)throw new Error(res.data.error||'tournament request failed');tournament=res.data.tournament&&res.data.tournament.status!=='cancelled'?res.data.tournament:null;if(!tournament)history.replaceState(null,'',location.pathname);renderTournament();return loadMe()}).catch(function(err){var recover=action==='create'?loadTournaments():Promise.resolve();return recover.then(function(){if(action==='create'&&tournament&&tournament.organizerIsMe)return loadMe();var status=$('tournament-status');if(!status){status=element('p',null,'status');status.id='tournament-status';$('tournament-body').append(status)}status.textContent=err.message;status.dataset.kind='bad'})}).finally(function(){busy=false})}
 function tournamentSubmit(event){event.preventDefault();tournamentAction('create',$('tournament-name').value)}
 function tournamentClick(event){var action=event.target.dataset.tournamentAction;if(!action)return;if(action==='challenge-share')return shareChallenge();if(action.indexOf('challenge-')===0)return challengeAction(action.slice(10));if(action==='share')return shareTournament();tournamentAction(action)}
 function linkX(){trackEvent('link_intent','dasha-chess-link-intent');var w=window.open(API+'/oauth/x/start','dasha_x','width=520,height=700');if(!w)setStatus('Allow popups to link X','bad');else setStatus('Complete X link in the popup…')}
-function prove(trigger,status){var button=trigger||$('gate-action'),say=status?function(text){status.textContent=text}:function(text,kind){setStatus(text,kind)};trackEvent('holder_proof_intent','dasha-chess-holder-proof-intent');var wallet=(window.phantom&&window.phantom.solana)||window.solflare||window.solana;if(!wallet||!wallet.connect||!wallet.signMessage){if(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent))location.href='https://phantom.app/ul/browse/'+encodeURIComponent(location.href)+'?ref='+encodeURIComponent(location.origin);else say('Open this page in a Solana wallet','bad');return}busy=true;button.disabled=true;wallet.connect().then(function(connected){var key=wallet.publicKey||(connected&&connected.publicKey);if(!key)throw new Error('wallet returned no public key');key=key.toString();return post('/simp/wallet/challenge',{publicKey:key}).then(function(res){return{res:res,key:key}})}).then(function(pair){if(!pair.res.ok)throw new Error(pair.res.data.error||'challenge failed');return wallet.signMessage(new TextEncoder().encode(pair.res.data.message),'utf8').then(function(signed){var body={challenge:pair.res.data.challenge,publicKey:pair.key,signature:base58(signed.signature||signed)};return post('/simp/wallet/verify',body).then(function(res){return res.status===503?new Promise(function(resolve){setTimeout(resolve,600)}).then(function(){return post('/simp/wallet/verify',body)}):res})})}).then(function(res){if(!res.ok)throw new Error(res.data.error||'holder proof failed');say('Holder verified. Access open for 24h.','ok');return loadMe()}).catch(function(err){say(String(err.message||err).slice(0,120),'bad')}).finally(function(){busy=false;button.disabled=false})}
+function prove(trigger,status){var button=trigger||$('gate-action'),say=status?function(text){status.textContent=text}:function(text,kind){setStatus(text,kind)};trackEvent('holder_proof_intent','dasha-chess-holder-proof-intent');var wallet=(window.phantom&&window.phantom.solana)||window.solflare||window.solana;if(!wallet||!wallet.connect||!wallet.signMessage){if(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent))location.href='https://phantom.app/ul/browse/'+encodeURIComponent(location.href)+'?ref='+encodeURIComponent(location.origin);else say('Open this page in a Solana wallet','bad');return}busy=true;button.disabled=true;wallet.connect().then(function(connected){var key=wallet.publicKey||(connected&&connected.publicKey);if(!key)throw new Error('wallet returned no public key');key=key.toString();return post('/simp/wallet/challenge',{publicKey:key}).then(function(res){return{res:res,key:key}})}).then(function(pair){if(!pair.res.ok)throw new Error(pair.res.data.error||'challenge failed');return wallet.signMessage(new TextEncoder().encode(pair.res.data.message),'utf8').then(function(signed){var body={challenge:pair.res.data.challenge,publicKey:pair.key,signature:base58(signed.signature||signed)};return post('/simp/wallet/verify',body).then(function(res){return res.status===503?new Promise(function(resolve){setTimeout(resolve,600)}).then(function(){return post('/simp/wallet/verify',body)}):res})})}).then(function(res){if(!res.ok)throw new Error(res.data.error||'holder proof failed');say('Holder verified. Rated play + acid frame for 24h.','ok');return loadMe()}).catch(function(err){say(String(err.message||err).slice(0,120),'bad')}).finally(function(){busy=false;button.disabled=false})}
 $('gate-action').addEventListener('click',function(){if(busy)return;var action=this.dataset.action;if(action==='retry'){resumeRoute();return loadLeaders()}if(action==='link')return linkX();if(action==='share-challenge')return shareChallenge();if(action==='challenge-accept')return challengeAction('accept');busy=true;this.disabled=true;var work;if(action==='join'){trackEvent('enrollment_intent','dasha-chess-enrollment-intent');work=post('/simp/join',{})}else if(action==='holder'){busy=false;this.disabled=false;return prove()}else{if(action!=='cancel')trackEvent('queue_intent','dasha-chess-queue-intent');work=post('/chess/queue',{action:action==='cancel'?'cancel':'join'})}work.then(function(res){if(!res.ok)throw new Error(res.data.error||'request failed');if(res.data.game)game=res.data.game;setStatus(res.data.queued?'Looking for another holder…':'','ok');return loadMe()}).catch(function(err){setStatus(err.message,'bad')}).finally(function(){busy=false;$('gate-action').disabled=false})});$('gate-invite').addEventListener('click',function(){challengeAction('create')});
 $('invite-copy').addEventListener('click',copyInvite);
 $('resign').addEventListener('click',function(){if(!game||busy||!confirm('Resign this game?'))return;busy=true;this.disabled=true;post('/chess/game/'+game.id,{action:'resign',version:game.version}).then(function(res){if(!res.ok)throw new Error(res.data.error||'resign failed');game=res.data.game;draw();loadLeaders();return loadMe()}).catch(recoverGame).finally(function(){busy=false;$('resign').disabled=false})});
@@ -396,7 +402,7 @@ $('draw').addEventListener('click',function(){if(!game||busy||game.drawOffer==='
 $('again').addEventListener('click',function(){if(busy||!game)return;if(me&&!me.holder)return prove(this,$('game-status'));busy=true;this.disabled=true;post('/chess/game/'+game.id,{action:'rematch',version:game.version}).then(function(res){if(!res.ok)throw new Error(res.data.error||'rematch failed');game=res.data.game;draw();if(game.status==='finished'&&game.rematchOffer==='mine')startPoll()}).catch(recoverGame).finally(function(){busy=false;if(game&&game.rematchOffer!=='mine')$('again').disabled=false})});
 $('share').addEventListener('click',shareGame);$('pgn').addEventListener('click',downloadPgn);$('replay-play').addEventListener('click',function(){if(replay)trackEvent('replay_play','dasha-chess-replay-play:'+replay.id,true)});document.addEventListener('keydown',function(event){if(!replay||event.altKey||event.ctrlKey||event.metaKey||/^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(event.target.tagName)||$('promotion').open)return;var next=event.key==='ArrowLeft'?replayAt-1:event.key==='ArrowRight'?replayAt+1:event.key==='Home'?0:event.key==='End'?replay.frames.length-1:replayAt;next=Math.max(0,Math.min(replay.frames.length-1,next));if(next!==replayAt){event.preventDefault();replayAt=next;showReplay()}});$('replay-prev').addEventListener('click',function(){if(replay&&replayAt>0){replayAt--;showReplay()}});$('replay-next').addEventListener('click',function(){if(replay&&replayAt<replay.frames.length-1){replayAt++;showReplay()}});$('replay-range').addEventListener('input',function(){replayAt=Number(this.value);showReplay()});$('tournament-body').addEventListener('click',tournamentClick);$('tournament-body').addEventListener('submit',tournamentSubmit);
 $('promotion').addEventListener('close',function(){var choice=this.returnValue,move=pendingPromotion&&pendingPromotion.find(function(row){return row.promotion===choice});pendingPromotion=null;if(move)sendMove(move)});
-$('buy-dasha').addEventListener('click',function(){trackEvent('buy_intent','dasha-chess-buy-intent')});window.addEventListener('message',function(event){if(event.origin===API&&event.data&&event.data.type==='dasha-x-linked'&&!replay)resumeRoute()});window.addEventListener('offline',function(){clearTimeout(poll);clearTimeout(tournamentPoll);if(game&&game.status==='active')$('game-status').textContent='Offline · clocks continue on the server'});window.addEventListener('online',function(){if(!replay)resumeRoute()});document.addEventListener('visibilitychange',function(){if(document.hidden){clearTimeout(poll);clearTimeout(tournamentPoll);clearInterval(clockTimer)}else if(!replay)resumeRoute()});trackEvent('page_open','dasha-chess-page-open');resumeRoute();loadLeaders();
+$('buy-dasha').addEventListener('click',function(){trackEvent('buy_intent','dasha-chess-buy-intent')});window.addEventListener('message',function(event){if(event.origin===API&&event.data&&event.data.type==='dasha-x-linked'&&!replay)resumeRoute()});window.addEventListener('offline',function(){clearTimeout(poll);clearTimeout(tournamentPoll);if(game&&game.status==='active')$('game-status').textContent='Offline · clocks continue on the server'});window.addEventListener('online',function(){if(!replay)resumeRoute()});document.addEventListener('visibilitychange',function(){if(document.hidden){clearTimeout(poll);clearTimeout(tournamentPoll);clearInterval(clockTimer)}else if(!replay)resumeRoute()});gate();trackEvent('page_open','dasha-chess-page-open');resumeRoute();loadLeaders();
 })();
 </script>
 <!-- CHESS-ENGINE:START — generated by dasha-chess-local-build.mjs, do not edit -->
@@ -707,7 +713,10 @@ window.DashaChessEngine={newChessState,legalMoves,playMove,squareIndex,squareNam
   var GLYPH = { K:'♚', Q:'♛', R:'♜', B:'♝', N:'♞', P:'♟',
                 k:'♚', q:'♛', r:'♜', b:'♝', n:'♞', p:'♟' };
   var NAMES = { K:'king', Q:'queen', R:'rook', B:'bishop', N:'knight', P:'pawn' };
-  var state = null, selected = '', busy = false;
+  var state = null, selected = '', busy = false, resultText = '';
+  var PRACTICE_KEY = 'dasha-chess-practice-v1';
+  var STREAK_KEY = 'dasha-chess-streak-v1';
+  var streakEl = document.getElementById('local-streak');
   /* Roving tabindex. Making all 64 cells focusable turned the board into 64 tab stops — worse for
      a keyboard user than the static preview it replaced, which had none. One cell is tabbable and
      the arrows move within the grid, which is the standard pattern and the one the server board
@@ -727,6 +736,57 @@ window.DashaChessEngine={newChessState,legalMoves,playMove,squareIndex,squareNam
   var movesEl = document.getElementById('local-moves');
 
   function say(text) { statusEl.textContent = text || ''; }
+  function day(offset) {
+    var d = new Date(); d.setDate(d.getDate() + (offset || 0));
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function readStreak() {
+    try {
+      var saved = JSON.parse(localStorage.getItem(STREAK_KEY) || 'null');
+      return saved && saved.v === 1 && /^\d{4}-\d{2}-\d{2}$/.test(saved.last) && Number.isInteger(saved.days) && saved.days > 0 && saved.days <= 10000 ? saved : null;
+    } catch (e) { return null; }
+  }
+  function paintStreak(saved) {
+    if (!streakEl) return;
+    var current = saved && (saved.last === day() || saved.last === day(-1));
+    streakEl.hidden = !current;
+    streakEl.textContent = current ? '🔥 ' + saved.days + '-day practice streak · saved on this device' : '';
+  }
+  function completeStreak() {
+    var saved = readStreak(), today = day(), days = saved && saved.last === today ? saved.days : saved && saved.last === day(-1) ? saved.days + 1 : 1;
+    saved = { v: 1, last: today, days: days };
+    try { localStorage.setItem(STREAK_KEY, JSON.stringify(saved)); } catch (e) {}
+    paintStreak(saved);
+  }
+  function savePractice() {
+    try {
+      if (!state || state.status !== 'active') return sessionStorage.removeItem(PRACTICE_KEY);
+      sessionStorage.setItem(PRACTICE_KEY, JSON.stringify({
+        v: 1,
+        color: myColor,
+        moves: state.moves.slice(0, 300).map(function (move) {
+          return { from: move.from, to: move.to, promotion: move.promotion || 'q' };
+        })
+      }));
+    } catch (e) {}
+  }
+  function savedPractice() {
+    try {
+      var raw = sessionStorage.getItem(PRACTICE_KEY);
+      if (!raw || raw.length > 20000) return null;
+      var saved = JSON.parse(raw);
+      if (!saved || saved.v !== 1 || !['w', 'b'].includes(saved.color) || !Array.isArray(saved.moves) || saved.moves.length > 300) return null;
+      var restored = E.newChessState();
+      for (var i = 0; i < saved.moves.length; i++) {
+        var move = saved.moves[i];
+        if (!move || !/^[a-h][1-8]$/.test(move.from) || !/^[a-h][1-8]$/.test(move.to) || !/^[qrbn]$/.test(move.promotion)) return null;
+        var played = E.playMove(restored, move);
+        if (!played.ok) return null;
+        restored = played.state;
+      }
+      return restored.status === 'active' ? { color: saved.color, state: restored } : null;
+    } catch (e) { return null; }
+  }
 
   function paint() {
     var targets = selected ? E.legalMoves(state, E.squareIndex(selected)) : [];
@@ -770,7 +830,7 @@ window.DashaChessEngine={newChessState,legalMoves,playMove,squareIndex,squareNam
     }
     board.replaceChildren(frag);
     board.setAttribute('role', 'group');
-    board.setAttribute('aria-label', 'Practice board — you are Dasha (white), Anna plays black');
+    board.setAttribute('aria-label', myColor === 'w' ? 'Practice board — you are Dasha (white); Anna plays black' : 'Practice board — you are Anna (black); Dasha plays white');
     paintMoves();
   }
 
@@ -803,20 +863,42 @@ window.DashaChessEngine={newChessState,legalMoves,playMove,squareIndex,squareNam
 
   function finish() {
     if (state.status === 'active') return false;
+    completeStreak();
+    if (window.DashaChessTrack) window.DashaChessTrack('local_completion', 'dasha-chess-local-completion');
     var why = String(state.reason || '');
     if (/checkmate/i.test(why)) say(state.turn === 'w' ? 'Checkmate. Anna wins.' : 'Checkmate. Dasha wins.');
-    else if (/resignation/i.test(why)) say('You resigned. ' + (myColor === 'w' ? 'Anna' : 'Dasha') + ' wins.');
+    else if (/resignation/i.test(why)) say((myColor === 'w' ? 'Dasha' : 'Anna') + ' resigned. ' + (myColor === 'w' ? 'Anna' : 'Dasha') + ' wins.');
     else if (/stalemate/i.test(why)) say('Stalemate. Nobody wins, which is its own result.');
     else if (/repetition/i.test(why)) say('Draw by repetition — the same position, three times over.');
     else if (/fifty/i.test(why)) say('Draw by the fifty-move rule.');
     else say('Game over — ' + (why || 'draw') + '.');
+    resultText = statusEl.textContent;
     /* A finished game offers the choice again, including the other side. Hiding both side buttons
        for the rest of the session meant you could never switch colours without reloading. */
     againBtn.hidden = false;
+    againBtn.textContent = 'Share result';
+    againBtn.dataset.action = 'share';
     resignBtn.hidden = true;
     playBtn.hidden = false;
     blackBtn.hidden = false;
     return true;
+  }
+
+  function shareResult() {
+    if (!resultText) return;
+    if (window.DashaChessTrack) window.DashaChessTrack('local_share_intent', 'dasha-chess-local-share-intent');
+    var canonical = document.querySelector('link[rel="canonical"]').href;
+    var text = resultText + '\n\nI played as ' + (myColor === 'w' ? 'Dasha' : 'Anna') + '.\n\n$dasha';
+    var fallback = function () {
+      var tab = window.open('https://x.com/intent/post?text=' + encodeURIComponent(text + '\n\n' + canonical), '_blank', 'noopener,noreferrer');
+      if (tab) tab.opener = null;
+    };
+    if (!navigator.share) return fallback();
+    try {
+      navigator.share({ title: 'Dasha Chess', text: text, url: canonical }).catch(function (error) {
+        if (!error || error.name !== 'AbortError') fallback();
+      });
+    } catch (error) { fallback(); }
   }
 
   /* Weak on purpose: mate if there is one, otherwise the best capture, otherwise random. Enough to
@@ -841,7 +923,7 @@ window.DashaChessEngine={newChessState,legalMoves,playMove,squareIndex,squareNam
     }
     if (!best) { finish(); return; }
     var done = E.playMove(state, { from: E.squareName(best.from), to: E.squareName(best.to), promotion: 'q' });
-    if (done.ok) { sound(state, done.state, E.squareName(best.from), E.squareName(best.to)); state = done.state; }
+    if (done.ok) { sound(state, done.state, E.squareName(best.from), E.squareName(best.to)); state = done.state; savePractice(); }
     paint();
     /* Say what was played, not just whose turn it is. A screen-reader user previously heard "Your
        move." with no way to know what had changed; the engine records standard notation for every
@@ -875,6 +957,7 @@ window.DashaChessEngine={newChessState,legalMoves,playMove,squareIndex,squareNam
     sound(state, move.state, from, to);
     history.push(state);
     state = move.state; selected = ''; pendingPromo = null;
+    savePractice();
     promoBox.hidden = true;
     undoBtn.hidden = false;
     paint();
@@ -890,6 +973,7 @@ window.DashaChessEngine={newChessState,legalMoves,playMove,squareIndex,squareNam
     if (!out.ok) return;
     history.push(state);
     state = out.state;
+    savePractice();
     paint();
     finish();
   });
@@ -903,6 +987,7 @@ window.DashaChessEngine={newChessState,legalMoves,playMove,squareIndex,squareNam
   undoBtn.addEventListener('click', function () {
     if (busy || !history.length) return;
     state = history.pop();
+    savePractice();
     selected = ''; pendingPromo = null;
     promoBox.hidden = true;
     againBtn.hidden = false;
@@ -949,30 +1034,38 @@ window.DashaChessEngine={newChessState,legalMoves,playMove,squareIndex,squareNam
     paint();
   });
 
-  function start(colour) {
+  function start(colour, restored) {
+    if (!restored && state && state.status !== 'active' && window.DashaChessTrack) window.DashaChessTrack('local_rematch_intent', 'dasha-chess-local-rematch-intent');
+    if (!restored && window.DashaChessTrack) window.DashaChessTrack('local_play_intent', 'dasha-chess-local-play-intent');
     myColor = colour === 'b' ? 'b' : 'w';
-    state = E.newChessState(); selected = ''; busy = false;
+    state = restored || E.newChessState(); selected = ''; busy = false; resultText = '';
     focusSquare = myColor === 'w' ? 'e2' : 'e7';
     history = []; pendingPromo = null;
     promoBox.hidden = true; undoBtn.hidden = true;
     movesEl.hidden = true; movesEl.textContent = '';
     againBtn.hidden = false;
+    againBtn.textContent = 'New game';
+    againBtn.dataset.action = 'restart';
     resignBtn.hidden = false;
     playBtn.hidden = true;
     blackBtn.hidden = true;
     board.classList.add('playable');
     paint();
-    if (myColor === 'b') {
-      say('You are Anna. Dasha moves first.');
+    savePractice();
+    if (state.turn !== myColor) {
+      say(restored ? 'Game restored. Opponent is thinking…' : 'You are Anna. Dasha moves first.');
       busy = true;
       setTimeout(reply, 400);
     } else {
-      say('You are Dasha. White moves first.');
+      say(restored ? 'Game restored. Your move.' : 'You are Dasha. White moves first.');
     }
   }
   playBtn.addEventListener('click', function () { start('w'); });
   blackBtn.addEventListener('click', function () { start('b'); });
-  againBtn.addEventListener('click', function () { start(myColor); });
+  againBtn.addEventListener('click', function () { if (againBtn.dataset.action === 'share') shareResult(); else start(myColor); });
+  var saved = savedPractice();
+  paintStreak(readStreak());
+  if (saved) start(saved.color, saved.state);
 })();
 </script>
 <script>
@@ -983,7 +1076,6 @@ window.DashaChessEngine={newChessState,legalMoves,playMove,squareIndex,squareNam
     var on = window.DashaSound.enabled();
     btn.textContent = on ? '\u266a' : '\u266a\u0338';
     btn.setAttribute('aria-pressed', String(on));
-    btn.setAttribute('aria-label', on ? 'Sound on' : 'Sound off');
   }
   if (btn) btn.addEventListener('click', function () { window.DashaSound.toggle(); paintBtn(); });
   paintBtn();

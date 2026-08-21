@@ -13,7 +13,6 @@
  *   Suggested scope: read:user
  */
 import {
-  randomUrlToken,
   signPayload,
   verifyPayload,
   readCookie,
@@ -56,17 +55,19 @@ export function githubCookieHeader(token, { maxAgeSec = SESSION_TTL_MS / 1000, c
   return `${GH_COOKIE}=${token}; Path=/; Max-Age=${Math.floor(maxAgeSec)}; HttpOnly; Secure; SameSite=Lax`;
 }
 
-export function githubAuthorizeUrl({ clientId, redirectUri, state, scope = GH_SCOPE }) {
+export function githubAuthorizeUrl({ clientId, redirectUri, state, challenge, scope = GH_SCOPE }) {
   const u = new URL(GH_AUTHORIZE);
   u.searchParams.set('client_id', clientId);
   u.searchParams.set('redirect_uri', redirectUri);
   u.searchParams.set('scope', scope);
   u.searchParams.set('state', state);
+  u.searchParams.set('code_challenge', challenge);
+  u.searchParams.set('code_challenge_method', 'S256');
   u.searchParams.set('allow_signup', 'true');
   return u.href;
 }
 
-export async function exchangeGithubCode(env, { code }) {
+export async function exchangeGithubCode(env, { code, verifier }) {
   const redirect = githubRedirectUri(env);
   const res = await fetch(GH_TOKEN, {
     method: 'POST',
@@ -79,6 +80,7 @@ export async function exchangeGithubCode(env, { code }) {
       client_id: env.GITHUB_CLIENT_ID,
       client_secret: env.GITHUB_CLIENT_SECRET,
       code,
+      code_verifier: verifier,
       redirect_uri: redirect,
     }),
   });

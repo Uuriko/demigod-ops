@@ -322,9 +322,11 @@ export function recordClaim(store, { xId, wallet, signature, at = Date.now(), pr
 }
 
 /* Rollback must only ever undo the caller's OWN reservation.
-   An unproven claim no longer consults byWallet, so two claims can be in flight for the same
-   wallet — the owner's proven one and a stranger's pasted one. Without these guards the
-   stranger's failed send would delete the owner's in-flight byWallet row. */
+   Introduced by the unproven-destination change: an unproven claim no longer consults byWallet, so
+   two claims can now be in flight for the same wallet — the owner's proven one and a stranger's
+   pasted one. Without these guards the stranger's failed send would delete the owner's in-flight
+   byWallet row, removing the guard mid-transfer. Gate on `proven` (an unproven claim never touches
+   the wallet index, read or write) and on xId ownership (never delete a row someone else placed). */
 export function clearPendingClaim(store, { xId, wallet, proven = true }) {
   const next = {
     byX: { ...(store?.byX || {}) },
@@ -381,7 +383,110 @@ export function donateSigError(sig) {
 }
 
 export const DONATE_LAUNCH_MS = Date.parse('2026-08-16T00:00:00.000Z');
-export const DONATE_MIN_RAW = 1_000_000_000n; // 1000 $dasha at 6 decimals
+export const DONATE_MIN_RAW = 1_000_000_000n;
+export const SPL_TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+export const SPL_MEMO_PROGRAM = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
+export const BURN_INTENT_SCHEMA = 'dasha-simp-burn/v0';
+export const BURN_MEMO_PREFIX = 'dasha-burn:';
+export const BURN_INTENT_TTL_MS = 5 * 60 * 1000;
+export const BURN_INTENTS_MAX_BYTES = 1_000_000;
+export const BURN_RECEIPTS_MAX = 25;
+const U64_MAX = 18_446_744_073_709_551_615n;
+
+export function createBurnIntent({ id, xId, owner, source, amountRaw } = {}, { now = Date.now() } = {}) {
+  id = String(id || '').trim();
+  xId = String(xId || '').trim();
+  owner = String(owner || '').trim();
+  source = String(source || '').trim();
+  if (typeof amountRaw !== 'string') return { error: 'invalid burn amount' };
+  const amount = String(amountRaw || '').trim();
+  if (!/^[A-Za-z0-9_-]{16,64}$/.test(id) || !/^\d{1,32}$/.test(xId)) return { error: 'invalid burn intent' };
+  if (!isValidSolanaAddress(owner) || !isValidSolanaAddress(source) || source === owner || source === FAUCET_MINT) {
+    return { error: 'invalid burn intent' };
+  }
+  if (!/^[1-9]\d{0,19}$/.test(amount) || BigInt(amount) > U64_MAX) return { error: 'invalid burn amount' };
+  return {
+    ok: true,
+    intent: {
+      schema: BURN_INTENT_SCHEMA,
+      id,
+      xId,
+      owner,
+      source,
+      mint: FAUCET_MINT,
+      amountRaw: amount,
+      decimals: FAUCET_DECIMALS,
+      purpose: 'simp-burn-preview',
+      memo: BURN_MEMO_PREFIX + id,
+      issuedAt: now,
+      expiresAt: now + BURN_INTENT_TTL_MS,
+      usedAt: null,
+    },
+  };
+}
+
+export function burnIntentError(intent, expected = {}, { now = Date.now() } = {}) {
+  if (!intent || intent.schema !== BURN_INTENT_SCHEMA) return 'invalid burn intent';
+  if (!/^[A-Za-z0-9_-]{16,64}$/.test(String(intent.id || '')) || !/^\d{1,32}$/.test(String(intent.xId || ''))) return 'invalid burn intent';
+  if (!isValidSolanaAddress(intent.owner) || !isValidSolanaAddress(intent.source) || intent.owner === intent.source) return 'invalid burn intent';
+  if (intent.mint !== FAUCET_MINT || intent.source === FAUCET_MINT || intent.decimals !== FAUCET_DECIMALS || intent.purpose !== 'simp-burn-preview' || intent.memo !== BURN_MEMO_PREFIX + intent.id) return 'invalid burn intent';
+  const amount = String(intent.amountRaw || '');
+  if (!/^[1-9]\d{0,19}$/.test(amount) || BigInt(amount) > U64_MAX) return 'invalid burn intent';
+  if (intent.usedAt != null) return 'burn intent used';
+  const issuedAt = Number(intent.issuedAt);
+  const expiresAt = Number(intent.expiresAt);
+  if (!Number.isFinite(issuedAt) || !Number.isFinite(expiresAt) || expiresAt - issuedAt !== BURN_INTENT_TTL_MS) return 'invalid burn intent';
+  if (expiresAt <= now || issuedAt > now + 60_000) return 'burn intent expired';
+  for (const key of ['xId', 'owner', 'source', 'mint', 'amountRaw']) {
+    if (expected[key] != null && String(intent[key]) !== String(expected[key])) return 'burn intent mismatch';
+  }
+  return '';
+}
+
+export function consumeBurnIntent(intent, expected = {}, { now = Date.now() } = {}) {
+  const error = burnIntentError(intent, expected, { now });
+  return error ? { error } : { ok: true, intent: { ...intent, usedAt: now } };
+}
+
+export function pruneBurnIntents(store, { now = Date.now() } = {}) {
+  return Object.fromEntries(Object.entries(store || {}).filter(([, intent]) =>
+    Number(intent?.expiresAt) > now && intent?.usedAt == null));
+}
+
+/** Keep one pending irreversible action per account and stay below the shared storage value ceiling. */
+export function upsertBurnIntent(store, intent, {
+  now = Date.now(), maxBytes = BURN_INTENTS_MAX_BYTES,
+} = {}) {
+  const error = burnIntentError(intent, {}, { now });
+  if (error) return { error };
+  const next = Object.fromEntries(Object.entries(pruneBurnIntents(store, { now })).filter(([id, row]) =>
+    id !== intent.id && String(row?.xId || '') !== String(intent.xId)));
+  next[intent.id] = intent;
+  const bytes = new TextEncoder().encode(JSON.stringify(next)).byteLength;
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || bytes > maxBytes) return { error: 'burn preview full' };
+  return { ok: true, intents: next, bytes };
+}
+
+export function burnAggregate(receipts) {
+  let count = 0;
+  let amountRaw = 0n;
+  for (const [signature, receipt] of Object.entries(receipts || {})) {
+    const raw = String(receipt?.amountRaw || '');
+    if (donateSigError(signature) || !/^\d{1,20}$/.test(raw) || !/^\d{1,32}$/.test(String(receipt?.xId || ''))) continue;
+    if (!/^[A-Za-z0-9_-]{16,64}$/.test(String(receipt?.intentId || '')) || !Number.isFinite(Number(receipt?.at))) continue;
+    try {
+      const amount = BigInt(raw);
+      if (amount <= 0n || amount > U64_MAX) continue;
+      amountRaw += amount;
+      count++;
+    } catch {}
+  }
+  return { count, amountRaw: String(amountRaw) };
+}
+
+export function burnReceiptsFull(receipts) {
+  return Object.keys(receipts && typeof receipts === 'object' && !Array.isArray(receipts) ? receipts : {}).length >= BURN_RECEIPTS_MAX;
+}
 
 function tokenOwnerMintAmount(balances, owner, mint) {
   const rows = Array.isArray(balances) ? balances : [];
@@ -401,6 +506,12 @@ function tokenOwnerMintAmount(balances, owner, mint) {
   return raw;
 }
 
+function tokenAccountMintAmount(balances, accountIndex, owner, mint) {
+  const row = (Array.isArray(balances) ? balances : []).find((item) =>
+    Number(item?.accountIndex) === accountIndex && String(item?.owner || '') === owner && String(item?.mint || '') === mint);
+  try { return row?.uiTokenAmount?.amount == null ? null : BigInt(row.uiTokenAmount.amount); } catch { return null; }
+}
+
 function messagePayer(tx) {
   const keys = tx?.transaction?.message?.accountKeys;
   const first = Array.isArray(keys) ? keys[0] : null;
@@ -409,10 +520,46 @@ function messagePayer(tx) {
   return String(first.pubkey || first.toString?.() || '');
 }
 
-/**
- * Fail-closed on-chain donate inspect. Any doubt → `{ error: 'sig miss' }`.
- * Does not award. Does not trust client amounts.
- */
+/** Pure proof for one clean, finalized BurnChecked transaction. Intent/replay gates live above this parser. */
+export function inspectBurnTx(tx, {
+  owner,
+  intentId,
+  signature = '',
+  mint = FAUCET_MINT,
+  decimals = 6,
+  now = Date.now(),
+  windowMs = 15 * 60 * 1000,
+} = {}) {
+  if (!tx || tx.meta?.err || !owner || !/^[A-Za-z0-9_-]{16,64}$/.test(String(intentId || ''))) return { error: 'burn miss' };
+  if (signature && tx.transaction?.signatures?.[0] !== signature) return { error: 'burn miss' };
+  const blockTime = Number(tx.blockTime) * 1000;
+  if (!Number.isFinite(blockTime) || blockTime > now + 60_000 || now - blockTime > windowMs) return { error: 'burn miss' };
+  const message = tx.transaction?.message;
+  const keys = Array.isArray(message?.accountKeys) ? message.accountKeys : [];
+  const signer = keys.some((key) => typeof key === 'object' && String(key.pubkey || '') === owner && key.signer === true);
+  if (!signer) return { error: 'burn miss' };
+  const instructions = Array.isArray(message?.instructions) ? message.instructions : [];
+  const memos = instructions.filter((ix) => String(ix?.programId || '') === SPL_MEMO_PROGRAM);
+  if (memos.length !== 1 || String(memos[0].parsed || '') !== BURN_MEMO_PREFIX + intentId) return { error: 'burn miss' };
+  const burns = instructions.filter((ix) =>
+    String(ix?.programId || '') === SPL_TOKEN_PROGRAM && ix?.parsed?.type === 'burnChecked');
+  if (burns.length !== 1) return { error: 'burn miss' };
+  const info = burns[0].parsed?.info || {};
+  if (String(info.authority || '') !== owner || String(info.mint || '') !== mint) return { error: 'burn miss' };
+  const tokenAmount = info.tokenAmount || {};
+  if (Number(tokenAmount.decimals) !== decimals) return { error: 'burn miss' };
+  let amountRaw;
+  try { amountRaw = BigInt(tokenAmount.amount); } catch { return { error: 'burn miss' }; }
+  if (amountRaw <= 0n) return { error: 'burn miss' };
+  const source = String(info.account || '');
+  const sourceIndex = keys.findIndex((key) => String(typeof key === 'object' ? key.pubkey || '' : key) === source);
+  if (sourceIndex < 0) return { error: 'burn miss' };
+  const pre = tokenAccountMintAmount(tx.meta.preTokenBalances, sourceIndex, owner, mint);
+  const post = tokenAccountMintAmount(tx.meta.postTokenBalances, sourceIndex, owner, mint);
+  if (pre == null || post == null || pre - post !== amountRaw) return { error: 'burn miss' };
+  return { ok: true, amountRaw, at: blockTime, owner, source };
+}
+
 export function inspectDonateTx(tx, {
   treasury = FAUCET_TREASURY_DEFAULT,
   mint = FAUCET_MINT,

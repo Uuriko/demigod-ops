@@ -8,7 +8,7 @@
   var MINT = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
   var TREASURY = 'DwpCrg5qfCMW11a9FYFsAR9ZYQUYKNhfLdnzpci7sYgb';
   var DEFAULT_API = 'https://lobby.getdasha.com';
-  var HERO = 'https://lobby.getdasha.com/client/faucet.png';
+  var HERO = 'https://lobby.getdasha.com/client/faucet.avif';
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -243,6 +243,9 @@
       var img = el('img', 'faucet-hero');
       img.src = stillUrl;
       img.alt = 'Dasha tip faucet';
+      img.width = 1024;
+      img.height = 1024;
+      img.fetchPriority = 'high';
       if (stillSri) {
         img.setAttribute('integrity', stillSri);
         img.crossOrigin = 'anonymous';
@@ -284,15 +287,20 @@
         copy.addEventListener('click', function() {
           function ok() { copy.textContent = 'Copied'; setTimeout(function() { copy.textContent = 'Copy address'; }, 1200); }
           function miss() { copy.textContent = 'Select'; setTimeout(function() { copy.textContent = 'Copy address'; }, 1600); }
+          function withTimeout(p, ms) {
+            return Promise.race([p, new Promise(function(_, reject) {
+              setTimeout(function() { reject(new Error('copy-timeout')); }, ms);
+            })]);
+          }
           function afterWrite() {
             if (navigator.clipboard && navigator.clipboard.readText) {
-              navigator.clipboard.readText().then(function(got) {
+              withTimeout(navigator.clipboard.readText(), 800).then(function(got) {
                 if (destCopiedOk(got, treas)) ok(); else miss();
               }).catch(miss);
             } else miss();
           }
           if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(treas).then(afterWrite).catch(miss);
+            withTimeout(navigator.clipboard.writeText(treas), 800).then(afterWrite).catch(miss);
           } else miss();
         });
         box.appendChild(copy);

@@ -1,7 +1,9 @@
 /**
- * Tiny pure-JS OG card for Studio handoffs (no deps).
- * 1200×628 RGB PNG: ink field, acid bar, line + look/format.
+ * Tiny pure-JS OG cards for Studio handoffs and Simp member pages (no deps).
+ * 600×314 RGB PNG: ink field, acid bar and large text.
  */
+import { quizTitle } from './dasha-simp-score.mjs';
+
 /* Half-res card keeps pure store-deflate under ~600KB while staying OG-legible. */
 const W = 600;
 const H = 314;
@@ -46,6 +48,9 @@ const FONT = {
   8: [0x0e, 0x11, 0x11, 0x0e, 0x11, 0x11, 0x0e],
   9: [0x0e, 0x11, 0x11, 0x0f, 0x01, 0x02, 0x0c],
   $: [0x04, 0x0f, 0x14, 0x0e, 0x05, 0x1e, 0x04],
+  '@': [0x0e, 0x11, 0x17, 0x15, 0x17, 0x10, 0x0e],
+  '#': [0x0a, 0x1f, 0x0a, 0x0a, 0x1f, 0x0a, 0x00],
+  _: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1f],
   '.': [0x00, 0x00, 0x00, 0x00, 0x00, 0x0c, 0x0c],
   ',': [0x00, 0x00, 0x00, 0x00, 0x0c, 0x04, 0x08],
   '!': [0x04, 0x04, 0x04, 0x04, 0x04, 0x00, 0x04],
@@ -212,6 +217,67 @@ export async function handoffOgPng(state = {}) {
   // footer on acid bar
   drawText(px, 'GETDASHA.COM  ·  OPEN STUDIO  ·  CHANGE ONE THING', 20, H - 30, 2, 7, 6, 8, 560);
 
+  return encodeRgbPng(px);
+}
+
+export async function simpMemberOgPng({ handle, rank, total, holder, quiz } = {}) {
+  const clean = String(handle || '').replace(/^@/, '');
+  if (!/^[A-Za-z0-9_]{1,15}$/.test(clean)) throw new Error('bad member handle');
+  if (!Number.isInteger(rank) || rank < 2) throw new Error('bad member rank');
+  if (!Number.isInteger(total) || total < 0) throw new Error('bad member total');
+  const quizCorrect = Number(quiz?.correct);
+  const quizTotal = Number(quiz?.total);
+  const earnedTitle = Number.isInteger(quizCorrect) && Number.isInteger(quizTotal) && quizTotal > 0 && quizCorrect >= 0 && quizCorrect <= quizTotal
+    ? quizTitle(quizCorrect, quizTotal)
+    : '';
+  const px = new Uint8Array(W * H * 3);
+  fillRect(px, 0, 0, W, H, 7, 6, 8);
+  fillRect(px, 390, 0, 210, 180, 40, 25, 70);
+  fillRect(px, 0, 190, 280, 80, 55, 20, 40);
+  fillRect(px, 0, 0, W, 6, 223, 255, 0);
+  fillRect(px, 0, H - 44, W, 44, 223, 255, 0);
+  drawText(px, '$DASHA SIMP BOARD', 24, 20, 3, 223, 255, 0, 552);
+  drawText(px, `@${clean}`.toUpperCase(), 24, 60, 4, 244, 237, 219, 552);
+  drawText(px, `#${rank}`, 24, 112, 8, 244, 237, 219, 552);
+  if (earnedTitle) {
+    drawText(px, earnedTitle.toUpperCase(), 300, 116, 2, 244, 237, 219, 276);
+    drawText(px, `${quizCorrect}/${quizTotal} QUIZ`, 300, 142, 2, 223, 255, 0, 276);
+  }
+  drawText(px, `${total} SIMP POINTS`, 24, 198, 4, 223, 255, 0, 552);
+  if (holder === true) drawText(px, 'HOLDER CHECK CURRENT', 330, 238, 2, 244, 237, 219, 240);
+  drawText(px, 'GETDASHA.COM  ·  SEE THE BOARD', 20, H - 30, 2, 7, 6, 8, 560);
+  return encodeRgbPng(px);
+}
+
+export async function forumThreadOgPng({ title, handle, replies = 0, reactions = 0 } = {}) {
+  const cleanTitle = String(title || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  if (!cleanTitle) throw new Error('bad forum title');
+  const cleanHandle = String(handle || '').replace(/^@/, '');
+  const replyCount = Number.isInteger(replies) && replies >= 0 ? Math.min(replies, 999) : 0;
+  const reactionCount = Number.isInteger(reactions) && reactions >= 0 ? Math.min(reactions, 2500) : 0;
+  const px = new Uint8Array(W * H * 3);
+  fillRect(px, 0, 0, W, H, 7, 6, 8);
+  fillRect(px, 390, 0, 210, 180, 40, 25, 70);
+  fillRect(px, 0, 190, 280, 80, 55, 20, 40);
+  fillRect(px, 0, 0, W, 6, 223, 255, 0);
+  fillRect(px, 0, H - 44, W, 44, 223, 255, 0);
+  drawText(px, '$DASHA FORUM', 24, 20, 3, 223, 255, 0, 552);
+  const lines = wrapWords(cleanTitle, 20);
+  if (!lines.length) lines.push('OPEN THE THREAD');
+  const scale = lines.length > 3 ? 4 : 5;
+  let y = 64;
+  for (const line of lines.slice(0, 4)) {
+    drawText(px, line, 24, y, scale, 244, 237, 219, 552);
+    y += scale * 8 + 5;
+  }
+  const author = /^[A-Za-z0-9_]{1,15}$/.test(cleanHandle) ? `@${cleanHandle}` : '$DASHA COMMUNITY';
+  const engagement = `${replyCount} ${replyCount === 1 ? 'REPLY' : 'REPLIES'}${reactionCount ? ` · ${reactionCount} ${reactionCount === 1 ? 'HEART' : 'HEARTS'}` : ''}`;
+  drawText(px, `${author} · ${engagement}`.toUpperCase(), 24, 236, 2, 230, 220, 196, 552);
+  drawText(px, 'GETDASHA.COM  ·  JOIN THE THREAD', 20, H - 30, 2, 7, 6, 8, 560);
+  return encodeRgbPng(px);
+}
+
+async function encodeRgbPng(px) {
   // PNG scanlines: filter 0 + RGB
   const raw = new Uint8Array((W * 3 + 1) * H);
   for (let y = 0; y < H; y++) {

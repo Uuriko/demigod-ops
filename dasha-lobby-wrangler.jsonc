@@ -16,13 +16,22 @@
       {
         "name": "LOBBY",
         "class_name": "DashaLobby"
+      },
+      {
+        "name": "FAUCET",
+        "class_name": "DashaFaucet"
       }
     ]
   },
+  // Live is at tag v2 with DashaLobby + DashaFaucet already created. List full history.
   "migrations": [
     {
       "tag": "v1",
       "new_sqlite_classes": ["DashaLobby"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["DashaFaucet"]
     }
   ],
   "vars": {

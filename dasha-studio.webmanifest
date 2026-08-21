@@ -1,0 +1,26 @@
+{
+  "name": "Dasha Studio",
+  "short_name": "Dasha",
+  "description": "Make Dasha posts, stories, banners, and GIFs in your browser.",
+  "id": "/studio",
+  "start_url": "/studio",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#070608",
+  "theme_color": "#070608",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/client/dasha-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/client/dasha-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

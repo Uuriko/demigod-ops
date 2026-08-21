@@ -28,10 +28,16 @@
  *   node dasha-deploy-guard.mjs --force -- npx wrangler deploy ...   # deploy anyway, saying so
  */
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, unlinkSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { scanBundleDir } from './dasha-worker-leak-scan.mjs';
 
 const LOCK = '/tmp/dasha-publish.lock';
 const STALE_MS = 15 * 60_000;
+const ROOT = dirname(fileURLToPath(import.meta.url));
+const DEPLOY_ROOT = join(ROOT, '.grok/worktrees/potter/dasha-2');
 const force = process.argv.includes('--force');
 /* dasha-ship invokes this from inside its own publish, where it ALREADY holds the lock and has
    already run driftedPins — a live pin-versus-served-bytes check that is strictly stronger than
@@ -44,21 +50,56 @@ const fromShip = process.env.DASHA_DEPLOY_FROM_SHIP === '1';
    the artifact, or the guard cries wolf on every unrelated edit and gets ignored. */
 const WORKER_INPUTS = [
   'dasha-lobby-worker.mjs',
+  'dasha-lobby-assets-build.mjs',
   'dasha-lobby-static-gen.mjs',
   'dasha-lobby-client.js',
+  'dasha-studio-embed-build.mjs',
+  'dasha-meme-studio.html',
   'dasha-studio-embed.js',
+  'dasha-studio.webmanifest',
+  'dasha-worker-assets/client/dasha-icon-192.png',
+  'dasha-worker-assets/client/dasha-icon-512.png',
   'dasha-simp-board-client.js',
+  'dasha-simp-actions.mjs',
+  'dasha-simp-score.mjs',
   'dasha-chess.mjs',
+  'dasha-faucet.mjs',
+  'dasha-faucet-solana.mjs',
+  'dasha-faucet-client.js',
+  'dasha-faucet-page.html',
   'dasha-forum.mjs',
+  'dasha-handoff-og.mjs',
+  'dasha-simp-share-html.mjs',
   'dasha-lobby-mod.mjs',
   'dasha-lobby-x.mjs',
+  'dasha-lobby-github.mjs',
+  'dasha-x-connect-prompt.js',
+  'dasha-landing.html',
+  'dasha-how-to-buy.html',
+  'dasha-chess-page.html',
+  'dasha-lobby-page.html',
+  'dasha-login-page.html',
+  'dasha-robots.txt',
+  'dasha-sitemap.xml',
+  'dasha-worker-assets',
 ];
 
 const say = (line) => console.log(`deploy-guard: ${line}`);
 
 // ---- R1: refuse to ship someone else's unfinished work ------------------------
-const status = spawnSync('git', ['status', '--porcelain', '--', ...WORKER_INPUTS], { encoding: 'utf8' });
-const dirty = (status.stdout || '').trim().split('\n').filter(Boolean);
+const dirty = [
+  ['root', ROOT],
+  ['dasha-2', DEPLOY_ROOT],
+].flatMap(([label, cwd]) => {
+  const status = spawnSync('git', ['status', '--porcelain', '--', ...WORKER_INPUTS], { cwd, encoding: 'utf8' });
+  return (status.stdout || '').trim().split('\n').filter(Boolean).map((line) => `${label}: ${line}`);
+}).concat([
+  ['root', ROOT, 'dasha-lobby-wrangler.jsonc'],
+  ['dasha-2', DEPLOY_ROOT, 'dasha-lobby-wrangler.deploy.jsonc'],
+].flatMap(([label, cwd, path]) => {
+  const status = spawnSync('git', ['status', '--porcelain', '--', path], { cwd, encoding: 'utf8' });
+  return (status.stdout || '').trim().split('\n').filter(Boolean).map((line) => `${label}: ${line}`);
+}));
 if (dirty.length) {
   say('worker inputs are uncommitted:');
   for (const line of dirty) say(`  ${line}`);
@@ -72,6 +113,80 @@ if (dirty.length) {
   } else {
     say('--force given: publishing uncommitted work deliberately.');
   }
+}
+
+// The root command deliberately deploys from dasha-2: it is the tree with the live v2 migration
+// and correctly routed /og assets. Refuse a split release even when dirty work was explicitly forced.
+for (const path of WORKER_INPUTS.filter((path) => path !== 'dasha-worker-assets')) {
+  const rootSource = join(ROOT, path);
+  const deploySource = join(DEPLOY_ROOT, path);
+  if (!existsSync(rootSource) || !existsSync(deploySource) || !readFileSync(rootSource).equals(readFileSync(deploySource))) {
+    say(`root and dasha-2 Worker sources differ: ${path}`);
+    process.exit(1);
+  }
+}
+const assetHash = (cwd) => readFileSync(join(cwd, 'dasha-lobby-static-gen.mjs'), 'utf8')
+  .match(/ASSET_HASH\s*=\s*["']([^"']+)/)?.[1] || null;
+const rootHash = assetHash(ROOT);
+const deployHash = assetHash(DEPLOY_ROOT);
+if (!rootHash || deployHash !== rootHash) {
+  say(`root and dasha-2 asset hashes differ (${rootHash || 'missing'} vs ${deployHash || 'missing'}); reconcile before deploy.`);
+  process.exit(1);
+}
+
+const rootConfig = readFileSync(join(ROOT, 'dasha-lobby-wrangler.jsonc'), 'utf8');
+const deployConfig = readFileSync(join(DEPLOY_ROOT, 'dasha-lobby-wrangler.deploy.jsonc'), 'utf8');
+if (rootConfig !== deployConfig || !/"tag"\s*:\s*"v2"/.test(deployConfig) || !/"class_name"\s*:\s*"DashaFaucet"/.test(deployConfig)) {
+  say('root and dasha-2 Wrangler configs must match and retain the DashaFaucet v2 migration.');
+  process.exit(1);
+}
+
+for (const [label, cwd] of [['root', ROOT], ['dasha-2', DEPLOY_ROOT]]) {
+  const studio = spawnSync(process.execPath, ['dasha-studio-embed-build.mjs', '--check'], { cwd, encoding: 'utf8' });
+  if (studio.status !== 0) {
+    say(`${label} Studio loader/client failed build --check:\n${studio.stderr || studio.stdout}`);
+    process.exit(1);
+  }
+  const check = spawnSync(process.execPath, ['dasha-lobby-assets-build.mjs', '--check'], { cwd, encoding: 'utf8' });
+  if (check.status !== 0) {
+    say(`${label} lobby assets failed build --check:\n${check.stderr || check.stdout}`);
+    process.exit(1);
+  }
+}
+for (const path of [
+  'dasha-worker-assets/og/dasha-social-card.png',
+  'dasha-worker-assets/og/grwm-loop.mp4',
+  'dasha-worker-assets/og/grwm.jpg',
+  'dasha-worker-assets/og/grwm.mp4',
+  'dasha-worker-assets/client/faucet.avif',
+]) {
+  if (!existsSync(join(DEPLOY_ROOT, path))) {
+    say(`dasha-2 deploy asset missing: ${path}`);
+    process.exit(1);
+  }
+}
+
+// Compile the exact deploy tree first, then scan generated JavaScript without ever printing a match.
+const bundleDir = mkdtempSync(join(tmpdir(), 'dasha-worker-bundle-'));
+let bundleFailed = false, bundleLeaks = [];
+try {
+  const bundle = spawnSync('npx', [
+    '--yes', 'wrangler@4.120.1', 'deploy', '--dry-run', `--outdir=${bundleDir}`,
+    '-c', 'dasha-lobby-wrangler.deploy.jsonc',
+  ], { cwd: DEPLOY_ROOT, encoding: 'utf8', timeout: 120_000 });
+  bundleFailed = bundle.status !== 0;
+  if (!bundleFailed) bundleLeaks = scanBundleDir(bundleDir);
+} finally {
+  rmSync(bundleDir, { recursive: true, force: true });
+}
+if (bundleFailed) {
+  say('Wrangler dry bundle failed; refusing deploy. Run the documented dry-run directly for diagnostics.');
+  process.exit(1);
+}
+if (bundleLeaks.length) {
+  say('generated Worker bundle contains credential-shaped literals:');
+  for (const leak of bundleLeaks) say(`  ${leak.file}: ${leak.kinds.join(', ')}`);
+  process.exit(1);
 }
 
 // ---- R2: one deploy at a time -------------------------------------------------

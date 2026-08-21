@@ -2,12 +2,16 @@
   /* The lobby, on its own page and at full size. */
   #dasha-lobby-page{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--violet:#7c4dff;
     --line:rgba(244,237,219,.18);--muted:rgba(244,237,219,.62);
-    display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;
+    display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;
     background:var(--ink);color:var(--paper);font:16px/1.5 Arial,Helvetica,sans-serif;
     background-image:radial-gradient(circle at 84% 2%,rgba(124,77,255,.28),transparent 30rem),
                      radial-gradient(circle at 4% 78%,rgba(255,59,129,.16),transparent 26rem)}
   #dasha-lobby-page *{box-sizing:border-box}
   #dasha-lobby-page a{color:inherit}
+  .skip-link{position:absolute;left:-9999px;top:0;z-index:100;padding:12px 16px;background:var(--acid);color:var(--ink)!important;font-weight:900;text-decoration:none}
+  .skip-link:focus{left:12px;top:12px;outline:3px solid var(--paper);outline-offset:2px}
+  /* main is the flex child so .lp-hold{flex:1} still fills under the header. */
+  #dasha-lobby-page > main{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
 
   /* Header: one way back, one room name. */
   .lp-top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
@@ -15,8 +19,8 @@
     background:rgba(7,6,8,.92);backdrop-filter:blur(8px)}
   .lp-back{font-size:14px;font-weight:900;text-decoration:none;min-height:44px;display:inline-flex;align-items:center;gap:7px}
   .lp-id{display:flex;align-items:baseline;gap:9px;margin-right:auto;min-width:0}
-  .lp-id b{font-size:19px;font-weight:950;letter-spacing:-.03em}
-  .lp-id b span{color:var(--acid)}
+  .lp-id h1{margin:0;font-size:19px;font-weight:950;letter-spacing:-.03em}
+  .lp-id h1 span{color:var(--acid)}
   .lp-room{margin:0;width:100%;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
 
   /* The composer, on a page where it is the only thing to type into. The counters sit inline with
@@ -38,7 +42,7 @@
   .lobby-status{margin:0;font-size:14px;font-weight:700;color:var(--muted)}
   .lobby-status[data-kind=ok]{color:var(--acid)}
   .lobby-status[data-kind=bad]{color:var(--hot)}
-  .lobby-status[data-kind=warn]{color:#ffc857}
+  .lobby-status[data-kind=warn]{color:var(--hot)}
   .lobby-log{min-height:200px;max-height:320px;overflow:auto;padding:12px;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.35);display:flex;flex-direction:column;gap:8px}
   .lobby-line{display:grid;gap:2px;font-size:15px;line-height:1.4}
   .lobby-meta{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
@@ -61,7 +65,8 @@
   .lobby-x-btn,.lobby-x-unlink{min-height:44px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:rgba(29,155,240,.2);color:var(--paper);font:inherit;font-weight:800;font-size:11px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
   .lobby-x-btn:hover,.lobby-x-unlink:hover{filter:brightness(1.1)}
   .lobby-x-btn:disabled{opacity:.5;cursor:not-allowed}
-  .lobby-linked .lobby-meta{color:#7ec8ff}
+  .lobby-linked .lobby-meta{color:var(--hot)}
+  .lobby-holder-badge{display:inline-flex;align-items:center;margin-left:6px;padding:2px 6px;border:1px solid var(--acid);border-radius:999px;color:var(--acid);font-size:10px;font-weight:900;letter-spacing:.04em;text-transform:uppercase}
   .lobby-nick[readonly]{opacity:.9;border-color:rgba(29,155,240,.45)}
   .lobby-line{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:start}
   .lobby-line .lobby-meta{grid-column:1/-1}
@@ -99,14 +104,24 @@
   .lobby-form .lobby-field:first-child{grid-column:1/-1}
   .lobby-form button{width:auto}
 
-  /* Forum first, chat beside it. The forum is the reason to come back — it keeps what was said —
-     and the chat is the reason to stay, so the forum takes the reading width and the chat takes a
-     column. Below 960px they stack, forum on top: a live chat pinned above a thread list would put
-     the disposable surface in front of the durable one on the smaller screen. */
+  /* One room. Desktop: threads (durable) + now (live). Phone: Discord-style tabs so two
+     scrollers never fight. Research: forum posts need titles; chat is the stay-loop. */
+  .lp-tabs{display:none;gap:6px;padding:8px clamp(14px,3vw,26px) 0;background:rgba(7,6,8,.92)}
+  .lp-tab{min-height:44px;min-width:44px;flex:1 1 0;padding:0 12px;border:1px solid var(--line);
+    border-radius:999px;background:transparent;color:var(--paper);font:inherit;font-weight:900;
+    font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+  .lp-tab[aria-selected=true]{background:var(--acid);color:var(--ink);border-color:var(--acid)}
+  .lp-tab:focus-visible{outline:3px solid var(--acid);outline-offset:2px}
   .lp-hold{flex:1 1 auto;display:grid;min-height:0;gap:clamp(12px,2vw,22px);
     grid-template-columns:minmax(0,1.45fr) minmax(320px,.85fr);
     padding:0 clamp(0px,2vw,26px) 0;max-width:1400px;width:100%;margin:0 auto}
-  @media (max-width:960px){.lp-hold{grid-template-columns:minmax(0,1fr)}}
+  @media (max-width:960px){
+    .lp-tabs{display:flex}
+    .lp-hold{grid-template-columns:minmax(0,1fr)}
+    .lp-hold[data-pane=now] #dasha-forum{display:none!important}
+    .lp-hold[data-pane=threads] #dasha-lobby{display:none!important}
+    .lp-hold[data-pane=threads] #dasha-forum{min-height:0;height:100%}
+  }
 
   /* Forum */
   #dasha-forum{min-width:0;display:flex;flex-direction:column;min-height:0;overflow-y:auto;
@@ -116,15 +131,23 @@
   .df-title{margin:0 0 6px;font-size:clamp(26px,4vw,40px);line-height:1.05;letter-spacing:-.04em;font-weight:950}
   .df-note{margin:0;font-size:14px;line-height:1.5;color:var(--muted);max-width:56ch}
   .df-list{display:flex;flex-direction:column;gap:10px}
-  .df-row{padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.045)}
+  .df-row{padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.045);display:flex;align-items:center;gap:10px}
   .df-row:hover{border-color:var(--acid)}
+  .df-row-main{min-width:0;flex:1 1 auto}
   .df-open{display:block;width:100%;min-height:44px;padding:0;border:0;background:none;color:var(--paper);
-    font:inherit;font-size:17px;font-weight:900;line-height:1.3;letter-spacing:-.01em;text-align:left;cursor:pointer}
+    font:inherit;font-size:17px;font-weight:900;line-height:1.3;letter-spacing:-.01em;text-align:left;text-decoration:none;cursor:pointer}
   .df-open:hover{color:var(--acid)}
-  .df-meta{margin:4px 0 0;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+  .df-avatar{width:26px;height:26px;border-radius:999px;object-fit:cover;flex:0 0 auto;background:rgba(255,255,255,.08)}
+  .df-meta{margin:4px 0 0;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .df-author{color:inherit;text-underline-offset:2px}
+  .df-meta .df-avatar{width:16px;height:16px}
+  .df-new{flex:0 0 auto;padding:2px 8px;border-radius:999px;background:var(--acid);color:var(--ink);font-size:10px;font-weight:950;letter-spacing:.08em}
+  .df-snippet{margin:6px 0 0;font-size:13px;line-height:1.45;color:var(--muted);overflow-wrap:anywhere}
+  .df-newcount{margin:0 0 6px;font-size:13px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--acid)}
   .df-empty{margin:0;padding:26px 4px;color:var(--muted);font-size:15px}
   .df-posts{display:flex;flex-direction:column;gap:12px;margin:16px 0 20px}
   .df-post{padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.28)}
+  .df-post:target{border-color:var(--acid);background:rgba(223,255,0,.07)}
   .df-body{margin:6px 0 0;font-size:15px;line-height:1.55;overflow-wrap:anywhere}
   .df-body a{color:var(--acid);font-weight:800;text-underline-offset:3px}
   .df-quote{margin:8px 0 0;padding:8px 12px;border-left:3px solid var(--acid);background:rgba(223,255,0,.07);border-radius:0 8px 8px 0;font-size:14px;line-height:1.5;color:var(--muted);overflow-wrap:anywhere}
@@ -139,6 +162,8 @@
     background:rgba(255,255,255,.06);color:var(--paper);font:inherit;font-weight:800;font-size:12px;
     letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
   .df-back:hover{border-color:var(--acid);color:var(--acid)}
+  .df-share-link{min-height:44px;min-width:0;flex:1 1 14rem;padding:0 12px;border:1px solid var(--acid);
+    border-radius:10px;background:rgba(0,0,0,.35);color:var(--paper);font:inherit;user-select:all}
   .df-composer{display:grid;gap:10px;margin:0 0 22px;padding:16px;border:1px solid var(--line);
     border-radius:12px;background:rgba(124,77,255,.09)}
   .df-field{display:grid;gap:5px;min-width:0}
@@ -150,6 +175,10 @@
     letter-spacing:.06em;cursor:pointer}
   .df-send:hover{filter:brightness(1.05)}
   .df-send:disabled{opacity:.55;cursor:not-allowed;filter:none}
+  .df-editform{display:grid;gap:10px;margin:8px 0 0}
+  .df-editform textarea{min-height:90px;padding:12px;border:1px solid var(--acid);border-radius:10px;background:rgba(0,0,0,.35);color:var(--paper);font:inherit;resize:vertical}
+  .df-report-form{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}
+  .df-report-form select{min-height:44px;padding:0 12px;background:#0d0b0f;color:var(--paper);border:1px solid var(--line);border-radius:10px;font:inherit;font-weight:800}
   #dasha-forum :focus-visible{outline:3px solid var(--acid);outline-offset:3px}
 
   /* The chat keeps its column. */
@@ -161,7 +190,7 @@
      caught it at 29%. This has to sit after the #dasha-lobby rule above, which sets min-height:0 at
      equal specificity; declared before it, the override silently lost the cascade. */
   @media (max-width:960px){
-    #dasha-lobby{border-left:0;border-top:1px solid var(--line);min-height:100dvh}
+    #dasha-lobby{border-left:0;border-top:1px solid var(--line);min-height:0;height:100%}
   }
   #dasha-lobby .lobby-body{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
   /* The message list is the page's scroller, not a box inside a page that also scrolls. */
@@ -203,17 +232,55 @@
 </style>
 
 <div id="dasha-lobby-page">
+  <a class="skip-link" href="#dasha-lobby">Skip to now</a>
   <header class="lp-top">
     <a class="lp-back" href="/">← $dasha</a>
-    <a class="lp-back" href="https://lobby.getdasha.com/forum" style="margin-left:auto">Forum</a>
-    <span class="lp-id"><b>$<span>dasha</span> lobby</b></span>
-    <p class="lp-room">Official room. No Telegram. No Discord.</p>
+    <span class="lp-id"><h1>$<span>dasha</span> room</h1></span>
+    <p class="lp-room">Now + threads. Official. No Telegram. No Discord.</p>
   </header>
-
-  <div class="lp-hold">
-    <div id="dasha-forum"></div>
-    <div id="dasha-lobby" data-lobby-url="wss://lobby.getdasha.com/ws"></div>
+  <main>
+  <div class="lp-tabs" role="tablist" aria-label="Room">
+    <button class="lp-tab" type="button" id="tab-now" role="tab" aria-controls="dasha-lobby" aria-selected="true">Now</button>
+    <button class="lp-tab" type="button" id="tab-threads" role="tab" aria-controls="dasha-forum" aria-selected="false">Threads</button>
   </div>
-</div>
 
-<script>(function(){var s=document.createElement('script');s.src='https://lobby.getdasha.com/client/lobby.js';s.integrity='sha384-8aKrlezexdRc9GB+JTYNTVwPUg4k4o0x4e5RlWH/D7X2yRo3PYO18o6o9mwrtUWG';s.crossOrigin='anonymous';s.defer=true;document.head.appendChild(s)})();</script>
+  <div class="lp-hold" data-pane="now">
+    <div id="dasha-forum" role="tabpanel" aria-labelledby="tab-threads"></div>
+    <div id="dasha-lobby" role="tabpanel" aria-labelledby="tab-now" data-lobby-url="wss://lobby.getdasha.com/ws"></div>
+  </div>
+  </main>
+</div>
+<script>
+(function(){
+  var hold=document.querySelector('.lp-hold');
+  if(!hold)return;
+  var now=document.getElementById('tab-now');
+  var th=document.getElementById('tab-threads');
+  function wanted(){
+    try{
+      var q=new URLSearchParams(location.search);
+      if(q.get('pane')==='threads'||q.get('t'))return 'threads';
+      var h=String(location.hash||'').toLowerCase();
+      if(h==='#threads'||h==='#forum')return 'threads';
+    }catch(e){}
+    return 'now';
+  }
+  function set(p,push){
+    hold.setAttribute('data-pane',p);
+    if(now)now.setAttribute('aria-selected',p==='now'?'true':'false');
+    if(th)th.setAttribute('aria-selected',p==='threads'?'true':'false');
+    if(!push)return;
+    try{
+      var u=new URL(location.href);
+      if(p==='threads'&&!u.searchParams.get('t'))u.hash='threads';
+      else if(p==='now')u.hash='';
+      history.replaceState(null,'',u.pathname+u.search+u.hash);
+    }catch(e){}
+  }
+  set(wanted(),false);
+  if(now)now.addEventListener('click',function(){set('now',true)});
+  if(th)th.addEventListener('click',function(){set('threads',true)});
+})();
+</script>
+
+<script>(function(){var s=document.createElement('script');s.src='https://lobby.getdasha.com/client/lobby.js';s.integrity='sha384-qw32PkFabxNLJ7gmpnN7bclRFG1MBDLxaAYqlbh4K/ttlHtHhdeIzDEhWvCSZ7EP';s.crossOrigin='anonymous';s.defer=true;document.head.appendChild(s)})();</script>

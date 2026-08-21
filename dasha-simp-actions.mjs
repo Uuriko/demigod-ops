@@ -265,6 +265,10 @@ export function walletMessage({ handle, publicKey, nonce, issuedAt, expiresAt, d
   return `${domain} wants you to sign in with your Solana account:\n${publicKey}\n\nProve the private holder badge for @${handle} and mint ${MINT}. No transaction or public balance.\n\nURI: ${uri}\nVersion: 1\nChain ID: mainnet\nNonce: ${nonce}\nIssued At: ${new Date(issuedAt).toISOString()}\nExpiration Time: ${new Date(expiresAt).toISOString()}\nRequest ID: simp-holder`;
 }
 
+export function walletLoginMessage({ publicKey, nonce, issuedAt, expiresAt, domain, uri }) {
+  return `${domain} wants you to sign in with your Solana account:\n${publicKey}\n\nLog in to Dasha. This signature sends no transaction and proves address control only.\n\nURI: ${uri}\nVersion: 1\nChain ID: mainnet\nNonce: ${nonce}\nIssued At: ${new Date(issuedAt).toISOString()}\nExpiration Time: ${new Date(expiresAt).toISOString()}\nRequest ID: dasha-login`;
+}
+
 export function base58Decode(text) {
   const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
   let value = 0n;

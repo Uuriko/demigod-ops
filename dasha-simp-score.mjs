@@ -10,9 +10,9 @@ export const CREATIVE_POINTS = 25;
 export const CREATIVE_CAP_28D = 100;
 export const COMMUNITY_POINTS = 10;
 export const COMMUNITY_CAP_28D = 40;
-export const CONNECTOR_ACTIVATION_POINTS = 2;
-export const CONNECTOR_CONTRIBUTION_POINTS = 8;
-export const CONNECTOR_CAP_28D = 50;
+export const CONNECTOR_ACTIVATION_POINTS = 0;
+export const CONNECTOR_CONTRIBUTION_POINTS = 0;
+export const CONNECTOR_CAP_28D = 0;
 export const OSS_CAP_SEASON = 300;
 /* Donate lane (Potter 2026-08-16, last revision on the bus 18:01Z): 1 point per 1,000 $dasha sent to the
    faucet treasury by a SIWS-proven wallet, floor 1,000, 50 points per rolling 7 days. Points are
@@ -204,12 +204,68 @@ export const ZERO_POINT_SOURCES = [
   'reposts',
   'replies',
   'chat messages',
-  'raw referral clicks and joins',
+  'referrals',
   'purchases',
   'token balances',
   'bag size',
-  'payments',
+  'payments for goods or access',
 ];
+
+export const SIMP_SPOTLIGHT_UNLOCK = 25;
+
+/** One earned outbound link, restricted to recognizable profile hosts. Never fetched server-side. */
+export function normalizeSimpSpotlight(raw) {
+  const value = String(raw || '').trim();
+  if (!value) return { ok: true, spotlight: null };
+  if (value.length > 300) return { ok: false, error: 'link is too long' };
+  let url;
+  try { url = new URL(value); } catch { return { ok: false, error: 'invalid link' }; }
+  if (url.protocol !== 'https:' || url.username || url.password || url.port || url.search || url.hash) {
+    return { ok: false, error: 'use a clean https profile link' };
+  }
+  const host = url.hostname.toLowerCase();
+  if (host === 'github.com' || host === 'www.github.com') {
+    const match = url.pathname.match(/^\/([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?)\/?$/);
+    const reserved = ['settings', 'login', 'features', 'marketplace', 'explore', 'topics'];
+    if (!match || match[1].includes('--') || reserved.includes(match[1].toLowerCase())) return { ok: false, error: 'use a GitHub profile link' };
+    return { ok: true, spotlight: { platform: 'GitHub', url: `https://github.com/${match[1]}` } };
+  }
+  if (host === 'youtube.com' || host === 'www.youtube.com') {
+    const match = url.pathname.match(/^\/@([A-Za-z0-9._-]{3,30})\/?$/);
+    if (!match) return { ok: false, error: 'use a YouTube handle link' };
+    return { ok: true, spotlight: { platform: 'YouTube', url: `https://www.youtube.com/@${match[1]}` } };
+  }
+  if (host === 'twitch.tv' || host === 'www.twitch.tv') {
+    const match = url.pathname.match(/^\/([A-Za-z0-9_]{4,25})\/?$/);
+    const reserved = ['directory', 'downloads', 'jobs', 'settings', 'subscriptions', 'videos'];
+    if (!match || reserved.includes(match[1].toLowerCase())) return { ok: false, error: 'use a Twitch channel link' };
+    return { ok: true, spotlight: { platform: 'Twitch', url: `https://www.twitch.tv/${match[1].toLowerCase()}` } };
+  }
+  if (host === 'bsky.app') {
+    const match = url.pathname.match(/^\/profile\/([^/]+)\/?$/);
+    const handle = String(match?.[1] || '').toLowerCase();
+    const valid = /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$/.test(handle);
+    if (!valid || handle.length > 253) return { ok: false, error: 'use a Bluesky profile link' };
+    return { ok: true, spotlight: { platform: 'Bluesky', url: `https://bsky.app/profile/${handle}` } };
+  }
+  if (host === 'linkedin.com' || host === 'www.linkedin.com') {
+    const match = url.pathname.match(/^\/in\/([A-Za-z0-9](?:[A-Za-z0-9-]{1,98}[A-Za-z0-9]))\/?$/);
+    if (!match) return { ok: false, error: 'use a LinkedIn public profile link' };
+    return { ok: true, spotlight: { platform: 'LinkedIn', url: `https://www.linkedin.com/in/${match[1].toLowerCase()}` } };
+  }
+  if (host === 'instagram.com' || host === 'www.instagram.com') {
+    const match = url.pathname.match(/^\/([A-Za-z0-9_](?:[A-Za-z0-9._]{0,28}[A-Za-z0-9_])?)\/?$/);
+    const reserved = ['about', 'accounts', 'api', 'challenge', 'developer', 'developers', 'direct', 'explore', 'legal', 'oauth', 'p', 'privacy', 'reel', 'reels', 'stories', 'tags', 'tv', 'web'];
+    if (!match || match[1].includes('..') || reserved.includes(match[1].toLowerCase())) return { ok: false, error: 'use an Instagram profile link' };
+    return { ok: true, spotlight: { platform: 'Instagram', url: `https://www.instagram.com/${match[1].toLowerCase()}` } };
+  }
+  if (host === 'farcaster.xyz' || host === 'www.farcaster.xyz') {
+    const match = url.pathname.match(/^\/([a-z0-9][a-z0-9-]{0,15}(?:\.eth)?)\/?$/i);
+    if (!match) return { ok: false, error: 'use a Farcaster profile link' };
+    return { ok: true, spotlight: { platform: 'Farcaster', url: `https://farcaster.xyz/${match[1].toLowerCase()}` } };
+  }
+  return { ok: false, error: 'use a GitHub, YouTube, Twitch, Bluesky, LinkedIn, Instagram, or Farcaster profile link' };
+}
 
 export const PERRY_EDITORIAL = {
   handle: 'perryalpha',
@@ -578,6 +634,7 @@ export function rankProfiles(profiles, { now = Date.now() } = {}) {
       holder: Number(p.holderUntil) > now,
       holderCheckedAt: Number(p.holderCheckedAt) || null,
       badges: badgesForProfile(p, { now }),
+      spotlight: normalizeSimpSpotlight(p.spotlight?.url).spotlight,
       quiz: p.quiz?.version === QUIZ_VERSION ? { correct: p.quiz.correct, total: p.quiz.total, title: p.quiz.title, lane: p.quiz.lane, resultUrl: p.quiz.resultUrl } : null,
       ...scored,
     });
@@ -602,6 +659,7 @@ export function publicMeasuredEntry(row, rank) {
     holder: row.badges.includes('holder'),
     holderCheckedAt: row.holderCheckedAt,
     badges: [...row.badges],
+    spotlight: row.total >= SIMP_SPOTLIGHT_UNLOCK ? row.spotlight : null,
     quiz: row.quiz,
   };
 }
@@ -652,7 +710,7 @@ export function rulesPublic() {
       activation_points_each: CONNECTOR_ACTIVATION_POINTS,
       first_contribution_points_each: CONNECTOR_CONTRIBUTION_POINTS,
       cap_rolling_28d: CONNECTOR_CAP_28D,
-      note: 'Clicks and joins score zero. A not-currently-enrolled member must finish the quiz and make an authenticated visit at least 24 hours later; the larger milestone requires a first reviewed contribution.',
+      note: 'Score-neutral attribution only. Invites, joins, returns, and later contributions earn no points.',
     },
     oss: {
       schema: OSS_SCHEMA,
@@ -664,11 +722,17 @@ export function rulesPublic() {
       floor_dasha: DONATE_UNIT_DASHA,
       cap_rolling_7d: DONATE_CAP_7D,
       note:
-        'Sending $dasha to the faucet treasury (it is re-tipped to strangers). Only from a wallet you signed for; pasted addresses do not earn. Evidence is the public tx page. Buying or holding $dasha earns nothing.',
+        'Optional refill of the public faucet, which re-tips the tokens to strangers. Only from a wallet you signed for; pasted addresses do not earn. Evidence is the public tx page. Buying, holding, or paying for goods or access earns nothing.',
     },
     holder: {
       points: 0,
       note: 'Badge only when a later signed-wallet proof exists. Zero points in v1.',
+    },
+    spotlight: {
+      unlock_points: SIMP_SPOTLIGHT_UNLOCK,
+      platforms: ['GitHub', 'YouTube', 'Twitch', 'Bluesky', 'LinkedIn', 'Instagram', 'Farcaster'],
+      points: 0,
+      note: 'At 25 points, add one user-selected profile link. It does not prove ownership or affect score.',
     },
     zero_points: ZERO_POINT_SOURCES,
     ranking: 'total desc, then most recent evidenced contribution, then enrollment time, then handle',
@@ -827,6 +891,23 @@ export function joinBoard(store, session, { now = Date.now() } = {}) {
   return { ok: true, created: true, profile, store: { ...store, [xId]: profile } };
 }
 
+/** Set or remove the signed-in member's earned, score-neutral public profile link. */
+export function setSimpSpotlight(store, session, raw, { now = Date.now() } = {}) {
+  const xId = String(session?.xId || '');
+  const profile = store?.[xId];
+  if (!xId || !profile) return { ok: false, status: 401, error: 'join board first' };
+  const parsed = normalizeSimpSpotlight(raw);
+  if (!parsed.ok) return { ...parsed, status: 400 };
+  const scored = scoreProfile(profile, { now });
+  if (parsed.spotlight && scored.total < SIMP_SPOTLIGHT_UNLOCK) {
+    return { ok: false, status: 403, error: `${SIMP_SPOTLIGHT_UNLOCK} points required` };
+  }
+  const updated = { ...profile, updatedAt: now };
+  if (parsed.spotlight) updated.spotlight = { ...parsed.spotlight, updatedAt: now };
+  else delete updated.spotlight;
+  return { ok: true, spotlight: parsed.spotlight, profile: updated, store: { ...store, [xId]: updated } };
+}
+
 /**
  * Scored quiz finish: enrolls on Board if needed, then stores latest quiz result.
  * Retakes replace the previous score (no one-shot lock). Practice path is unused.
@@ -870,6 +951,10 @@ export function meStatus(store, session) {
   const profile = store[String(session.xId)] || null;
   const now = Date.now();
   const scored = profile ? scoreProfile(profile, { now }) : null;
+  const rank = profile
+    ? (buildPublicBoard(Object.values(store), { now, limit: Number.MAX_SAFE_INTEGER }).measured
+        .find((row) => row.handle.toLowerCase() === String(profile.handle).toLowerCase())?.rank ?? null)
+    : null;
   return {
     linked: true,
     enrolled: Boolean(profile),
@@ -882,6 +967,7 @@ export function meStatus(store, session) {
     board: profile
       ? {
           handle: profile.handle,
+          rank,
           total: scored.total,
           components: scored.components,
           quiz: profile.quiz?.version === QUIZ_VERSION
@@ -898,7 +984,14 @@ export function meStatus(store, session) {
             : null,
           holder: Number(profile.holderUntil) > now,
           holderCheckedAt: Number(profile.holderCheckedAt) || null,
+          holderExpiresAt: Number(profile.holderUntil) > now ? Number(profile.holderUntil) : null,
           badges: badgesForProfile(profile, { now }),
+          spotlight: scored.total >= SIMP_SPOTLIGHT_UNLOCK ? normalizeSimpSpotlight(profile.spotlight?.url).spotlight : null,
+          spotlightUnlock: {
+            points: SIMP_SPOTLIGHT_UNLOCK,
+            unlocked: scored.total >= SIMP_SPOTLIGHT_UNLOCK,
+            remaining: Math.max(0, SIMP_SPOTLIGHT_UNLOCK - scored.total),
+          },
         }
       : null,
   };

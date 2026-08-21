@@ -15,6 +15,7 @@
   var MAX_NICK = 18;
   var MAX_SOCKETS = 80;
   var MAX_TEXT_LINKED = 280;
+  var MAX_TEXT_HOLDER = 500;
   var FULL_RETRY_MS = 20000;
   var LINK_HOSTS = {
     'www.getdasha.com': 1,
@@ -37,6 +38,14 @@
     'www.github.com': 1,
   };
 
+  function withTimeout(p, ms) {
+    return Promise.race([
+      p,
+      new Promise(function (_, rej) {
+        setTimeout(function () { rej(new Error('copy-timeout')); }, ms);
+      }),
+    ]);
+  }
   function el(tag, cls, text) {
     var n = document.createElement(tag);
     if (cls) n.className = cls;
@@ -46,7 +55,10 @@
 
   function timeLabel(ts) {
     try {
-      return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      var date = new Date(ts);
+      return date.toLocaleString([], date.toDateString() === new Date().toDateString()
+        ? { hour: '2-digit', minute: '2-digit' }
+        : { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     } catch (e) {
       return '';
     }
@@ -93,23 +105,38 @@
   function fillBody(node, text) {
     node.textContent = '';
     var s = String(text || '');
-    var re = /https?:\/\/[^\s<>"']+/gi;
+    /* URLs first, then @handle mentions. Mentions are display-only links to x.com — this is never
+       a write/notify path — and the prefix (line start, space or paren) stays plain text. */
+    var re = /(https?:\/\/[^\s<>"']+)|(^|[\s(])@([A-Za-z0-9_]{1,15}\b)/gi;
     var last = 0;
     var m;
     while ((m = re.exec(s))) {
+      var url = m[1];
+      var prefix = m[2];
+      var handle = m[3];
       if (m.index > last) node.appendChild(document.createTextNode(s.slice(last, m.index)));
-      var url = m[0];
-      if (linkOk(url)) {
-        var a = document.createElement('a');
-        a.href = url;
-        a.textContent = url;
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        node.appendChild(a);
-      } else {
-        node.appendChild(document.createTextNode(url));
+      if (url) {
+        if (linkOk(url)) {
+          var a = document.createElement('a');
+          a.href = url;
+          a.textContent = url;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          node.appendChild(a);
+        } else {
+          node.appendChild(document.createTextNode(url));
+        }
+        last = m.index + url.length;
+      } else if (handle) {
+        if (prefix) node.appendChild(document.createTextNode(prefix));
+        var ma = document.createElement('a');
+        ma.href = 'https://x.com/' + handle;
+        ma.textContent = '@' + handle;
+        ma.target = '_blank';
+        ma.rel = 'noopener noreferrer';
+        node.appendChild(ma);
+        last = m.index + m[0].length;
       }
-      last = m.index + url.length;
     }
     if (last < s.length) node.appendChild(document.createTextNode(s.slice(last)));
   }
@@ -124,12 +151,18 @@
     }
   }
 
-  function forumThreadUrl(id) {
-    return 'https://lobby.getdasha.com/forum?t=' + encodeURIComponent(id);
+  function openXPopup(base) {
+    return window.open(base.replace(/\/$/, '') + '/oauth/x/start', 'dasha_x', 'width=520,height=700');
   }
 
-  function linkCopiedOk(got, want) {
-    return String(got || '').replace(/\s+/g, '') === String(want || '');
+  function holderBadge(context) {
+    var badge = el('span', 'lobby-holder-badge', '$dasha holder');
+    badge.title = context === 'post' ? 'Holder proof was current when posted' : 'Holder proof current when sent';
+    return badge;
+  }
+
+  function forumThreadUrl(id) {
+    return 'https://www.getdasha.com/lobby?t=' + encodeURIComponent(id);
   }
 
   function readThreadQuery() {
@@ -137,6 +170,26 @@
       return String(new URLSearchParams(location.search).get('t') || '').trim();
     } catch (e) {
       return '';
+    }
+  }
+
+  function takeNewThreadHash() {
+    try {
+      var params = new URLSearchParams(location.hash.slice(1));
+      if (params.get('new') !== '1') return null;
+      var draft = {
+        title: String(params.get('title') || '').slice(0, 80),
+        body: String(params.get('body') || '').slice(0, 2000),
+      };
+      params.delete('new');
+      params.delete('title');
+      params.delete('body');
+      var u = new URL(location.href);
+      u.hash = params.toString();
+      history.replaceState(null, '', u.pathname + u.search + u.hash);
+      return draft;
+    } catch (e) {
+      return null;
     }
   }
 
@@ -170,6 +223,43 @@
     var lastQuery = '';
     var pendingQuote = null;
     var say = function (msg) { status.textContent = msg || ''; };
+    function seenKey() { return 'dasha-forum-seen:' + (meHandle || 'guest'); }
+    function seenMap() {
+      try { return JSON.parse(localStorage.getItem(seenKey()) || '{}'); } catch (e) { return {}; }
+    }
+    function markSeen(id, ts) {
+      try {
+        var seen = seenMap();
+        seen[id] = Number(ts) || Date.now();
+        localStorage.setItem(seenKey(), JSON.stringify(seen));
+      } catch (e) {}
+    }
+    function draftKey(scope) {
+      return 'dasha-forum-draft:' + (meHandle || 'linked') + ':' + encodeURIComponent(String(scope || '').slice(0, 80));
+    }
+    function readDraft(key) {
+      try {
+        var value = JSON.parse(sessionStorage.getItem(key) || '{}');
+        var quote = value.quote && value.quote.id ? {
+          id: String(value.quote.id).slice(0, 48),
+          handle: String(value.quote.handle || '').slice(0, 15),
+          text: String(value.quote.text || '').slice(0, 140),
+        } : null;
+        return {
+          title: String(value.title || '').slice(0, 80),
+          body: String(value.body || '').slice(0, 2000),
+          quote: quote,
+        };
+      } catch (e) { return { title: '', body: '', quote: null }; }
+    }
+    function saveDraft(key, title, body, quote) {
+      try {
+        var value = { title: String(title || '').slice(0, 80), body: String(body || '').slice(0, 2000) };
+        if (quote && quote.id) value.quote = { id: String(quote.id).slice(0, 48), handle: String(quote.handle || '').slice(0, 15), text: String(quote.text || '').slice(0, 140) };
+        if (!value.title && !value.body && !value.quote) sessionStorage.removeItem(key);
+        else sessionStorage.setItem(key, JSON.stringify(value));
+      } catch (e) {}
+    }
     var base = originFromWs(root.getAttribute('data-forum-api') || root.getAttribute('data-lobby-url') || DEFAULT_WS);
     var api = function (path, opts) {
       return fetch(base + path, Object.assign({
@@ -195,61 +285,266 @@
       wrap.appendChild(input);
       return { wrap: wrap, input: input };
     }
-    function copyLink(id) {
+    function shareLink(id, title) {
       var b = el('button', 'df-back df-copy');
       b.type = 'button';
-      b.textContent = 'Copy link';
-      b.addEventListener('click', function () {
-        var want = forumThreadUrl(id);
-        var label = b.textContent;
-        var done = function (text) {
-          b.textContent = text;
-          setTimeout(function () { b.textContent = label; }, 1800);
-        };
-        if (!navigator.clipboard || !navigator.clipboard.writeText) {
-          done('Select');
-          return;
-        }
-        navigator.clipboard.writeText(want).then(function () {
-          if (!navigator.clipboard.readText) {
-            done('Copied');
-            return;
+      b.textContent = 'Share';
+      var idleLabel = b.textContent;
+      var want = forumThreadUrl(id);
+      var card = null;
+      var image = 'https://www.getdasha.com/lobby/card/' + encodeURIComponent(id) + '.png';
+      if (navigator.share && navigator.canShare && typeof File === 'function') {
+        fetch(image, { cache: 'force-cache' }).then(function (r) {
+          if (!r.ok) throw new Error('card');
+          return r.blob();
+        }).then(function (blob) {
+          if (blob.type === 'image/png' && blob.size > 0 && blob.size <= 1000000) {
+            var name = String(id).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40) || 'thread';
+            card = new File([blob], 'dasha-thread-' + name + '.png', { type: 'image/png' });
           }
-          return navigator.clipboard.readText().then(function (got) {
-            done(linkCopiedOk(got, want) ? 'Copied' : 'Select');
-          });
-        }).catch(function () { done('Select'); });
+        }).catch(function () {});
+      }
+      function manual() {
+        var input = b.parentNode && b.parentNode.querySelector('.df-share-link');
+        if (!input && b.parentNode) {
+          input = document.createElement('input');
+          input.className = 'df-share-link';
+          input.type = 'url';
+          input.readOnly = true;
+          input.value = want;
+          input.setAttribute('aria-label', 'Thread link');
+          b.parentNode.appendChild(input);
+        }
+        if (input) { input.focus(); input.select(); }
+        done('Select link');
+      }
+      function copy() {
+        if (!navigator.clipboard || !navigator.clipboard.writeText) {
+          manual();
+          return Promise.resolve();
+        }
+        return withTimeout(navigator.clipboard.writeText(want), 800).then(function () {
+          done('Copied');
+        }).catch(manual);
+      }
+      function done(text) {
+        b.textContent = text;
+        setTimeout(function () { b.textContent = idleLabel; }, 1800);
+      }
+      b.addEventListener('click', function () {
+        if (!navigator.share) { copy(); return; }
+        b.disabled = true;
+        var shared;
+        var payload = { title: String(title || 'Dasha thread'), url: want };
+        try {
+          if (card && navigator.canShare({ files: [card] })) payload.files = [card];
+          shared = navigator.share(payload);
+        }
+        catch (e) { shared = Promise.reject(e); }
+        Promise.resolve(shared).then(function () { done('Shared'); }).catch(function (e) {
+          if (!e || e.name !== 'AbortError') return copy();
+        }).finally(function () { b.disabled = false; });
       });
       return b;
     }
+    function forumAvatar(url, cls) {
+      var img = el('img', cls || 'df-avatar');
+      img.alt = '';
+      img.loading = 'lazy';
+      img.referrerPolicy = 'no-referrer';
+      if (url && avatarOk(url)) img.src = url;
+      return img;
+    }
+    function forumAuthor(handle, profileUrl) {
+      var value = String(handle || '');
+      if (!/^[A-Za-z0-9_]{1,15}$/.test(value)) return document.createTextNode('@' + value);
+      var canonical = 'https://www.getdasha.com/simp/u/' + value.toLowerCase();
+      var internal = String(profileUrl || '') === canonical;
+      var link = el('a', 'df-author', '@' + value);
+      link.href = internal ? canonical : 'https://x.com/' + value;
+      if (!internal) {
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer nofollow ugc';
+      }
+      return link;
+    }
+    function startEdit(art, p, threadId) {
+      var old = art.querySelector('.df-editform');
+      if (old) old.remove();
+      var form = el('form', 'df-editform');
+      var ta = document.createElement('textarea');
+      ta.rows = 3;
+      ta.maxLength = 2000;
+      ta.value = p.text || '';
+      ta.setAttribute('aria-label', 'Edit post');
+      form.appendChild(ta);
+      var row = el('div', 'df-tools');
+      var save = el('button', 'df-send');
+      save.type = 'submit';
+      save.textContent = 'Save';
+      var cancel = el('button', 'df-back');
+      cancel.type = 'button';
+      cancel.textContent = 'Cancel';
+      cancel.addEventListener('click', function () { openThread(threadId); });
+      row.appendChild(save);
+      row.appendChild(cancel);
+      form.appendChild(row);
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        save.disabled = true;
+        api('/forum/thread/' + encodeURIComponent(threadId) + '/post/' + encodeURIComponent(p.id), {
+          method: 'PATCH',
+          body: JSON.stringify({ text: ta.value }),
+        }).then(function (r) {
+          if (r.status === 200 && r.body.ok) openThread(threadId);
+          else { save.disabled = false; say(failWrite(r)); }
+        }).catch(function () { save.disabled = false; say('Network error.'); });
+      });
+      art.appendChild(form);
+      ta.focus();
+    }
+    function startDelete(tools, p, threadId) {
+      var old = tools.querySelector('.df-delete-confirm');
+      if (old) old.remove();
+      var wrap = el('div', 'df-tools df-delete-confirm');
+      var confirm = el('button', 'df-send');
+      confirm.type = 'button';
+      confirm.textContent = 'Confirm';
+      confirm.addEventListener('click', function () {
+        confirm.disabled = true;
+        api('/forum/thread/' + encodeURIComponent(threadId) + '/post/' + encodeURIComponent(p.id), {
+          method: 'DELETE',
+        }).then(function (r) {
+          if (r.status === 200 && r.body.ok) openThread(threadId);
+          else { confirm.disabled = false; say(failWrite(r)); }
+        }).catch(function () { confirm.disabled = false; say('Network error.'); });
+      });
+      var cancel = el('button', 'df-back');
+      cancel.type = 'button';
+      cancel.textContent = 'Keep';
+      cancel.addEventListener('click', function () { wrap.remove(); });
+      wrap.appendChild(confirm);
+      wrap.appendChild(cancel);
+      tools.appendChild(wrap);
+    }
+    function startReport(art, p, threadId) {
+      var old = art.querySelector('.df-report-form');
+      if (old) old.remove();
+      var form = el('form', 'df-report-form');
+      var sel = document.createElement('select');
+      sel.setAttribute('aria-label', 'Report reason');
+      ['scam', 'spam', 'harassment', 'off-topic'].forEach(function (r) {
+        var o = document.createElement('option');
+        o.value = r;
+        o.textContent = r;
+        sel.appendChild(o);
+      });
+      form.appendChild(sel);
+      var send = el('button', 'df-send');
+      send.type = 'submit';
+      send.textContent = 'Send';
+      var cancel = el('button', 'df-back');
+      cancel.type = 'button';
+      cancel.textContent = 'Cancel';
+      cancel.addEventListener('click', function () { form.remove(); });
+      form.appendChild(send);
+      form.appendChild(cancel);
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        send.disabled = true;
+        api('/forum/thread/' + encodeURIComponent(threadId) + '/report', {
+          method: 'POST',
+          body: JSON.stringify({ postId: p.id, reason: sel.value }),
+        }).then(function (r) {
+          if (r.status === 200 && r.body.ok) { form.remove(); say('Reported.'); }
+          else { send.disabled = false; say(failWrite(r)); }
+        }).catch(function () { send.disabled = false; say('Network error.'); });
+      });
+      art.appendChild(form);
+      sel.focus();
+    }
     function threadRow(t) {
       var row = el('article', 'df-row');
-      var btn = el('button', 'df-open');
-      btn.type = 'button';
+      var unread = Number(t.lastTs || t.ts) > Number(seenMap()[t.id] || 0);
+      row.appendChild(forumAvatar(t.avatar));
+      var main = el('div', 'df-row-main');
+      var btn = el('a', 'df-open');
+      btn.href = forumThreadUrl(t.id);
       btn.textContent = t.title;
-      btn.addEventListener('click', function () { openThread(t.id); });
-      var meta = el('p', 'df-meta', '@' + t.handle + ' · ' + (t.replies || 0) + (t.replies === 1 ? ' reply' : ' replies') + ' · ' + timeLabel(t.lastTs || t.ts) + (t.locked ? ' · locked' : ''));
-      row.appendChild(btn);
-      row.appendChild(meta);
+      btn.addEventListener('click', function (e) {
+        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        openThread(t.id);
+      });
+      var meta = el('p', 'df-meta');
+      meta.appendChild(forumAuthor(t.handle, t.simpUrl));
+      meta.appendChild(document.createTextNode(' · ' + (t.replies || 0) + (t.replies === 1 ? ' reply' : ' replies') + (t.reactions ? ' · ♥ ' + t.reactions : '') + ' · ' + timeLabel(t.lastTs || t.ts) + (t.locked ? ' · locked' : '')));
+      if (t.holder) meta.appendChild(holderBadge('post'));
+      main.appendChild(btn);
+      main.appendChild(meta);
+      if (t.snippet) main.appendChild(el('p', 'df-snippet', String(t.snippet).slice(0, 180)));
+      row.appendChild(main);
+      if (unread) row.appendChild(el('span', 'df-new', 'NEW'));
       return row;
     }
-    function postRow(p, threadId) {
+    function postRow(p, threadId, isNew) {
       var art = el('article', 'df-post');
-      var meta = '@' + p.handle + ' · ' + timeLabel(p.ts);
-      if (p.editedAt) meta += ' · edited';
-      art.appendChild(el('p', 'df-meta', meta));
+      art.id = 'post-' + p.id;
+      var meta = el('p', 'df-meta');
+      meta.appendChild(forumAvatar(p.avatar));
+      meta.appendChild(forumAuthor(p.handle, p.simpUrl));
+      meta.appendChild(document.createTextNode(' · '));
+      var permalink = el('a', 'df-post-link', timeLabel(p.ts));
+      permalink.href = forumThreadUrl(threadId) + '#' + art.id;
+      permalink.setAttribute('aria-label', 'Post permalink');
+      meta.appendChild(permalink);
+      if (p.editedAt) meta.appendChild(document.createTextNode(' · edited'));
+      if (p.holder) meta.appendChild(holderBadge('post'));
+      if (isNew) meta.appendChild(el('span', 'df-new', 'NEW'));
+      art.appendChild(meta);
       var body = el('p', 'df-body');
       if (p.deleted) body.textContent = 'deleted';
       else fillBody(body, p.text);
       art.appendChild(body);
       if (!p.deleted && p.quote && p.quote.id) {
         var quote = el('blockquote', 'df-quote');
-        quote.appendChild(el('span', 'df-quote-handle', '@' + (p.quote.handle || '')));
+        var quoteHandle = el(/^[A-Za-z0-9_-]{1,48}$/.test(p.quote.id) ? 'a' : 'span', 'df-quote-handle', '@' + (p.quote.handle || ''));
+        if (quoteHandle.tagName === 'A') {
+          quoteHandle.href = forumThreadUrl(threadId) + '#post-' + p.quote.id;
+          quoteHandle.setAttribute('aria-label', 'View quoted post by @' + (p.quote.handle || ''));
+        }
+        quote.appendChild(quoteHandle);
         quote.appendChild(document.createTextNode(' ' + (p.quote.text || '')));
         art.appendChild(quote);
       }
+      if (!linked && Number(p.reactionCount) > 0) {
+        meta.appendChild(document.createTextNode(' · ♥ ' + Number(p.reactionCount)));
+      }
       if (linked && !p.deleted) {
         var tools = el('div', 'df-tools');
+        var love = el('button', 'df-back df-react', '♥ ' + (Number(p.reactionCount) || 0));
+        love.type = 'button';
+        love.setAttribute('aria-pressed', p.reacted ? 'true' : 'false');
+        love.setAttribute('aria-label', (p.reacted ? 'Remove love' : 'Love this post') + ' · ' + (Number(p.reactionCount) || 0));
+        love.addEventListener('click', function () {
+          love.disabled = true;
+          api('/forum/thread/' + encodeURIComponent(threadId) + '/post/' + encodeURIComponent(p.id) + '/react', {
+            method: 'POST', body: JSON.stringify({ active: !p.reacted }),
+          }).then(function (r) {
+            if (r.status !== 200 || !r.body.ok) throw new Error(failWrite(r));
+            p.reactionCount = Number(r.body.reactionCount) || 0;
+            p.reacted = r.body.reacted === true;
+            love.textContent = '♥ ' + p.reactionCount;
+            love.setAttribute('aria-pressed', p.reacted ? 'true' : 'false');
+            love.setAttribute('aria-label', (p.reacted ? 'Remove love' : 'Love this post') + ' · ' + p.reactionCount);
+            love.disabled = false;
+            say(p.reacted ? 'Loved.' : 'Love removed.');
+          }).catch(function (error) {
+            love.disabled = false;
+            say(error && error.message || 'Could not react.');
+          });
+        });
+        tools.appendChild(love);
         var reply = el('button', 'df-back');
         reply.type = 'button';
         reply.textContent = 'Reply';
@@ -262,62 +557,47 @@
           var ed = el('button', 'df-back');
           ed.type = 'button';
           ed.textContent = 'Edit';
-          ed.addEventListener('click', function () {
-            var next = window.prompt('Edit post', p.text || '');
-            if (next == null) return;
-            api('/forum/thread/' + encodeURIComponent(threadId) + '/post/' + encodeURIComponent(p.id), {
-              method: 'PATCH',
-              body: JSON.stringify({ text: next }),
-            }).then(function (r) {
-              if (r.status === 200 && r.body.ok) openThread(threadId);
-              else say(failWrite(r));
-            }).catch(function () { say('Network error.'); });
-          });
+          ed.addEventListener('click', function () { startEdit(art, p, threadId); });
           var del = el('button', 'df-back');
           del.type = 'button';
           del.textContent = 'Delete';
-          del.addEventListener('click', function () {
-            if (!window.confirm('Delete this reply?')) return;
-            api('/forum/thread/' + encodeURIComponent(threadId) + '/post/' + encodeURIComponent(p.id), {
-              method: 'DELETE',
-            }).then(function (r) {
-              if (r.status === 200 && r.body.ok) openThread(threadId);
-              else say(failWrite(r));
-            }).catch(function () { say('Network error.'); });
-          });
+          del.addEventListener('click', function () { startDelete(tools, p, threadId); });
           tools.appendChild(ed);
           tools.appendChild(del);
         } else {
           var report = el('button', 'df-back');
           report.type = 'button';
           report.textContent = 'Report';
-          report.addEventListener('click', function () {
-            var reason = window.prompt('Report as: scam, spam, harassment, or off-topic');
-            if (!reason) return;
-            api('/forum/thread/' + encodeURIComponent(threadId) + '/report', {
-              method: 'POST',
-              body: JSON.stringify({ postId: p.id, reason: String(reason).trim().toLowerCase() }),
-            }).then(function (r) {
-              say(r.status === 200 && r.body.ok ? 'Reported.' : failWrite(r));
-            }).catch(function () { say('Network error.'); });
-          });
+          report.addEventListener('click', function () { startReport(art, p, threadId); });
           tools.appendChild(report);
         }
         art.appendChild(tools);
       }
       return art;
     }
-    function composer(onSend, withTitle) {
+    function composer(onSend, withTitle, scope) {
       var form = el('form', 'df-composer');
+      var key = draftKey(scope);
+      var saved = readDraft(key);
+      var incoming = withTitle ? takeNewThreadHash() : null;
+      if (incoming && !saved.title && !saved.body) {
+        saved = incoming;
+        saveDraft(key, saved.title, saved.body, null);
+      }
       var title = withTitle
-        ? field('Title', 'input', { type: 'text', maxlength: '80', required: 'required', placeholder: 'What is this about?' })
+        ? field('Title', 'input', { type: 'text', maxlength: '80', required: 'required', placeholder: 'Say hi or pitch one thing' })
         : null;
       var body = field(withTitle ? 'First post' : 'Your reply', 'textarea', {
         rows: '4',
         maxlength: '2000',
         required: 'required',
-        placeholder: 'Say it plainly.',
+        placeholder: withTitle ? 'What should Dasha make, fix, or explain?' : 'Say it plainly.',
       });
+      if (title) title.input.value = saved.title;
+      body.input.value = saved.body;
+      function remember() { saveDraft(key, title ? title.input.value : '', body.input.value, withTitle ? null : pendingQuote); }
+      if (title) title.input.addEventListener('input', remember);
+      body.input.addEventListener('input', remember);
       if (title) form.appendChild(title.wrap);
       form.appendChild(body.wrap);
       var send = el('button', 'df-send');
@@ -331,6 +611,7 @@
         onSend(title ? title.input.value : null, body.input.value, function (ok, err) {
           send.disabled = false;
           if (ok) {
+            saveDraft(key, '', '', null);
             if (title) title.input.value = '';
             body.input.value = '';
             say('');
@@ -347,6 +628,10 @@
       var old = view.querySelector('.df-reply-wrap');
       if (old) old.remove();
       var wrap = el('div', 'df-reply-wrap');
+      var key = draftKey('reply:' + id);
+      var saved = readDraft(key);
+      if (!pendingQuote && saved.quote) pendingQuote = saved.quote;
+      if (pendingQuote) saveDraft(key, '', saved.body, pendingQuote);
       if (pendingQuote) {
         var chip = el('div', 'df-quote-chip');
         chip.setAttribute('role', 'status');
@@ -357,6 +642,8 @@
         dismiss.setAttribute('aria-label', 'Remove quote');
         dismiss.addEventListener('click', function () {
           pendingQuote = null;
+          var textarea = wrap.querySelector('textarea');
+          saveDraft(key, '', textarea ? textarea.value : saved.body, null);
           renderReplyComposer(id);
         });
         chip.appendChild(dismiss);
@@ -374,23 +661,29 @@
             } else done(false, failWrite(rr));
           })
           .catch(function () { done(false, 'Network error.'); });
-      }, false);
+      }, false, 'reply:' + id);
       wrap.appendChild(form);
       view.appendChild(wrap);
       var ta = form.querySelector('textarea');
       if (ta) ta.focus();
     }
-    function renderList(threads, q) {
+    function renderList(threads, q, next) {
       view.innerHTML = '';
       var head = el('div', 'df-head');
       head.appendChild(el('h2', 'df-title', 'Forum'));
-      head.appendChild(el(
+      var note = el(
         'p',
         'df-note',
         linked
-          ? 'Official room. No Telegram. No Discord. Threads stay; chat below scrolls away.'
-          : 'Official room. No Telegram. No Discord. Read freely. Link X in the lobby to post.',
-      ));
+          ? 'Start a thread. Chat is for now. · '
+          : 'Read freely. Link X to post. · ',
+      );
+      var feed = el('a', 'df-feed', 'RSS');
+      feed.href = 'https://www.getdasha.com/lobby/feed.xml';
+      feed.type = 'application/rss+xml';
+      feed.setAttribute('aria-label', 'Subscribe to public forum threads with RSS');
+      note.appendChild(feed);
+      head.appendChild(note);
       view.appendChild(head);
       var search = el('form', 'df-composer df-search');
       var qf = field('Search', 'input', { type: 'search', maxlength: '80', placeholder: 'Title or handle' });
@@ -404,7 +697,7 @@
         e.preventDefault();
         load(qf.input.value);
       });
-      view.appendChild(search);
+      if (threads.length || q) view.appendChild(search);
       if (linked) {
         view.appendChild(composer(function (title, text, done) {
           api('/forum/threads', { method: 'POST', body: JSON.stringify({ title: title, text: text }) })
@@ -415,13 +708,51 @@
               } else done(false, failWrite(r));
             })
             .catch(function () { done(false, 'Network error.'); });
-        }, true));
+        }, true, 'new-thread'));
       }
       var list = el('div', 'df-list');
+      var seen = seenMap();
+      var unread = threads.filter(function (t) { return Number(t.lastTs || t.ts) > Number(seen[t.id] || 0); }).length;
+      if (unread) list.appendChild(el('p', 'df-newcount', unread + (unread === 1 ? ' new thread' : ' new threads')));
       if (!threads.length) {
-        list.appendChild(el('p', 'df-empty', q ? 'Nothing matches that search.' : 'No threads yet. Start the first one.'));
+        list.appendChild(el('p', 'df-empty', q ? 'Nothing matches that search.' : linked ? 'Start the first thread: meme, question, or build idea.' : 'No threads yet.'));
+        if (!q && !linked) {
+          var linkX = el('button', 'df-send', 'Link X to start one');
+          linkX.type = 'button';
+          linkX.addEventListener('click', function () {
+            if (!openXPopup(base)) say('Allow popups to link X.');
+          });
+          list.appendChild(linkX);
+        }
       }
       for (var i = 0; i < threads.length; i++) list.appendChild(threadRow(threads[i]));
+      if (next) {
+        var more = el('button', 'df-back df-more', 'Load more');
+        more.type = 'button';
+        more.addEventListener('click', function () {
+          more.disabled = true;
+          more.textContent = 'Loading…';
+          var params = new URLSearchParams();
+          if (q) params.set('q', q);
+          params.set('cursor', next);
+          api('/forum/threads?' + params.toString()).then(function (r) {
+            if (r.status !== 200 || !r.body || !Array.isArray(r.body.threads)) throw new Error('bad page');
+            var rows = r.body.threads;
+            for (var j = 0; j < rows.length; j++) list.insertBefore(threadRow(rows[j]), more);
+            next = r.body.next || '';
+            if (next) {
+              more.disabled = false;
+              more.textContent = 'Load more';
+            } else more.remove();
+            say(rows.length + (rows.length === 1 ? ' more thread loaded.' : ' more threads loaded.'));
+          }).catch(function () {
+            more.disabled = false;
+            more.textContent = 'Try again';
+            say('Could not load more threads.');
+          });
+        });
+        list.appendChild(more);
+      }
       view.appendChild(list);
     }
     function openThread(id) {
@@ -446,17 +777,30 @@
           load(lastQuery);
         });
         bar.appendChild(back);
-        bar.appendChild(copyLink(id));
+        bar.appendChild(shareLink(id, r.body.thread.title));
         view.appendChild(bar);
         view.appendChild(el('h2', 'df-title', r.body.thread.title));
         var posts = el('div', 'df-posts');
         var rows = r.body.posts || [];
-        for (var i = 0; i < rows.length; i++) posts.appendChild(postRow(rows[i], id));
+        var previousSeen = Number(seenMap()[id] || 0);
+        var newRows = previousSeen ? rows.filter(function (p) { return !p.deleted && Number(p.ts) > previousSeen; }) : [];
+        var newCount = newRows.length;
+        markSeen(id, rows.length ? rows[rows.length - 1].ts : Date.now());
+        if (newCount) {
+          var jump = el('a', 'df-newcount', newCount + (newCount === 1 ? ' new post' : ' new posts'));
+          jump.href = '#post-' + newRows[0].id;
+          view.appendChild(jump);
+        }
+        for (var i = 0; i < rows.length; i++) posts.appendChild(postRow(rows[i], id, previousSeen && !rows[i].deleted && Number(rows[i].ts) > previousSeen));
         view.appendChild(posts);
         if (r.body.thread && r.body.thread.locked) {
           view.appendChild(el('p', 'df-empty', 'This thread is locked.'));
         } else if (linked) {
           renderReplyComposer(id);
+        }
+        if (/^#post-[A-Za-z0-9_-]{1,48}$/.test(location.hash)) {
+          var target = document.getElementById(location.hash.slice(1));
+          if (target) { target.tabIndex = -1; target.focus(); }
         }
       }).catch(function () { say('Could not load that thread.'); });
     }
@@ -474,15 +818,26 @@
           return api('/forum/threads' + qs);
         })
         .then(function (r) {
+          if (r.status !== 200 || !r.body || !Array.isArray(r.body.threads)) throw new Error('bad thread list');
           say('');
-          renderList(r && r.body && r.body.threads ? r.body.threads : [], lastQuery);
+          renderList(r.body.threads, lastQuery, r.body.next);
           var want = readThreadQuery();
           if (want) openThread(want);
         })
         .catch(function () { say('Forum is unreachable right now. Chat still works.'); });
     }
+    function onXLinkedMessage(ev) {
+      if (!ev || !ev.data || ev.data.type !== 'dasha-x-linked') return;
+      if (ev.origin !== 'https://lobby.getdasha.com' && ev.origin !== base) return;
+      load(lastQuery);
+    }
+    window.addEventListener('message', onXLinkedMessage);
     load();
-    return { reload: load, open: openThread };
+    return {
+      reload: load,
+      open: openThread,
+      destroy: function () { window.removeEventListener('message', onXLinkedMessage); },
+    };
   }
 
   function mount(root, opts) {
@@ -547,6 +902,7 @@
     status.setAttribute('aria-live', 'polite');
 
     var log = el('div', 'lobby-log');
+    log.tabIndex = -1;
     log.setAttribute('role', 'log');
     log.setAttribute('aria-live', 'polite');
     log.setAttribute('aria-relevant', 'additions');
@@ -556,7 +912,9 @@
       emptyStyle.id = 'dasha-lobby-empty-style';
       emptyStyle.textContent =
         '.lobby-empty{display:grid;gap:10px;justify-items:center;margin:auto;padding:28px 14px;text-align:center;color:var(--muted,#e6dcc4)}' +
-        '.lobby-empty-title{margin:0;color:var(--paper,#f4eddb);font-size:18px;font-weight:950;letter-spacing:.02em}';
+        '.lobby-empty-title{margin:0;color:var(--paper,#f4eddb);font-size:18px;font-weight:950;letter-spacing:.02em}' +
+        '.lobby-latest{align-self:center;min-height:44px;padding:0 16px;border:1px solid var(--acid,#dfff00);border-radius:999px;background:var(--acid,#dfff00);color:var(--ink,#070608);font:800 13px/1 Arial,sans-serif;cursor:pointer}' +
+        '.lobby-latest[hidden]{display:none}';
       document.head.appendChild(emptyStyle);
     }
     function makeEmptyState() {
@@ -565,6 +923,25 @@
       return wrap;
     }
     log.appendChild(makeEmptyState());
+
+    var newMessageCount = 0;
+    var latest = el('button', 'lobby-latest');
+    latest.type = 'button';
+    latest.hidden = true;
+    function atLatest() {
+      return log.scrollHeight - log.scrollTop - log.clientHeight <= 40;
+    }
+    function clearNewMessages() {
+      newMessageCount = 0;
+      latest.hidden = true;
+    }
+    function jumpToLatest() {
+      log.scrollTop = log.scrollHeight;
+      log.focus();
+      clearNewMessages();
+    }
+    latest.addEventListener('click', jumpToLatest);
+    log.addEventListener('scroll', function () { if (atLatest()) clearNewMessages(); });
 
     var form = el('form', 'lobby-form');
     form.setAttribute('autocomplete', 'off');
@@ -610,6 +987,7 @@
     root.appendChild(tools);
     root.appendChild(status);
     root.appendChild(log);
+    root.appendChild(latest);
     root.appendChild(form);
 
     var ws = null;
@@ -621,15 +999,33 @@
     var coolTimer = null;
     var coolUntil = 0;
     var linked = false;
+    var holder = false;
     var linkedHandle = null;
     var linkedAvatar = null;
     var xConfigured = false;
     var maxTextNow = MAX_TEXT;
+    var serverMaxText = null;
     var lastActivity = Date.now();
     var idleTimer = null;
     var IDLE_MS = 20 * 60 * 1000;
     var pendingText = null;
     var expanded = false;
+    var LOBBY_DRAFT_KEY = 'dasha-lobby-draft';
+    var savedDraft = '';
+    try { savedDraft = String(sessionStorage.getItem(LOBBY_DRAFT_KEY) || '').slice(0, MAX_TEXT_HOLDER); } catch (e) {}
+
+    function saveLobbyDraft(text) {
+      savedDraft = String(text || '').slice(0, MAX_TEXT_HOLDER);
+      try {
+        if (savedDraft) sessionStorage.setItem(LOBBY_DRAFT_KEY, savedDraft);
+        else sessionStorage.removeItem(LOBBY_DRAFT_KEY);
+      } catch (e) {}
+    }
+
+    function restoreLobbyDraft() {
+      if (!savedDraft || (textIn.value && textIn.value !== savedDraft.slice(0, textIn.value.length))) return;
+      textIn.value = savedDraft.slice(0, maxTextNow);
+    }
 
     function paintPresence(data) {
       if (!data) {
@@ -684,9 +1080,16 @@
       }
     }
 
+    function applyServerPerks(perks) {
+      holder = Boolean(linked && perks && perks.holder);
+      var max = Number(perks && perks.maxText);
+      serverMaxText = Number.isInteger(max) && max >= MAX_TEXT && max <= MAX_TEXT_HOLDER ? max : null;
+    }
+
     function applyLinkedUi() {
-      maxTextNow = linked ? MAX_TEXT_LINKED : MAX_TEXT;
+      maxTextNow = linked ? serverMaxText || MAX_TEXT_LINKED : MAX_TEXT;
       textIn.maxLength = maxTextNow;
+      restoreLobbyDraft();
       if (linked && linkedHandle) {
         nickIn.value = '@' + linkedHandle;
         nickIn.readOnly = true;
@@ -703,11 +1106,11 @@
         }
         xStatus.appendChild(document.createTextNode('@' + linkedHandle + ' · '));
         var boardA = document.createElement('a');
-        boardA.href = 'https://www.getdasha.com/#simp';
+        boardA.href = 'https://www.getdasha.com/simp';
         boardA.textContent = 'Simp Board';
-        boardA.style.cssText = 'color:#7ec8ff;font-weight:800;text-underline-offset:3px';
+        boardA.style.cssText = 'color:#dfff00;font-weight:800;text-underline-offset:3px';
         xStatus.appendChild(boardA);
-        xStatus.appendChild(document.createTextNode(' · longer chat'));
+        xStatus.appendChild(document.createTextNode(holder ? ' · 500-char holder chat' : ' · longer chat'));
         xBtn.hidden = true;
         xUnlink.hidden = false;
       } else {
@@ -743,6 +1146,8 @@
             linkedAvatar = data.x.avatar || null;
           } else {
             linked = false;
+            holder = false;
+            serverMaxText = null;
             linkedHandle = null;
             linkedAvatar = null;
           }
@@ -789,6 +1194,7 @@
       var text = pendingText;
       pendingText = null;
       ws.send(JSON.stringify({ type: 'chat', text: text }));
+      saveLobbyDraft('');
       setStatus('Sent', 'ok');
     }
 
@@ -819,6 +1225,7 @@
     }
 
     function addLine(kind, head, body, ts, extra) {
+      var follow = atLatest();
       clearEmpty();
       var row = el('div', 'lobby-line lobby-' + kind + (extra && extra.linked ? ' lobby-linked' : ''));
       var meta = el('span', 'lobby-meta');
@@ -848,6 +1255,9 @@
       } else {
         meta.appendChild(document.createTextNode(metaText));
       }
+      if (extra && extra.holder) {
+        meta.appendChild(holderBadge('chat'));
+      }
       row.appendChild(meta);
       var msg = el('span', 'lobby-body');
       if (kind === 'chat') fillBody(msg, body);
@@ -859,7 +1269,14 @@
         if (first) first.remove();
         else break;
       }
-      log.scrollTop = log.scrollHeight;
+      if (follow) {
+        log.scrollTop = log.scrollHeight;
+        clearNewMessages();
+      } else {
+        newMessageCount += 1;
+        latest.textContent = newMessageCount + (newMessageCount === 1 ? ' new message ↓' : ' new messages ↓');
+        latest.hidden = false;
+      }
     }
 
     function handle(data) {
@@ -870,8 +1287,9 @@
           linked = true;
           linkedHandle = data.x.handle;
           linkedAvatar = data.x.avatar || null;
-          applyLinkedUi();
         }
+        applyServerPerks(data.perks);
+        applyLinkedUi();
         if (typeof data.remaining === 'number' && typeof data.max === 'number') {
           presenceStrip.textContent = data.remaining + ' seats open · max ' + data.max;
         }
@@ -890,6 +1308,7 @@
       }
       if (data.type === 'history_clear') {
         log.innerHTML = '';
+        clearNewMessages();
         ensureEmpty();
         return;
       }
@@ -901,8 +1320,9 @@
           linked = true;
           linkedHandle = data.x.handle;
           linkedAvatar = data.x.avatar || null;
-          applyLinkedUi();
         }
+        applyServerPerks(data.perks);
+        applyLinkedUi();
         if (data.presence) paintPresence(data.presence);
         var count =
           (data.presence && data.presence.count) ||
@@ -934,6 +1354,7 @@
         }
         if (Array.isArray(data.history)) {
           log.innerHTML = '';
+          clearNewMessages();
           if (data.pin && data.pin.text) addLine('pin', 'PIN', data.pin.text, null);
           if (data.pin && data.pin.text) setPinText(data.pin.text);
           data.history.forEach(function (m) {
@@ -942,6 +1363,7 @@
                 linked: Boolean(m.linked),
                 handle: m.handle || null,
                 avatar: m.avatar || null,
+                holder: Boolean(m.holder),
               });
           });
           ensureEmpty();
@@ -954,6 +1376,7 @@
           linked: Boolean(data.linked),
           handle: data.handle || null,
           avatar: data.avatar || null,
+          holder: Boolean(data.holder),
         });
         return;
       }
@@ -1019,6 +1442,9 @@
       setStatus('Connecting…');
       ready = false;
       helloSent = false;
+      holder = false;
+      serverMaxText = null;
+      applyLinkedUi();
 
       var cap = capacityUrl();
       var startWs = function () {
@@ -1110,13 +1536,15 @@
         setStatus('X link not configured on server yet', 'warn');
         return;
       }
-      var w = window.open(httpBase() + '/oauth/x/start', 'dasha_x', 'width=520,height=700');
+      var w = openXPopup(httpBase());
       if (!w) setStatus('Allow popups to link X', 'warn');
     });
     xUnlink.addEventListener('click', function () {
       fetch(httpBase() + '/oauth/x/logout', { method: 'POST', credentials: 'include', mode: 'cors' })
         .then(function () {
           linked = false;
+          holder = false;
+          serverMaxText = null;
           linkedHandle = null;
           linkedAvatar = null;
           applyLinkedUi();
@@ -1192,6 +1620,7 @@
       }
       if (!text) return;
       ws.send(JSON.stringify({ type: 'chat', text: text }));
+      saveLobbyDraft('');
       textIn.value = '';
       paintCounts();
       textIn.focus();
@@ -1201,7 +1630,10 @@
       if (ws && ws.readyState === 1) sendHello();
     });
     nickIn.addEventListener('input', paintCounts);
-    textIn.addEventListener('input', paintCounts);
+    textIn.addEventListener('input', function () {
+      saveLobbyDraft(textIn.value);
+      paintCounts();
+    });
     paintCounts();
     applyLinkedUi();
     refreshXStatus();

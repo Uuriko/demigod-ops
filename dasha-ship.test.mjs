@@ -4,10 +4,18 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { executionViolations } from './dasha-audit-live.mjs';
+import {
+  executionViolations,
+  missingRequiredSitemapUrls,
+  retiredFontFamilies,
+  stylesheetUrls,
+} from './dasha-audit-live.mjs';
+import { scanBundleDir, secretLeakKinds } from './dasha-worker-leak-scan.mjs';
 
 const root = path.dirname(new URL(import.meta.url).pathname);
 const shipSource = fs.readFileSync(path.join(root, 'dasha-ship.mjs'), 'utf8');
+const deployGuardSource = fs.readFileSync(path.join(root, 'dasha-deploy-guard.mjs'), 'utf8');
+const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const browserGateSource = fs.readFileSync(path.join(root, 'dasha-browser-gate.mjs'), 'utf8');
 const deskShell = fs.readFileSync(path.join(root, 'dasha-desk-shell.html'), 'utf8');
 assert.match(deskShell, /dasha-skip-1:focus(?:-visible)?\{[^}]*left:12px[^}]*outline:3px/, 'Desk skip link must become visibly positioned on focus');
@@ -19,13 +27,45 @@ assert.match(shipSource, /scopeKeys/, 'scoped --only= ships must not restage eve
 assert.match(shipSource, /Graph → Bounties/, 'site-wide ship must repair the dead shared Graph navigation item');
 assert.match(shipSource, /bulk_update_pages/, 'site-wide ship must synchronize every release-owned page metadata record');
 assert.match(shipSource, /args\.has\('--no-prep'\)/, 'ship must honor --no-prep');
+assert.match(shipSource, /\.grok\/mcp_credentials\.json[\s\S]{0,500}token_received_at[\s\S]{0,300}expires_in/,
+  'ship must reuse a current Grok Webflow OAuth token when Claude and the cache are expired');
 assert.match(browserGateSource, /chromium\.launch[\s\S]*remote-debugging-port=9223/, 'CDP fallback must launch installed headless Chromium');
 assert.match(shipSource, /verify:broad/, 'broad live-audit result must be visible in release logs');
+assert.match(shipSource, /const receiptInputHash = hashes => digest\(\[\s*JSON\.stringify\(hashes\),\s*expectedLobbyAssets\(\),/,
+  'Worker asset drift must invalidate a cached gate receipt');
 assert.match(shipSource, /args\.has\('--worker-behind'\)[^\n]+\['--worker-behind'\]/,
   'split-tree ships must carry worker-behind into broad verification');
+assert.match(packageJson.scripts['dasha:lobby:deploy'], /--prefix \.grok\/worktrees\/potter\/dasha-2 run dasha:lobby:deploy/,
+  'root Worker deploy must route through the authoritative dasha-2 tree');
+assert.match(deployGuardSource, /deployHash !== rootHash/,
+  'Worker deploy must fail when root and dasha-2 asset hashes split');
+assert.match(deployGuardSource, /root and dasha-2 Worker sources differ/,
+  'Worker deploy must fail when root and dasha-2 source inputs split');
+assert.match(deployGuardSource, /dasha-studio-embed-build\.mjs', '--check/,
+  'Worker deploy must fail when the generated Studio loader/client are stale');
+assert.match(deployGuardSource, /WORKER_INPUTS[\s\S]*dasha-studio-embed-build\.mjs[\s\S]*dasha-meme-studio\.html/,
+  'Worker deploy must require the same canonical Studio and builder in root and dasha-2');
+assert.match(deployGuardSource, /dasha-lobby-wrangler\.deploy\.jsonc[\s\S]{0,500}DashaFaucet/,
+  'Worker deploy must retain the dasha-2 DashaFaucet migration guard');
+assert.match(deployGuardSource, /git', \['status', '--porcelain'[\s\S]{0,500}dasha-lobby-wrangler\.deploy\.jsonc/,
+  'Worker deploy must refuse uncommitted Wrangler config changes in both trees');
+assert.match(deployGuardSource, /dasha-worker-assets\/og\/grwm-loop\.mp4/,
+  'Worker deploy must require the correctly routed GRWM assets');
 const pinnedXConnect = '<script src="https://lobby.getdasha.com/client/x-connect.js" integrity="sha384-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" crossorigin="anonymous"></script>';
 assert.deepEqual(executionViolations(pinnedXConnect), [], 'SRI-pinned X connect is an allowed first-party client');
 assert.deepEqual(executionViolations(pinnedXConnect.replace(/ integrity="[^"]+"/, '')), ['https://lobby.getdasha.com/client/x-connect.js'], 'unpinned X connect stays blocked');
+const sitemapFixture = paths => `<urlset>${paths.map(path => `<url><loc>https://www.getdasha.com${path}</loc></url>`).join('')}</urlset>`;
+const requiredSitemapPaths = ['/', '/studio', '/dasha', '/bounties', '/how-to-buy', '/privacy'];
+assert.deepEqual(missingRequiredSitemapUrls(sitemapFixture(requiredSitemapPaths)), []);
+assert.deepEqual(missingRequiredSitemapUrls(sitemapFixture(requiredSitemapPaths.filter(path => path !== '/bounties'))),
+  ['https://www.getdasha.com/bounties'], 'a sitemap without Bounties must fail D14');
+assert.deepEqual(stylesheetUrls('<link href="/dasha.css" media="all" rel="preload stylesheet">', 'https://www.getdasha.com/dasha'),
+  ['https://www.getdasha.com/dasha.css']);
+assert.deepEqual(retiredFontFamilies('h1{font-family:Raleway,Exo}p{font-family:Arial}'), ['Exo', 'Raleway']);
+assert.deepEqual(retiredFontFamilies('body{font-family:Arial,Helvetica,sans-serif}'), []);
+assert.deepEqual(secretLeakKinds('client_secret: env.GITHUB_CLIENT_SECRET'), []);
+assert.deepEqual(secretLeakKinds(`const token = "ghp_${'a'.repeat(36)}"`), ['github-token']);
+assert.deepEqual(secretLeakKinds('client_secret:"not-a-real-client-secret"'), ['hardcoded-oauth-secret']);
 /* The homepage's second embed element belongs to another tree, which publishes the chess board into
    it. This tree once mapped it to a /lobby bridge; that bridge was retired and its file emptied, but
    the mapping stayed — and `detected` falls back to every surface whenever the manifest is not
@@ -44,11 +84,16 @@ assert.match(shipSource, /readbackDeadline\s*=\s*Date\.now\(\)\s*\+\s*(\d[\d_]*)
 assert.ok(Number(shipSource.match(/readbackDeadline\s*=\s*Date\.now\(\)\s*\+\s*(\d[\d_]*)/)[1].replace(/_/g, '')) >= 60_000,
   'embed readback deadline must allow at least 60s — /dasha has needed more than 12s');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dasha-ship-test-'));
+const secretBundle = path.join(tmp, 'secret-bundle');
+fs.mkdirSync(secretBundle);
+fs.writeFileSync(path.join(secretBundle, 'worker.js'), `const token="gho_${'b'.repeat(36)}"`);
+assert.deepEqual(scanBundleDir(secretBundle), [{ file: 'worker.js', kinds: ['github-token'] }]);
 const env = {
   ...process.env,
   DASHA_SHIP_FAKE_MCP: '1',
   DASHA_SHIP_FAKE_LIVE: '1',
   DASHA_SHIP_SKIP_BROWSER: '1',
+  DASHA_SHIP_FAKE_CONTRIBUTOR_GUIDE: 'Prepared Simp Points lane\nThis lane is not active yet; no current pull request earns Simp Points.',
   DASHA_SHIP_STATE: path.join(tmp, 'state.json'),
   DASHA_SHIP_MANIFEST: path.join(tmp, 'manifest.json'),
   DASHA_NOW_DOC: path.join(tmp, 'DASHA-NOW.md'),
@@ -72,8 +117,20 @@ function ship() {
 }
 
 try {
+  const staleGuide = spawnSync(process.execPath, ['dasha-ship.mjs', '--preflight'], {
+    cwd: root,
+    env: { ...env, DASHA_SHIP_STATE: path.join(tmp, 'stale-guide-state.json'), DASHA_SHIP_FAKE_CONTRIBUTOR_GUIDE: 'A merged pull request scores points.' },
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
+  assert.notEqual(staleGuide.status, 0, 'stale public contributor promises must fail preflight');
+  assert.match(staleGuide.stdout, /Public dasha-desk CONTRIBUTING still misstates/);
+
   const first = ship();
   assert.match(first, /"step":"preflight:pass"/);
+  assert.match(first, /"step":"preflight:contributor-guide:pass"/);
+  assert.ok(first.indexOf('preflight:contributor-guide:pass') < first.indexOf('preflight:lobby-assets:pass'),
+    'public contributor truth must pass before any Worker deployment can begin');
   assert.match(first, /"step":"preflight:lobby-assets:pass"/);
   assert.match(first, /"step":"push:surface"/);
   assert.match(first, /"step":"metadata:done"/);

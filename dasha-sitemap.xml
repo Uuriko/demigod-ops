@@ -24,6 +24,15 @@
     <loc>https://www.getdasha.com/dasha</loc>
   </url>
   <url>
+    <loc>https://www.getdasha.com/faucet</loc>
+  </url>
+  <url>
+    <loc>https://www.getdasha.com/bounties</loc>
+  </url>
+  <url>
+    <loc>https://www.getdasha.com/contribute</loc>
+  </url>
+  <url>
     <loc>https://www.getdasha.com/how-to-buy</loc>
   </url>
   <url>
@@ -36,8 +45,13 @@
   <url>
     <loc>https://www.getdasha.com/chess</loc>
   </url>
-  <!-- Forum is Worker-hosted. Canonical is lobby; home footer links this URL. -->
   <url>
-    <loc>https://lobby.getdasha.com/forum</loc>
+    <loc>https://www.getdasha.com/which</loc>
+  </url>
+  <url>
+    <loc>https://www.getdasha.com/llms.txt</loc>
+  </url>
+  <url>
+    <loc>https://www.getdasha.com/llms-full.txt</loc>
   </url>
 </urlset>

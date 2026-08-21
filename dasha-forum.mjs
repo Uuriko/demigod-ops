@@ -35,6 +35,12 @@ export const EDIT_WINDOW_MS = 15 * 60 * 1000;
 export const REPORT_REASONS = ['scam', 'spam', 'harassment', 'off-topic'];
 /* In-thread quote, not a nested tree. A snippet is enough to show what was answered. */
 export const QUOTE_SNIP = 140;
+/* Bounded opener preview kept on the index so the thread list and search can see a little body
+   without turning search into a per-thread storage scan. Never the full post. */
+export const SNIPPET_MAX = 180;
+/* ponytail: keep one bounded reactor list on each post; move reactions to their own storage key if
+   a real post reaches 50 distinct linked accounts. */
+export const MAX_REACTORS = 50;
 export const MUTED_ERROR = 'this X session is muted — not the person';
 
 /** Chat's limits, surfaced so the relationship between the two surfaces is assertable. */
@@ -66,7 +72,7 @@ function requireAuthor(handle) {
   return String(handle || '').trim() ? null : { ok: false, error: 'link X to post' };
 }
 
-export function newThread({ title, text, handle, avatar = null, now, id }) {
+export function newThread({ title, text, handle, avatar = null, holder = false, now, id }) {
   const anon = requireAuthor(handle);
   if (anon) return anon;
   const t = validateTitle(title);
@@ -75,9 +81,12 @@ export function newThread({ title, text, handle, avatar = null, now, id }) {
   if (!b.ok) return b;
 
   const opener = { id: `${id}-0`, handle, avatar, text: b.text, ts: now };
+  if (holder) opener.holder = true;
+  const summary = { id, title: t.title, handle, avatar, ts: now, lastTs: now, replies: 0, reactions: 0, snippet: b.text.slice(0, SNIPPET_MAX) };
+  if (holder) summary.holder = true;
   return {
     ok: true,
-    summary: { id, title: t.title, handle, avatar, ts: now, lastTs: now, replies: 0 },
+    summary,
     posts: [opener],
   };
 }
@@ -93,7 +102,7 @@ export function attachQuote(posts, quoteId) {
   };
 }
 
-export function addReply(posts, { text, handle, avatar = null, now, id, quoteId }) {
+export function addReply(posts, { text, handle, avatar = null, holder = false, now, id, quoteId }) {
   const anon = requireAuthor(handle);
   if (anon) return anon;
   if (!Array.isArray(posts) || !posts.length) return { ok: false, error: 'thread not found' };
@@ -105,6 +114,7 @@ export function addReply(posts, { text, handle, avatar = null, now, id, quoteId 
   const quoted = attachQuote(posts, quoteId);
   if (!quoted.ok) return quoted;
   const post = { id, handle, avatar, text: b.text, ts: now };
+  if (holder) post.holder = true;
   if (quoted.quote) post.quote = quoted.quote;
   /* Measured, not assumed. A thread is one storage value with a hard 128 KiB ceiling, and a write
      that crosses it fails at the platform — which would lose the post and leave the reply count
@@ -113,7 +123,8 @@ export function addReply(posts, { text, handle, avatar = null, now, id, quoteId 
   return { ok: true, post };
 }
 
-/** Title + handle only. Bodies stay off the index so search cannot become a 100-thread storage scan. */
+/** Title + handle + the bounded opener snippet. Bodies stay out of the index beyond SNIPPET_MAX
+    so search stays an index scan, not a 100-thread storage scan. */
 export function searchThreads(index, q) {
   const needle = String(q || '').trim().toLowerCase();
   const list = Array.isArray(index) ? index : [];
@@ -122,7 +133,8 @@ export function searchThreads(index, q) {
     if (!t) return false;
     const title = String(t.title || '');
     const handle = String(t.handle || '');
-    if (!`${title} ${handle}`.toLowerCase().includes(needle)) return false;
+    const snippet = String(t.snippet || '');
+    if (!`${title} ${handle} ${snippet}`.toLowerCase().includes(needle)) return false;
     return validateMessage(title, { maxText: MAX_TITLE }).ok;
   });
 }
@@ -168,10 +180,35 @@ export function deletePost(posts, { id, handle }) {
   if (post.handle !== handle) return { ok: false, error: 'not your post' };
   if (post.deleted) return { ok: false, error: 'post is gone' };
   if (i === 0) return { ok: false, error: 'cannot delete the opening post' };
-  const next = { ...post, text: '', deleted: true };
+  const { reactors: _reactors, ...kept } = post;
+  const next = { ...kept, text: '', deleted: true };
   const copy = posts.slice();
   copy[i] = next;
   return { ok: true, post: next, posts: copy };
+}
+
+/** One score-neutral heart per linked X account. Reactor identities stay out of publicPost. */
+export function toggleReaction(posts, { id, xId, active }) {
+  const subject = String(xId || '');
+  if (!subject || subject.length > 64) return { ok: false, error: 'link X to react' };
+  if (!Array.isArray(posts)) return { ok: false, error: 'thread not found' };
+  const i = posts.findIndex((p) => p && p.id === id);
+  if (i < 0) return { ok: false, error: 'post not found' };
+  const post = posts[i];
+  if (post.deleted) return { ok: false, error: 'post is gone' };
+  const reactors = [...new Set((Array.isArray(post.reactors) ? post.reactors : [])
+    .filter((value) => typeof value === 'string' && value.length <= 64))].slice(0, MAX_REACTORS);
+  const had = reactors.includes(subject);
+  if (active !== false && !had) {
+    if (reactors.length >= MAX_REACTORS) return { ok: false, error: 'reaction limit reached' };
+    reactors.push(subject);
+  } else if (active === false && had) reactors.splice(reactors.indexOf(subject), 1);
+  const { reactors: _old, ...kept } = post;
+  const next = reactors.length ? { ...kept, reactors } : kept;
+  const copy = posts.slice();
+  copy[i] = next;
+  if (threadBytes(copy) > THREAD_BYTES_MAX) return { ok: false, error: 'thread is full' };
+  return { ok: true, posts: copy, reactionCount: reactors.length, reacted: reactors.includes(subject) };
 }
 
 export function validateReport(reason) {
@@ -193,20 +230,56 @@ export function pruneIndex(index, now) {
     .slice(0, MAX_THREADS);
 }
 
+/** Keyset pagination over the already-newest-first index. The cursor is the id of the last row the
+    caller saw; the next page starts just after it. No offset, so a reply written between pages can't
+    push a row into or out of view the way a naive offset page would. */
+export function paginateIndex(index, { cursor = '', limit = 50 } = {}) {
+  const list = Array.isArray(index) ? index : [];
+  const lim = Math.max(1, Math.min(50, Number(limit) || 50));
+  let start = 0;
+  if (cursor) {
+    const i = list.findIndex((t) => t && t.id === cursor);
+    if (i >= 0) start = i + 1;
+  }
+  const threads = list.slice(start, start + lim);
+  const next = start + lim < list.length ? (threads[threads.length - 1]?.id ?? null) : null;
+  return { threads, next };
+}
+
+/** Replies visible to a reader: tombstones keep their slot but are not replies anyone can read.
+    The opener is never deleted, so subtract it once and clamp — the count on the thread list must
+    match the posts the thread view actually renders. */
+export function visibleReplies(posts) {
+  const list = Array.isArray(posts) ? posts : [];
+  return Math.max(0, list.filter((p) => p && !p.deleted).length - 1);
+}
+
+/** Exact public heart total for one bounded thread; deleted posts contribute zero. */
+export function threadReactionCount(posts) {
+  return (Array.isArray(posts) ? posts : []).reduce((total, post) => total + (post ? publicPost(post).reactionCount : 0), 0);
+}
+
 /* Explicit field lists, not a delete-the-secrets pass. Whatever the worker starts storing
    alongside a thread — an IP, a session id, a moderation note — stays server-side by default
    instead of shipping the first time someone adds a field. */
 export function publicThread(t) {
+  const reactions = Number(t.reactions);
   return {
     id: t.id, title: t.title, handle: t.handle, avatar: t.avatar ?? null,
     ts: t.ts, lastTs: t.lastTs, replies: t.replies ?? 0, locked: Boolean(t.locked),
+    reactions: Number.isInteger(reactions) && reactions >= 0 && reactions <= MAX_POSTS * MAX_REACTORS ? reactions : 0,
+    snippet: t.snippet ?? null, holder: Boolean(t.holder),
   };
 }
 
-export function publicPost(p) {
+export function publicPost(p, xId = '') {
+  const reactors = [...new Set((Array.isArray(p.reactors) ? p.reactors : [])
+    .filter((value) => typeof value === 'string' && value.length <= 64))].slice(0, MAX_REACTORS);
   const out = {
     id: p.id, handle: p.handle, avatar: p.avatar ?? null,
-    text: p.deleted ? '' : p.text, ts: p.ts,
+    text: p.deleted ? '' : p.text, ts: p.ts, holder: Boolean(p.holder),
+    reactionCount: p.deleted ? 0 : reactors.length,
+    reacted: !p.deleted && Boolean(xId) && reactors.includes(String(xId)),
   };
   if (p.editedAt) out.editedAt = p.editedAt;
   if (p.deleted) out.deleted = true;
