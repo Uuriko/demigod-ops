@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import './dasha-simp-burn-score.test.mjs';
 
 const load = file => JSON.parse(readFileSync(new URL(file, import.meta.url), 'utf8'));
 const schema = load('./dasha-simp-board.schema.json');
