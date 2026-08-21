@@ -6,6 +6,7 @@ import {
   buildPublicBoard,
   burnPointsForAmount,
   creditBurn,
+  rulesPublic,
   scoreProfile,
 } from './dasha-simp-score.mjs';
 
@@ -22,6 +23,8 @@ const award = (dasha, index, at = now) => ({
 const points = awards => scoreProfile({ handle: 'burner', enrolledAt: now, awards }, { now }).components.burn;
 
 assert.deepEqual([BURN_POINTS_PER_UNIT, BURN_UNIT_DASHA, BURN_CAP_7D], [1, 1000, 25]);
+assert.equal(rulesPublic().burn.enabled, false, 'public rules must not advertise prepared burn scoring as live');
+assert.match(rulesPublic().burn.note, /Prepared, not available/);
 assert.equal(burnPointsForAmount(999n * 10n ** 6n), 0);
 assert.equal(burnPointsForAmount(2_500n * 10n ** 6n), 2);
 assert.equal(points(Array.from({ length: 30 }, (_, i) => award(1_000, i))), 25);

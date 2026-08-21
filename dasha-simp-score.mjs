@@ -770,11 +770,12 @@ export function rulesPublic() {
         'Optional refill of the public faucet, which re-tips the tokens to strangers. Only from a wallet you signed for; pasted addresses do not earn. Evidence is the public tx page. Buying, holding, or paying for goods or access earns nothing.',
     },
     burn: {
+      enabled: false,
       points_per_1000_dasha: BURN_POINTS_PER_UNIT,
       floor_dasha: BURN_UNIT_DASHA,
       cap_rolling_7d: BURN_CAP_7D,
       note:
-        'Optional permanent supply reduction from a wallet you signed for. One finalized BurnChecked transaction and its intent memo can score once. The weekly cap prevents unlimited pay-to-rank.',
+        'Prepared, not available. If enabled after the product gates clear, one finalized BurnChecked transaction and its intent memo can score once. Burning permanently reduces supply.',
     },
     holder: {
       points: 0,
