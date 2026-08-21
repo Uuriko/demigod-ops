@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import './dasha-simp-burn-score.test.mjs';
 import './dasha-simp-native-share.test.mjs';
+import './dasha-simp-referral-client.test.mjs';
+import './dasha-simp-referral.test.mjs';
 
 const load = file => JSON.parse(readFileSync(new URL(file, import.meta.url), 'utf8'));
 const schema = load('./dasha-simp-board.schema.json');

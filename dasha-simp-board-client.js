@@ -15,6 +15,7 @@
   var ASK_SS = 'dasha_x_ask_v1';
   var GATE_AUTOJOIN = 'dasha_x_gate_autojoin';
   var QUIZ_INVITE_SS = 'dasha_quiz_invite_v1';
+  var REFERRAL_SS = 'dasha_simp_referral_v1';
   var QUIZ_CARDS = {
     'Dasha scholar': {
       image: '/simp/photo/bull.jpg',
@@ -765,8 +766,8 @@
     function inviteShareText() {
       return 'How big of a Dasha simp are you?\n\n' + QUIZ_INVITE_URL;
     }
-    function copyQuizInvite(btn) {
-      var text = QUIZ_INVITE_URL;
+    function copyQuizInvite(btn, url) {
+      var text = url || QUIZ_INVITE_URL;
       function done() {
         setStatus('Invite link copied — paste anywhere', 'ok');
         if (btn) {
@@ -805,6 +806,60 @@
       if (navigator.clipboard && navigator.clipboard.writeText) {
         withTimeout(navigator.clipboard.writeText(text), 800).then(verify).catch(fallback);
       } else fallback();
+    }
+    function copyMemberInvite(btn) {
+      var referral = meData && meData.referral;
+      if (!meData || !meData.enrolled) return copyQuizInvite(btn);
+      if (referral && referral.inviteUrl) return copyQuizInvite(btn, referral.inviteUrl);
+      btn.disabled = true;
+      fetchJson(base + '/simp/referral', {
+        method: 'POST',
+        credentials: 'include',
+        mode: 'cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create' })
+      }).then(function(res) {
+        btn.disabled = false;
+        if (!res.data || !res.data.ok || !res.data.inviteUrl) throw new Error(res.data && res.data.error || 'Invite unavailable');
+        meData.referral = Object.assign({}, referral || {}, { inviteUrl: res.data.inviteUrl });
+        copyQuizInvite(btn, res.data.inviteUrl);
+      }).catch(function(error) {
+        btn.disabled = false;
+        setStatus(String(error.message || error), 'bad');
+      });
+    }
+    function pendingReferralCode() {
+      var code = '';
+      try {
+        code = new URLSearchParams(location.search || '').get('ref') || sessionStorage.getItem(REFERRAL_SS) || '';
+        if (/^[A-Za-z0-9_-]{16,64}$/.test(code)) sessionStorage.setItem(REFERRAL_SS, code); else code = '';
+      } catch (e) {}
+      return code;
+    }
+    function clearPendingReferral() {
+      try {
+        sessionStorage.removeItem(REFERRAL_SS);
+        var url = new URL(location.href);
+        url.searchParams.delete('ref');
+        history.replaceState(null, '', url.pathname + url.search + url.hash);
+      } catch (e) {}
+    }
+    function claimPendingReferral() {
+      var code = pendingReferralCode();
+      if (!code || !meData || !meData.linked) return Promise.resolve();
+      if (meData.enrolled) {
+        clearPendingReferral();
+        return Promise.resolve();
+      }
+      return fetchJson(base + '/simp/referral', {
+        method: 'POST',
+        credentials: 'include',
+        mode: 'cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'claim', code: code })
+      }).then(function(res) {
+        if (res.data && res.data.ok || [ 400, 404, 409 ].indexOf(res.status) !== -1) clearPendingReferral();
+      }).catch(function() {});
     }
     function shareQuizInviteOnX() {
       openXIntent(inviteShareText());
@@ -1490,7 +1545,7 @@
       var invite = el('button', 'ghost', 'Copy quiz invite');
       invite.type = 'button';
       invite.addEventListener('click', function() {
-        copyQuizInvite(invite);
+        copyMemberInvite(invite);
       });
       acts.appendChild(share);
       acts.appendChild(invite);
@@ -1748,7 +1803,7 @@
       retakeQuiz();
     });
     inviteToolBtn.addEventListener('click', function() {
-      copyQuizInvite(inviteToolBtn);
+      copyMemberInvite(inviteToolBtn);
     });
     quizClose.addEventListener('click', closeQuiz);
     function refresh() {
@@ -1806,6 +1861,7 @@
         }
         setStatus('', 'ok');
         routeHolderProof();
+        return claimPendingReferral();
       }).catch(function() {
         setStatus('Board API offline — editorial fallback', 'warn');
         boardData = {
@@ -1984,8 +2040,10 @@
       if (!ev || !ev.data || ev.data.type !== 'dasha-x-linked') return;
       if (ev.origin !== base) return;
       if (quizAttemptId) {
-        return postQuiz({
-          action: 'finalize'
+        return refresh().then(function() {
+          return postQuiz({
+            action: 'finalize'
+          });
         }).then(function(res) {
           if (!res.data || !res.data.ok) throw new Error(res.data && res.data.error || 'Result unavailable');
           quizAttemptId = '';
