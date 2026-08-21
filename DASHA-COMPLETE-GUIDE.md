@@ -5,7 +5,7 @@ last_verified: 2026-08-11
 
 # Dasha complete guide (orientation stub)
 
-**Full historical orientation:** [`archive/dasha-docs/DASHA-COMPLETE-GUIDE-FULL.md`](archive/dasha-docs/DASHA-COMPLETE-GUIDE-FULL.md)  
+**Full historical orientation:** `archive/dasha-docs/DASHA-COMPLETE-GUIDE-FULL.md` (local archive)
 **Agent rules:** [`DASHA-RULES.md`](DASHA-RULES.md) · **Map:** [`DASHA-DOCS.md`](DASHA-DOCS.md)
 
 ## In one minute

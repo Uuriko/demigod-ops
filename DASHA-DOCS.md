@@ -7,7 +7,7 @@ last_verified: 2026-08-11
 # Dasha documentation map
 
 **Start:** [`DASHA-RULES.md`](DASHA-RULES.md) (agent rules) · then owners below.  
-**Archive:** [`archive/dasha-docs/`](archive/dasha-docs/) — evidence only, not instructions (~65 files moved 2026-08-11).
+**Archive:** `archive/dasha-docs/` — local evidence only, intentionally excluded from Git (~65 files moved 2026-08-11).
 
 Iterative audit, fix and feature loop: [`DASHA-ITERATIVE-QUALITY-PLAN.md`](DASHA-ITERATIVE-QUALITY-PLAN.md).
 
@@ -62,10 +62,10 @@ Marketing incentive boundary: [`DASHA-CRYPTO-MARKETING-BOUNDARY-2026-08-09.md`](
 
 Evidence only — not standing instructions:
 
-- [`archive/dasha-docs/DASHA-ATTENTION-AUDIT-2026-08-11.md`](archive/dasha-docs/DASHA-ATTENTION-AUDIT-2026-08-11.md)
-- [`archive/dasha-docs/DASHA-GROWTH-X-AUDIT-2026-08-11.md`](archive/dasha-docs/DASHA-GROWTH-X-AUDIT-2026-08-11.md)
-- [`archive/dasha-docs/DASHA-CLAUDE-WAVE1-UX-2026-08-11.md`](archive/dasha-docs/DASHA-CLAUDE-WAVE1-UX-2026-08-11.md)
-- [`archive/dasha-docs/DASHA-BUG-FIX-PLAN.md`](archive/dasha-docs/DASHA-BUG-FIX-PLAN.md)
+- `archive/dasha-docs/DASHA-ATTENTION-AUDIT-2026-08-11.md`
+- `archive/dasha-docs/DASHA-GROWTH-X-AUDIT-2026-08-11.md`
+- `archive/dasha-docs/DASHA-CLAUDE-WAVE1-UX-2026-08-11.md`
+- `archive/dasha-docs/DASHA-BUG-FIX-PLAN.md`
 
 ## Historical (thin stubs at root; full text often in archive)
 
