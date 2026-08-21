@@ -24,7 +24,7 @@ const earned = {
 };
 
 assert.equal(SIMP_SPOTLIGHT_UNLOCK, 25);
-assert.deepEqual(rulesPublic().spotlight.platforms, ['GitHub', 'YouTube', 'Twitch', 'Bluesky', 'LinkedIn', 'Instagram', 'Farcaster']);
+assert.deepEqual(rulesPublic().spotlight.platforms, ['GitHub', 'YouTube', 'Twitch', 'Bluesky', 'LinkedIn', 'Instagram', 'Farcaster', 'TikTok']);
 assert.equal(scoreProfile(earned, { now }).total, 25);
 assert.equal(setSimpSpotlight({ 42: basic }, session, 'https://github.com/maker', { now }).status, 403);
 
@@ -63,6 +63,9 @@ const farcaster = setSimpSpotlight(instagram.store, session, 'https://www.farcas
 assert.deepEqual(farcaster.spotlight, { platform: 'Farcaster', url: 'https://farcaster.xyz/dasha-maker' });
 assert.deepEqual(normalizeSimpSpotlight('https://farcaster.xyz/woj.eth').spotlight, { platform: 'Farcaster', url: 'https://farcaster.xyz/woj.eth' });
 assert.equal(scoreProfile(farcaster.profile, { now: now + 4 }).total, 25, 'Farcaster spotlight must never affect score');
+const tiktok = setSimpSpotlight(farcaster.store, session, 'https://tiktok.com/@Dasha.Maker_7/', { now: now + 7 });
+assert.deepEqual(tiktok.spotlight, { platform: 'TikTok', url: 'https://www.tiktok.com/@dasha.maker_7' });
+assert.equal(scoreProfile(tiktok.profile, { now: now + 7 }).total, 25, 'TikTok spotlight must never affect score');
 const maxBlueskyHandle = ['a'.repeat(63), 'b'.repeat(63), 'c'.repeat(63), 'd'.repeat(61)].join('.');
 assert.equal(maxBlueskyHandle.length, 253);
 assert.equal(normalizeSimpSpotlight(`https://bsky.app/profile/${maxBlueskyHandle}`).ok, true);
@@ -107,6 +110,12 @@ for (const bad of [
   'https://farcaster.xyz/dasha-maker?ref=spotlight',
   `https://farcaster.xyz/${'a'.repeat(17)}`,
   ...['settings', 'miniapps', 'login-desktop', 'login-mobile', 'login-wallet', 'login-web'].map(name => `https://farcaster.xyz/${name}`),
+  'https://tiktok.com/@dasha-maker',
+  'https://tiktok.com/@dasha..maker',
+  'https://tiktok.com/@dasha.',
+  'https://tiktok.com/@dasha_maker/video/123',
+  'https://tiktok.com/@dasha_maker?lang=en',
+  `https://tiktok.com/@${'a'.repeat(25)}`,
   'https://example.com/maker',
 ]) assert.equal(normalizeSimpSpotlight(bad).ok, false, bad);
 
@@ -116,8 +125,8 @@ const liveVerifier = readFileSync(new URL('./dasha-live-verify.mjs', import.meta
 assert.match(worker, /path === '\/simp\/spotlight'/);
 assert.match(worker, /if \(!allowedOrigin\) return json\(\{ error: 'origin required' \}/);
 assert.match(client, /noopener noreferrer nofollow ugc/);
-assert.match(client, /GitHub, YouTube, Twitch, Bluesky, LinkedIn, Instagram, or Farcaster spotlight profile URL/);
-assert.match(client, /GitHub · YouTube · Twitch · Bluesky · LinkedIn · Instagram · Farcaster\. Clear \+ Save removes\./,
+assert.match(client, /GitHub, YouTube, Twitch, Bluesky, LinkedIn, Instagram, Farcaster, or TikTok spotlight profile URL/);
+assert.match(client, /GitHub · YouTube · Twitch · Bluesky · LinkedIn · Instagram · Farcaster · TikTok\. Clear \+ Save removes\./,
   'the visible unlocked hint must list every accepted Spotlight platform');
 assert.match(client, /Promote a profile/);
 assert.match(client, /placeholder = 'Paste profile URL'/);
@@ -136,4 +145,4 @@ assert.match(liveVerifier, /spotlight-platforms-not-prepared/,
 assert.match(liveVerifier, /assert\.equal\(spotlightPlatformsPrepared, true/,
   'strict verification requires the live and prepared Spotlight sets to match');
 
-console.log('dasha Simp spotlight: PASS (25-point unlock, seven safe profile hosts, score-neutral, removable)');
+console.log('dasha Simp spotlight: PASS (25-point unlock, eight safe profile hosts, score-neutral, removable)');

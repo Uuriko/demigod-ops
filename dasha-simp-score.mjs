@@ -271,7 +271,12 @@ export function normalizeSimpSpotlight(raw) {
     if (!match || reserved.includes(match[1].toLowerCase())) return { ok: false, error: 'use a Farcaster profile link' };
     return { ok: true, spotlight: { platform: 'Farcaster', url: `https://farcaster.xyz/${match[1].toLowerCase()}` } };
   }
-  return { ok: false, error: 'use a GitHub, YouTube, Twitch, Bluesky, LinkedIn, Instagram, or Farcaster profile link' };
+  if (host === 'tiktok.com' || host === 'www.tiktok.com') {
+    const match = url.pathname.match(/^\/@([A-Za-z0-9_](?:[A-Za-z0-9._]{0,22}[A-Za-z0-9_])?)\/?$/);
+    if (!match || match[1].includes('..')) return { ok: false, error: 'use a TikTok creator profile link' };
+    return { ok: true, spotlight: { platform: 'TikTok', url: `https://www.tiktok.com/@${match[1].toLowerCase()}` } };
+  }
+  return { ok: false, error: 'use a GitHub, YouTube, Twitch, Bluesky, LinkedIn, Instagram, Farcaster, or TikTok profile link' };
 }
 
 export const PERRY_EDITORIAL = {
@@ -777,7 +782,7 @@ export function rulesPublic() {
     },
     spotlight: {
       unlock_points: SIMP_SPOTLIGHT_UNLOCK,
-      platforms: ['GitHub', 'YouTube', 'Twitch', 'Bluesky', 'LinkedIn', 'Instagram', 'Farcaster'],
+      platforms: ['GitHub', 'YouTube', 'Twitch', 'Bluesky', 'LinkedIn', 'Instagram', 'Farcaster', 'TikTok'],
       points: 0,
       note: 'At 25 points, add one user-selected profile link. It does not prove ownership or affect score.',
     },

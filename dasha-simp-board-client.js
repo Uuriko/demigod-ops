@@ -296,7 +296,7 @@
     spotlightInput.maxLength = 300;
     spotlightInput.placeholder = 'Paste profile URL';
     spotlightInput.autocomplete = 'url';
-    spotlightInput.setAttribute('aria-label', 'GitHub, YouTube, Twitch, Bluesky, LinkedIn, Instagram, or Farcaster spotlight profile URL');
+    spotlightInput.setAttribute('aria-label', 'GitHub, YouTube, Twitch, Bluesky, LinkedIn, Instagram, Farcaster, or TikTok spotlight profile URL');
     var spotlightSave = el('button', '', 'Save');
     spotlightSave.type = 'submit';
     var spotlightProgress = el('progress', 'simp-spotlight-progress');
@@ -753,7 +753,7 @@
       spotlightProgress.hidden = spotlightUnlock.unlocked;
       spotlightInput.value = b.spotlight && b.spotlight.url || '';
       spotlightNote.textContent = spotlightUnlock.unlocked
-        ? 'GitHub · YouTube · Twitch · Bluesky · LinkedIn · Instagram · Farcaster. Clear + Save removes.'
+        ? 'GitHub · YouTube · Twitch · Bluesky · LinkedIn · Instagram · Farcaster · TikTok. Clear + Save removes.'
         : spotlightUnlock.points + ' points unlock one profile link · ' + spotlightUnlock.remaining + ' to go.';
       paintLinkedIdentity((meBits.length ? ' · ' + meBits.join(' · ') : '') + '. Leave removes linked Board data.');
     }
