@@ -100,6 +100,7 @@ const memberHtml = simpMemberHtml({
   total: 25,
   components: { linked_x: 10, quiz: 15, creative: 0, community: 0, connector: 0, oss: 0, donate: 0, holder: 0 },
   holder: true,
+  badges: ['linked', 'maker', 'remixer', 'holder', 'unknown', 'maker'],
   quiz: { correct: 8, total: 10, title: 'ignored stored title' },
   spotlight: { platform: 'ignored', url: 'https://www.github.com/Maker/' },
 });
@@ -107,6 +108,8 @@ assert.match(memberHtml, /<title>@Maker_7 · #52 on the \$dasha Simp Board<\/tit
 assert.match(memberHtml, /canonical" href="https:\/\/www\.getdasha\.com\/simp\/u\/maker_7"/);
 assert.match(memberHtml, /25 Simp Points · Confirmed simp · 8\/10 · current measured rank\./);
 assert.match(memberHtml, /<p class="breakdown" aria-label="Simp Point breakdown">X 10 · Quiz 15<\/p>/);
+assert.match(memberHtml, /<p class="earned" aria-label="Earned badges">Maker · Remixer<\/p>/);
+assert.doesNotMatch(memberHtml, /unknown|>Linked ·|>Holder ·/);
 assert.match(memberHtml, /data-text="[^"]*Confirmed simp · 8\/10/);
 assert.match(memberHtml, /<span class="holder">Holder proof current<\/span> · <a href="https:\/\/www\.getdasha\.com\/chess">Rated chess<\/a> · <a href="https:\/\/www\.getdasha\.com\/lobby">500-char chat<\/a>/);
 assert.match(memberHtml, /href="https:\/\/www\.getdasha\.com\/simp#member-maker_7"/);
@@ -237,7 +240,7 @@ assert.match(badge, /@Maker_7 · #52 · 25 PTS/);
 assert.doesNotMatch(badge, /<script|foreignObject|href=/i);
 assert.throws(() => simpMemberBadgeSvg({ handle: '<script>', rank: 2, total: 25 }));
 
-const publicMember = { handle: 'Maker_7', rank: 52, total: 25, components: { linked_x: 10, quiz: 15 }, holder: true, quiz: { correct: 8, total: 10, title: 'Confirmed simp' }, spotlight: { platform: 'GitHub', url: 'https://github.com/Maker' } };
+const publicMember = { handle: 'Maker_7', rank: 52, total: 25, components: { linked_x: 10, quiz: 15 }, holder: true, badges: ['linked', 'maker'], quiz: { correct: 8, total: 10, title: 'Confirmed simp' }, spotlight: { platform: 'GitHub', url: 'https://github.com/Maker' } };
 const memberEnv = (found) => ({
   LOBBY: {
     idFromName: () => 'public',
@@ -251,6 +254,7 @@ const memberEnv = (found) => ({
 const memberResponse = await edgeWorker.fetch(new Request('https://www.getdasha.com/simp/u/MAKER_7'), memberEnv(true));
 assert.equal(memberResponse.status, 200);
 assert.equal(memberResponse.headers.get('x-dasha-edge'), 'simp-member-share');
+assert.match(await memberResponse.clone().text(), /aria-label="Earned badges">Maker<\/p>/);
 assert.match(await memberResponse.text(), /@Maker_7 · #52[\s\S]*Confirmed simp · 8\/10[\s\S]*X 10 · Quiz 15[\s\S]*Holder proof current[\s\S]*Rated chess[\s\S]*500-char chat[\s\S]*GitHub Spotlight/);
 const badgeResponse = await edgeWorker.fetch(new Request('https://www.getdasha.com/simp/u/MAKER_7/badge.svg'), memberEnv(true));
 assert.equal(badgeResponse.status, 200);
