@@ -214,6 +214,7 @@ export const ZERO_POINT_SOURCES = [
   'purchases',
   'token balances',
   'bag size',
+  'payments',
   'payments for goods or access',
 ];
 

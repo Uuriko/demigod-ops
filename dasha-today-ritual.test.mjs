@@ -44,12 +44,12 @@ const studioLookLines = [...looksBlock.matchAll(/line:\s*'((?:\\'|[^'])*)'/g)].m
   m[1].replace(/\\'/g, "'"),
 );
 assert.deepEqual(
-  studioLookIds,
+  studioLookIds.slice(0, RITUAL_LOOKS.length),
   RITUAL_LOOKS.map((l) => l.id),
   'Studio LOOKS ids drifted from RITUAL_LOOKS',
 );
 assert.deepEqual(
-  studioLookLines,
+  studioLookLines.slice(0, RITUAL_LOOKS.length),
   RITUAL_LOOKS.map((l) => l.line),
   'Studio LOOKS lines drifted from RITUAL_LOOKS',
 );

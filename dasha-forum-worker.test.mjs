@@ -73,7 +73,11 @@ const post = (text) => ({ id: 'p'.repeat(12), handle: 'dash_eats', avatar: 'http
 
 // ---- identity and origin are enforced at the door ----------------------------
 {
-  const handler = worker.slice(worker.indexOf('async handleForum('), worker.indexOf('async handleChess('));
+  const start = worker.indexOf('async handleForum(');
+  assert.ok(start >= 0, 'handleForum is wired');
+  const after = worker.slice(start + 'async handleForum('.length);
+  const next = after.search(/\n  async handle[A-Z]/);
+  const handler = worker.slice(start, next < 0 ? undefined : start + 'async handleForum('.length + next);
   assert.ok(handler.includes("sessionFromRequest"), 'identity comes from the session, never the body');
   assert.ok(/if \(!xId\) return json\(\{ error: 'link X first' \}/.test(handler),
     'both write paths must refuse an unlinked poster');

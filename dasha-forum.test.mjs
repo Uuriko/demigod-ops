@@ -91,10 +91,12 @@ assert(F.MAX_POST > F.FORUM_LIMITS.CHAT_MAX_TEXT,
 // ---- the public shapes leak nothing extra ------------------------------------
 {
   const t = F.publicThread({ id: 'a', title: 'b', handle: 'c', avatar: 'd', ts: 1, lastTs: 2, replies: 3, secret: 'no' });
-  assert.deepEqual(Object.keys(t).sort(), ['avatar', 'handle', 'id', 'lastTs', 'locked', 'replies', 'title', 'ts']);
+  assert.deepEqual(Object.keys(t).sort(), ['avatar', 'handle', 'holder', 'id', 'lastTs', 'locked', 'reactions', 'replies', 'snippet', 'title', 'ts']);
   assert.equal(t.locked, false);
+  assert.equal(t.secret, undefined);
   const p = F.publicPost({ id: 'a', handle: 'b', avatar: 'c', text: 'd', ts: 1, ip: '1.2.3.4' });
-  assert.deepEqual(Object.keys(p).sort(), ['avatar', 'handle', 'id', 'text', 'ts']);
+  assert.deepEqual(Object.keys(p).sort(), ['avatar', 'handle', 'holder', 'id', 'reacted', 'reactionCount', 'text', 'ts']);
+  assert.equal(p.ip, undefined);
 }
 
 // ---- H2: search, edit, delete, lock, report ---------------------------------

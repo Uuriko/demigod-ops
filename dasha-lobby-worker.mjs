@@ -630,7 +630,7 @@ function countQuizResult(metrics, attempt, quiz) {
 }
 
 const emptyQuizMetrics = since => ({ since, starts: 0, completions: 0, replays: 0, shares: 0, reached: {}, answers: {}, lanes: {}, tiers: {}, elapsed: {} });
-const emptyStudioMetrics = since => ({ since, completionSince: since, opens: 0, firstEdits: 0, completions: 0, exports: 0, shareIntents: 0, shareSuccesses: 0, copyEditableLinks: 0, handoffMints: 0, handoffOpens: 0, sources: { home: 0, quiz: 0, direct: 0, 'transmission-001': 0, other: 0 } });
+const emptyStudioMetrics = since => ({ since, completionSince: since, opens: 0, firstEdits: 0, completions: 0, exports: 0, shareIntents: 0, shareSuccesses: 0, copyEditableLinks: 0, handoffMints: 0, handoffOpens: 0, sources: { home: 0, quiz: 0, direct: 0, 'transmission-001': 0, other: 0 }, embedOrigins: {}, embedOriginsOverflow: 0 });
 const HANDOFF_TTL_MS = 90 * 24 * 60 * 60_000;
 const HANDOFF_MAX = 4000;
 const HANDOFF_LOOKS = new Set(['photo', 'poster', 'ticket', 'print', 'marquee', 'signal', 'face']);
@@ -924,6 +924,13 @@ const CONTRIBUTE_HTML = htmlPage('Contribute to Dasha', `<h1>Build Dasha.</h1>
 <p><a href="https://github.com/Uuriko/dasha-desk/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener noreferrer">Read the guide ↗</a> · <a href="https://github.com/Uuriko/dasha-desk/discussions/categories/ideas" target="_blank" rel="noopener noreferrer">Propose an idea ↗</a></p>
 <p>GitHub review decides what merges. PR points are not live yet.</p>
 <p><a href="https://www.getdasha.com/">Home</a> · <a href="https://www.getdasha.com/studio">Studio</a> · <a href="https://www.getdasha.com/simp">Simp Board</a></p>`, { path: '/contribute', description: 'Build Dasha through beginner-friendly code, docs, design, and ideas.' });
+
+const DESK_HTML = htmlPage('$dasha desk — verify, chart, buy', `<h1>Dasha Desk</h1>
+<p>$dasha desk — copy the mint, buy on Jupiter, chart on GeckoTerminal. We don't hold it.</p>
+<p><code>${MINT}</code></p>
+<p><a class="cta" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=${MINT}">Buy $dasha ↗</a></p>
+<p><a href="https://www.geckoterminal.com/solana/pools/${PAIR}">Chart on GeckoTerminal ↗</a> · <a href="https://solscan.io/token/${MINT}">Solscan ↗</a></p>
+<p><a href="https://www.getdasha.com/">Home</a> · <a href="https://www.getdasha.com/studio">Studio</a> · <a href="https://www.getdasha.com/how-to-buy">How to buy</a></p>`, { path: '/dasha', description: '$dasha mint, chart, and source links.' });
 
 const PRIVACY_HTML = htmlPage('Dasha privacy', `<h1>Privacy</h1>
 <p>Updated August 21, 2026.</p>
@@ -1539,6 +1546,35 @@ export class DashaLobby {
     await this.state.storage.put('chessMetrics', this.chessMetrics);
   }
 
+  noteEmbedOrigin(raw) {
+    let origin = '';
+    try {
+      const parsed = new URL(String(raw || ''));
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
+      origin = parsed.origin;
+    } catch {
+      return false;
+    }
+    if (!origin || origin === 'null') return false;
+    if (origin === 'https://www.getdasha.com' || origin === 'https://getdasha.com' || origin === 'https://lobby.getdasha.com') {
+      return false;
+    }
+    if (!this.studioMetrics.embedOrigins || typeof this.studioMetrics.embedOrigins !== 'object') {
+      this.studioMetrics.embedOrigins = {};
+    }
+    const map = this.studioMetrics.embedOrigins;
+    if (map[origin] != null) {
+      map[origin] += 1;
+      return false;
+    }
+    if (Object.keys(map).length >= 50) {
+      this.studioMetrics.embedOriginsOverflow = (this.studioMetrics.embedOriginsOverflow || 0) + 1;
+      return false;
+    }
+    map[origin] = 1;
+    return true;
+  }
+
   chessRating(xId, handle = '') {
     const key = String(xId);
     return this.chessRatings[key] || { rating: CHESS_START_RATING, games: 0, wins: 0, losses: 0, draws: 0, handle: String(handle).toLowerCase() };
@@ -1829,6 +1865,9 @@ export class DashaLobby {
     }
 
     if (path === '/studio/event' && request.method === 'POST') {
+      if (this.noteEmbedOrigin(request.headers.get('Origin'))) {
+        await this.state.storage.put('studioMetrics', this.studioMetrics);
+      }
       if (!allowedOrigin) return json({ error: 'origin required' }, 403, null);
       const input = await requestJson(request);
       if (input?.event === 'handoff_mint' || input?.event === 'handoff_open') {
@@ -3974,6 +4013,22 @@ function isProductHost(host) {
   return h === 'www.getdasha.com' || h === 'getdasha.com';
 }
 
+/** Foreign Studio embeds POST here. The DO must see the ping so it can count, then refuse. */
+function countableEmbedPing(url) {
+  return url.pathname.replace(/\/$/, '') === '/studio/event';
+}
+
+function leftoverRoomToHome(response) {
+  if (response.status < 300 || response.status >= 400) return false;
+  try {
+    const dest = new URL(response.headers.get('location') || '', 'https://www.getdasha.com');
+    return (dest.hostname === 'www.getdasha.com' || dest.hostname === 'getdasha.com')
+      && (dest.pathname === '/' || dest.pathname === '');
+  } catch {
+    return false;
+  }
+}
+
 const RETIRED_COMMERCE_PATHS = new Set(['/checkout', '/paypal-checkout', '/order-confirmation']);
 /** SEO traps + retired funnels — /faucet is a real product tip page (not in this set). */
 const RETIRED_SEO_PATHS = new Set([
@@ -4318,7 +4373,7 @@ async function productEdge(request, url, env) {
     });
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/desk' || url.pathname === '/desk/')) {
-    return Response.redirect('https://www.getdasha.com/dasha', 308);
+    return Response.redirect('https://www.getdasha.com/dasha', 301);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/how' || url.pathname === '/how/')) {
     return Response.redirect('https://www.getdasha.com/how-to-buy', 308);
@@ -4347,6 +4402,20 @@ async function productEdge(request, url, env) {
   // Strip personal publisher branding (potterlab / John Potter) from head JSON-LD so the
   // public product site is getdasha-only. Source of truth for clean schema is also in embeds.
   const upstream = await fetch(request);
+  if (
+    leftoverRoomToHome(upstream)
+    && (url.pathname === '/dasha' || url.pathname === '/dasha/')
+    && (request.method === 'GET' || request.method === 'HEAD')
+  ) {
+    return new Response(request.method === 'HEAD' ? null : DESK_HTML, {
+      status: 200,
+      headers: htmlHeaders({
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'public, max-age=120',
+        'X-Dasha-Edge': 'dasha',
+      }),
+    });
+  }
   const ct = String(upstream.headers.get('content-type') || '');
   if (
     upstream.status === 404 &&
@@ -5093,7 +5162,8 @@ export default {
       (url.pathname.startsWith('/forum/') && url.pathname !== '/forum/') ||
       (url.pathname.startsWith('/chess/') && url.pathname !== '/chess/')
     ) {
-      if (request.method !== 'GET' && request.method !== 'HEAD' && origin && !allowedOrigin && !env.ALLOW_ANY_ORIGIN) {
+      // /studio/event is a countable embed ping — foreign origins reach the DO.
+      if (request.method !== 'GET' && request.method !== 'HEAD' && origin && !allowedOrigin && !env.ALLOW_ANY_ORIGIN && !countableEmbedPing(url)) {
         return json({ error: 'origin not allowed' }, 403, null);
       }
       const room = env.LOBBY.idFromName('public');
@@ -5181,7 +5251,7 @@ export default {
       return Response.redirect('https://www.getdasha.com/studio', 308);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/desk' || url.pathname === '/desk/')) {
-      return Response.redirect('https://www.getdasha.com/dasha', 308);
+      return Response.redirect('https://www.getdasha.com/dasha', 301);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/how' || url.pathname === '/how/')) {
       return Response.redirect('https://www.getdasha.com/how-to-buy', 308);

@@ -346,7 +346,7 @@ test('directory filter state round-trips through the hash, and rejects junk', ()
   const api = new Function(src.slice(start, end) + '; return { parse: dgParseFilterHash, ser: dgFilterHash, bucket: dgTeamSizeBucket, label: dgFunctionLabel };')();
   const providers = ['Greenhouse', 'Lever', 'Ashby'];
 
-  const full = { query: 'ai infra', hiring: 'yes', func: 'engineering', size: '11-50', provider: 'lever', sort: 'fresh' };
+  const full = { query: 'ai infra', hiring: 'yes', func: 'engineering', size: '11-50', provider: 'lever', metro: '', sort: 'fresh' };
   assert.deepEqual(api.parse(api.ser(full), providers), full, 'a filtered view round-trips');
 
   // Defaults omitted, so an unfiltered directory keeps a clean, shareable URL.
@@ -366,7 +366,7 @@ test('directory filter state round-trips through the hash, and rejects junk', ()
 
   assert.equal(api.parse('#q=' + 'x'.repeat(500), providers).query.length, 120, 'query is length-capped');
   assert.equal(api.parse('#ats=LEVER', providers).provider, 'lever', 'provider match is case-insensitive');
-  assert.deepEqual(api.parse('', providers), { query: '', hiring: '', func: '', size: '', provider: '', sort: 'roles' }, 'no hash -> defaults');
+  assert.deepEqual(api.parse('', providers), { query: '', hiring: '', func: '', size: '', provider: '', metro: '', sort: 'roles' }, 'no hash -> defaults');
   assert.deepEqual(api.parse('#%E0%A4%A', providers).query, '', 'a malformed escape does not throw');
   assert.equal(api.parse('#q=a+b', providers).query, 'a b', 'plus decodes to space');
   assert.equal(api.parse('#size=unknown', providers).size, 'unknown', 'unknown team-size is a real filter value');

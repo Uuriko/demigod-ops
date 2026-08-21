@@ -4,7 +4,7 @@
  * (client IIFE). See docs/exchange/DASHA-FAUCET-HUNT-2026-08-18.md.
  */
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
@@ -269,7 +269,8 @@ if (process.env.DASHA_FAUCET_HUNT_LIVE === '1') {
 
 /* H17 worker dest-check never labels IS_WALLET */
 {
-  const worker = readFileSync(join(root, '.grok/worktrees/potter/dasha-2/dasha-lobby-worker.mjs'), 'utf8');
+  const deployCopy = join(root, '.grok/worktrees/potter/dasha-2/dasha-lobby-worker.mjs');
+  const worker = readFileSync(existsSync(deployCopy) ? deployCopy : join(root, 'dasha-lobby-worker.mjs'), 'utf8');
   const block = worker.slice(worker.indexOf("path === '/faucet/dest-check'"), worker.indexOf("path === '/faucet/wallet/challenge'"));
   assert.match(block, /Never label IS_WALLET/);
   assert.doesNotMatch(block, /kind:\s*['"]IS_WALLET['"]/);
