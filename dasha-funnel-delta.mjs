@@ -35,9 +35,14 @@ const KEYS = [
   'handoffOpens',
   'mintToOpen',
 ];
+const QUIZ_KEYS = ['starts', 'completions', 'startToComplete', 'replays', 'shareIntents', 'completeToShareIntent'];
 
 function studio(j) {
   return j?.studio && typeof j.studio === 'object' ? j.studio : {};
+}
+
+function quiz(j) {
+  return j?.quiz && typeof j.quiz === 'object' ? j.quiz : {};
 }
 
 function num(v) {
@@ -84,6 +89,14 @@ async function main() {
       d: a != null && b != null ? Number((b - a).toFixed(4)) : null,
     };
   }
+  const QL = quiz(live);
+  const QB = quiz(baseline);
+  const quizDelta = {};
+  for (const k of QUIZ_KEYS) {
+    const a = num(QB[k]);
+    const b = num(QL[k]);
+    quizDelta[k] = { baseline: a, live: b, d: a != null && b != null ? Number((b - a).toFixed(4)) : null };
+  }
 
   const openToEdit = delta.openToEdit;
   const editToShare = delta.editToShareIntent;
@@ -99,6 +112,10 @@ async function main() {
       editToShareIntentDelta: editToShare.d,
       handoffMints: delta.handoffMints.live,
       handoffMintsDelta: delta.handoffMints.d,
+      quizStartToComplete: quizDelta.startToComplete.live,
+      quizStartToCompleteDelta: quizDelta.startToComplete.d,
+      quizCompleteToShareIntent: quizDelta.completeToShareIntent.live,
+      quizCompleteToShareIntentDelta: quizDelta.completeToShareIntent.d,
     },
     read: !baseline
       ? 'No baseline file — save with --save then compare again later.'
@@ -110,6 +127,7 @@ async function main() {
             ? 'openToEdit fell vs baseline.'
             : 'openToEdit flat vs baseline.',
     delta,
+    quiz: quizDelta,
   };
 
   writeFileSync(join(dir, 'delta-latest.json'), JSON.stringify(summary, null, 2));
