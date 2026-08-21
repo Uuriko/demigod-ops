@@ -22,6 +22,12 @@ export const DONATE_UNIT_DASHA = 1000;
 export const DONATE_POINTS_PER_UNIT = 1;
 export const DONATE_CAP_7D = 50;
 export const DONATE_ROLLING_MS = 7 * 24 * 60 * 60 * 1000;
+/* Burn lane: same whole-token math as donations, but a lower weekly cap so irreversible supply
+   reduction can unlock Spotlight without turning the Board into an uncapped purchase ladder. */
+export const BURN_UNIT_DASHA = 1000;
+export const BURN_POINTS_PER_UNIT = 1;
+export const BURN_CAP_7D = 25;
+export const BURN_ROLLING_MS = 7 * 24 * 60 * 60 * 1000;
 export const DONATE_MINT = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
 export const DONATE_TREASURY = 'DwpCrg5qfCMW11a9FYFsAR9ZYQUYKNhfLdnzpci7sYgb';
 export const ROLLING_MS = 28 * 24 * 60 * 60 * 1000;
@@ -299,7 +305,7 @@ export function isValidEvidenceUrl(raw) {
 }
 
 function emptyComponents() {
-  return { linked_x: 0, quiz: 0, creative: 0, community: 0, connector: 0, oss: 0, donate: 0, holder: 0 };
+  return { linked_x: 0, quiz: 0, creative: 0, community: 0, connector: 0, oss: 0, donate: 0, burn: 0, holder: 0 };
 }
 
 export const quizPublic = () => ({
@@ -520,12 +526,20 @@ export function isValidDonateEvidenceUrl(raw) {
   return typeof raw === 'string' && /^https:\/\/www\.getdasha\.com\/faucet\/tx\/[1-9A-HJ-NP-Za-km-z]{64,88}$/.test(raw);
 }
 export const donateSigFromEvidenceUrl = (url) => (isValidDonateEvidenceUrl(url) ? url.slice(url.lastIndexOf('/') + 1) : null);
+export const isValidBurnEvidenceUrl = isValidDonateEvidenceUrl;
+export const burnSigFromEvidenceUrl = donateSigFromEvidenceUrl;
 
 /** Whole units only: 999 → 0, 1000 → 1, 2999 → 2. Raw token units + mint decimals, never a UI float. */
 export function donatePointsForAmount(amountRaw, decimals = 6) {
   const raw = BigInt(amountRaw ?? 0);
   if (raw <= 0n) return 0;
   return Number(raw / (BigInt(DONATE_UNIT_DASHA) * 10n ** BigInt(decimals))) * DONATE_POINTS_PER_UNIT;
+}
+
+export function burnPointsForAmount(amountRaw, decimals = 6) {
+  const raw = BigInt(amountRaw ?? 0);
+  if (raw <= 0n) return 0;
+  return Number(raw / (BigInt(BURN_UNIT_DASHA) * 10n ** BigInt(decimals))) * BURN_POINTS_PER_UNIT;
 }
 
 /** Rolling 7d, per-award points, one credit per signature, hard cap. */
@@ -546,10 +560,34 @@ function donatePoints(awards, now) {
   return sum;
 }
 
+function burnPoints(awards, now) {
+  let sum = 0;
+  const seen = new Set();
+  const windowStart = now - BURN_ROLLING_MS;
+  for (const a of awards) {
+    if (a.kind !== 'burn') continue;
+    const at = Number(a.at) || 0;
+    if (at < windowStart || at > now) continue;
+    const sig = burnSigFromEvidenceUrl(a.evidenceUrl);
+    if (!sig || seen.has(sig)) continue;
+    seen.add(sig);
+    sum += Math.max(0, Math.floor(Number(a.points) || 0));
+    if (sum >= BURN_CAP_7D) return BURN_CAP_7D;
+  }
+  return sum;
+}
+
 /** A signature credits one profile, ever. Store is { [xId]: profile }. */
 export function donateSigTaken(store, sig) {
   for (const p of Object.values(store || {})) {
     for (const a of p?.awards || []) if (a.kind === 'donate' && donateSigFromEvidenceUrl(a.evidenceUrl) === sig) return true;
+  }
+  return false;
+}
+
+export function burnSigTaken(store, sig) {
+  for (const p of Object.values(store || {})) {
+    for (const a of p?.awards || []) if (a.kind === 'burn' && burnSigFromEvidenceUrl(a.evidenceUrl) === sig) return true;
   }
   return false;
 }
@@ -587,18 +625,19 @@ export function scoreProfile(profile, { now = Date.now() } = {}) {
   components.connector = Math.min(CONNECTOR_CAP_28D, Math.max(0, Number(profile.connectorPoints) || 0));
   components.oss = ossPoints(awards);
   components.donate = donatePoints(awards, now);
+  components.burn = burnPoints(awards, now);
   components.holder = 0; // badge only in v1
   let lastEvidenceAt = null;
   for (const a of awards) {
     const at = Number(a.at) || 0;
     if (!at || at > now) continue;
-    const evOk = a.kind === 'oss' ? isValidOssEvidenceUrl(a.evidenceUrl) : a.kind === 'donate' ? isValidDonateEvidenceUrl(a.evidenceUrl) : isValidEvidenceUrl(a.evidenceUrl);
+    const evOk = a.kind === 'oss' ? isValidOssEvidenceUrl(a.evidenceUrl) : a.kind === 'donate' || a.kind === 'burn' ? isValidDonateEvidenceUrl(a.evidenceUrl) : isValidEvidenceUrl(a.evidenceUrl);
     if (evOk) {
       if (lastEvidenceAt == null || at > lastEvidenceAt) lastEvidenceAt = at;
     }
   }
   const total =
-    components.linked_x + components.quiz + components.creative + components.community + components.connector + components.oss + components.donate + components.holder;
+    components.linked_x + components.quiz + components.creative + components.community + components.connector + components.oss + components.donate + components.burn + components.holder;
   return { total, components, lastEvidenceAt };
 }
 
@@ -725,6 +764,13 @@ export function rulesPublic() {
       note:
         'Optional refill of the public faucet, which re-tips the tokens to strangers. Only from a wallet you signed for; pasted addresses do not earn. Evidence is the public tx page. Buying, holding, or paying for goods or access earns nothing.',
     },
+    burn: {
+      points_per_1000_dasha: BURN_POINTS_PER_UNIT,
+      floor_dasha: BURN_UNIT_DASHA,
+      cap_rolling_7d: BURN_CAP_7D,
+      note:
+        'Optional permanent supply reduction from a wallet you signed for. One finalized BurnChecked transaction and its intent memo can score once. The weekly cap prevents unlimited pay-to-rank.',
+    },
     holder: {
       points: 0,
       note: 'Badge only when a later signed-wallet proof exists. Zero points in v1.',
@@ -770,17 +816,17 @@ export function buildPublicBoard(profiles, { now = Date.now(), limit = PUBLIC_BO
 export function proposeAward(profile, award, { now = Date.now() } = {}) {
   if (!profile?.handle) return { ok: false, error: 'not enrolled' };
   const kind = award?.kind;
-  if (kind !== 'creative' && kind !== 'community' && kind !== 'oss' && kind !== 'donate') {
+  if (kind !== 'creative' && kind !== 'community' && kind !== 'oss' && kind !== 'donate' && kind !== 'burn') {
     return { ok: false, error: 'invalid kind' };
   }
-  if (kind === 'donate') {
+  if (kind === 'donate' || kind === 'burn') {
     /* The Worker has already verified the tx on-chain (mint, treasury owner, signer == the SIWS
        bind, finality); this is the last gate that keeps a pasted or unproven wallet from earning. */
     if (award.proven !== true) return { ok: false, error: 'dest not proven' };
     if (!isValidDonateEvidenceUrl(award.evidenceUrl)) return { ok: false, error: 'invalid evidence host' };
     const sig = donateSigFromEvidenceUrl(award.evidenceUrl);
     if (typeof award.signature === 'string' && award.signature !== sig) return { ok: false, error: 'evidence signature mismatch' };
-    if ((profile.awards || []).some((a) => a.kind === 'donate' && donateSigFromEvidenceUrl(a.evidenceUrl) === sig)) {
+    if ((profile.awards || []).some((a) => a.kind === kind && donateSigFromEvidenceUrl(a.evidenceUrl) === sig)) {
       return { ok: false, error: 'duplicate signature' };
     }
   } else if (kind === 'oss') {
@@ -800,6 +846,7 @@ export function proposeAward(profile, award, { now = Date.now() } = {}) {
     kind === 'creative' ? CREATIVE_POINTS
       : kind === 'community' ? COMMUNITY_POINTS
         : kind === 'donate' ? donatePointsForAmount(award.amountRaw, award.decimals ?? 6)
+          : kind === 'burn' ? burnPointsForAmount(award.amountRaw, award.decimals ?? 6)
           : Math.max(0, Number(award.points) || 0);
   if (unit <= 0) return { ok: false, error: 'no points' };
   const row = {
@@ -853,6 +900,39 @@ export function creditDonate(store, session, {
     awarded: true,
     points: awarded.award.points,
     donate: awarded.after.components.donate,
+    store: { ...joined.store, [String(session.xId)]: awarded.profile },
+  };
+}
+
+/** Credit one already-verified BurnChecked receipt. Does not submit or sign a transaction. */
+export function creditBurn(store, session, {
+  signature,
+  amountRaw,
+  at,
+  proven,
+  decimals = 6,
+} = {}) {
+  const now = Number(at) || Date.now();
+  const sig = String(signature || '').trim();
+  if (burnSigTaken(store, sig)) return { ok: false, error: 'duplicate signature', store };
+  const joined = joinBoard(store, session, { now });
+  if (!joined.ok) return { ok: false, error: joined.error };
+  const awarded = proposeAward(joined.profile, {
+    id: `burn:${sig}`.slice(0, 40),
+    kind: 'burn',
+    proven: proven === true,
+    amountRaw,
+    decimals,
+    evidenceUrl: `https://www.getdasha.com/faucet/tx/${sig}`,
+    signature: sig,
+    at: now,
+  }, { now });
+  if (!awarded.ok) return { ok: false, error: awarded.error, store: joined.store };
+  return {
+    ok: true,
+    awarded: true,
+    points: awarded.award.points,
+    burn: awarded.after.components.burn,
     store: { ...joined.store, [String(session.xId)]: awarded.profile },
   };
 }
