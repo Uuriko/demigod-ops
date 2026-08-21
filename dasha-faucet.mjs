@@ -539,6 +539,7 @@ export function inspectBurnTx(tx, {
   const signer = keys.some((key) => typeof key === 'object' && String(key.pubkey || '') === owner && key.signer === true);
   if (!signer) return { error: 'burn miss' };
   const instructions = Array.isArray(message?.instructions) ? message.instructions : [];
+  if (instructions.length !== 2) return { error: 'burn miss' };
   const memos = instructions.filter((ix) => String(ix?.programId || '') === SPL_MEMO_PROGRAM);
   if (memos.length !== 1 || String(memos[0].parsed || '') !== BURN_MEMO_PREFIX + intentId) return { error: 'burn miss' };
   const burns = instructions.filter((ix) =>
