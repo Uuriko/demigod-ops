@@ -5,8 +5,8 @@
   "type": "module",
   "description": "Demigod startup + trydemigod.com dev workspace @ /home/potter",
   "scripts": {
-    "dasha:lobby:deploy": "node dasha-deploy-guard.mjs -- npx --yes wrangler@4.120.1 deploy -c dasha-lobby-wrangler.jsonc",
-    "dasha:lobby:deploy:forced": "node dasha-deploy-guard.mjs --force -- npx --yes wrangler@4.120.1 deploy -c dasha-lobby-wrangler.jsonc",
+    "dasha:lobby:deploy": "node dasha-deploy-guard.mjs -- npm --prefix .grok/worktrees/potter/dasha-2 run dasha:lobby:deploy",
+    "dasha:lobby:deploy:forced": "node dasha-deploy-guard.mjs --force -- npm --prefix .grok/worktrees/potter/dasha-2 run dasha:lobby:deploy",
     "start": "python3 -m http.server 8765",
     "dev:status": "./agent-dev.sh status",
     "dev:audit": "./agent-dev.sh audit",
