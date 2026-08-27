@@ -6,10 +6,13 @@ name: wire-home-fixes
 
 on:
   push:
-    branches: [fix/home-prefill-compute]
+    branches: [fix/live-sri-faucet-motley]
     paths:
       - 'scripts/wire-home-fixes.mjs'
       - '.github/workflows/wire-home-fixes.yml'
+      - 'dasha-sri-x-connect.mjs'
+      - 'dasha-faucet-heading.mjs'
+      - 'dasha-home-compute.mjs'
 
 jobs:
   wire:
@@ -34,5 +37,5 @@ jobs:
             echo "workers already wired"
             exit 0
           fi
-          git commit -m "Wire brief-prefill strip and Compute door into Worker entry files"
+          git commit -m "Wire SRI pin, faucet heading, and Compute unhide into Worker entry files"
           git push
