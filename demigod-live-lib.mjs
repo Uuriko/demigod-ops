@@ -30,7 +30,10 @@ export function markerPresent(html, marker) {
     return html.includes('hide-webflow-badge')
       || (/rel="stylesheet"/.test(html) && /\.w-webflow-badge[^}]*display:\s*none/i.test(html));
   }
-  if (marker === 'hello@trydemigod.com') return html.includes('hello@trydemigod.com');
+  if (marker === 'hello@trydemigod.com') {
+    return /(?:hello|potter)@trydemigod\.com/i.test(html)
+      || /mailto:[^"'&]*@trydemigod\.com/i.test(html);
+  }
   if (marker === 'og:title') return html.includes('og:title');
   if (marker === 'Demigod forms') {
     return TALLY_HEAD_MARKERS.some((k) => html.includes(k))
@@ -101,6 +104,39 @@ function visibleStaticText(html = '') {
   return stripEmbeddedCode(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+function decodeHtmlAttribute(value = '') {
+  return String(value)
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'");
+}
+
+/** Inspect actual root-page links without accepting URLs embedded in CSS or JavaScript. */
+export function evaluateLandingLinks(html = '') {
+  const markup = stripEmbeddedCode(html);
+  const anchors = markup.match(/<a\b[^>]*>/gi) || [];
+  const links = [];
+  for (const anchor of anchors) {
+    const match = anchor.match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+    const href = decodeHtmlAttribute(match?.[1] ?? match?.[2] ?? match?.[3] ?? '');
+    if (!href) continue;
+    try {
+      const url = new URL(href, `${LIVE_ORIGIN}/`);
+      const wizard = url.searchParams.get('wiz');
+      if (wizard !== 'startup' && wizard !== 'engineer') continue;
+      const prefillKeys = ['company', 'name', 'role'].filter((key) => url.searchParams.has(key));
+      links.push({ href, wizard, prefillKeys });
+    } catch (_) { /* ignore malformed links; other link checks own them */ }
+  }
+  const startup = links.filter((link) => link.wizard === 'startup');
+  const engineer = links.filter((link) => link.wizard === 'engineer');
+  return {
+    startup,
+    engineer,
+    unsafeStartup: startup.filter((link) => link.prefillKeys.length > 0),
+  };
+}
+
 export function scanLiveHtml(html, { footerCoreJs = '' } = {}) {
   const merged = footerCoreJs ? `${html}\n<script>${footerCoreJs}</script>` : html;
   const staticMarkup = stripEmbeddedCode(html);
@@ -133,8 +169,8 @@ export function scanLiveHtml(html, { footerCoreJs = '' } = {}) {
   const badgeHiddenByCss = (/hide-webflow-badge/.test(html) || /rel="stylesheet"/.test(html))
     && /w-webflow-badge[^}]*display:\s*none/i.test(merged);
   const staticDrift = [];
-  if (!/FIND TALENT/i.test(staticText)) {
-    staticDrift.push({ severity: 'medium', issue: 'FIND TALENT missing in static HTML (runtime-only nav CTA)' });
+  if (!/(?:FIND TALENT|START A BRIEF)/i.test(staticText)) {
+    staticDrift.push({ severity: 'medium', issue: 'Founder CTA missing in static HTML (runtime-only nav CTA)' });
   }
   if (tagHasAttributeValue(html, 'form', 'data-name', 'email-form')) {
     staticDrift.push({ severity: 'high', issue: 'data-name=email-form still in static HTML' });
@@ -226,7 +262,8 @@ export function evaluatePageScan({ bodyText = '', html = '', footerText = '' } =
     postJob: /POST A JOB/i.test(t),
     hireTalent: (t.match(/HIRE TALENT/g) || []).length,
     findTalent: (t.match(/FIND TALENT/g) || []).length,
-    joinNetwork: (t.match(/JOIN NETWORK/g) || []).length,
+    startBrief: (t.match(/START A BRIEF/gi) || []).length,
+    joinNetwork: (t.match(/JOIN(?: THE)? NETWORK/gi) || []).length,
     getJob: (t.match(/GET JOB/g) || []).length,
     talentLink: /TalentLink/i.test(t.replace(/talentlink-sf/gi, '')),
     footer2026: /2026/i.test(footer) && /Demigod/i.test(footer),
@@ -321,10 +358,10 @@ export function buildFindings({ pageScan, htmlScan, modals = {}, designerIssues 
       findings.push({ severity: 'high', issue: `Nav still HIRE TALENT (${pageScan.hireTalent}x) — should be FIND TALENT` });
     }
     const runtimeCopy = htmlScan?.footerCoreOk && htmlScan?.footerCoreCopy?.ok;
-    if (!pageScan.hireTalent && !runtimeCopy) {
+    if (!pageScan.hireTalent && !pageScan.startBrief && !runtimeCopy) {
       findings.push({ severity: 'high', issue: 'Missing HIRE TALENT hero CTA for founders' });
     }
-    if (!pageScan.findTalent && !runtimeCopy) {
+    if (!pageScan.findTalent && !pageScan.startBrief && !runtimeCopy) {
       findings.push({ severity: 'high', issue: 'Missing FIND TALENT nav CTA' });
     }
     if (!pageScan.joinNetwork && !pageScan.getJob && !runtimeCopy) {
@@ -382,8 +419,10 @@ export function htmlToVisibleText(html) {
     .trim();
 }
 
-export async function fetchLiveHtml(cacheBust = true) {
-  const url = cacheBust ? `${LIVE_ORIGIN}/?v=verify-${Date.now()}` : `${LIVE_ORIGIN}/`;
+export async function fetchLiveHtml(cacheBust = true, targetPath = '/') {
+  const target = new URL(targetPath, `${LIVE_ORIGIN}/`);
+  if (cacheBust) target.searchParams.set('v', `verify-${Date.now()}`);
+  const url = target.toString();
   const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
   if (!res.ok) throw new Error(`live fetch ${res.status}`);
   const html = await res.text();
