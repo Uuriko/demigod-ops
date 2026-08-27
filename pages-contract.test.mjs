@@ -145,3 +145,16 @@ test('product navigation remains available at narrow viewport widths', () => {
     }
   }
 });
+
+test('/talent and /network separate private review from per-match consent', () => {
+  for (const file of ['talent.html', 'network.html']) {
+    const html = fs.readFileSync(path.join(PAGES_DIR, file), 'utf8');
+    assert.match(html, /private human review/i);
+    assert.match(html, /does not publish the profile or send (?:it|your identity) to a company/i);
+    assert.match(html, /specific company and role/i);
+    assert.match(html, /silence is not consent/i);
+    assert.match(html, /(?:earlier yes does not authorize|approval does not carry over)/i);
+    assert.match(html, /startup (?:must )?also wants? the conversation/i);
+    assert.doesNotMatch(html, /(?:~\s*2\s*min|about two minutes)/i);
+  }
+});
