@@ -39,6 +39,25 @@ describe('scanLiveHtml', () => {
     assert.equal(scan.formsOk, false);
   });
 
+  it('ignores CSS and script lookalikes for static navigation and forms', () => {
+    const html = '<style>a[href="/hire"]::after{content:"FIND TALENT"}</style>'
+      + '<script>const fake = "<form name=\\"startup-hire\\"></form>'
+      + '<form id=\\"engineer-join\\" data-name=\\"email-form\\"></form>";'
+      + ' const cta = "FIND TALENT";</script>';
+    const scan = scanLiveHtml(html);
+    assert.equal(scan.formsOk, false);
+    assert.ok(scan.staticDrift.some((item) => /FIND TALENT missing/i.test(item.issue)));
+    assert.ok(!scan.staticDrift.some((item) => /data-name=email-form/i.test(item.issue)));
+  });
+
+  it('recognizes actual static forms and navigation text', () => {
+    const html = '<form name="startup-hire"></form><form id="engineer-join"></form>'
+      + '<nav><a href="/hire">FIND TALENT</a></nav>';
+    const scan = scanLiveHtml(html);
+    assert.equal(scan.formsOk, true);
+    assert.ok(!scan.staticDrift.some((item) => /FIND TALENT missing/i.test(item.issue)));
+  });
+
   it('flags static copy policy leaks', () => {
     const scan = scanLiveHtml('<p>Get 3-5 matches in 48 hours</p><input placeholder="John Doe">');
     assert.ok(scan.staticDrift.some((d) => /48h/i.test(d.issue)));
