@@ -158,3 +158,22 @@ test('/talent and /network separate private review from per-match consent', () =
     assert.doesNotMatch(html, /(?:~\s*2\s*min|about two minutes)/i);
   }
 });
+
+test('/compare and /pilot avoid unsupported market and delivery claims', () => {
+  const compare = fs.readFileSync(path.join(PAGES_DIR, 'compare.html'), 'utf8');
+  const pilot = fs.readFileSync(path.join(PAGES_DIR, 'pilot.html'), 'utf8');
+  for (const [file] of pages) {
+    const html = fs.readFileSync(path.join(PAGES_DIR, file), 'utf8');
+    assert.doesNotMatch(
+      html,
+      /(?:agency|recruit|contingency)[^<]{0,100}\b\d{1,2}\s*[–—-]\s*\d{1,2}\s*%|\b\d{1,2}\s*[–—-]\s*\d{1,2}\s*%[^<]{0,100}(?:agency|recruit|contingency)/i,
+      `${file} must not publish an unsourced competitor fee range`,
+    );
+  }
+  assert.match(compare, /broad service-model categories/i);
+  assert.match(compare, /Varies by provider and agreement/i);
+  assert.doesNotMatch(compare, /Typical agency|Recruiter push|Apply volume \/ algorithms|fewer, better/i);
+  assert.match(pilot, /when a real fit is found/i);
+  assert.match(pilot, /Role-specific mutual-yes gate/i);
+  assert.doesNotMatch(pilot, /shortlist|within a few days/i);
+});
