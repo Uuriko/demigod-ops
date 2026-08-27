@@ -30,6 +30,8 @@ jobs:
           node --check demigod-control.mjs
       - name: Portability
         run: node --test demigod-portability.test.mjs
+      - name: Product page contracts
+        run: node --test pages-contract.test.mjs
       - name: Source contract
         run: node demigod-verify-source.mjs
       - name: Live contract library
