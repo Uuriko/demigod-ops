@@ -77,17 +77,39 @@ export async function fetchFooterCoreJs(html) {
   return parts.join('\n');
 }
 
+/** Remove embedded code before checking whether static page markup contains real elements/copy. */
+function stripEmbeddedCode(html = '') {
+  return String(html)
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<(script|style|template)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '');
+}
+
+function tagHasAttributeValue(html, tagName, attributeName, expectedValue) {
+  const markup = stripEmbeddedCode(html);
+  const tags = markup.match(new RegExp(`<${tagName}\\b[^>]*>`, 'gi')) || [];
+  const attribute = new RegExp(
+    `\\b${attributeName}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`,
+    'i',
+  );
+  return tags.some((tag) => {
+    const match = tag.match(attribute);
+    return (match?.[1] ?? match?.[2] ?? match?.[3] ?? '') === expectedValue;
+  });
+}
+
+function visibleStaticText(html = '') {
+  return stripEmbeddedCode(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 export function scanLiveHtml(html, { footerCoreJs = '' } = {}) {
   const merged = footerCoreJs ? `${html}\n<script>${footerCoreJs}</script>` : html;
+  const staticMarkup = stripEmbeddedCode(html);
+  const staticText = visibleStaticText(html);
   const scriptRefs = html.match(/[a-z0-9/%-]+-1\.0\.0[^"'\s]*\.js/gi) || [];
   const mcpScripts = [...new Set(
     scriptRefs.filter((s) => BAD_MCP_SCRIPT_PATTERNS.some((re) => re.test(s))),
   )];
   const allMcpAppScripts = [...new Set(html.match(/demigod[a-z0-9]+-1\.0\.0/gi) || [])];
-  const forms = EXPECTED_FORM_NAMES.map((name) => ({
-    name,
-    present: new RegExp(`name="${name}"|id="${name}"`, 'i').test(html),
-  }));
   // Live may still publish legacy ids until next designer publish
   const legacyAliases = {
     'startup-hire': ['startup-form', 'startup-hire'],
@@ -95,7 +117,10 @@ export function scanLiveHtml(html, { footerCoreJs = '' } = {}) {
   };
   const formsResolved = EXPECTED_FORM_NAMES.map((name) => {
     const aliases = legacyAliases[name] || [name];
-    const present = aliases.some((a) => new RegExp(`name="${a}"|id="${a}"`, 'i').test(html));
+    const present = aliases.some((alias) => (
+      tagHasAttributeValue(html, 'form', 'name', alias)
+      || tagHasAttributeValue(html, 'form', 'id', alias)
+    ));
     return { name, present, aliases };
   });
   const headMarkers = HEAD_MARKERS.map((m) => ({
@@ -108,26 +133,26 @@ export function scanLiveHtml(html, { footerCoreJs = '' } = {}) {
   const badgeHiddenByCss = (/hide-webflow-badge/.test(html) || /rel="stylesheet"/.test(html))
     && /w-webflow-badge[^}]*display:\s*none/i.test(merged);
   const staticDrift = [];
-  if (!/FIND TALENT/i.test(html)) {
+  if (!/FIND TALENT/i.test(staticText)) {
     staticDrift.push({ severity: 'medium', issue: 'FIND TALENT missing in static HTML (runtime-only nav CTA)' });
   }
-  if (/data-name=["']email-form["']/i.test(html)) {
+  if (tagHasAttributeValue(html, 'form', 'data-name', 'email-form')) {
     staticDrift.push({ severity: 'high', issue: 'data-name=email-form still in static HTML' });
   }
-  const talentLinkVisible = /TalentLink/i.test(html.replace(/talentlink-sf\.webflow[^"'\s]*/gi, ''));
+  const talentLinkVisible = /TalentLink/i.test(staticMarkup.replace(/talentlink-sf\.webflow[^"'\s]*/gi, ''));
   if (talentLinkVisible) {
     staticDrift.push({ severity: 'high', issue: 'TalentLink branding in static HTML' });
   }
-  if (/METHODOLOGY/i.test(html)) {
+  if (/METHODOLOGY/i.test(staticMarkup)) {
     staticDrift.push({ severity: 'low', issue: 'METHODOLOGY block in static HTML' });
   }
-  if (/SYNDICATE SUBSCRIPTION/i.test(html)) {
+  if (/SYNDICATE SUBSCRIPTION/i.test(staticMarkup)) {
     staticDrift.push({ severity: 'medium', issue: 'SYNDICATE SUBSCRIPTION in static HTML' });
   }
-  if (/48\s*h(?:ours?)?|within\s*(?:48|24)|3-5[^<]{0,48}48|Meet Your \d/i.test(html)) {
+  if (/48\s*h(?:ours?)?|within\s*(?:48|24)|3-5[^<]{0,48}48|Meet Your \d/i.test(staticMarkup)) {
     staticDrift.push({ severity: 'medium', issue: 'Speed promise (48h) in static HTML' });
   }
-  if (/John\s+Doe/i.test(html)) {
+  if (/John\s+Doe/i.test(staticMarkup)) {
     staticDrift.push({ severity: 'medium', issue: 'John Doe in static HTML' });
   }
   return {
