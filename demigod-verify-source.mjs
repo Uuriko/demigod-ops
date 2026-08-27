@@ -3,11 +3,12 @@
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
 import vm from 'vm';
 import { scanLiveHtml, markerPresent } from './demigod-live-lib.mjs';
 
-const ROOT = '/home/potter';
-const OUT = path.join(ROOT, 'DEMIGOD-VERIFY-SOURCE.json');
+const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+const OUT = process.env.DEMIGOD_VERIFY_OUT || path.join(ROOT, 'DEMIGOD-VERIFY-SOURCE.json');
 
 const checks = [];
 

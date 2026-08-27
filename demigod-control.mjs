@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-\n/**
+/**
  * demigod-control — cohesive Control Plane over all Demigod ops modules
  *
  * One mental model:

@@ -42,6 +42,10 @@ orca/
 # Runtime / secrets / local SoR (never push)
 DEMIGOD-*
 !DEMIGOD-REVIEW-BASELINE.json
+!demigod-portability.test.mjs
+!.github/
+!.github/workflows/
+!.github/workflows/demigod-source-verify.yml
 HEAVY-*
 CURSOR-*
 DESK.json

@@ -6,9 +6,12 @@
  * Closes the gap where verify:source skips coreJs checks when cdnFoot=true.
  */
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import vm from 'vm';
 
-const SRC = process.argv[2] || '/home/potter/demigod-foot-core.js';
+const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+const SRC = process.argv[2] || path.join(ROOT, 'demigod-foot-core.js');
 const code = fs.readFileSync(SRC, 'utf8');
 
 function makeEl() {
