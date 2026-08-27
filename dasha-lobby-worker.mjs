@@ -132,6 +132,7 @@ import {
   hamburgerHtml,
   slimFooterHtml,
 } from './dasha-award-chrome.mjs';
+import { ensureHomeComputeDoor, ensureHomeComputeHop } from './dasha-home-compute.mjs';
 import {
   applyGraphHighlight,
   dropGraphHighlight,
@@ -617,6 +618,8 @@ export function rewriteHomeFirstViewport(html) {
   page = rewriteLeftoverLobbyHrefs(stripHomeLeftoverChrome(page));
   page = ensureHomeTokenReachLinks(page);
   page = ensureHomeForumHop(page);
+  page = ensureHomeComputeDoor(page);
+  page = ensureHomeComputeHop(page);
   return ensureTwitterSite(ensureHomeSeo(page));
 }
 

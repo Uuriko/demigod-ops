@@ -2,6 +2,8 @@
  * Demigod product HTML edge — Cloudflare Worker for www.trydemigod.com.
  * Fetch Webflow, then rewrite first HTML. Separate zone/brand from Dasha.
  */
+import { stripLeakedBriefPrefill } from './demigod-html-prefill.mjs';
+export { stripLeakedBriefPrefill };
 const FEED_SCHEMA = 'demigod-bounties-feed/v1';
 const FEED_NOTE =
   "Declared USDC. We don't hold it. Unused bounty rail — not the 10% on-hire matching fee. Demigod listings only — not extraSeed/dasha-desk.";
@@ -455,7 +457,7 @@ async function productEdge(request, url) {
   const ct = String(upstream.headers.get('content-type') || '');
   if (request.method !== 'GET' || !ct.includes('text/html')) return upstream;
   let html = await upstream.text();
-  html = rewriteStaleSnapshotDates(rewriteCdnPin(stripGoldAccent(html)));
+  html = rewriteStaleSnapshotDates(rewriteCdnPin(stripGoldAccent(stripLeakedBriefPrefill(html))));
   if (isBountiesPath(url.pathname)) {
     html = injectBountiesBoard(html, await loadBountiesFeed());
   }
