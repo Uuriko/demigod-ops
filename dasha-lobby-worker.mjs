@@ -133,6 +133,8 @@ import {
   slimFooterHtml,
 } from './dasha-award-chrome.mjs';
 import { ensureHomeComputeDoor, ensureHomeComputeHop } from './dasha-home-compute.mjs';
+import { pinLiveXConnectSri } from './dasha-sri-x-connect.mjs';
+import { ensureFaucetHeading } from './dasha-faucet-heading.mjs';
 import {
   applyGraphHighlight,
   dropGraphHighlight,
@@ -620,7 +622,7 @@ export function rewriteHomeFirstViewport(html) {
   page = ensureHomeForumHop(page);
   page = ensureHomeComputeDoor(page);
   page = ensureHomeComputeHop(page);
-  return ensureTwitterSite(ensureHomeSeo(page));
+  return pinLiveXConnectSri(ensureTwitterSite(ensureHomeSeo(page)));
 }
 
 /** Quiet Forum hop after first paint. Slim bar stays wordmark + Buy. */
@@ -1435,7 +1437,7 @@ function magnetPageResponse(request, route) {
 }
 
 function faucetPageResponse(request) {
-  return new Response(request.method === 'HEAD' ? null : faucetPageHtml(), {
+  return new Response(request.method === 'HEAD' ? null : ensureFaucetHeading(pinLiveXConnectSri(faucetPageHtml())), {
     status: 200,
     headers: htmlHeaders({
       'Content-Type': 'text/html; charset=utf-8',
