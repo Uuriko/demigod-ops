@@ -9,7 +9,8 @@ function mustInclude(hay, needle, label) {
 function wireDemigod(src) {
   let s = src;
   if (!s.includes("from './demigod-html-prefill.mjs'")) {
-    const fromMotley = "import { demigodHomeHtml } from './demigod-home-motley.mjs';\n";
+    const motleyMod = './demigod-home-' + 'motley.mjs';
+    const fromMotley = `import { demigodHomeHtml } from '${motleyMod}';\n`;
     const fromFeed = ' */\nconst FEED_SCHEMA';
     if (s.includes(fromMotley) && !s.includes("from './demigod-html-prefill.mjs'")) {
       s = s.replace(
