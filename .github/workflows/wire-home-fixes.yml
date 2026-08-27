@@ -6,11 +6,12 @@ name: wire-home-fixes
 
 on:
   push:
-    branches: [fix/compute-provenance-download]
+    branches:
+      - fix/home-prefill-compute
+      - fix/compute-pin-product-sitemap
     paths:
       - 'scripts/wire-home-fixes.mjs'
       - '.github/workflows/wire-home-fixes.yml'
-      - 'dasha-compute-release.mjs'
 
 jobs:
   wire:
@@ -35,5 +36,5 @@ jobs:
             echo "workers already wired"
             exit 0
           fi
-          git commit -m "Wire provenance Compute download into Worker entry files"
+          git commit -m "Wire product sitemap and leftover-redirect skip into Worker entry files"
           git push
