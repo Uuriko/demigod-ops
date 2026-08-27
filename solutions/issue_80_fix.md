@@ -1,0 +1,1 @@
+Solution proposal for P2: expose Dasha Compute from the live homepage without overstating the alpha
