@@ -37,6 +37,46 @@ function wireDemigod(src) {
   if (s.includes('demigodHomeHtml()') && !s.includes('stripLeakedBriefPrefill(demigodHomeHtml())')) {
     s = s.replaceAll('demigodHomeHtml()', 'stripLeakedBriefPrefill(demigodHomeHtml())');
   }
+  if (!s.includes("from './demigod-product-sitemap.mjs'")) {
+    const fromPrefill = "import { stripLeakedBriefPrefill } from './demigod-html-prefill.mjs';\n";
+    if (s.includes(fromPrefill)) {
+      s = s.replace(
+        fromPrefill,
+        `${fromPrefill}import { isProductPath, isSitemapPath, sitemapResponse } from './demigod-product-sitemap.mjs';\n`,
+      );
+    }
+  }
+  if (!s.includes('isSitemapPath(url.pathname)')) {
+    const needle = `    if (isProductHost(url.hostname)) {
+      // Worker-owned 200s. Do not fetch Webflow — /companies and /c/:id are 404 there,
+      // and foot JS cannot rescue an upstream 404.
+      if (
+        (request.method === 'GET' || request.method === 'HEAD') &&
+        (isCompaniesPath(url.pathname) || isCompanyPath(url.pathname))
+      ) {
+        return companiesEdge(request, url);
+      }`;
+    if (s.includes(needle)) {
+      s = s.replace(
+        needle,
+        `    if (isProductHost(url.hostname)) {
+      // Worker-owned 200s. Do not fetch Webflow — /companies and /c/:id are 404 there,
+      // and foot JS cannot rescue an upstream 404.
+      if ((request.method === 'GET' || request.method === 'HEAD') && isSitemapPath(url.pathname)) {
+        return sitemapResponse(request);
+      }
+      if ((request.method === 'GET' || request.method === 'HEAD') && isProductPath(url.pathname)) {
+        return productEdge(request, url);
+      }
+      if (
+        (request.method === 'GET' || request.method === 'HEAD') &&
+        (isCompaniesPath(url.pathname) || isCompanyPath(url.pathname))
+      ) {
+        return companiesEdge(request, url);
+      }`,
+      );
+    }
+  }
   return s;
 }
 
@@ -74,7 +114,7 @@ function wireDasha(src) {
   }
   if (s.includes('faucetPageHtml()') && !s.includes('ensureFaucetHeading(')) {
     s = s.replaceAll(
-      "request.method === 'HEAD' ? null : faucetPageHtml()",
+      'request.method === \'HEAD\' ? null : faucetPageHtml()',
       "request.method === 'HEAD' ? null : ensureFaucetHeading(pinLiveXConnectSri(faucetPageHtml()))",
     );
   }

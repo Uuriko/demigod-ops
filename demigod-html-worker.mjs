@@ -3,6 +3,7 @@
  * Fetch Webflow, then rewrite first HTML. Separate zone/brand from Dasha.
  */
 import { stripLeakedBriefPrefill } from './demigod-html-prefill.mjs';
+import { isProductPath, isSitemapPath, sitemapResponse } from './demigod-product-sitemap.mjs';
 export { stripLeakedBriefPrefill };
 const FEED_SCHEMA = 'demigod-bounties-feed/v1';
 const FEED_NOTE =
@@ -481,6 +482,12 @@ export default {
     if (isProductHost(url.hostname)) {
       // Worker-owned 200s. Do not fetch Webflow — /companies and /c/:id are 404 there,
       // and foot JS cannot rescue an upstream 404.
+      if ((request.method === 'GET' || request.method === 'HEAD') && isSitemapPath(url.pathname)) {
+        return sitemapResponse(request);
+      }
+      if ((request.method === 'GET' || request.method === 'HEAD') && isProductPath(url.pathname)) {
+        return productEdge(request, url);
+      }
       if (
         (request.method === 'GET' || request.method === 'HEAD') &&
         (isCompaniesPath(url.pathname) || isCompanyPath(url.pathname))

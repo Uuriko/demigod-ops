@@ -1,14 +1,17 @@
 /**
  * Provenance-backed Dasha Compute download (issue 85).
- * Live still serves the pre-provenance 27,980-byte tarball. These routes
- * proxy the reviewed artifact and refuse a body whose SHA-256 does not match.
+ * Pin is dasha-desk main artifacts/dasha-compute (commit ec690846):
+ * 145953 bytes, sha256 a164b963..., 29 source files. Live still serves the
+ * pre-provenance 27,980-byte tarball. These routes proxy the reviewed
+ * artifact and 502 unless the body matches this pin.
  */
 export const COMPUTE_ARCHIVE = '/dasha-compute-open-alpha.tar.gz';
 export const COMPUTE_ARCHIVE_SHA = '/dasha-compute-open-alpha.tar.gz.sha256';
 export const COMPUTE_RELEASE_JSON = '/compute/release.json';
 export const COMPUTE_RELEASE_SHA256 =
-  '366e2c3fb9803eef37b430f8e184e4fff2404511b8cf41c32932725d83aeee23';
-export const COMPUTE_RELEASE_BYTES = 161313;
+  'a164b9630d27803268faf0a6fb30edf0ad38589f65777ce8f65cdc69bc2e9c90';
+export const COMPUTE_RELEASE_BYTES = 145953;
+export const COMPUTE_RELEASE_SOURCE_FILES = 29;
 export const COMPUTE_RELEASE_VERSION = '0.3.0';
 export const COMPUTE_UPSTREAM =
   'https://raw.githubusercontent.com/Uuriko/dasha-desk/main/artifacts/dasha-compute';
@@ -41,6 +44,7 @@ export function releaseManifest(extra = {}) {
     artifact: FILES.archive,
     bytes: COMPUTE_RELEASE_BYTES,
     sha256: COMPUTE_RELEASE_SHA256,
+    sourceFileCount: COMPUTE_RELEASE_SOURCE_FILES,
     version: COMPUTE_RELEASE_VERSION,
     ...extra,
   })}\n`;
