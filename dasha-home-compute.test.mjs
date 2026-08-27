@@ -21,14 +21,45 @@ assert.match(withHop, /href="\/compute">Compute</);
 assert.match(withHop, /Compute<\/a> · <a href="https:\/\/www\.getdasha\.com\/forum">Forum</);
 assert.equal(ensureHomeComputeHop(withHop), withHop);
 
+function assertValidHideCss(css) {
+  assert.doesNotMatch(css, /,\s*\{/);
+  assert.doesNotMatch(css, /\{\s*,/);
+  assert.doesNotMatch(css, /,,/);
+  assert.doesNotMatch(css, /<style[^>]*>\s*,/);
+  assert.doesNotMatch(css, /,\s*<\/style>/);
+}
+
 const hidden = `<style id="dasha-home-chrome-hide">footer,.compute,a[href="/compute"],a[href="https://www.getdasha.com/compute"],a[href="/chess"]{display:none!important}</style><a href="/compute">Compute</a>`;
 const shown = stripComputeHideRules(hidden);
 assert.doesNotMatch(shown, /a\[href="\/compute"\]/);
 assert.doesNotMatch(shown, /a\[href="https:\/\/www\.getdasha\.com\/compute"\]/);
 assert.doesNotMatch(shown, /\.compute\b/);
 assert.match(shown, /a\[href="\/chess"\]/);
+assert.match(shown, /footer,a\[href="\/chess"\]\{display:none!important\}/);
+assertValidHideCss(shown);
 const unhiddenDoor = ensureHomeComputeDoor(hidden);
 assert.match(unhiddenDoor, /id="dasha-home-compute"/);
 assert.doesNotMatch(unhiddenDoor, /a\[href="\/compute"\]\{display:none/);
+
+const first = stripComputeHideRules('<style id="dasha-home-chrome-hide">.compute,a[href="/chess"]{display:none}</style>');
+assert.equal(first, '<style id="dasha-home-chrome-hide">a[href="/chess"]{display:none}</style>');
+assertValidHideCss(first);
+
+const last = stripComputeHideRules('<style id="dasha-home-chrome-hide">footer,a[href="/compute"]{display:none}</style>');
+assert.equal(last, '<style id="dasha-home-chrome-hide">footer{display:none}</style>');
+assertValidHideCss(last);
+
+const only = stripComputeHideRules('<style id="dasha-home-chrome-hide">.compute,a[href="/compute"]{display:none!important}</style>');
+assert.equal(only, '<style id="dasha-home-chrome-hide"></style>');
+
+const abs = stripComputeHideRules('<style id="dasha-home-chrome-hide">nav,a[href="https://www.getdasha.com/compute"]{display:none}</style>');
+assert.equal(abs, '<style id="dasha-home-chrome-hide">nav{display:none}</style>');
+
+const live = stripComputeHideRules(
+  '<style id="dasha-home-chrome-hide">footer,.navlinks,.dasha-nav,nav.nav,.compute,.poster,a[href="/studio"],a[href="/compute"],a[href="https://www.getdasha.com/compute"],a[href="/chess"]{display:none!important}</style>',
+);
+assert.match(live, /footer,\.navlinks,\.dasha-nav,nav\.nav,\.poster,a\[href="\/studio"\],a\[href="\/chess"\]\{display:none!important\}/);
+assert.doesNotMatch(live, /\.compute\b/);
+assertValidHideCss(live);
 
 console.log('dasha-home-compute: PASS');
