@@ -14,15 +14,31 @@ function injectHomeComputeShowCss(html) {
   return tag + page;
 }
 
+function isComputeHideSelector(sel) {
+  const s = String(sel || '').trim();
+  if (!s) return true;
+  if (/^\.compute$/i.test(s)) return true;
+  if (/^a\[href=["']\/compute\/?["']\]$/i.test(s)) return true;
+  if (/^a\[href=["']https:\/\/www\.getdasha\.com\/compute\/?["']\]$/i.test(s)) return true;
+  return false;
+}
+
+function rewriteHideCss(css) {
+  return String(css || '').replace(/([^{}]+)\{([^{}]*)\}/g, (_rule, selectors, decls) => {
+    const kept = String(selectors)
+      .split(',')
+      .map((part) => part.trim())
+      .filter((part) => part && !isComputeHideSelector(part));
+    if (!kept.length) return '';
+    return `${kept.join(',')}{${decls}}`;
+  });
+}
+
 /** Live #dasha-home-chrome-hide lists /compute. Drop those selectors so unhide CSS is not a race. */
 export function stripComputeHideRules(html) {
   return String(html || '').replace(
-    /<style\b[^>]*\bid=["']dasha-home-chrome-hide["'][^>]*>[\s\S]*?<\/style>/gi,
-    (tag) =>
-      tag
-        .replace(/,?\s*a\[href=["']\/compute["']\]/gi, '')
-        .replace(/,?\s*a\[href=["']https:\/\/www\.getdasha\.com\/compute["']\]/gi, '')
-        .replace(/,?\s*\.compute\b/gi, ''),
+    /(<style\b[^>]*\bid=["']dasha-home-chrome-hide["'][^>]*>)([\s\S]*?)(<\/style>)/gi,
+    (_all, open, css, close) => `${open}${rewriteHideCss(css)}${close}`,
   );
 }
 
