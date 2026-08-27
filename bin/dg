@@ -6,8 +6,10 @@
 #   bin/dg webflow|review|matches|hygiene|doctor|smoke|…
 #   bin/dg                # fzf palette over npm demigod:* (legacy)
 set -euo pipefail
-cd /home/potter
-export DEMIGOD_ROOT="${DEMIGOD_ROOT:-/home/potter}"
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="${DEMIGOD_ROOT:-$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)}"
+cd "$ROOT"
+export DEMIGOD_ROOT="$ROOT"
 
 # No args or known control verbs → control plane
 if [[ $# -eq 0 ]]; then

@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import {
   scanLiveHtml,
   evaluatePageScan,
@@ -15,7 +16,7 @@ import {
   HEAD_MARKERS,
 } from './demigod-live-lib.mjs';
 
-const ROOT = '/home/potter';
+const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 
 describe('scanLiveHtml', () => {
   it('flags MCP rewrite scripts', () => {
@@ -192,16 +193,19 @@ describe('source files', () => {
     assert.ok(/var BOARD_CDN='https:\/\/files\.catbox\.moe\/.+\.json';/.test(core));
   });
 
-  it('foot-core v90 has receipt/status routes, webhook, live proof ledger, board CDN, honest MVP (no 48h claims, candidates-only partner, human match)', () => {
+  it('current foot-core keeps webhook-ready forms, a dynamic proof ledger, and honest human matching', () => {
     const core = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
-    assert.ok(core.includes('function statusRoute'));
-    assert.ok(core.includes('function receiptRoute'));
-    assert.ok(core.includes('#demigod-status-wrap') || core.includes('demigod-status'));
-    assert.ok(core.includes('dg-ledger-row') || core.includes('dg-ledger'));
-    assert.ok(core.includes('function pricingCompare') || core.includes('pricing'));
+    assert.ok(core.includes('function forms'));
+    assert.ok(core.includes('function fetchBoard'));
+    assert.ok(core.includes('function renderBoard'));
+    assert.ok(core.includes('dg-ledger'));
+    assert.ok(core.includes('function price'));
+    assert.ok(core.includes('function proofStrip'));
     assert.ok(core.includes('WIZ_THANKS') || core.includes('WIZ_FAIL'));
     assert.ok(/dg-foot-v\d+-core/.test(core));
     assert.ok(!/48h|48 hours/i.test((core.match(/var COPY=\{[\s\S]*?\};/)||[''])[0]));
-    assert.ok(core.includes('function bindTap') || core.includes('bindTap'));
+    assert.ok(core.includes('mutual yes'));
+    assert.ok(core.includes('human'));
+    assert.ok(core.includes('function wireCta'));
   });
 });
