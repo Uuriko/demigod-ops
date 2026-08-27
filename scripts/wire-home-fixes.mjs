@@ -78,6 +78,24 @@ function wireDasha(src) {
       "request.method === 'HEAD' ? null : ensureFaucetHeading(pinLiveXConnectSri(faucetPageHtml()))",
     );
   }
+  if (!s.includes("from './dasha-compute-release.mjs'")) {
+    const needle = "from './dasha-faucet-heading.mjs';\n";
+    if (s.includes(needle)) {
+      s = s.replace(
+        needle,
+        "from './dasha-faucet-heading.mjs';\nimport { computeReleaseKind, computeReleaseResponse } from './dasha-compute-release.mjs';\n",
+      );
+    }
+  }
+  if (!s.includes('computeReleaseKind(url.pathname)')) {
+    const needle = "  if ((request.method === 'GET' || request.method === 'HEAD') && isFaucetPagePath(url.pathname)) {\n    return faucetPageResponse(request);\n  }";
+    if (s.includes(needle)) {
+      s = s.replaceAll(
+        needle,
+        "  if ((request.method === 'GET' || request.method === 'HEAD') && computeReleaseKind(url.pathname)) {\n    return computeReleaseResponse(request, url.pathname);\n  }\n  if ((request.method === 'GET' || request.method === 'HEAD') && isFaucetPagePath(url.pathname)) {\n    return faucetPageResponse(request);\n  }",
+      );
+    }
+  }
   return s;
 }
 
