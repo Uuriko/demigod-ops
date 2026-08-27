@@ -6,13 +6,11 @@ name: wire-home-fixes
 
 on:
   push:
-    branches: [fix/live-sri-faucet-motley]
+    branches: [fix/compute-provenance-download]
     paths:
       - 'scripts/wire-home-fixes.mjs'
       - '.github/workflows/wire-home-fixes.yml'
-      - 'dasha-sri-x-connect.mjs'
-      - 'dasha-faucet-heading.mjs'
-      - 'dasha-home-compute.mjs'
+      - 'dasha-compute-release.mjs'
 
 jobs:
   wire:
@@ -37,5 +35,5 @@ jobs:
             echo "workers already wired"
             exit 0
           fi
-          git commit -m "Wire SRI pin, faucet heading, and Compute unhide into Worker entry files"
+          git commit -m "Wire provenance Compute download into Worker entry files"
           git push
