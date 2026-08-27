@@ -103,3 +103,26 @@ for (const [file, route] of pages) {
     assert.doesNotMatch(html, /Ray Fernando|Sign in with Grok Bot/i);
   });
 }
+
+test('/pricing makes the 10% fee concrete without inventing compensation scope', () => {
+  const html = fs.readFileSync(path.join(PAGES_DIR, 'pricing.html'), 'utf8');
+  assert.match(html, /id=["']fee-example["']/i);
+  assert.match(html, /<data\s+value=["']180000["']>\$180,000<\/data>/i);
+  assert.match(html, /<data\s+value=["']18000["']>\$18,000<\/data>/i);
+  assert.match(html, /written terms name the cash-salary figure to which 10% applies/i);
+  assert.match(html, /If nobody starts, the fee is \$0/i);
+  assert.match(html, /No card or deposit is collected when you submit a brief/i);
+  assert.doesNotMatch(html, /\b(?:15|20|25)%[^<]{0,80}(?:agency|contingency)/i);
+});
+
+test('/how and /faq explain post-submit review and role-specific mutual consent', () => {
+  const how = fs.readFileSync(path.join(PAGES_DIR, 'how.html'), 'utf8');
+  const faq = fs.readFileSync(path.join(PAGES_DIR, 'faq.html'), 'utf8');
+  for (const html of [how, faq]) {
+    assert.match(html, /does not publish the role/i);
+    assert.match(html, /does not .*charge a card/i);
+    assert.match(html, /candidate(?:’|')s name or profile/i);
+    assert.match(html, /specific company and role/i);
+    assert.doesNotMatch(html, /(?:reply|respond|response|intro)[^<]{0,40}(?:within|in)\s+(?:24|48|72)\s*(?:h|hours?)/i);
+  }
+});
