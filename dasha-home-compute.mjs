@@ -14,8 +14,20 @@ function injectHomeComputeShowCss(html) {
   return tag + page;
 }
 
+/** Live #dasha-home-chrome-hide lists /compute. Drop those selectors so unhide CSS is not a race. */
+export function stripComputeHideRules(html) {
+  return String(html || '').replace(
+    /<style\b[^>]*\bid=["']dasha-home-chrome-hide["'][^>]*>[\s\S]*?<\/style>/gi,
+    (tag) =>
+      tag
+        .replace(/,?\s*a\[href=["']\/compute["']\]/gi, '')
+        .replace(/,?\s*a\[href=["']https:\/\/www\.getdasha\.com\/compute["']\]/gi, '')
+        .replace(/,?\s*\.compute\b/gi, ''),
+  );
+}
+
 export function ensureHomeComputeDoor(html) {
-  let page = injectHomeComputeShowCss(html);
+  let page = injectHomeComputeShowCss(stripComputeHideRules(html));
   if (/id=["']compute-door["']/i.test(page)) return page;
   const door = HOME_COMPUTE_DOOR;
   const hero = page.match(/<header\b[^>]*\bdasha-hero\b[^>]*>[\s\S]*?<\/header>/i);

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { ensureHomeComputeDoor, ensureHomeComputeHop } from './dasha-home-compute.mjs';
+import { ensureHomeComputeDoor, ensureHomeComputeHop, stripComputeHideRules } from './dasha-home-compute.mjs';
 
 const page = `<!doctype html><html><head></head><body>
 <header class="dasha-hero"><h1>It's time $dasha.</h1></header>
@@ -20,5 +20,15 @@ const withHop = ensureHomeComputeHop(withDoor);
 assert.match(withHop, /href="\/compute">Compute</);
 assert.match(withHop, /Compute<\/a> · <a href="https:\/\/www\.getdasha\.com\/forum">Forum</);
 assert.equal(ensureHomeComputeHop(withHop), withHop);
+
+const hidden = `<style id="dasha-home-chrome-hide">footer,.compute,a[href="/compute"],a[href="https://www.getdasha.com/compute"],a[href="/chess"]{display:none!important}</style><a href="/compute">Compute</a>`;
+const shown = stripComputeHideRules(hidden);
+assert.doesNotMatch(shown, /a\[href="\/compute"\]/);
+assert.doesNotMatch(shown, /a\[href="https:\/\/www\.getdasha\.com\/compute"\]/);
+assert.doesNotMatch(shown, /\.compute\b/);
+assert.match(shown, /a\[href="\/chess"\]/);
+const unhiddenDoor = ensureHomeComputeDoor(hidden);
+assert.match(unhiddenDoor, /id="dasha-home-compute"/);
+assert.doesNotMatch(unhiddenDoor, /a\[href="\/compute"\]\{display:none/);
 
 console.log('dasha-home-compute: PASS');
