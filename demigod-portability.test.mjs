@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 
@@ -43,4 +43,21 @@ test('bin/dg resolves the repository when called from another directory', async 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /Site/);
   assert.match(result.stdout, /Webflow/);
+});
+
+test('webhook URL resolution does not load the browser automation stack', async (context) => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'demigod-webhook-url-'));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const moduleUrl = pathToFileURL(path.join(ROOT, 'demigod-webhook-url.mjs')).href;
+  const script = `import { resolveWebhookPublicUrl } from ${JSON.stringify(moduleUrl)};`
+    + ' process.stdout.write(resolveWebhookPublicUrl());';
+
+  const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+    cwd: directory,
+    encoding: 'utf8',
+    env: cleanEnvironment({ DEMIGOD_ROOT: directory, DEMIGOD_WEBHOOK_PUBLIC_URL: '' }),
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.equal(result.stdout, '');
 });

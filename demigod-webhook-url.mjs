@@ -1,7 +1,9 @@
 /** Resolve public submissions webhook URL for footer loader + partner form POSTs. */
 import fs from 'fs';
 import path from 'path';
-import { ROOT } from './demigod-turn-lib.mjs';
+import { fileURLToPath } from 'url';
+
+const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 
 const TUNNEL = path.join(ROOT, 'DEMIGOD-TUNNEL.json');
 const SETUP = path.join(ROOT, 'DEMIGOD-WEBHOOK-SETUP.json');
