@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   COMPUTE_ARCHIVE,
   COMPUTE_ARCHIVE_SHA,
+  COMPUTE_RELEASE_BYTES,
   COMPUTE_RELEASE_JSON,
   COMPUTE_RELEASE_SHA256,
   checksumFile,
@@ -16,8 +17,16 @@ assert.equal(computeReleaseKind('/dasha-compute-open-alpha.tar.gz.sha256'), 'sha
 assert.equal(computeReleaseKind('/compute/release.json'), 'manifest');
 assert.equal(computeReleaseKind('/compute'), '');
 
+assert.equal(
+  COMPUTE_RELEASE_SHA256,
+  'a164b9630d27803268faf0a6fb30edf0ad38589f65777ce8f65cdc69bc2e9c90',
+  'pin the dasha-desk main artifacts tarball, not a local dist',
+);
+assert.equal(COMPUTE_RELEASE_BYTES, 145953);
 assert.equal(checksumFile(), `${COMPUTE_RELEASE_SHA256}  dasha-compute-open-alpha.tar.gz\n`);
 assert.match(releaseManifest(), new RegExp(`"sha256":"${COMPUTE_RELEASE_SHA256}"`));
+assert.match(releaseManifest(), /"bytes":145953/);
+assert.match(releaseManifest(), /"sourceFileCount":29/);
 assert.match(releaseManifest(), /"version":"0\.3\.0"/);
 
 const shaRes = await computeReleaseResponse(
