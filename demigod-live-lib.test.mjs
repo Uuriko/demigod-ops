@@ -13,8 +13,10 @@ import {
   modalVisible,
   createCtaFixHarness,
   evaluateLandingLinks,
+  evaluateSitemap,
   markerPresent,
   HEAD_MARKERS,
+  EXPECTED_PRODUCT_ROUTES,
 } from './demigod-live-lib.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
@@ -157,6 +159,28 @@ describe('evaluateLandingLinks', () => {
     );
     assert.equal(scan.startup.length, 0);
     assert.equal(scan.engineer.length, 0);
+  });
+});
+
+describe('evaluateSitemap', () => {
+  it('accepts every source-owned product route', () => {
+    const xml = `<urlset>${EXPECTED_PRODUCT_ROUTES.map((route) => (
+      `<url><loc>https://www.trydemigod.com${route}/</loc></url>`
+    )).join('')}</urlset>`;
+    const scan = evaluateSitemap(xml);
+    assert.deepEqual(scan.missingRoutes, []);
+    assert.equal(scan.paths.length, EXPECTED_PRODUCT_ROUTES.length);
+  });
+
+  it('reports omitted routes and ignores commented or foreign loc entries', () => {
+    const xml = '<urlset>'
+      + '<!-- <url><loc>https://www.trydemigod.com/proof</loc></url> -->'
+      + '<url><loc>https://example.com/pricing</loc></url>'
+      + '<url><loc>https://trydemigod.com/hire</loc></url>'
+      + '</urlset>';
+    const scan = evaluateSitemap(xml, ['/hire', '/pricing', '/proof']);
+    assert.deepEqual(scan.paths, ['/hire']);
+    assert.deepEqual(scan.missingRoutes, ['/pricing', '/proof']);
   });
 });
 
