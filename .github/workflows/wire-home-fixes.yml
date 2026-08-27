@@ -1,0 +1,38 @@
+name: wire-home-fixes
+
+# Applies small, idempotent patches to Worker entry files that are too large
+# to upload through the contents API from this laptop. Push-only on the
+# homepage-fix branch so it cannot rewrite unrelated PRs.
+
+on:
+  push:
+    branches: [fix/home-prefill-compute]
+    paths:
+      - 'scripts/wire-home-fixes.mjs'
+      - '.github/workflows/wire-home-fixes.yml'
+
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Wire homepage fixes
+        run: node scripts/wire-home-fixes.mjs
+      - name: Commit if workers changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add demigod-html-worker.mjs dasha-lobby-worker.mjs
+          if git diff --cached --quiet; then
+            echo "workers already wired"
+            exit 0
+          fi
+          git commit -m "Wire brief-prefill strip and Compute door into Worker entry files"
+          git push
