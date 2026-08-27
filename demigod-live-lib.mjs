@@ -13,6 +13,19 @@ export const BAD_MCP_SCRIPT_PATTERNS = [
 
 export const EXPECTED_FORM_NAMES = ['startup-hire', 'engineer-join'];
 
+/** Source-owned product routes that the edge sitemap must expose for indexing. */
+export const EXPECTED_PRODUCT_ROUTES = [
+  '/compare',
+  '/faq',
+  '/hire',
+  '/how',
+  '/network',
+  '/pilot',
+  '/pricing',
+  '/proof',
+  '/talent',
+];
+
 export const HEAD_MARKERS = [
   'hide-webflow-badge',
   'Demigod forms',
@@ -109,6 +122,33 @@ function decodeHtmlAttribute(value = '') {
     .replace(/&amp;/gi, '&')
     .replace(/&quot;/gi, '"')
     .replace(/&#39;|&apos;/gi, "'");
+}
+
+/** Inspect real XML <loc> entries and report missing source-owned product routes. */
+export function evaluateSitemap(xml = '', expectedRoutes = EXPECTED_PRODUCT_ROUTES) {
+  const markup = String(xml).replace(/<!--[\s\S]*?-->/g, '');
+  const urls = [];
+  const locPattern = /<loc\b[^>]*>([\s\S]*?)<\/loc\s*>/gi;
+  let match;
+  while ((match = locPattern.exec(markup)) !== null) {
+    const value = decodeHtmlAttribute(match[1]).trim();
+    if (value) urls.push(value);
+  }
+  const paths = [];
+  for (const value of urls) {
+    try {
+      const url = new URL(value, `${LIVE_ORIGIN}/`);
+      if (url.hostname.replace(/^www\./i, '') !== 'trydemigod.com') continue;
+      const pathname = url.pathname.length > 1 ? url.pathname.replace(/\/+$/, '') : '/';
+      paths.push(pathname);
+    } catch (_) { /* malformed locations are owned by XML validation */ }
+  }
+  const uniquePaths = [...new Set(paths)];
+  return {
+    urls,
+    paths: uniquePaths,
+    missingRoutes: expectedRoutes.filter((route) => !uniquePaths.includes(route)),
+  };
 }
 
 /** Inspect actual root-page links without accepting URLs embedded in CSS or JavaScript. */
@@ -430,6 +470,16 @@ export async function fetchLiveHtml(cacheBust = true, targetPath = '/') {
   const bodyText = htmlToVisibleText(html);
   const pageScan = evaluatePageScan({ bodyText, html });
   return { url, html, footerCoreJs, bodyText, pageScan };
+}
+
+export async function fetchLiveSitemap(cacheBust = true) {
+  const target = new URL('/sitemap.xml', `${LIVE_ORIGIN}/`);
+  if (cacheBust) target.searchParams.set('v', `verify-${Date.now()}`);
+  const url = target.toString();
+  const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
+  if (!res.ok) throw new Error(`sitemap fetch ${res.status}`);
+  const xml = await res.text();
+  return { url, xml, ...evaluateSitemap(xml) };
 }
 
 /** Minimal DOM harness for unit-testing demigod-live-cta-fix.js click routing. */
