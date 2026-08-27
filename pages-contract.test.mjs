@@ -126,3 +126,22 @@ test('/how and /faq explain post-submit review and role-specific mutual consent'
     assert.doesNotMatch(html, /(?:reply|respond|response|intro)[^<]{0,40}(?:within|in)\s+(?:24|48|72)\s*(?:h|hours?)/i);
   }
 });
+
+test('product navigation remains available at narrow viewport widths', () => {
+  const compactHeaderPages = new Set(['how.html', 'network.html', 'pricing.html']);
+  for (const [file] of pages) {
+    const html = fs.readFileSync(path.join(PAGES_DIR, file), 'utf8');
+    assert.doesNotMatch(
+      html,
+      /(?:^|[},])\s*(?:nav|\.nav)\s*\{[^}]*\bdisplay\s*:\s*none/i,
+      `${file} must not hide the product navigation on mobile`,
+    );
+    if (compactHeaderPages.has(file)) {
+      assert.match(
+        html,
+        /nav a\{[^}]*min-width:44px[^}]*min-height:44px/i,
+        `${file} product links need 44px minimum touch targets`,
+      );
+    }
+  }
+});
