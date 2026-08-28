@@ -22,3 +22,14 @@ export function pinLiveXConnectSri(html) {
   }
   return page;
 }
+
+const X_CONNECT_TAG = `<script src="https://lobby.getdasha.com/client/x-connect.js" integrity="${LIVE_X_CONNECT_SRI}" crossorigin="anonymous" defer></script>`;
+
+/** Rewrite stale pins, and inject the live tag when a page has none. */
+export function ensureLiveXConnect(html) {
+  const page = pinLiveXConnectSri(html);
+  if (/lobby\.getdasha\.com\/client\/x-connect\.js/i.test(page)) return page;
+  if (/<\/head>/i.test(page)) return page.replace(/<\/head>/i, `${X_CONNECT_TAG}</head>`);
+  if (/<\/body>/i.test(page)) return page.replace(/<\/body>/i, `${X_CONNECT_TAG}</body>`);
+  return page + X_CONNECT_TAG;
+}
