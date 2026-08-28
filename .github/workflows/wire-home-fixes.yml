@@ -9,6 +9,7 @@ on:
     branches:
       - fix/home-prefill-compute
       - fix/compute-pin-product-sitemap
+      - fix/edge-runbook-sri-wrap
     paths:
       - 'scripts/wire-home-fixes.mjs'
       - '.github/workflows/wire-home-fixes.yml'
@@ -36,5 +37,5 @@ jobs:
             echo "workers already wired"
             exit 0
           fi
-          git commit -m "Wire product sitemap and leftover-redirect skip into Worker entry files"
+          git commit -m "Wire live x-connect SRI onto faucet, chess, and forum HTML"
           git push
