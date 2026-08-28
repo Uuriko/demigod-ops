@@ -9,5 +9,11 @@
   ],
   "main": "demigod-html-worker.mjs",
   // Source bump only. Takes effect on the next wrangler deploy.
-  "compatibility_date": "2026-08-28"
+  "compatibility_date": "2026-08-28",
+  // Source only until the next deploy.
+  "observability": {
+    "enabled": true,
+    "logs": { "enabled": true, "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.01 }
+  }
 }
