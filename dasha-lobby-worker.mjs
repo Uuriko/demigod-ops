@@ -137,6 +137,7 @@ import { pinLiveXConnectSri, ensureLiveXConnect } from './dasha-sri-x-connect.mj
 import { ensureFaucetHeading } from './dasha-faucet-heading.mjs';
 import { computeReleaseKind, computeReleaseResponse } from './dasha-compute-release.mjs';
 import { dashaBuildPageResponse } from './dasha-build-page.mjs';
+import { ensureBuildDiscovery, ensureBuildInSitemap } from './dasha-build-discovery.mjs';
 import {
   applyGraphHighlight,
   dropGraphHighlight,
@@ -3901,7 +3902,7 @@ async function productEdge(request, url, env) {
     return llmsTxtResponse(request);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/sitemap.xml') {
-    return new Response(request.method === 'HEAD' ? null : SITEMAP_XML, {
+    return new Response(request.method === 'HEAD' ? null : ensureBuildInSitemap(SITEMAP_XML), {
       status: 200,
       headers: {
         'Content-Type': 'application/xml; charset=utf-8',
@@ -4035,7 +4036,7 @@ async function productEdge(request, url, env) {
   const stripped = html !== originalHtml;
   html = stripHomeWebFonts(html);
   if (url.pathname === '/') {
-    html = rewriteHomeFirstViewport(stripHomeSimpBoard(html));
+    html = ensureBuildDiscovery(rewriteHomeFirstViewport(stripHomeSimpBoard(html)));
   } else {
     html = stripLeftoverStyleRules(html, SIMP_LEFTOVER_STYLE_RE);
     if (isExactPath(url.pathname, '/lobby')) html = stripLobbySimpQuiz(html);
