@@ -26,6 +26,16 @@ Current docs (2026-07/08):
 
 Do not enable Cloudflare HTML/JS minify on either zone. SRI hashes the exact bytes; minify is a known SRI-breaker.
 
+## Integrity-Policy-Report-Only (source only until the next deploy)
+
+Git now sets `Integrity-Policy-Report-Only: blocked-destinations=(script)` on Worker HTML, plus `Reporting-Endpoints` to same-origin `/integrity-reports`. Chrome 138+ / Edge 138+ will POST `integrity-violation` reports when a classic script has no `integrity` attribute or is requested no-cors. Firefox 145+ logs those to the console. Safari ignores the header.
+
+This is report-only. Do **not** ship the enforcing `Integrity-Policy` header: live Webflow pages still load CDN scripts without SRI, and enforcement would block them. `/integrity-reports` is POST-only, 32 KiB max, same-origin, and logs a count — it does not persist report bodies. Rollback: drop the two headers and the `/integrity-reports` route.
+
+## Privacy page (source now matches live, plus cookies)
+
+Live `/privacy` is Worker-owned (`x-dasha-edge: privacy`). Git had 308'd it home. Source now serves the 25 August 2026 live text plus a Cookies section dated 28 August 2026 (`__Host-dasha_x`, `__Host-dasha_x_oauth`, Cloudflare `_cfuvid`). `/legal` and `/privacy-policy` 308 to `/privacy`. After deploy, ping claude to re-record `privacy/published-policy.txt` — the watchdog will go red until that happens. Rollback: restore the leftover-privacy 308 to `/`.
+
 ## Token
 
 `CLOUDFLARE_API_TOKEN` with Workers Scripts Edit. Never commit it. `npx wrangler auth token` prints whichever credential is already configured (token or OAuth). Creating a new token is credentials work — ask the human.
