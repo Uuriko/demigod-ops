@@ -133,7 +133,7 @@ import {
   slimFooterHtml,
 } from './dasha-award-chrome.mjs';
 import { ensureHomeComputeDoor, ensureHomeComputeHop } from './dasha-home-compute.mjs';
-import { pinLiveXConnectSri } from './dasha-sri-x-connect.mjs';
+import { pinLiveXConnectSri, ensureLiveXConnect } from './dasha-sri-x-connect.mjs';
 import { ensureFaucetHeading } from './dasha-faucet-heading.mjs';
 import { computeReleaseKind, computeReleaseResponse } from './dasha-compute-release.mjs';
 import {
@@ -623,7 +623,7 @@ export function rewriteHomeFirstViewport(html) {
   page = ensureHomeForumHop(page);
   page = ensureHomeComputeDoor(page);
   page = ensureHomeComputeHop(page);
-  return pinLiveXConnectSri(ensureTwitterSite(ensureHomeSeo(page)));
+  return ensureLiveXConnect(ensureTwitterSite(ensureHomeSeo(page)));
 }
 
 /** Quiet Forum hop after first paint. Slim bar stays wordmark + Buy. */
@@ -915,7 +915,7 @@ function forumPageHtml() {
 }
 
 function forumPageResponse(request) {
-  return new Response(request.method === 'HEAD' ? null : forumPageHtml(), {
+  return new Response(request.method === 'HEAD' ? null : ensureLiveXConnect(forumPageHtml()), {
     status: 200,
     headers: htmlHeaders({
       'Content-Type': 'text/html; charset=utf-8',
@@ -1438,7 +1438,7 @@ function magnetPageResponse(request, route) {
 }
 
 function faucetPageResponse(request) {
-  return new Response(request.method === 'HEAD' ? null : ensureFaucetHeading(pinLiveXConnectSri(faucetPageHtml())), {
+  return new Response(request.method === 'HEAD' ? null : ensureFaucetHeading(ensureLiveXConnect(faucetPageHtml())), {
     status: 200,
     headers: htmlHeaders({
       'Content-Type': 'text/html; charset=utf-8',
@@ -3984,7 +3984,7 @@ async function productEdge(request, url, env) {
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/chess' || url.pathname === '/chess/')) {
     const html = await chessPageForRequest(request, env);
-    return new Response(request.method === 'HEAD' ? null : html, {
+    return new Response(request.method === 'HEAD' ? null : ensureLiveXConnect(html), {
       status: 200,
       headers: htmlHeaders({
         'Content-Type': 'text/html; charset=utf-8',
@@ -4270,7 +4270,7 @@ export default {
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/chess' || url.pathname === '/chess/')) {
       const html = await chessPageForRequest(request, env);
-      return new Response(request.method === 'HEAD' ? null : html, {
+      return new Response(request.method === 'HEAD' ? null : ensureLiveXConnect(html), {
         status: 200,
         headers: htmlHeaders({
           'Content-Type': 'text/html; charset=utf-8',
