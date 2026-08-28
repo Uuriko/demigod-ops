@@ -2,7 +2,7 @@ name: wire-build-discovery
 
 on:
   push:
-    branches: [feat/dasha-build-discovery]
+    branches: [feat/build-discovery]
     paths:
       - 'dasha-build-discovery.mjs'
       - 'dasha-build-discovery.test.mjs'
@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: feat/dasha-build-discovery
+          ref: feat/build-discovery
       - uses: actions/setup-node@v4
         with:
           node-version: 24
