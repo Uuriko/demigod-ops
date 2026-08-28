@@ -1,0 +1,42 @@
+name: wire-dasha-build
+
+on:
+  push:
+    branches: [feat/dasha-build-slop]
+    paths:
+      - 'dasha-build-page.mjs'
+      - 'dasha-build-page.test.mjs'
+      - 'scripts/wire-dasha-build.mjs'
+      - '.github/workflows/wire-dasha-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/dasha-build-slop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node dasha-build-page.test.mjs
+      - run: node scripts/wire-dasha-build.mjs
+      - name: Verify route was wired
+        run: |
+          grep -F "from './dasha-build-page.mjs'" dasha-lobby-worker.mjs
+          grep -F "url.pathname === '/build'" dasha-lobby-worker.mjs
+      - name: Commit generated worker wiring
+        run: |
+          if git diff --quiet -- dasha-lobby-worker.mjs; then
+            echo "worker already wired"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dasha-lobby-worker.mjs
+          git commit -m "Wire Dasha Build route into production Worker"
+          git push
