@@ -30,7 +30,13 @@ Do not enable Cloudflare HTML/JS minify on either zone. SRI hashes the exact byt
 
 Git now sets `Integrity-Policy-Report-Only: blocked-destinations=(script)` on Worker HTML, plus `Reporting-Endpoints` to same-origin `/integrity-reports`. Chrome 138+ / Edge 138+ will POST `integrity-violation` reports when a classic script has no `integrity` attribute or is requested no-cors. Firefox 145+ logs those to the console. Safari ignores the header.
 
-This is report-only. Do **not** ship the enforcing `Integrity-Policy` header: live Webflow pages still load CDN scripts without SRI, and enforcement would block them. `/integrity-reports` is POST-only, 32 KiB max, same-origin, and logs a count — it does not persist report bodies. Rollback: drop the two headers and the `/integrity-reports` route.
+This is report-only. Do **not** ship the enforcing `Integrity-Policy` header: live Webflow pages still load CDN scripts without SRI, and enforcement would block them. Do **not** add `blocked-destinations=(style)` — Chrome has no style support, and Webflow CSS would flood the sink.
+
+W3C Reporting API v1 POSTs `Content-Type: application/reports+json` with fetch mode `cors` and credentials `same-origin`. That MIME is not a CORS-safelisted Content-Type, so Chrome 138+ / Edge 138+ send an OPTIONS preflight even to the same-origin `/integrity-reports` sink. The sink echoes the same-origin `Origin`, allows `POST` + `content-type`, sets `Access-Control-Allow-Credentials: true`, and grants nothing to a foreign origin. Max body 32 KiB; it logs a count and does not persist report bodies.
+
+Public HTML also sets `Cross-Origin-Opener-Policy-Report-Only: same-origin-allow-popups` (OAuth-safe: Dasha `window.open`s the X popup). Do **not** ship enforcing `Cross-Origin-Opener-Policy: same-origin` on public pages — that severs `window.opener`. `Permissions-Policy` additionally denies `browsing-topics`, sensors, `midi`, `display-capture`, and `bluetooth`. Leave `fullscreen` and `autoplay` alone; Webflow may use them.
+
+Rollback: drop the report-only headers, the extra Permissions-Policy tokens, and the `/integrity-reports` route.
 
 ## Privacy page (source now matches live, plus cookies)
 
