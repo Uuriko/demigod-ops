@@ -95,7 +95,13 @@ function wireDasha(src) {
     mustInclude(s, needle, 'dasha-lobby-worker x-connect import');
     s = s.replace(
       needle,
-      "from './dasha-home-compute.mjs';\nimport { pinLiveXConnectSri } from './dasha-sri-x-connect.mjs';\nimport { ensureFaucetHeading } from './dasha-faucet-heading.mjs';\n",
+      "from './dasha-home-compute.mjs';\nimport { pinLiveXConnectSri, ensureLiveXConnect } from './dasha-sri-x-connect.mjs';\nimport { ensureFaucetHeading } from './dasha-faucet-heading.mjs';\n",
+    );
+  }
+  if (s.includes("from './dasha-sri-x-connect.mjs'") && !s.includes('ensureLiveXConnect')) {
+    s = s.replace(
+      "import { pinLiveXConnectSri } from './dasha-sri-x-connect.mjs';",
+      "import { pinLiveXConnectSri, ensureLiveXConnect } from './dasha-sri-x-connect.mjs';",
     );
   }
   if (!s.includes('page = ensureHomeComputeDoor(page);')) {
@@ -115,7 +121,38 @@ function wireDasha(src) {
   if (s.includes('faucetPageHtml()') && !s.includes('ensureFaucetHeading(')) {
     s = s.replaceAll(
       'request.method === \'HEAD\' ? null : faucetPageHtml()',
-      "request.method === 'HEAD' ? null : ensureFaucetHeading(pinLiveXConnectSri(faucetPageHtml()))",
+      "request.method === 'HEAD' ? null : ensureFaucetHeading(ensureLiveXConnect(faucetPageHtml()))",
+    );
+  }
+  if (s.includes('ensureFaucetHeading(pinLiveXConnectSri(faucetPageHtml()))')) {
+    s = s.replaceAll(
+      'ensureFaucetHeading(pinLiveXConnectSri(faucetPageHtml()))',
+      'ensureFaucetHeading(ensureLiveXConnect(faucetPageHtml()))',
+    );
+  }
+  if (s.includes('return pinLiveXConnectSri(ensureTwitterSite(ensureHomeSeo(page)));')) {
+    s = s.replace(
+      'return pinLiveXConnectSri(ensureTwitterSite(ensureHomeSeo(page)));',
+      'return ensureLiveXConnect(ensureTwitterSite(ensureHomeSeo(page)));',
+    );
+  }
+  if (!s.includes('ensureLiveXConnect(forumPageHtml())')) {
+    const needle = "return new Response(request.method === 'HEAD' ? null : forumPageHtml(), {";
+    if (s.includes(needle)) {
+      s = s.replaceAll(
+        needle,
+        "return new Response(request.method === 'HEAD' ? null : ensureLiveXConnect(forumPageHtml()), {",
+      );
+    }
+  }
+  if (s.includes('chessPageForRequest') && !s.includes('ensureLiveXConnect(html)')) {
+    s = s.replaceAll(
+      'const html = await chessPageForRequest(request, env);\n    return new Response(request.method === \'HEAD\' ? null : html, {',
+      'const html = await chessPageForRequest(request, env);\n    return new Response(request.method === \'HEAD\' ? null : ensureLiveXConnect(html), {',
+    );
+    s = s.replaceAll(
+      'const html = await chessPageForRequest(request, env);\n      return new Response(request.method === \'HEAD\' ? null : html, {',
+      'const html = await chessPageForRequest(request, env);\n      return new Response(request.method === \'HEAD\' ? null : ensureLiveXConnect(html), {',
     );
   }
   if (!s.includes("from './dasha-compute-release.mjs'")) {
