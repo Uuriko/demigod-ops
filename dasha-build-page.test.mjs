@@ -2,12 +2,18 @@ import assert from 'node:assert/strict';
 import { dashaBuildPageHtml, dashaBuildPageResponse } from './dasha-build-page.mjs';
 
 const html = dashaBuildPageHtml();
-assert.match(html, /<h1>Ship open source\. Build a record\.<\/h1>/);
+assert.match(html, /<h1>Find work\. Ship it\. Prove it\.<\/h1>/);
 assert.match(html, /\/bounties\.json/);
 assert.match(html, /github\.com\/Uuriko\/dasha-desk/);
 assert.match(html, /github\.com\/SlopDotCash\/slopdotcash/);
 assert.match(html, /MIT-licensed/);
 assert.match(html, /does not imply affiliation/i);
+assert.match(html, /Copy agent prompt/);
+assert.match(html, /Search tasks/);
+assert.match(html, /Rewarded/);
+assert.match(html, /safeUrl/);
+assert.match(html, /hostname==='github\.com'/);
+assert.match(html, /not guaranteed balances or wages/i);
 assert.doesNotMatch(html, /plugin\.jup\.ag/);
 assert.doesNotMatch(html, /we hold funds/i);
 
