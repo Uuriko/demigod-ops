@@ -136,6 +136,7 @@ import { ensureHomeComputeDoor, ensureHomeComputeHop } from './dasha-home-comput
 import { pinLiveXConnectSri, ensureLiveXConnect } from './dasha-sri-x-connect.mjs';
 import { ensureFaucetHeading } from './dasha-faucet-heading.mjs';
 import { computeReleaseKind, computeReleaseResponse } from './dasha-compute-release.mjs';
+import { dashaBuildPageResponse } from './dasha-build-page.mjs';
 import {
   applyGraphHighlight,
   dropGraphHighlight,
@@ -3926,6 +3927,9 @@ async function productEdge(request, url, env) {
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && computeReleaseKind(url.pathname)) {
     return computeReleaseResponse(request, url.pathname);
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/build' || url.pathname === '/build/')) {
+    return dashaBuildPageResponse(request);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && isFaucetPagePath(url.pathname)) {
     return faucetPageResponse(request);
