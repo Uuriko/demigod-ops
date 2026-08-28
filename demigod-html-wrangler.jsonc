@@ -8,5 +8,6 @@
     { "pattern": "www.trydemigod.com/*", "zone_name": "trydemigod.com" }
   ],
   "main": "demigod-html-worker.mjs",
-  "compatibility_date": "2026-08-14"
+  // Source bump only. Takes effect on the next wrangler deploy.
+  "compatibility_date": "2026-08-28"
 }
