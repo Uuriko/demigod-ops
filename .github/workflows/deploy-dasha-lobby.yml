@@ -1,0 +1,50 @@
+name: deploy-dasha-lobby
+
+on:
+  push:
+    branches: [worker-tree/dasha-lobby]
+    paths:
+      - 'dasha-lobby-worker.mjs'
+      - 'dasha-build-page.mjs'
+      - 'dasha-build-page.test.mjs'
+      - 'dasha-lobby-wrangler.jsonc'
+      - 'dasha-worker-assets/**'
+      - '.github/workflows/deploy-dasha-lobby.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: worker-tree/dasha-lobby
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify Build surface
+        run: node dasha-build-page.test.mjs
+      - name: Require configured Cloudflare token
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "CLOUDFLARE_API_TOKEN is not configured in repository secrets"
+            exit 1
+          fi
+      - name: Deploy dasha-lobby Worker
+        run: npx --yes wrangler@4 deploy -c dasha-lobby-wrangler.jsonc
+      - name: Verify live Build route
+        run: |
+          node - <<'NODE'
+          const r = await fetch('https://www.getdasha.com/build', {redirect:'manual'});
+          const t = await r.text();
+          if (r.status !== 200 || !/Dasha Build/.test(t) || !/Ship open source/.test(t)) {
+            console.error('live /build verification failed', r.status, t.slice(0,300));
+            process.exit(1);
+          }
+          console.log('live /build verified');
+          NODE
