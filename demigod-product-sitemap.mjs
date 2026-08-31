@@ -11,6 +11,8 @@
  *   2. Names those product paths so the Worker can fetch origin instead of
  *      leftover-redirecting them.
  */
+import { HTML_PERMISSIONS_POLICY } from './edge-integrity-policy.mjs';
+
 const ORIGIN = 'https://www.trydemigod.com';
 const LEGACY_LASTMOD = '2026-08-21';
 const PRODUCT_LASTMOD = '2026-08-27';
@@ -47,7 +49,7 @@ const SECURITY = {
   'Referrer-Policy': 'no-referrer',
   'X-Frame-Options': 'DENY',
   'Content-Security-Policy': "frame-ancestors 'none'; base-uri 'none'; object-src 'none'",
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+  'Permissions-Policy': HTML_PERMISSIONS_POLICY,
 };
 
 function normalizePath(pathname) {
