@@ -1,0 +1,33 @@
+{
+  "issue": {
+    "repo": "Uuriko/demigod-ops",
+    "number": 109,
+    "url": "https://github.com/Uuriko/demigod-ops/issues/109",
+    "title": "Application packet: free CoinMarketCap listing for the canonical $DASHA mint"
+  },
+  "analysis": {
+    "total": 1,
+    "attempt_count": 0,
+    "attempt_users": [],
+    "settled_mentions": 0,
+    "maintainer_feedback_count": 0,
+    "missed_gap_mentions": 0,
+    "latest_attempt": null,
+    "latest_maintainer_feedback": null,
+    "latest_gap_hint": null
+  },
+  "comments": [
+    {
+      "id": 5470954372,
+      "user": "Uuriko",
+      "created_at": "2026-08-30T20:04:17Z",
+      "updated_at": "2026-08-30T20:04:17Z",
+      "body": "## Evidence correction \u2014 CoinGecko ID\n\nThe canonical CoinGecko page is already an active tracked listing with a rank, circulating/total supply and the Raydium DASHA/WSOL market. Its current CoinGecko ID/path is:\n\n`dash_eats`\n\nCorrect evidence URL:\n\nhttps://www.coingecko.com/en/coins/dash_eats\n\nThe issue body\u2019s `/coins/dash-eats` URL is incorrect and should not be copied into the CoinMarketCap application. CoinGecko currently maps the exact mint `53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump`, getdasha.com, Solscan and the Raydium market. Use the active listing as independent identity/market evidence.\n\nThis does not replace the CoinMarketCap request; CoinMarketCap remains a separate free new-listing form. Before submitting, open the exact-mint search on CMC first in case a preview page has appeared since this packet was written.",
+      "url": "https://github.com/Uuriko/demigod-ops/issues/109#issuecomment-5470954372",
+      "is_attempt": false,
+      "is_settled": false,
+      "is_maintainer_feedback": false,
+      "is_missed_gap": false
+    }
+  ]
+}

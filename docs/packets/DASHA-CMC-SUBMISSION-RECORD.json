@@ -1,0 +1,18 @@
+{
+  "schema": "demigod.dasha-cmc-submission/1",
+  "issueUrl": "https://github.com/Uuriko/demigod-ops/issues/109",
+  "capturedAt": "2026-09-02T06:45:48.634Z",
+  "submitted": false,
+  "confirmationId": null,
+  "submittedAt": null,
+  "cmcFormUrl": "https://coinmarketcap.com/request/",
+  "reviewerRouting": {
+    "useStablePage": true,
+    "primary": "https://www.getdasha.com/how-to-buy",
+    "blockedBy": "https://github.com/Uuriko/demigod-ops/issues/77",
+    "reason": "faucet_missing_h1"
+  },
+  "identityPass": true,
+  "productionPass": false,
+  "note": "Submit once via the official CMC form; record confirmation here after human submission."
+}
