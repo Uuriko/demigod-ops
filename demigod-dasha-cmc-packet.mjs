@@ -19,6 +19,7 @@ export const DASHA_CANONICAL = Object.freeze({
   website: 'https://www.getdasha.com/',
   stableReviewerPage: 'https://www.getdasha.com/how-to-buy',
   officialX: 'https://x.com/dash_eats',
+  officialXHandle: 'dash_eats',
   repository: 'https://github.com/Uuriko/dasha-desk',
   coingeckoId: 'dash_eats',
   representativeEmail: 'potter@trydemigod.com',
@@ -30,19 +31,32 @@ export const DASHA_CANONICAL = Object.freeze({
 
 export const FORM_ANSWERS = Object.freeze({
   requesterRelationship:
-    'Official project representative / operator of the project website and official account.',
+    'Community maintainer and operator of getdasha.com (manual CMC dropdown selection required).',
+  requesterRelationshipNote:
+    'Current maintainer is not the original token deployer/issuer. Confirm @dash_eats and website control before selecting the closest truthful CMC relationship option.',
+  launchDateNote:
+    'UNRESOLVED — select the earliest independently verifiable mint or first-trade date manually before submission. Canonical pool creation time is evidence only, not the CMC launch-date answer.',
   projectDescription:
-    '$DASHA is a Solana community and culture project built around one canonical mint. The public product at getdasha.com is more than a price page: it includes a wallet-optional activity lobby, token-discovery and buy guidance, a meme studio, community games, a faucet, open-source contribution surfaces and emerging bounty/mobile experiments. Browsing does not require a wallet or signature, and transaction actions are designed to remain explicit and non-custodial. The project has continued shipping public software and community tools since launch, with source and contribution history available on GitHub. This request is to establish the correct project identity and canonical Solana mint on CoinMarketCap; it is not a claim of investment safety or guaranteed market activity.',
+    '$DASHA is a Solana community and culture project built around one canonical mint. The public product at getdasha.com is more than a price page: it includes a wallet-optional activity lobby, token-discovery and buy guidance, creative tools, community games, a faucet, open-source contribution surfaces and emerging bounty/mobile experiments. Browsing does not require a wallet or signature, and transaction actions are designed to remain explicit and non-custodial. The project has continued shipping public software and community tools since launch, with source and contribution history available on GitHub. This request is to establish the correct project identity and canonical Solana mint on CoinMarketCap; it is not a claim of investment safety or guaranteed market activity.',
   differentiator:
     'Dasha treats a meme token as a persistent consumer and open-source culture product rather than a short-lived trading page. The website is useful before wallet connection, exposes the exact mint prominently, and links community activity to public software, creative tools and contribution workflows. The project\'s current work includes reusable Solana activity/bounty primitives and a separate native Android experiment, while keeping custody and automatic trading outside the product boundary.',
   circulatingSupplyNote:
     'No separate circulating-supply methodology is claimed. Total supply and decimals are read from on-chain mint data at submission time; CMC may review rank-affecting supply separately.',
   collisionNote:
     'The ticker DASHA and similar names exist on other chains and assets. Identity is established only by the full Solana mint above; aggregators that map the same mint (CoinGecko dash_eats, Raydium pair, Solscan) are authoritative for this project.',
+  regenerationWarning:
+    'Regenerate this packet immediately before CMC submission. Volatile supply, market, and holder figures below are point-in-time captures only.',
 });
+
+export const MANUAL_READINESS_BLOCKERS = Object.freeze([
+  'launch_date_manual_required',
+  'cmc_browser_search_required',
+  'representative_authority_manual',
+]);
 
 const SOLANA_RPC = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+const FINALIZED = { commitment: 'finalized' };
 
 export function buildUrls() {
   const { mint, pair, website, coingeckoId } = DASHA_CANONICAL;
@@ -77,21 +91,25 @@ export async function rpcCall(fetchImpl, method, params) {
   if (!response.ok) throw new Error(`rpc_http_${response.status}`);
   const body = await response.json();
   if (body.error) throw new Error(`rpc_${body.error.message || 'error'}`);
-  return body.result;
+  return { result: body.result, context: body.result?.context || null };
 }
 
 export async function fetchOnChainSupply(fetchImpl = fetch) {
   const [mintInfo, supplyInfo] = await Promise.all([
-    rpcCall(fetchImpl, 'getAccountInfo', [DASHA_CANONICAL.mint, { encoding: 'jsonParsed' }]),
-    rpcCall(fetchImpl, 'getTokenSupply', [DASHA_CANONICAL.mint]),
+    rpcCall(fetchImpl, 'getAccountInfo', [DASHA_CANONICAL.mint, { encoding: 'jsonParsed', ...FINALIZED }]),
+    rpcCall(fetchImpl, 'getTokenSupply', [DASHA_CANONICAL.mint, FINALIZED]),
   ]);
-  const parsed = mintInfo?.value?.data?.parsed?.info;
-  if (!parsed || !supplyInfo?.value) throw new Error('onchain_supply_missing');
+  const parsed = mintInfo.result?.value?.data?.parsed?.info;
+  const supply = supplyInfo.result?.value;
+  if (!parsed || !supply) throw new Error('onchain_supply_missing');
   return {
     source: SOLANA_RPC,
+    commitment: 'finalized',
+    slot: supplyInfo.result?.context?.slot ?? mintInfo.result?.context?.slot ?? null,
+    capturedAt: new Date().toISOString(),
     decimals: parsed.decimals,
-    totalSupplyRaw: supplyInfo.value.amount,
-    totalSupplyUi: supplyInfo.value.uiAmountString,
+    totalSupplyRaw: supply.amount,
+    totalSupplyUi: supply.uiAmountString,
     mintAuthority: parsed.mintAuthority,
     freezeAuthority: parsed.freezeAuthority,
     isInitialized: parsed.isInitialized === true,
@@ -106,6 +124,7 @@ export async function fetchCoinGeckoRecord(fetchImpl = fetch) {
   const mint = data?.platforms?.solana || data?.contract_address || null;
   return {
     source: url,
+    capturedAt: new Date().toISOString(),
     id: data.id,
     name: data.name,
     symbol: data.symbol,
@@ -115,6 +134,32 @@ export async function fetchCoinGeckoRecord(fetchImpl = fetch) {
     github: data?.links?.repos_url?.github?.[0] || null,
     marketCapRank: data.market_cap_rank ?? null,
     previewListing: data.preview_listing === true,
+    image: data?.image?.small || null,
+  };
+}
+
+export async function fetchJupiterTokenRecord(fetchImpl = fetch) {
+  const url = `https://lite-api.jup.ag/tokens/v2/search?query=${DASHA_CANONICAL.mint}`;
+  const response = await fetchImpl(url);
+  if (!response.ok) throw new Error(`jupiter_http_${response.status}`);
+  const rows = await response.json();
+  const row = Array.isArray(rows)
+    ? rows.find((item) => item?.id === DASHA_CANONICAL.mint) || rows[0]
+    : null;
+  if (!row?.id) throw new Error('jupiter_token_missing');
+  return {
+    source: url,
+    capturedAt: new Date().toISOString(),
+    mint: row.id,
+    name: row.name || null,
+    symbol: row.symbol || null,
+    icon: row.icon || null,
+    twitter: row.twitter || null,
+    website: row.website || null,
+    holderCount: Number.isFinite(row.holderCount) ? row.holderCount : null,
+    graduatedAt: row.graduatedAt || null,
+    graduatedPool: row.graduatedPool || null,
+    tokenPage: buildUrls().jupiter,
   };
 }
 
@@ -129,6 +174,7 @@ export async function fetchPoolEvidence(fetchImpl = fetch) {
   const baseMint = baseTokenId.replace(/^solana_/, '');
   return {
     source: url,
+    capturedAt: new Date().toISOString(),
     pair: DASHA_CANONICAL.pair,
     baseMint,
     poolName: attrs.pool_name || attrs.name || null,
@@ -150,6 +196,7 @@ export async function fetchWebsiteIdentity(fetchImpl = fetch) {
     || null;
   return {
     source: DASHA_CANONICAL.website,
+    capturedAt: new Date().toISOString(),
     title,
     description,
     mintsFound: extractMintFromHtml(html),
@@ -198,18 +245,44 @@ export async function fetchFaucetPage(fetchImpl = fetch) {
   };
 }
 
+export async function probeOfficialX(fetchImpl = fetch) {
+  const response = await fetchImpl(DASHA_CANONICAL.officialX, { redirect: 'follow' });
+  return {
+    source: DASHA_CANONICAL.officialX,
+    capturedAt: new Date().toISOString(),
+    status: response.status,
+    reachable: response.ok,
+  };
+}
+
 export async function probeCmcMintSearch(fetchImpl = fetch) {
   const url = buildUrls().cmcDexScan;
   const response = await fetchImpl(url, { redirect: 'manual' });
   return {
     source: url,
+    capturedAt: new Date().toISOString(),
     status: response.status,
     location: response.headers.get('location'),
-    note: 'Search exact mint on CMC before submitting to avoid duplicate requests.',
+    duplicateStatusKnown: false,
+    note:
+      'Browser exact-mint search on CoinMarketCap is required before submission. This HTTP probe does not establish preview/tracked status or absence of an existing request.',
   };
 }
 
-export function evaluateConsistencyGate({ coingecko, pool, website, howToBuy, faucet }) {
+export function namesAlign(a, b) {
+  if (!a || !b) return false;
+  return String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+}
+
+export function evaluateConsistencyGate({
+  coingecko,
+  pool,
+  website,
+  howToBuy,
+  faucet,
+  jupiter,
+  xProfile,
+}) {
   const checks = [];
   const expect = DASHA_CANONICAL.mint;
 
@@ -227,6 +300,36 @@ export function evaluateConsistencyGate({ coingecko, pool, website, howToBuy, fa
     id: 'pool_base_mint',
     pass: pool?.baseMint === expect,
     detail: pool?.baseMint || 'missing',
+  });
+  checks.push({
+    id: 'jupiter_mint',
+    pass: jupiter?.mint === expect,
+    detail: jupiter?.mint || 'missing',
+  });
+  checks.push({
+    id: 'metadata_name_symbol',
+    pass: namesAlign(coingecko?.name, jupiter?.name) && namesAlign(coingecko?.symbol, jupiter?.symbol),
+    detail: `coingecko=${coingecko?.name}/${coingecko?.symbol}; jupiter=${jupiter?.name}/${jupiter?.symbol}`,
+  });
+  checks.push({
+    id: 'jupiter_graduated_pool',
+    pass: jupiter?.graduatedPool === DASHA_CANONICAL.pair,
+    detail: jupiter?.graduatedPool || 'missing',
+  });
+  checks.push({
+    id: 'official_x_reachable',
+    pass: xProfile?.reachable === true,
+    detail: `${DASHA_CANONICAL.officialX} status ${xProfile?.status ?? 'unknown'}`,
+  });
+  checks.push({
+    id: 'official_x_handle',
+    pass: String(jupiter?.twitter || '').includes(DASHA_CANONICAL.officialXHandle),
+    detail: jupiter?.twitter || 'missing',
+  });
+  checks.push({
+    id: 'holder_count',
+    pass: Number.isFinite(jupiter?.holderCount) && jupiter.holderCount > 0,
+    detail: Number.isFinite(jupiter?.holderCount) ? String(jupiter.holderCount) : 'unresolved',
   });
   checks.push({
     id: 'how_to_buy_mint',
@@ -249,17 +352,39 @@ export function evaluateConsistencyGate({ coingecko, pool, website, howToBuy, fa
     detail: faucet?.hasH1 ? faucet.source : `${faucet?.source || '/faucet'} missing H1 (#77)`,
   });
 
-  const identityPass = checks
-    .filter((row) => row.id !== 'faucet_h1')
-    .every((row) => row.pass);
-  const productionPass = faucet?.hasH1 === true;
-  const pass = checks.every((row) => row.pass);
+  const metadataIds = new Set(['metadata_name_symbol', 'jupiter_mint', 'jupiter_graduated_pool', 'official_x_handle']);
+  const productionIds = new Set(['faucet_h1']);
+  const identityIds = new Set(['website_mint', 'coingecko_mint', 'pool_base_mint', 'how_to_buy_mint', 'how_to_buy_no_confusing_copy', 'stable_reviewer_page', 'official_x_reachable']);
+
+  const metadataPass = checks.filter((row) => metadataIds.has(row.id)).every((row) => row.pass);
+  const identityPass = checks.filter((row) => identityIds.has(row.id)).every((row) => row.pass);
+  const productionPass = checks.filter((row) => productionIds.has(row.id)).every((row) => row.pass);
+  const preflightPass = checks.every((row) => row.pass);
+
   return {
-    pass,
+    pass: preflightPass,
     identityPass,
+    metadataPass,
     productionPass,
+    preflightPass,
+    partial: !preflightPass,
     checks,
     productionBlockedBy: productionPass ? null : DASHA_CANONICAL.productionGateIssue,
+  };
+}
+
+export function evaluateSubmissionReadiness({ gate, cmcProbe, holderCount, launchDate }) {
+  const blockers = [...MANUAL_READINESS_BLOCKERS];
+  if (launchDate != null) blockers.push('launch_date_auto_filled');
+  if (!gate?.identityPass) blockers.push('identity_preflight_incomplete');
+  if (!gate?.metadataPass) blockers.push('metadata_consistency_incomplete');
+  if (!Number.isFinite(holderCount) || holderCount <= 0) blockers.push('holder_count_unresolved');
+  if (cmcProbe?.duplicateStatusKnown === true) blockers.push('cmc_probe_must_not_infer_duplicate_status');
+  return {
+    ready: blockers.length === 0,
+    submittable: false,
+    blockers: [...new Set(blockers)],
+    note: 'Partial preflight only. Human must clear manual blockers and confirm CMC browser search before submission.',
   };
 }
 
@@ -267,23 +392,35 @@ export function buildEvidencePacket({
   at = new Date().toISOString(),
   onchain,
   coingecko,
+  jupiter,
   pool,
   website,
   howToBuy,
   faucet,
+  xProfile,
   cmcProbe,
   gate,
 }) {
   const urls = buildUrls();
+  const holderCount = Number.isFinite(jupiter?.holderCount) ? jupiter.holderCount : null;
+  const readiness = evaluateSubmissionReadiness({
+    gate,
+    cmcProbe,
+    holderCount,
+    launchDate: null,
+  });
+
   return {
-    schema: 'demigod.dasha-cmc-packet/1',
+    schema: 'demigod.dasha-cmc-packet/2',
     capturedAt: at,
     costLane: 'free',
     cmcFormUrl: DASHA_CANONICAL.cmcFormUrl,
+    regenerationWarning: FORM_ANSWERS.regenerationWarning,
     identity: {
       ...DASHA_CANONICAL,
-      name: coingecko?.name || null,
-      symbol: coingecko?.symbol || null,
+      name: coingecko?.name || jupiter?.name || null,
+      symbol: coingecko?.symbol || jupiter?.symbol || null,
+      metadataUri: jupiter?.icon || coingecko?.image || null,
       urls,
     },
     formAnswers: {
@@ -291,7 +428,9 @@ export function buildEvidencePacket({
       contractMint: DASHA_CANONICAL.mint,
       chain: DASHA_CANONICAL.chain,
       marketPairUrl: urls.geckoTerminalPool,
-      launchDate: pool?.poolCreatedAt || null,
+      launchDate: null,
+      launchDateNote: FORM_ANSWERS.launchDateNote,
+      canonicalPoolCreatedAt: pool?.poolCreatedAt || null,
       teamRepresentative: `${DASHA_CANONICAL.representativeName} <${DASHA_CANONICAL.representativeEmail}>`,
       technicalDocs: [DASHA_CANONICAL.repository, urls.howToBuy],
     },
@@ -301,20 +440,36 @@ export function buildEvidencePacket({
         pair: DASHA_CANONICAL.pair,
         raydium: urls.raydium,
         geckoTerminal: urls.geckoTerminalPool,
+        canonicalPoolCreatedAt: pool?.poolCreatedAt || null,
       },
       websiteAndSocial: {
         website: DASHA_CANONICAL.website,
         stableReviewerPage: DASHA_CANONICAL.stableReviewerPage,
         x: DASHA_CANONICAL.officialX,
+        xReachable: xProfile?.reachable === true,
       },
       coingeckoListing: {
         url: urls.coingecko,
         mint: coingecko?.mint || null,
         rank: coingecko?.marketCapRank ?? null,
+        capturedAt: coingecko?.capturedAt || at,
+      },
+      jupiterListing: {
+        url: urls.jupiter,
+        mint: jupiter?.mint || null,
+        name: jupiter?.name || null,
+        symbol: jupiter?.symbol || null,
+        capturedAt: jupiter?.capturedAt || at,
       },
       supplyAndAuthority: onchain,
+      holderCount: {
+        count: holderCount,
+        source: jupiter?.source || null,
+        capturedAt: jupiter?.capturedAt || at,
+        methodology: 'Jupiter token search API holderCount for exact mint; regenerate before submission.',
+      },
       marketActivity: {
-        capturedAt: at,
+        capturedAt: pool?.capturedAt || at,
         poolCreatedAt: pool?.poolCreatedAt || null,
         liquidityUsd: pool?.liquidityUsd || null,
         volume24hUsd: pool?.volume24hUsd || null,
@@ -328,8 +483,10 @@ export function buildEvidencePacket({
       representative: {
         name: DASHA_CANONICAL.representativeName,
         email: DASHA_CANONICAL.representativeEmail,
+        authorityNote: FORM_ANSWERS.requesterRelationshipNote,
       },
       collisionNote: FORM_ANSWERS.collisionNote,
+      cmcMintProbe: cmcProbe,
     },
     consistencyGate: gate,
     productionGate: {
@@ -337,8 +494,8 @@ export function buildEvidencePacket({
       pass: gate?.productionPass === true,
       blockedBy: gate?.productionBlockedBy || null,
     },
-    cmcMintProbe: cmcProbe,
-    reviewerRouting: gate?.pass
+    submissionReadiness: readiness,
+    reviewerRouting: gate?.preflightPass
       ? { useStablePage: false, primary: DASHA_CANONICAL.website }
       : {
           useStablePage: howToBuy?.stableForReviewers === true,
@@ -346,7 +503,7 @@ export function buildEvidencePacket({
             ? DASHA_CANONICAL.stableReviewerPage
             : DASHA_CANONICAL.website,
           blockedBy: gate?.productionBlockedBy || (gate?.identityPass ? null : DASHA_CANONICAL.productionGateIssue),
-          reason: gate?.productionPass === false ? 'faucet_missing_h1' : 'identity_mismatch',
+          reason: gate?.productionPass === false ? 'faucet_missing_h1' : 'preflight_incomplete',
         },
     submission: {
       submitted: false,
@@ -359,11 +516,14 @@ export function buildEvidencePacket({
 export function renderPacketMarkdown(packet) {
   const e = packet.evidence;
   const lines = [
-    '# $DASHA — CoinMarketCap application packet',
+    '# $DASHA — CoinMarketCap application packet (partial preflight)',
+    '',
+    `> ${packet.regenerationWarning}`,
     '',
     `Captured: ${packet.capturedAt}`,
     `Cost lane: ${packet.costLane}`,
     `CMC form: ${packet.cmcFormUrl}`,
+    `Submission ready: **no** (${packet.submissionReadiness.blockers.join(', ')})`,
     '',
     '## 1. Mint and explorer',
     `- Mint: \`${e.mintAndExplorer.mint}\``,
@@ -373,25 +533,31 @@ export function renderPacketMarkdown(packet) {
     `- Pair: \`${packet.identity.pair}\``,
     `- GeckoTerminal: ${e.marketPair.geckoTerminal}`,
     `- Raydium: ${e.marketPair.raydium}`,
+    `- Canonical pool created (not launch date): ${e.marketPair.canonicalPoolCreatedAt ?? 'n/a'}`,
     '',
     '## 3. Website and official social',
     `- Website: ${e.websiteAndSocial.website}`,
     `- Stable reviewer page: ${e.websiteAndSocial.stableReviewerPage}`,
-    `- X: ${e.websiteAndSocial.x}`,
+    `- X: ${e.websiteAndSocial.x} (reachable: ${e.websiteAndSocial.xReachable ? 'yes' : 'no'})`,
     '',
     '## 4. CoinGecko listing (same mint)',
     `- URL: ${packet.identity.urls.coingecko}`,
     `- Mint on CoinGecko: \`${e.coingeckoListing.mint}\``,
+    `- Captured: ${e.coingeckoListing.capturedAt}`,
   ];
   if (e.coingeckoListing.rank != null) lines.push(`- Rank: ${e.coingeckoListing.rank}`);
   lines.push(
     '',
-    '## 5. Supply and authority',
+    '## 5. Supply, authority, and holders',
     `- Decimals: ${e.supplyAndAuthority?.decimals ?? 'n/a'}`,
     `- Total supply (UI): ${e.supplyAndAuthority?.totalSupplyUi ?? 'n/a'}`,
+    `- RPC slot: ${e.supplyAndAuthority?.slot ?? 'n/a'} (${e.supplyAndAuthority?.commitment || 'finalized'})`,
     `- Mint authority: ${e.supplyAndAuthority?.mintAuthority ?? 'null'}`,
     `- Freeze authority: ${e.supplyAndAuthority?.freezeAuthority ?? 'null'}`,
-    `- Source: ${e.supplyAndAuthority?.source ?? 'n/a'}`,
+    `- Supply source: ${e.supplyAndAuthority?.source ?? 'n/a'}`,
+    `- Holder count: ${e.holderCount?.count ?? 'unresolved'}`,
+    `- Holder source: ${e.holderCount?.source ?? 'n/a'}`,
+    `- Holder methodology: ${e.holderCount?.methodology ?? 'n/a'}`,
     `- Circulating supply: ${packet.formAnswers.circulatingSupplyNote}`,
     '',
     '## 6. Market activity',
@@ -400,23 +566,37 @@ export function renderPacketMarkdown(packet) {
     `- 24h volume USD: ${e.marketActivity.volume24hUsd ?? 'n/a'}`,
     `- FDV USD: ${e.marketActivity.fdvUsd ?? 'n/a'}`,
     `- Source: ${e.marketActivity.source ?? 'n/a'}`,
+    `- Captured: ${e.marketActivity.capturedAt}`,
     '',
     '## 7. Product and repository',
     `- Repository: ${e.productAndRepository.repository}`,
     `- Website title: ${e.productAndRepository.websiteTitle ?? 'n/a'}`,
+    `- Jupiter token page: ${e.jupiterListing?.url ?? packet.identity.urls.jupiter}`,
     '',
     '## 8. Representative',
     `- ${e.representative.name} <${e.representative.email}>`,
+    `- Authority note: ${e.representative.authorityNote}`,
     '',
     '## 9. Name/ticker collision',
     e.collisionNote,
     '',
-    '## Consistency gate',
+    '## CMC duplicate search (manual required)',
+    `- Probe URL: ${e.cmcMintProbe?.source ?? packet.identity.urls.cmcDexScan}`,
+    `- HTTP status: ${e.cmcMintProbe?.status ?? 'n/a'}`,
+    `- Duplicate status known: ${e.cmcMintProbe?.duplicateStatusKnown === true ? 'yes' : 'no'}`,
+    `- ${e.cmcMintProbe?.note ?? 'Browser exact-mint search required.'}`,
+    '',
+    '## Consistency gate (partial preflight)',
     ...packet.consistencyGate.checks.map((row) => `- [${row.pass ? 'x' : ' '}] ${row.id}: ${row.detail}`),
     '',
-    '## Form answers (draft)',
+    '## Submission readiness blockers',
+    ...packet.submissionReadiness.blockers.map((row) => `- ${row}`),
+    '',
+    '## Form answers (draft — not submission-ready)',
     `- Relationship: ${packet.formAnswers.requesterRelationship}`,
-    `- Launch date: ${packet.formAnswers.launchDate ?? 'use earliest on-chain trading date'}`,
+    `- Relationship note: ${packet.formAnswers.requesterRelationshipNote}`,
+    `- Launch date (CMC): ${packet.formAnswers.launchDate ?? 'UNRESOLVED — manual'}`,
+    `- Launch date note: ${packet.formAnswers.launchDateNote}`,
     `- Contract: \`${packet.formAnswers.contractMint}\` (${packet.formAnswers.chain})`,
     `- Market pair: ${packet.formAnswers.marketPairUrl}`,
     '',
@@ -432,26 +612,46 @@ export function renderPacketMarkdown(packet) {
   return `${lines.join('\n')}\n`;
 }
 
+export function packetClaimsSubmittable(packet) {
+  const md = renderPacketMarkdown(packet);
+  return !packet.submissionReadiness.ready
+    && !/\bsubmission ready:\s*\*\*yes\*\*/i.test(md)
+    && packet.formAnswers.launchDate == null
+    && packet.submissionReadiness.blockers.length > 0;
+}
+
 export async function buildPacket(fetchImpl = fetch) {
   const at = new Date().toISOString();
-  const [onchain, coingecko, pool, website, howToBuy, faucet, cmcProbe] = await Promise.all([
+  const [onchain, coingecko, jupiter, pool, website, howToBuy, faucet, xProfile, cmcProbe] = await Promise.all([
     fetchOnChainSupply(fetchImpl),
     fetchCoinGeckoRecord(fetchImpl),
+    fetchJupiterTokenRecord(fetchImpl),
     fetchPoolEvidence(fetchImpl),
     fetchWebsiteIdentity(fetchImpl),
     fetchHowToBuyPage(fetchImpl),
     fetchFaucetPage(fetchImpl),
+    probeOfficialX(fetchImpl),
     probeCmcMintSearch(fetchImpl),
   ]);
-  const gate = evaluateConsistencyGate({ coingecko, pool, website, howToBuy, faucet });
-  return buildEvidencePacket({
-    at,
-    onchain,
+  const gate = evaluateConsistencyGate({
     coingecko,
     pool,
     website,
     howToBuy,
     faucet,
+    jupiter,
+    xProfile,
+  });
+  return buildEvidencePacket({
+    at,
+    onchain,
+    coingecko,
+    jupiter,
+    pool,
+    website,
+    howToBuy,
+    faucet,
+    xProfile,
     cmcProbe,
     gate,
   });
@@ -468,7 +668,10 @@ export function buildSubmissionRecord(packet) {
     cmcFormUrl: packet.cmcFormUrl,
     reviewerRouting: packet.reviewerRouting,
     identityPass: packet.consistencyGate.identityPass,
+    metadataPass: packet.consistencyGate.metadataPass,
     productionPass: packet.consistencyGate.productionPass,
+    submissionReady: packet.submissionReadiness.ready,
+    blockers: packet.submissionReadiness.blockers,
     note: packet.submission.note,
   };
 }
@@ -493,9 +696,12 @@ async function main() {
   if (cmd === 'gate') {
     const packet = await buildPacket();
     const payload = {
-      ok: packet.consistencyGate.identityPass,
+      ok: packet.consistencyGate.preflightPass,
       identityPass: packet.consistencyGate.identityPass,
+      metadataPass: packet.consistencyGate.metadataPass,
       productionPass: packet.consistencyGate.productionPass,
+      submissionReady: packet.submissionReadiness.ready,
+      blockers: packet.submissionReadiness.blockers,
       gate: packet.consistencyGate,
       reviewerRouting: packet.reviewerRouting,
     };
