@@ -1,1 +1,1 @@
-bash scripts/verify-dasha-cmc-packet.sh
+make test

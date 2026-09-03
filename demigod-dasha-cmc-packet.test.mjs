@@ -33,6 +33,7 @@ import {
   fetchMetaplexMetadata,
   resolveMetadataDocument,
   probeOfficialX,
+  probeVrfdDashboard,
   probeCmcMintSearch,
   buildPacket,
 } from './demigod-dasha-cmc-packet.mjs';
@@ -52,6 +53,27 @@ function metaplexAssetResult() {
       links: { image: 'https://ipfs.io/ipfs/dasha-test-image' },
     },
   };
+}
+
+function jupiterRecord(overrides = {}) {
+  return {
+    mint: MINT,
+    name: 'dash_eats',
+    symbol: 'dasha',
+    holderCount: 1302,
+    graduatedPool: DASHA_CANONICAL.pair,
+    twitter: 'https://x.com/dash_eats',
+    isVerified: true,
+    tags: ['launchpad', 'verified'],
+    source: 'https://lite-api.jup.ag/tokens/v2/search',
+    capturedAt: '2026-09-02T06:00:00.000Z',
+    tokenPage: buildUrls().jupiter,
+    ...overrides,
+  };
+}
+
+function vrfdRecord(overrides = {}) {
+  return probeVrfdDashboard(jupiterRecord(overrides.jupiter));
 }
 
 function metaplexRecord(overrides = {}) {
@@ -148,16 +170,10 @@ function baseGateInput(overrides = {}) {
     website: { hasCanonicalMint: true, mintsFound: [MINT] },
     howToBuy: { hasCanonicalMint: true, confusingThirdPartyCopy: [], stableForReviewers: true },
     faucet: { hasH1: false, source: 'https://www.getdasha.com/faucet' },
-    jupiter: {
-      mint: MINT,
-      name: 'dash_eats',
-      symbol: 'dasha',
-      holderCount: 1302,
-      graduatedPool: DASHA_CANONICAL.pair,
-      twitter: 'https://x.com/dash_eats',
-    },
+    jupiter: jupiterRecord(),
     xProfile: { reachable: true, status: 200 },
     metaplex: metaplexRecord(),
+    vrfd: vrfdRecord(),
     ...overrides,
   };
 }
@@ -176,16 +192,7 @@ function basePacketInput(overrides = {}) {
       source: 'rpc',
     },
     coingecko: { name: 'dash_eats', symbol: 'dasha', mint: MINT, marketCapRank: 3101, capturedAt: '2026-09-02T06:00:00.000Z' },
-    jupiter: {
-      mint: MINT,
-      name: 'dash_eats',
-      symbol: 'dasha',
-      holderCount: 1302,
-      graduatedPool: DASHA_CANONICAL.pair,
-      twitter: 'https://x.com/dash_eats',
-      source: 'jupiter',
-      capturedAt: '2026-09-02T06:00:00.000Z',
-    },
+    jupiter: jupiterRecord({ source: 'jupiter', capturedAt: '2026-09-02T06:00:00.000Z' }),
     pool: {
       baseMint: MINT,
       poolCreatedAt: '2025-02-03T15:29:15Z',
@@ -199,6 +206,7 @@ function basePacketInput(overrides = {}) {
     faucet: { hasH1: false, source: 'https://www.getdasha.com/faucet' },
     xProfile: { reachable: true, status: 200 },
     metaplex: metaplexRecord(),
+    vrfd: vrfdRecord(),
     cmcProbe: {
       status: 302,
       source: 'https://coinmarketcap.com/dexscan/solana/',
@@ -242,6 +250,8 @@ async function fullPacketMocks({ faucetHtml = 'dasha-faucet-no-h1.html', howToBu
           holderCount: 1302,
           graduatedPool: DASHA_CANONICAL.pair,
           twitter: 'https://x.com/dash_eats',
+          isVerified: true,
+          tags: ['launchpad', 'verified'],
         }];
       },
     })],
@@ -390,7 +400,7 @@ test('evaluateConsistencyGate requires metaplex metadata and corroboration', () 
   assert.ok(gate.checks.some((row) => row.id === 'metaplex_uri_resolves' && row.pass));
   assert.ok(gate.checks.some((row) => row.id === 'aggregator_corroboration' && row.pass));
   assert.ok(gate.checks.some((row) => row.id === 'holder_count' && row.pass));
-  assert.ok(gate.checks.some((row) => row.id === 'jupiter_mint' && row.pass));
+  assert.ok(gate.checks.some((row) => row.id === 'vrfd_mint_verified' && row.pass));
 });
 
 test('evaluateConsistencyGate fails metadata without metaplex resolution', () => {
@@ -409,6 +419,7 @@ test('buildEvidencePacket does not auto-fill launch date', () => {
   assert.equal(packet.schema, 'demigod.dasha-cmc-packet/3');
   assert.equal(packet.identity.metadataUri, METAPLEX_JSON_URI);
   assert.equal(packet.evidence.metaplexMetadata.mint, MINT);
+  assert.equal(packet.evidence.vrfdDashboard.isVerified, true);
 });
 
 test('renderPacketMarkdown includes CMC probe limitation and readiness blockers', () => {
@@ -436,6 +447,23 @@ test('fetchOnChainSupply records finalized slot context', async () => {
   assert.equal(supply.commitment, 'finalized');
 });
 
+test('probeVrfdDashboard maps Jupiter VRFD fields for exact mint', () => {
+  const vrfd = probeVrfdDashboard(jupiterRecord());
+  assert.equal(vrfd.mintMatches, true);
+  assert.equal(vrfd.isVerified, true);
+  assert.ok(vrfd.tags.includes('verified'));
+  assert.match(vrfd.portalUrl, /verified\.jup\.ag\/tokens/);
+});
+
+test('evaluateConsistencyGate fails VRFD check when mint is not verified', () => {
+  const gate = evaluateConsistencyGate(baseGateInput({
+    jupiter: jupiterRecord({ isVerified: false, tags: [] }),
+    vrfd: probeVrfdDashboard(jupiterRecord({ isVerified: false, tags: [] })),
+  }));
+  assert.equal(gate.identityPass, false);
+  assert.ok(gate.checks.some((row) => row.id === 'vrfd_mint_verified' && !row.pass));
+});
+
 test('fetchJupiterTokenRecord maps holder count and graduated pool', async () => {
   const fetchImpl = mockFetch([
     ['lite-api.jup.ag', async () => ({
@@ -448,6 +476,8 @@ test('fetchJupiterTokenRecord maps holder count and graduated pool', async () =>
           holderCount: 1302,
           graduatedPool: DASHA_CANONICAL.pair,
           twitter: 'https://x.com/dash_eats',
+          isVerified: true,
+          tags: ['launchpad', 'verified'],
         }];
       },
     })],
@@ -455,6 +485,7 @@ test('fetchJupiterTokenRecord maps holder count and graduated pool', async () =>
   const record = await fetchJupiterTokenRecord(fetchImpl);
   assert.equal(record.holderCount, 1302);
   assert.equal(record.graduatedPool, DASHA_CANONICAL.pair);
+  assert.equal(record.isVerified, true);
 });
 
 test('probeCmcMintSearch never claims duplicate status', async () => {
@@ -540,10 +571,11 @@ test('fetchMetaplexRecord leaves documentResolved false when json_uri missing', 
   assert.equal(record.jsonUri, null);
 });
 
-test('buildPacket assembles mocked evidence with holder count and metaplex', async () => {
+test('buildPacket assembles mocked evidence with holder count, metaplex, and VRFD', async () => {
   const packet = await buildPacket(await fullPacketMocks());
   assert.equal(packet.evidence.holderCount.count, 1302);
   assert.equal(packet.evidence.metaplexMetadata.mint, MINT);
+  assert.equal(packet.evidence.vrfdDashboard.isVerified, true);
   assert.equal(packet.consistencyGate.identityPass, true);
   assert.equal(packet.consistencyGate.metadataPass, true);
   assert.equal(packet.submissionReadiness.ready, false);

@@ -22,6 +22,7 @@ export const DASHA_CANONICAL = Object.freeze({
   officialXHandle: 'dash_eats',
   repository: 'https://github.com/Uuriko/dasha-desk',
   coingeckoId: 'dash_eats',
+  vrfdPortal: 'https://verified.jup.ag/tokens',
   representativeEmail: 'potter@trydemigod.com',
   representativeName: 'Jonathan Potter',
   cmcFormUrl: 'https://coinmarketcap.com/request/',
@@ -74,6 +75,7 @@ export function buildUrls() {
     raydium: `https://raydium.io/swap/?inputMint=sol&outputMint=${mint}`,
     coingecko: `https://www.coingecko.com/en/coins/${coingeckoId}`,
     jupiter: `https://jup.ag/tokens/${mint}`,
+    vrfdPortal: DASHA_CANONICAL.vrfdPortal,
     cmcDexScan: `https://coinmarketcap.com/dexscan/solana/${mint}/`,
     website,
     howToBuy: `${website.replace(/\/$/, '')}/how-to-buy`,
@@ -164,6 +166,8 @@ export async function fetchJupiterTokenRecord(fetchImpl = fetch) {
     twitter: row.twitter || null,
     website: row.website || null,
     holderCount: Number.isFinite(row.holderCount) ? row.holderCount : null,
+    isVerified: row.isVerified === true,
+    tags: Array.isArray(row.tags) ? row.tags : [],
     graduatedAt: row.graduatedAt || null,
     graduatedPool: row.graduatedPool || null,
     tokenPage: buildUrls().jupiter,
@@ -249,6 +253,22 @@ export async function fetchFaucetPage(fetchImpl = fetch) {
     hasH1: /<h1\b/i.test(html),
     hasCanonicalMint: pageContainsCanonicalMint(html),
     issue: DASHA_CANONICAL.productionGateIssue,
+  };
+}
+
+export function probeVrfdDashboard(jupiter) {
+  const urls = buildUrls();
+  return {
+    portalUrl: DASHA_CANONICAL.vrfdPortal,
+    tokenPageUrl: jupiter?.tokenPage || urls.jupiter,
+    apiSource: jupiter?.source || null,
+    capturedAt: jupiter?.capturedAt || new Date().toISOString(),
+    mint: jupiter?.mint || null,
+    isVerified: jupiter?.isVerified === true,
+    tags: Array.isArray(jupiter?.tags) ? jupiter.tags : [],
+    mintMatches: jupiter?.mint === DASHA_CANONICAL.mint,
+    note:
+      'VRFD verification status is read from Jupiter token search (isVerified/tags). Browse verified.jup.ag/tokens for the human review queue; verification is not an audit or endorsement.',
   };
 }
 
@@ -353,6 +373,7 @@ export function evaluateConsistencyGate({
   jupiter,
   xProfile,
   metaplex,
+  vrfd,
 }) {
   const checks = [];
   const expect = DASHA_CANONICAL.mint;
@@ -406,6 +427,11 @@ export function evaluateConsistencyGate({
     detail: jupiter?.graduatedPool || 'missing',
   });
   checks.push({
+    id: 'vrfd_mint_verified',
+    pass: vrfd?.mintMatches === true && vrfd?.isVerified === true,
+    detail: `mint=${vrfd?.mint || 'missing'}; verified=${vrfd?.isVerified === true}; tags=${(vrfd?.tags || []).join(',') || 'none'}`,
+  });
+  checks.push({
     id: 'official_x_reachable',
     pass: xProfile?.reachable === true,
     detail: `${DASHA_CANONICAL.officialX} status ${xProfile?.status ?? 'unknown'}`,
@@ -449,7 +475,7 @@ export function evaluateConsistencyGate({
     'official_x_handle',
   ]);
   const productionIds = new Set(['faucet_h1']);
-  const identityIds = new Set(['website_mint', 'coingecko_mint', 'pool_base_mint', 'how_to_buy_mint', 'how_to_buy_no_confusing_copy', 'stable_reviewer_page', 'official_x_reachable']);
+  const identityIds = new Set(['website_mint', 'coingecko_mint', 'pool_base_mint', 'how_to_buy_mint', 'how_to_buy_no_confusing_copy', 'stable_reviewer_page', 'official_x_reachable', 'vrfd_mint_verified']);
 
   const metadataPass = checks.filter((row) => metadataIds.has(row.id)).every((row) => row.pass);
   const identityPass = checks.filter((row) => identityIds.has(row.id)).every((row) => row.pass);
@@ -508,6 +534,7 @@ export function buildEvidencePacket({
   coingecko,
   jupiter,
   metaplex,
+  vrfd,
   pool,
   website,
   howToBuy,
@@ -577,7 +604,19 @@ export function buildEvidencePacket({
         mint: jupiter?.mint || null,
         name: jupiter?.name || null,
         symbol: jupiter?.symbol || null,
+        isVerified: jupiter?.isVerified === true,
+        tags: jupiter?.tags || [],
         capturedAt: jupiter?.capturedAt || at,
+      },
+      vrfdDashboard: {
+        portalUrl: vrfd?.portalUrl || urls.vrfdPortal,
+        tokenPageUrl: vrfd?.tokenPageUrl || urls.jupiter,
+        mint: vrfd?.mint || null,
+        isVerified: vrfd?.isVerified === true,
+        tags: vrfd?.tags || [],
+        apiSource: vrfd?.apiSource || null,
+        capturedAt: vrfd?.capturedAt || at,
+        note: vrfd?.note || null,
       },
       metaplexMetadata: {
         source: metaplex?.source || null,
@@ -670,6 +709,9 @@ export function renderPacketMarkdown(packet) {
     `- Website: ${e.websiteAndSocial.website}`,
     `- Stable reviewer page: ${e.websiteAndSocial.stableReviewerPage}`,
     `- X: ${e.websiteAndSocial.x} (reachable: ${e.websiteAndSocial.xReachable ? 'yes' : 'no'})`,
+    `- VRFD portal: ${e.vrfdDashboard?.portalUrl ?? packet.identity.urls.vrfdPortal}`,
+    `- Jupiter token page: ${e.vrfdDashboard?.tokenPageUrl ?? packet.identity.urls.jupiter}`,
+    `- VRFD verified (exact mint): ${e.vrfdDashboard?.isVerified ? 'yes' : 'no'}`,
     '',
     '## 4. CoinGecko listing (same mint)',
     `- URL: ${packet.identity.urls.coingecko}`,
@@ -772,6 +814,7 @@ export async function buildPacket(fetchImpl = fetch, { manualConfirmations = EMP
     probeOfficialX(fetchImpl),
     probeCmcMintSearch(fetchImpl),
   ]);
+  const vrfd = probeVrfdDashboard(jupiter);
   const gate = evaluateConsistencyGate({
     coingecko,
     pool,
@@ -781,6 +824,7 @@ export async function buildPacket(fetchImpl = fetch, { manualConfirmations = EMP
     jupiter,
     xProfile,
     metaplex,
+    vrfd,
   });
   return buildEvidencePacket({
     at,
@@ -788,6 +832,7 @@ export async function buildPacket(fetchImpl = fetch, { manualConfirmations = EMP
     coingecko,
     jupiter,
     metaplex,
+    vrfd,
     pool,
     website,
     howToBuy,
