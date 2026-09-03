@@ -33,6 +33,8 @@ import {
   fetchMetaplexMetadata,
   resolveMetadataDocument,
   probeOfficialX,
+  probeVrfdPortalReachability,
+  buildVrfdDashboard,
   probeVrfdDashboard,
   probeCmcMintSearch,
   buildPacket,
@@ -73,7 +75,15 @@ function jupiterRecord(overrides = {}) {
 }
 
 function vrfdRecord(overrides = {}) {
-  return probeVrfdDashboard(jupiterRecord(overrides.jupiter));
+  const jupiter = jupiterRecord(overrides.jupiter);
+  const portal = {
+    source: DASHA_CANONICAL.vrfdPortal,
+    status: 200,
+    reachable: true,
+    capturedAt: '2026-09-02T06:00:00.000Z',
+    ...overrides.portal,
+  };
+  return buildVrfdDashboard(jupiter, portal);
 }
 
 function metaplexRecord(overrides = {}) {
@@ -286,6 +296,7 @@ async function fullPacketMocks({ faucetHtml = 'dasha-faucet-no-h1.html', howToBu
       status: 302,
       headers: { get: () => null },
     })],
+    ['verified.jup.ag/tokens', async () => ({ ok: true, status: 200 })],
     ['ipfs.io/ipfs/dasha-test-metadata', async () => ({
       ok: true,
       async json() {
@@ -401,6 +412,7 @@ test('evaluateConsistencyGate requires metaplex metadata and corroboration', () 
   assert.ok(gate.checks.some((row) => row.id === 'aggregator_corroboration' && row.pass));
   assert.ok(gate.checks.some((row) => row.id === 'holder_count' && row.pass));
   assert.ok(gate.checks.some((row) => row.id === 'vrfd_mint_verified' && row.pass));
+  assert.ok(gate.checks.some((row) => row.id === 'vrfd_portal_reachable' && row.pass));
 });
 
 test('evaluateConsistencyGate fails metadata without metaplex resolution', () => {
@@ -434,7 +446,7 @@ test('renderPacketMarkdown includes CMC probe limitation and readiness blockers'
   assert.match(md, /Canonical pool created \(not launch date\)/);
   assert.match(md, /UNRESOLVED — manual/);
   assert.doesNotMatch(md, /meme studio/i);
-  assert.match(md, /VRFD portal: https:\/\/verified\.jup\.ag\/tokens/);
+  assert.match(md, /VRFD portal: https:\/\/verified\.jup\.ag\/tokens \(reachable: yes\)/);
   assert.match(md, /VRFD verified \(exact mint\): yes/);
   assert.match(md, /vrfd_mint_verified/);
 });
@@ -464,12 +476,33 @@ test('fetchOnChainSupply records finalized slot context', async () => {
   assert.equal(supply.commitment, 'finalized');
 });
 
+test('probeVrfdPortalReachability records portal HTTP status', async () => {
+  const probe = await probeVrfdPortalReachability(mockFetch([
+    ['verified.jup.ag/tokens', async () => ({ ok: true, status: 200 })],
+  ]));
+  assert.equal(probe.reachable, true);
+  assert.equal(probe.status, 200);
+});
+
+test('evaluateConsistencyGate fails when VRFD portal is unreachable', () => {
+  const gate = evaluateConsistencyGate(baseGateInput({
+    vrfd: vrfdRecord({ portal: { reachable: false, status: 503 } }),
+  }));
+  assert.equal(gate.identityPass, false);
+  assert.ok(gate.checks.some((row) => row.id === 'vrfd_portal_reachable' && !row.pass));
+});
+
 test('probeVrfdDashboard maps Jupiter VRFD fields for exact mint', () => {
-  const vrfd = probeVrfdDashboard(jupiterRecord());
+  const vrfd = probeVrfdDashboard(jupiterRecord(), {
+    source: DASHA_CANONICAL.vrfdPortal,
+    status: 200,
+    reachable: true,
+  });
   assert.equal(vrfd.mintMatches, true);
   assert.equal(vrfd.isVerified, true);
   assert.ok(vrfd.tags.includes('verified'));
   assert.match(vrfd.portalUrl, /verified\.jup\.ag\/tokens/);
+  assert.equal(vrfd.portalReachable, true);
 });
 
 test('probeVrfdDashboard fails mint match for wrong mint', () => {

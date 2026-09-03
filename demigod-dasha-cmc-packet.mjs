@@ -256,20 +256,38 @@ export async function fetchFaucetPage(fetchImpl = fetch) {
   };
 }
 
-export function probeVrfdDashboard(jupiter) {
+export async function probeVrfdPortalReachability(fetchImpl = fetch) {
+  const url = DASHA_CANONICAL.vrfdPortal;
+  const response = await fetchImpl(url, { redirect: 'follow' });
+  return {
+    source: url,
+    capturedAt: new Date().toISOString(),
+    status: response.status,
+    reachable: response.ok || response.status === 307 || response.status === 308,
+  };
+}
+
+export function buildVrfdDashboard(jupiter, portalProbe) {
   const urls = buildUrls();
   return {
     portalUrl: DASHA_CANONICAL.vrfdPortal,
+    portalReachable: portalProbe?.reachable === true,
+    portalStatus: portalProbe?.status ?? null,
+    portalProbeSource: portalProbe?.source || DASHA_CANONICAL.vrfdPortal,
     tokenPageUrl: jupiter?.tokenPage || urls.jupiter,
     apiSource: jupiter?.source || null,
-    capturedAt: jupiter?.capturedAt || new Date().toISOString(),
+    capturedAt: jupiter?.capturedAt || portalProbe?.capturedAt || new Date().toISOString(),
     mint: jupiter?.mint || null,
     isVerified: jupiter?.isVerified === true,
     tags: Array.isArray(jupiter?.tags) ? jupiter.tags : [],
     mintMatches: jupiter?.mint === DASHA_CANONICAL.mint,
     note:
-      'VRFD verification status is read from Jupiter token search (isVerified/tags). Browse verified.jup.ag/tokens for the human review queue; verification is not an audit or endorsement.',
+      'VRFD verification status is read from Jupiter token search (isVerified/tags). Portal reachability is probed separately at verified.jup.ag/tokens; verification is not an audit or endorsement.',
   };
+}
+
+export function probeVrfdDashboard(jupiter, portalProbe = null) {
+  return buildVrfdDashboard(jupiter, portalProbe);
 }
 
 export async function probeOfficialX(fetchImpl = fetch) {
@@ -432,6 +450,11 @@ export function evaluateConsistencyGate({
     detail: `mint=${vrfd?.mint || 'missing'}; verified=${vrfd?.isVerified === true}; tags=${(vrfd?.tags || []).join(',') || 'none'}`,
   });
   checks.push({
+    id: 'vrfd_portal_reachable',
+    pass: vrfd?.portalReachable === true,
+    detail: `${vrfd?.portalUrl || DASHA_CANONICAL.vrfdPortal} status ${vrfd?.portalStatus ?? 'unknown'}`,
+  });
+  checks.push({
     id: 'official_x_reachable',
     pass: xProfile?.reachable === true,
     detail: `${DASHA_CANONICAL.officialX} status ${xProfile?.status ?? 'unknown'}`,
@@ -475,7 +498,7 @@ export function evaluateConsistencyGate({
     'official_x_handle',
   ]);
   const productionIds = new Set(['faucet_h1']);
-  const identityIds = new Set(['website_mint', 'coingecko_mint', 'pool_base_mint', 'how_to_buy_mint', 'how_to_buy_no_confusing_copy', 'stable_reviewer_page', 'official_x_reachable', 'vrfd_mint_verified']);
+  const identityIds = new Set(['website_mint', 'coingecko_mint', 'pool_base_mint', 'how_to_buy_mint', 'how_to_buy_no_confusing_copy', 'stable_reviewer_page', 'official_x_reachable', 'vrfd_mint_verified', 'vrfd_portal_reachable']);
 
   const metadataPass = checks.filter((row) => metadataIds.has(row.id)).every((row) => row.pass);
   const identityPass = checks.filter((row) => identityIds.has(row.id)).every((row) => row.pass);
@@ -610,6 +633,9 @@ export function buildEvidencePacket({
       },
       vrfdDashboard: {
         portalUrl: vrfd?.portalUrl || urls.vrfdPortal,
+        portalReachable: vrfd?.portalReachable === true,
+        portalStatus: vrfd?.portalStatus ?? null,
+        portalProbeSource: vrfd?.portalProbeSource || urls.vrfdPortal,
         tokenPageUrl: vrfd?.tokenPageUrl || urls.jupiter,
         mint: vrfd?.mint || null,
         mintMatches: vrfd?.mintMatches === true,
@@ -710,7 +736,7 @@ export function renderPacketMarkdown(packet) {
     `- Website: ${e.websiteAndSocial.website}`,
     `- Stable reviewer page: ${e.websiteAndSocial.stableReviewerPage}`,
     `- X: ${e.websiteAndSocial.x} (reachable: ${e.websiteAndSocial.xReachable ? 'yes' : 'no'})`,
-    `- VRFD portal: ${e.vrfdDashboard?.portalUrl ?? packet.identity.urls.vrfdPortal}`,
+    `- VRFD portal: ${e.vrfdDashboard?.portalUrl ?? packet.identity.urls.vrfdPortal} (reachable: ${e.vrfdDashboard?.portalReachable ? 'yes' : 'no'})`,
     `- Jupiter token page: ${e.vrfdDashboard?.tokenPageUrl ?? packet.identity.urls.jupiter}`,
     `- VRFD verified (exact mint): ${e.vrfdDashboard?.mintMatches && e.vrfdDashboard?.isVerified ? 'yes' : 'no'}`,
     '',
@@ -803,7 +829,7 @@ export function packetClaimsSubmittable(packet) {
 
 export async function buildPacket(fetchImpl = fetch, { manualConfirmations = EMPTY_MANUAL_CONFIRMATIONS } = {}) {
   const at = new Date().toISOString();
-  const [onchain, coingecko, jupiter, metaplex, pool, website, howToBuy, faucet, xProfile, cmcProbe] = await Promise.all([
+  const [onchain, coingecko, jupiter, metaplex, pool, website, howToBuy, faucet, xProfile, cmcProbe, vrfdPortal] = await Promise.all([
     fetchOnChainSupply(fetchImpl),
     fetchCoinGeckoRecord(fetchImpl),
     fetchJupiterTokenRecord(fetchImpl),
@@ -814,8 +840,9 @@ export async function buildPacket(fetchImpl = fetch, { manualConfirmations = EMP
     fetchFaucetPage(fetchImpl),
     probeOfficialX(fetchImpl),
     probeCmcMintSearch(fetchImpl),
+    probeVrfdPortalReachability(fetchImpl),
   ]);
-  const vrfd = probeVrfdDashboard(jupiter);
+  const vrfd = buildVrfdDashboard(jupiter, vrfdPortal);
   const gate = evaluateConsistencyGate({
     coingecko,
     pool,
