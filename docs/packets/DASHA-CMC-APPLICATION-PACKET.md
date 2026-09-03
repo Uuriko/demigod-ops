@@ -2,7 +2,7 @@
 
 > Regenerate this packet immediately before CMC submission. Volatile supply, market, and holder figures below are point-in-time captures only.
 
-Captured: 2026-09-03T04:21:31.988Z
+Captured: 2026-09-03T04:26:16.849Z
 Cost lane: free
 CMC form: https://coinmarketcap.com/request/
 Submission ready: **no** (launch_date_manual_required, cmc_browser_search_required, representative_authority_manual, production_gate_faucet_h1)
@@ -29,8 +29,8 @@ Preflight only: yes
 ## 4. CoinGecko listing (same mint)
 - URL: https://www.coingecko.com/en/coins/dash_eats
 - Mint on CoinGecko: `53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump`
-- Captured: 2026-09-03T04:21:32.184Z
-- Rank: 3509
+- Captured: 2026-09-03T04:26:17.175Z
+- Rank: 3510
 
 ## 5. On-chain Metaplex metadata (primary)
 - Mint: `53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump`
@@ -43,22 +43,22 @@ Preflight only: yes
 ## 6. Supply, authority, and holders
 - Decimals: 6
 - Total supply (UI): 999831814.51809
-- RPC slot: 443878341 (finalized)
+- RPC slot: 443879254 (finalized)
 - Mint authority: null
 - Freeze authority: null
 - Supply source: https://api.mainnet-beta.solana.com
-- Holder count: 1321
+- Holder count: 1318
 - Holder source: https://lite-api.jup.ag/tokens/v2/search?query=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump
 - Holder methodology: Jupiter token search API holderCount for exact mint; regenerate before submission.
 - Circulating supply: No separate circulating-supply methodology is claimed. Total supply and decimals are read from on-chain mint data at submission time; CMC may review rank-affecting supply separately.
 
 ## 7. Market activity
 - Pool created: 2025-02-03T15:29:15Z
-- Liquidity USD: 83037.6407
-- 24h volume USD: 207519.029802584
-- FDV USD: 480064.28307565
+- Liquidity USD: 82820.2651
+- 24h volume USD: 207515.131399931
+- FDV USD: 478492.990088771
 - Source: https://api.geckoterminal.com/api/v2/networks/solana/pools/9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7
-- Captured: 2026-09-03T04:21:32.182Z
+- Captured: 2026-09-03T04:26:17.173Z
 
 ## 8. Product and repository
 - Repository: https://github.com/Uuriko/dasha-desk
@@ -88,10 +88,10 @@ The ticker DASHA and similar names exist on other chains and assets. Identity is
 - [x] aggregator_corroboration: metaplex=dash_eats/dasha; coingecko=dash_eats/dasha; jupiter=dash_eats/dasha
 - [x] jupiter_mint: 53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump
 - [x] jupiter_graduated_pool: 9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7
-- [x] vrfd_mint_verified: mint=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump; verified=true; tags=launchpad,verified
+- [x] vrfd_mint_verified: mint=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump; verified=true; tags=verified,launchpad
 - [x] official_x_reachable: https://x.com/dash_eats status 200
 - [x] official_x_handle: https://x.com/dash_eats
-- [x] holder_count: 1321
+- [x] holder_count: 1318
 - [x] how_to_buy_mint: https://www.getdasha.com/how-to-buy
 - [x] how_to_buy_no_confusing_copy: clean
 - [x] stable_reviewer_page: https://www.getdasha.com/how-to-buy

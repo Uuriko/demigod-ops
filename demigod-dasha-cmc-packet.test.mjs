@@ -434,6 +434,23 @@ test('renderPacketMarkdown includes CMC probe limitation and readiness blockers'
   assert.match(md, /Canonical pool created \(not launch date\)/);
   assert.match(md, /UNRESOLVED — manual/);
   assert.doesNotMatch(md, /meme studio/i);
+  assert.match(md, /VRFD portal: https:\/\/verified\.jup\.ag\/tokens/);
+  assert.match(md, /VRFD verified \(exact mint\): yes/);
+  assert.match(md, /vrfd_mint_verified/);
+});
+
+test('renderPacketMarkdown shows VRFD failure when mint mismatches', () => {
+  const wrongMint = '11111111111111111111111111111111';
+  const jupiter = jupiterRecord({ mint: wrongMint, isVerified: true, tags: ['verified'] });
+  const vrfd = probeVrfdDashboard(jupiter);
+  const packet = buildEvidencePacket(basePacketInput({
+    gateInput: { jupiter, vrfd },
+    jupiter,
+    vrfd,
+  }));
+  const md = renderPacketMarkdown(packet);
+  assert.match(md, /VRFD verified \(exact mint\): no/);
+  assert.match(md, /\[ \] vrfd_mint_verified/);
 });
 
 test('packetClaimsSubmittable rejects ready-looking partial packets', () => {
@@ -453,6 +470,19 @@ test('probeVrfdDashboard maps Jupiter VRFD fields for exact mint', () => {
   assert.equal(vrfd.isVerified, true);
   assert.ok(vrfd.tags.includes('verified'));
   assert.match(vrfd.portalUrl, /verified\.jup\.ag\/tokens/);
+});
+
+test('probeVrfdDashboard fails mint match for wrong mint', () => {
+  const wrongMint = '11111111111111111111111111111111';
+  const vrfd = probeVrfdDashboard(jupiterRecord({ mint: wrongMint, isVerified: true, tags: ['verified'] }));
+  assert.equal(vrfd.mintMatches, false);
+  assert.equal(vrfd.isVerified, true);
+  const gate = evaluateConsistencyGate(baseGateInput({
+    jupiter: jupiterRecord({ mint: wrongMint }),
+    vrfd,
+  }));
+  assert.equal(gate.identityPass, false);
+  assert.ok(gate.checks.some((row) => row.id === 'vrfd_mint_verified' && !row.pass));
 });
 
 test('evaluateConsistencyGate fails VRFD check when mint is not verified', () => {
@@ -620,6 +650,14 @@ test('scanHowToBuyHtml flags confusing third-party copy from fixture', async () 
   const confusing = await readFile(fixture('dasha-how-to-buy-confusing.html'), 'utf8');
   assert.equal(scanHowToBuyHtml(clean).stableForReviewers, true);
   assert.equal(scanHowToBuyHtml(confusing).stableForReviewers, false);
+});
+
+test('verify script entry point passes', () => {
+  const result = spawnSync('bash', [path.join(ROOT, 'scripts', 'verify-dasha-cmc-packet.sh')], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
 test('CLI rejects unknown subcommand', () => {

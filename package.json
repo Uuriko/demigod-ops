@@ -6,6 +6,7 @@
   "description": "Demigod startup + trydemigod.com dev workspace @ /home/potter",
   "scripts": {
     "test": "bash scripts/verify-dasha-cmc-packet.sh",
+    "check": "bash scripts/verify-dasha-cmc-packet.sh",
     "start": "python3 -m http.server 8765",
     "dev:status": "./agent-dev.sh status",
     "dev:audit": "./agent-dev.sh audit",
