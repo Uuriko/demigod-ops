@@ -2,10 +2,10 @@
 
 > Regenerate this packet immediately before CMC submission. Volatile supply, market, and holder figures below are point-in-time captures only.
 
-Captured: 2026-09-03T04:09:43.270Z
+Captured: 2026-09-03T04:16:24.139Z
 Cost lane: free
 CMC form: https://coinmarketcap.com/request/
-Submission ready: **no** (launch_date_manual_required, cmc_browser_search_required, representative_authority_manual)
+Submission ready: **no** (launch_date_manual_required, cmc_browser_search_required, representative_authority_manual, production_gate_faucet_h1)
 Preflight only: yes
 
 ## 1. Mint and explorer
@@ -26,8 +26,8 @@ Preflight only: yes
 ## 4. CoinGecko listing (same mint)
 - URL: https://www.coingecko.com/en/coins/dash_eats
 - Mint on CoinGecko: `53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump`
-- Captured: 2026-09-03T04:09:43.523Z
-- Rank: 3485
+- Captured: 2026-09-03T04:16:24.334Z
+- Rank: 3474
 
 ## 5. On-chain Metaplex metadata (primary)
 - Mint: `53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump`
@@ -40,22 +40,22 @@ Preflight only: yes
 ## 6. Supply, authority, and holders
 - Decimals: 6
 - Total supply (UI): 999831814.51809
-- RPC slot: 443876085 (finalized)
+- RPC slot: 443877363 (finalized)
 - Mint authority: null
 - Freeze authority: null
 - Supply source: https://api.mainnet-beta.solana.com
-- Holder count: 1325
+- Holder count: 1324
 - Holder source: https://lite-api.jup.ag/tokens/v2/search?query=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump
 - Holder methodology: Jupiter token search API holderCount for exact mint; regenerate before submission.
 - Circulating supply: No separate circulating-supply methodology is claimed. Total supply and decimals are read from on-chain mint data at submission time; CMC may review rank-affecting supply separately.
 
 ## 7. Market activity
 - Pool created: 2025-02-03T15:29:15Z
-- Liquidity USD: 84279.4095
-- 24h volume USD: 207175.785186873
-- FDV USD: 493781.749608848
+- Liquidity USD: 84135.9708
+- 24h volume USD: 207491.842258125
+- FDV USD: 486873.280108568
 - Source: https://api.geckoterminal.com/api/v2/networks/solana/pools/9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7
-- Captured: 2026-09-03T04:09:43.522Z
+- Captured: 2026-09-03T04:16:24.333Z
 
 ## 8. Product and repository
 - Repository: https://github.com/Uuriko/dasha-desk
@@ -87,7 +87,7 @@ The ticker DASHA and similar names exist on other chains and assets. Identity is
 - [x] jupiter_graduated_pool: 9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7
 - [x] official_x_reachable: https://x.com/dash_eats status 200
 - [x] official_x_handle: https://x.com/dash_eats
-- [x] holder_count: 1325
+- [x] holder_count: 1324
 - [x] how_to_buy_mint: https://www.getdasha.com/how-to-buy
 - [x] how_to_buy_no_confusing_copy: clean
 - [x] stable_reviewer_page: https://www.getdasha.com/how-to-buy
@@ -97,6 +97,7 @@ The ticker DASHA and similar names exist on other chains and assets. Identity is
 - launch_date_manual_required
 - cmc_browser_search_required
 - representative_authority_manual
+- production_gate_faucet_h1
 
 ## Form answers (draft — not submission-ready)
 - Relationship: Community maintainer and operator of getdasha.com (manual CMC dropdown selection required).

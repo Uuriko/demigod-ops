@@ -1,7 +1,7 @@
 {
   "schema": "demigod.dasha-cmc-submission/1",
   "issueUrl": "https://github.com/Uuriko/demigod-ops/issues/109",
-  "capturedAt": "2026-09-03T04:09:43.270Z",
+  "capturedAt": "2026-09-03T04:16:24.139Z",
   "submitted": false,
   "confirmationId": null,
   "submittedAt": null,
@@ -20,12 +20,14 @@
   "blockers": [
     "launch_date_manual_required",
     "cmc_browser_search_required",
-    "representative_authority_manual"
+    "representative_authority_manual",
+    "production_gate_faucet_h1"
   ],
   "manualConfirmations": {
     "launchDateConfirmed": false,
     "cmcBrowserSearchConfirmed": false,
-    "representativeAuthorityConfirmed": false
+    "representativeAuthorityConfirmed": false,
+    "stableReviewerRoutingConfirmed": false
   },
   "note": "Submit once via the official CMC form; record confirmation here after human submission."
 }

@@ -58,6 +58,7 @@ export const EMPTY_MANUAL_CONFIRMATIONS = Object.freeze({
   launchDateConfirmed: false,
   cmcBrowserSearchConfirmed: false,
   representativeAuthorityConfirmed: false,
+  stableReviewerRoutingConfirmed: false,
 });
 
 const SOLANA_RPC = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
@@ -480,6 +481,9 @@ export function evaluateSubmissionReadiness({
   if (!manual.launchDateConfirmed) blockers.push('launch_date_manual_required');
   if (!manual.cmcBrowserSearchConfirmed) blockers.push('cmc_browser_search_required');
   if (!manual.representativeAuthorityConfirmed) blockers.push('representative_authority_manual');
+  if (!gate?.productionPass && !manual.stableReviewerRoutingConfirmed) {
+    blockers.push('production_gate_faucet_h1');
+  }
   if (!gate?.identityPass) blockers.push('identity_preflight_incomplete');
   if (!gate?.metadataPass) blockers.push('metadata_consistency_incomplete');
   if (!Number.isFinite(holderCount) || holderCount <= 0) blockers.push('holder_count_unresolved');
@@ -488,7 +492,8 @@ export function evaluateSubmissionReadiness({
   return {
     preflightOnly: !manual.launchDateConfirmed
       && !manual.cmcBrowserSearchConfirmed
-      && !manual.representativeAuthorityConfirmed,
+      && !manual.representativeAuthorityConfirmed
+      && (gate?.productionPass === true || !manual.stableReviewerRoutingConfirmed),
     ready: unique.length === 0,
     submittable: unique.length === 0,
     blockers: unique,

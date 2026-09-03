@@ -147,7 +147,7 @@ function baseGateInput(overrides = {}) {
     pool: { baseMint: MINT },
     website: { hasCanonicalMint: true, mintsFound: [MINT] },
     howToBuy: { hasCanonicalMint: true, confusingThirdPartyCopy: [], stableForReviewers: true },
-    faucet: { hasH1: true, source: 'https://www.getdasha.com/faucet' },
+    faucet: { hasH1: false, source: 'https://www.getdasha.com/faucet' },
     jupiter: {
       mint: MINT,
       name: 'dash_eats',
@@ -196,7 +196,7 @@ function basePacketInput(overrides = {}) {
     },
     website: { title: '$dasha', hasCanonicalMint: true, mintsFound: [MINT] },
     howToBuy: { stableForReviewers: true, hasCanonicalMint: true, confusingThirdPartyCopy: [] },
-    faucet: { hasH1: true },
+    faucet: { hasH1: false, source: 'https://www.getdasha.com/faucet' },
     xProfile: { reachable: true, status: 200 },
     metaplex: metaplexRecord(),
     cmcProbe: {
@@ -298,7 +298,7 @@ test('canonical identity matches issue #109', () => {
 
 test('evaluateSubmissionReadiness keeps manual blockers when confirmations absent', () => {
   const readiness = evaluateSubmissionReadiness({
-    gate: { identityPass: true, metadataPass: true },
+    gate: { identityPass: true, metadataPass: true, productionPass: false },
     cmcProbe: { duplicateStatusKnown: false },
     holderCount: 1302,
     launchDate: null,
@@ -309,11 +309,51 @@ test('evaluateSubmissionReadiness keeps manual blockers when confirmations absen
   for (const blocker of MANUAL_READINESS_BLOCKERS) {
     assert.ok(readiness.blockers.includes(blocker));
   }
+  assert.ok(readiness.blockers.includes('production_gate_faucet_h1'));
 });
 
-test('evaluateSubmissionReadiness clears manual blockers when confirmations set', () => {
+test('evaluateSubmissionReadiness stays blocked when manual items cleared but production routing not confirmed', () => {
   const readiness = evaluateSubmissionReadiness({
-    gate: { identityPass: true, metadataPass: true },
+    gate: { identityPass: true, metadataPass: true, productionPass: false },
+    cmcProbe: { duplicateStatusKnown: false },
+    holderCount: 1302,
+    launchDate: null,
+    manualConfirmations: {
+      launchDateConfirmed: true,
+      cmcBrowserSearchConfirmed: true,
+      representativeAuthorityConfirmed: true,
+      stableReviewerRoutingConfirmed: false,
+    },
+  });
+  assert.equal(readiness.ready, false);
+  assert.ok(readiness.blockers.includes('production_gate_faucet_h1'));
+});
+
+test('evaluateSubmissionReadiness clears blockers when confirmations set and production routing acknowledged', () => {
+  const readiness = evaluateSubmissionReadiness({
+    gate: { identityPass: true, metadataPass: true, productionPass: false },
+    cmcProbe: { duplicateStatusKnown: false },
+    holderCount: 1302,
+    launchDate: null,
+    manualConfirmations: {
+      launchDateConfirmed: true,
+      cmcBrowserSearchConfirmed: true,
+      representativeAuthorityConfirmed: true,
+      stableReviewerRoutingConfirmed: true,
+    },
+  });
+  assert.equal(readiness.ready, true);
+  assert.equal(readiness.submittable, true);
+  assert.equal(readiness.preflightOnly, false);
+  for (const blocker of MANUAL_READINESS_BLOCKERS) {
+    assert.equal(readiness.blockers.includes(blocker), false);
+  }
+  assert.equal(readiness.blockers.includes('production_gate_faucet_h1'), false);
+});
+
+test('evaluateSubmissionReadiness clears manual blockers when production gate passes', () => {
+  const readiness = evaluateSubmissionReadiness({
+    gate: { identityPass: true, metadataPass: true, productionPass: true },
     cmcProbe: { duplicateStatusKnown: false },
     holderCount: 1302,
     launchDate: null,
@@ -329,6 +369,7 @@ test('evaluateSubmissionReadiness clears manual blockers when confirmations set'
   for (const blocker of MANUAL_READINESS_BLOCKERS) {
     assert.equal(readiness.blockers.includes(blocker), false);
   }
+  assert.equal(readiness.blockers.includes('production_gate_faucet_h1'), false);
 });
 
 test('evaluateSubmissionReadiness fails when launch date auto-filled', () => {
@@ -459,6 +500,46 @@ test('fetchMetaplexRecord resolves json_uri document', async () => {
   assert.equal(record.document.imageUri, 'https://ipfs.io/ipfs/dasha-test-image');
 });
 
+test('resolveMetadataDocument fails cleanly when json_uri fetch fails', async () => {
+  const result = await resolveMetadataDocument(mockFetch([
+    ['ipfs.io/ipfs/bad-metadata', async () => ({ ok: false, status: 404 })],
+  ]), {
+    jsonUri: 'https://ipfs.io/ipfs/bad-metadata',
+    imageUri: 'https://ipfs.io/ipfs/dasha-test-image',
+  });
+  assert.equal(result.resolved, false);
+  assert.equal(result.status, 404);
+  assert.equal(result.document, null);
+});
+
+test('fetchMetaplexRecord leaves documentResolved false when json_uri missing', async () => {
+  const fetchImpl = mockFetch([
+    ['api.mainnet-beta.solana.com', async (_url, init = {}) => {
+      const body = JSON.parse(String(init.body || '{}'));
+      if (body.method === 'getAsset') {
+        return {
+          ok: true,
+          async json() {
+            return {
+              result: {
+                id: MINT,
+                content: {
+                  metadata: { name: 'dash_eats', symbol: 'dasha' },
+                  json_uri: null,
+                },
+              },
+            };
+          },
+        };
+      }
+      throw new Error(`unexpected_rpc:${body.method}`);
+    }],
+  ]);
+  const record = await fetchMetaplexRecord(fetchImpl);
+  assert.equal(record.documentResolved, false);
+  assert.equal(record.jsonUri, null);
+});
+
 test('buildPacket assembles mocked evidence with holder count and metaplex', async () => {
   const packet = await buildPacket(await fullPacketMocks());
   assert.equal(packet.evidence.holderCount.count, 1302);
@@ -474,6 +555,7 @@ test('buildSubmissionRecord tracks blockers and passes', () => {
   assert.equal(record.submitted, false);
   assert.equal(record.submissionReady, false);
   assert.ok(record.blockers.includes('cmc_browser_search_required'));
+  assert.ok(record.blockers.includes('production_gate_faucet_h1'));
 });
 
 test('writePacketArtifacts writes markdown and submission record', async (context) => {
