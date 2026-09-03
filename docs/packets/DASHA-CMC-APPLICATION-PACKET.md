@@ -2,10 +2,11 @@
 
 > Regenerate this packet immediately before CMC submission. Volatile supply, market, and holder figures below are point-in-time captures only.
 
-Captured: 2026-09-02T23:15:44.260Z
+Captured: 2026-09-03T04:09:43.270Z
 Cost lane: free
 CMC form: https://coinmarketcap.com/request/
 Submission ready: **no** (launch_date_manual_required, cmc_browser_search_required, representative_authority_manual)
+Preflight only: yes
 
 ## 1. Mint and explorer
 - Mint: `53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump`
@@ -25,39 +26,47 @@ Submission ready: **no** (launch_date_manual_required, cmc_browser_search_requir
 ## 4. CoinGecko listing (same mint)
 - URL: https://www.coingecko.com/en/coins/dash_eats
 - Mint on CoinGecko: `53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump`
-- Captured: 2026-09-02T23:15:44.445Z
-- Rank: 3664
+- Captured: 2026-09-03T04:09:43.523Z
+- Rank: 3485
 
-## 5. Supply, authority, and holders
+## 5. On-chain Metaplex metadata (primary)
+- Mint: `53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump`
+- Name/symbol: dash_eats/dasha
+- JSON URI: https://ipfs.io/ipfs/QmU9TM9DYc8YCxZiZSmvdBcdwWvhHhZvBneoxEAkmgiLxV
+- Image URI: https://ipfs.io/ipfs/Qmb4fcJYbM1RSU43bvNPwUjhwGXK42L9xGvjEEijmWtAcg
+- JSON resolved: yes
+- Source: https://api.mainnet-beta.solana.com getAsset
+
+## 6. Supply, authority, and holders
 - Decimals: 6
 - Total supply (UI): 999831814.51809
-- RPC slot: 443819993 (finalized)
+- RPC slot: 443876085 (finalized)
 - Mint authority: null
 - Freeze authority: null
 - Supply source: https://api.mainnet-beta.solana.com
-- Holder count: 1302
+- Holder count: 1325
 - Holder source: https://lite-api.jup.ag/tokens/v2/search?query=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump
 - Holder methodology: Jupiter token search API holderCount for exact mint; regenerate before submission.
 - Circulating supply: No separate circulating-supply methodology is claimed. Total supply and decimals are read from on-chain mint data at submission time; CMC may review rank-affecting supply separately.
 
-## 6. Market activity
+## 7. Market activity
 - Pool created: 2025-02-03T15:29:15Z
-- Liquidity USD: 75045.404
-- 24h volume USD: 185469.095847298
-- FDV USD: 387697.727402481
+- Liquidity USD: 84279.4095
+- 24h volume USD: 207175.785186873
+- FDV USD: 493781.749608848
 - Source: https://api.geckoterminal.com/api/v2/networks/solana/pools/9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7
-- Captured: 2026-09-02T23:15:44.447Z
+- Captured: 2026-09-03T04:09:43.522Z
 
-## 7. Product and repository
+## 8. Product and repository
 - Repository: https://github.com/Uuriko/dasha-desk
 - Website title: $dasha
 - Jupiter token page: https://jup.ag/tokens/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump
 
-## 8. Representative
+## 9. Representative
 - Jonathan Potter <potter@trydemigod.com>
 - Authority note: Current maintainer is not the original token deployer/issuer. Confirm @dash_eats and website control before selecting the closest truthful CMC relationship option.
 
-## 9. Name/ticker collision
+## 10. Name/ticker collision
 The ticker DASHA and similar names exist on other chains and assets. Identity is established only by the full Solana mint above; aggregators that map the same mint (CoinGecko dash_eats, Raydium pair, Solscan) are authoritative for this project.
 
 ## CMC duplicate search (manual required)
@@ -70,12 +79,15 @@ The ticker DASHA and similar names exist on other chains and assets. Identity is
 - [x] website_mint: 53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump
 - [x] coingecko_mint: 53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump
 - [x] pool_base_mint: 53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump
+- [x] metaplex_mint: 53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump
+- [x] metaplex_name_symbol: dash_eats/dasha
+- [x] metaplex_uri_resolves: https://ipfs.io/ipfs/QmU9TM9DYc8YCxZiZSmvdBcdwWvhHhZvBneoxEAkmgiLxV
+- [x] aggregator_corroboration: metaplex=dash_eats/dasha; coingecko=dash_eats/dasha; jupiter=dash_eats/dasha
 - [x] jupiter_mint: 53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump
-- [x] metadata_name_symbol: coingecko=dash_eats/dasha; jupiter=dash_eats/dasha
 - [x] jupiter_graduated_pool: 9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7
 - [x] official_x_reachable: https://x.com/dash_eats status 200
 - [x] official_x_handle: https://x.com/dash_eats
-- [x] holder_count: 1302
+- [x] holder_count: 1325
 - [x] how_to_buy_mint: https://www.getdasha.com/how-to-buy
 - [x] how_to_buy_no_confusing_copy: clean
 - [x] stable_reviewer_page: https://www.getdasha.com/how-to-buy

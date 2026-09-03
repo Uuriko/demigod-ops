@@ -54,6 +54,12 @@ export const MANUAL_READINESS_BLOCKERS = Object.freeze([
   'representative_authority_manual',
 ]);
 
+export const EMPTY_MANUAL_CONFIRMATIONS = Object.freeze({
+  launchDateConfirmed: false,
+  cmcBrowserSearchConfirmed: false,
+  representativeAuthorityConfirmed: false,
+});
+
 const SOLANA_RPC = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const FINALIZED = { commitment: 'finalized' };
@@ -269,6 +275,69 @@ export async function probeCmcMintSearch(fetchImpl = fetch) {
   };
 }
 
+export async function fetchMetaplexMetadata(fetchImpl = fetch) {
+  const response = await fetchImpl(SOLANA_RPC, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'getAsset',
+      params: { id: DASHA_CANONICAL.mint },
+    }),
+  });
+  if (!response.ok) throw new Error(`metaplex_rpc_http_${response.status}`);
+  const body = await response.json();
+  if (body.error) throw new Error(`metaplex_rpc_${body.error.message || 'error'}`);
+  const asset = body.result;
+  const metadata = asset?.content?.metadata || {};
+  return {
+    source: `${SOLANA_RPC} getAsset`,
+    capturedAt: new Date().toISOString(),
+    mint: asset?.id || null,
+    name: metadata.name || null,
+    symbol: metadata.symbol || null,
+    jsonUri: asset?.content?.json_uri || null,
+    imageUri: asset?.content?.links?.image || null,
+    mutable: asset?.mutable === true,
+  };
+}
+
+export async function resolveMetadataDocument(fetchImpl = fetch, metaplex) {
+  const jsonUri = metaplex?.jsonUri;
+  if (!jsonUri) {
+    return { resolved: false, source: null, document: null, imageUri: metaplex?.imageUri || null };
+  }
+  const response = await fetchImpl(jsonUri);
+  if (!response.ok) {
+    return {
+      resolved: false,
+      source: jsonUri,
+      status: response.status,
+      document: null,
+      imageUri: metaplex?.imageUri || null,
+    };
+  }
+  const document = await response.json();
+  return {
+    resolved: true,
+    source: jsonUri,
+    document,
+    imageUri: document?.image || metaplex?.imageUri || null,
+  };
+}
+
+export async function fetchMetaplexRecord(fetchImpl = fetch) {
+  const metaplex = await fetchMetaplexMetadata(fetchImpl);
+  const document = await resolveMetadataDocument(fetchImpl, metaplex);
+  return {
+    ...metaplex,
+    documentResolved: document.resolved === true,
+    documentSource: document.source,
+    document,
+  };
+}
+
 export function namesAlign(a, b) {
   if (!a || !b) return false;
   return String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
@@ -282,6 +351,7 @@ export function evaluateConsistencyGate({
   faucet,
   jupiter,
   xProfile,
+  metaplex,
 }) {
   const checks = [];
   const expect = DASHA_CANONICAL.mint;
@@ -302,14 +372,32 @@ export function evaluateConsistencyGate({
     detail: pool?.baseMint || 'missing',
   });
   checks.push({
+    id: 'metaplex_mint',
+    pass: metaplex?.mint === expect,
+    detail: metaplex?.mint || 'missing',
+  });
+  checks.push({
+    id: 'metaplex_name_symbol',
+    pass: Boolean(metaplex?.name && metaplex?.symbol),
+    detail: `${metaplex?.name || 'missing'}/${metaplex?.symbol || 'missing'}`,
+  });
+  checks.push({
+    id: 'metaplex_uri_resolves',
+    pass: metaplex?.documentResolved === true,
+    detail: metaplex?.jsonUri || 'missing',
+  });
+  checks.push({
+    id: 'aggregator_corroboration',
+    pass: namesAlign(metaplex?.name, coingecko?.name)
+      && namesAlign(metaplex?.symbol, coingecko?.symbol)
+      && namesAlign(metaplex?.name, jupiter?.name)
+      && namesAlign(metaplex?.symbol, jupiter?.symbol),
+    detail: `metaplex=${metaplex?.name}/${metaplex?.symbol}; coingecko=${coingecko?.name}/${coingecko?.symbol}; jupiter=${jupiter?.name}/${jupiter?.symbol}`,
+  });
+  checks.push({
     id: 'jupiter_mint',
     pass: jupiter?.mint === expect,
     detail: jupiter?.mint || 'missing',
-  });
-  checks.push({
-    id: 'metadata_name_symbol',
-    pass: namesAlign(coingecko?.name, jupiter?.name) && namesAlign(coingecko?.symbol, jupiter?.symbol),
-    detail: `coingecko=${coingecko?.name}/${coingecko?.symbol}; jupiter=${jupiter?.name}/${jupiter?.symbol}`,
   });
   checks.push({
     id: 'jupiter_graduated_pool',
@@ -352,7 +440,13 @@ export function evaluateConsistencyGate({
     detail: faucet?.hasH1 ? faucet.source : `${faucet?.source || '/faucet'} missing H1 (#77)`,
   });
 
-  const metadataIds = new Set(['metadata_name_symbol', 'jupiter_mint', 'jupiter_graduated_pool', 'official_x_handle']);
+  const metadataIds = new Set([
+    'metaplex_mint',
+    'metaplex_name_symbol',
+    'metaplex_uri_resolves',
+    'aggregator_corroboration',
+    'official_x_handle',
+  ]);
   const productionIds = new Set(['faucet_h1']);
   const identityIds = new Set(['website_mint', 'coingecko_mint', 'pool_base_mint', 'how_to_buy_mint', 'how_to_buy_no_confusing_copy', 'stable_reviewer_page', 'official_x_reachable']);
 
@@ -373,18 +467,33 @@ export function evaluateConsistencyGate({
   };
 }
 
-export function evaluateSubmissionReadiness({ gate, cmcProbe, holderCount, launchDate }) {
-  const blockers = [...MANUAL_READINESS_BLOCKERS];
+export function evaluateSubmissionReadiness({
+  gate,
+  cmcProbe,
+  holderCount,
+  launchDate,
+  manualConfirmations = EMPTY_MANUAL_CONFIRMATIONS,
+}) {
+  const blockers = [];
+  const manual = { ...EMPTY_MANUAL_CONFIRMATIONS, ...manualConfirmations };
   if (launchDate != null) blockers.push('launch_date_auto_filled');
+  if (!manual.launchDateConfirmed) blockers.push('launch_date_manual_required');
+  if (!manual.cmcBrowserSearchConfirmed) blockers.push('cmc_browser_search_required');
+  if (!manual.representativeAuthorityConfirmed) blockers.push('representative_authority_manual');
   if (!gate?.identityPass) blockers.push('identity_preflight_incomplete');
   if (!gate?.metadataPass) blockers.push('metadata_consistency_incomplete');
   if (!Number.isFinite(holderCount) || holderCount <= 0) blockers.push('holder_count_unresolved');
   if (cmcProbe?.duplicateStatusKnown === true) blockers.push('cmc_probe_must_not_infer_duplicate_status');
+  const unique = [...new Set(blockers)];
   return {
-    ready: blockers.length === 0,
-    submittable: false,
-    blockers: [...new Set(blockers)],
-    note: 'Partial preflight only. Human must clear manual blockers and confirm CMC browser search before submission.',
+    preflightOnly: !manual.launchDateConfirmed
+      && !manual.cmcBrowserSearchConfirmed
+      && !manual.representativeAuthorityConfirmed,
+    ready: unique.length === 0,
+    submittable: unique.length === 0,
+    blockers: unique,
+    manualConfirmations: manual,
+    note: 'Clear manual confirmation fields only after human review. This tool does not submit the CMC form.',
   };
 }
 
@@ -393,6 +502,7 @@ export function buildEvidencePacket({
   onchain,
   coingecko,
   jupiter,
+  metaplex,
   pool,
   website,
   howToBuy,
@@ -400,6 +510,7 @@ export function buildEvidencePacket({
   xProfile,
   cmcProbe,
   gate,
+  manualConfirmations = EMPTY_MANUAL_CONFIRMATIONS,
 }) {
   const urls = buildUrls();
   const holderCount = Number.isFinite(jupiter?.holderCount) ? jupiter.holderCount : null;
@@ -408,19 +519,21 @@ export function buildEvidencePacket({
     cmcProbe,
     holderCount,
     launchDate: null,
+    manualConfirmations,
   });
 
   return {
-    schema: 'demigod.dasha-cmc-packet/2',
+    schema: 'demigod.dasha-cmc-packet/3',
     capturedAt: at,
     costLane: 'free',
     cmcFormUrl: DASHA_CANONICAL.cmcFormUrl,
     regenerationWarning: FORM_ANSWERS.regenerationWarning,
     identity: {
       ...DASHA_CANONICAL,
-      name: coingecko?.name || jupiter?.name || null,
-      symbol: coingecko?.symbol || jupiter?.symbol || null,
-      metadataUri: jupiter?.icon || coingecko?.image || null,
+      name: metaplex?.name || coingecko?.name || jupiter?.name || null,
+      symbol: metaplex?.symbol || coingecko?.symbol || jupiter?.symbol || null,
+      metadataUri: metaplex?.jsonUri || null,
+      metadataImageUri: metaplex?.document?.imageUri || metaplex?.imageUri || null,
       urls,
     },
     formAnswers: {
@@ -461,6 +574,17 @@ export function buildEvidencePacket({
         symbol: jupiter?.symbol || null,
         capturedAt: jupiter?.capturedAt || at,
       },
+      metaplexMetadata: {
+        source: metaplex?.source || null,
+        mint: metaplex?.mint || null,
+        name: metaplex?.name || null,
+        symbol: metaplex?.symbol || null,
+        jsonUri: metaplex?.jsonUri || null,
+        imageUri: metaplex?.document?.imageUri || metaplex?.imageUri || null,
+        documentResolved: metaplex?.documentResolved === true,
+        documentSource: metaplex?.documentSource || metaplex?.document?.source || null,
+        capturedAt: metaplex?.capturedAt || at,
+      },
       supplyAndAuthority: onchain,
       holderCount: {
         count: holderCount,
@@ -495,6 +619,7 @@ export function buildEvidencePacket({
       blockedBy: gate?.productionBlockedBy || null,
     },
     submissionReadiness: readiness,
+    manualConfirmations: readiness.manualConfirmations,
     reviewerRouting: gate?.preflightPass
       ? { useStablePage: false, primary: DASHA_CANONICAL.website }
       : {
@@ -523,7 +648,8 @@ export function renderPacketMarkdown(packet) {
     `Captured: ${packet.capturedAt}`,
     `Cost lane: ${packet.costLane}`,
     `CMC form: ${packet.cmcFormUrl}`,
-    `Submission ready: **no** (${packet.submissionReadiness.blockers.join(', ')})`,
+    `Submission ready: **${packet.submissionReadiness.ready ? 'yes' : 'no'}** (${packet.submissionReadiness.blockers.join(', ')})`,
+    `Preflight only: ${packet.submissionReadiness.preflightOnly ? 'yes' : 'no'}`,
     '',
     '## 1. Mint and explorer',
     `- Mint: \`${e.mintAndExplorer.mint}\``,
@@ -548,7 +674,15 @@ export function renderPacketMarkdown(packet) {
   if (e.coingeckoListing.rank != null) lines.push(`- Rank: ${e.coingeckoListing.rank}`);
   lines.push(
     '',
-    '## 5. Supply, authority, and holders',
+    '## 5. On-chain Metaplex metadata (primary)',
+    `- Mint: \`${e.metaplexMetadata?.mint ?? 'n/a'}\``,
+    `- Name/symbol: ${e.metaplexMetadata?.name ?? 'n/a'}/${e.metaplexMetadata?.symbol ?? 'n/a'}`,
+    `- JSON URI: ${e.metaplexMetadata?.jsonUri ?? 'n/a'}`,
+    `- Image URI: ${e.metaplexMetadata?.imageUri ?? 'n/a'}`,
+    `- JSON resolved: ${e.metaplexMetadata?.documentResolved ? 'yes' : 'no'}`,
+    `- Source: ${e.metaplexMetadata?.source ?? 'n/a'}`,
+    '',
+    '## 6. Supply, authority, and holders',
     `- Decimals: ${e.supplyAndAuthority?.decimals ?? 'n/a'}`,
     `- Total supply (UI): ${e.supplyAndAuthority?.totalSupplyUi ?? 'n/a'}`,
     `- RPC slot: ${e.supplyAndAuthority?.slot ?? 'n/a'} (${e.supplyAndAuthority?.commitment || 'finalized'})`,
@@ -560,7 +694,7 @@ export function renderPacketMarkdown(packet) {
     `- Holder methodology: ${e.holderCount?.methodology ?? 'n/a'}`,
     `- Circulating supply: ${packet.formAnswers.circulatingSupplyNote}`,
     '',
-    '## 6. Market activity',
+    '## 7. Market activity',
     `- Pool created: ${e.marketActivity.poolCreatedAt ?? 'n/a'}`,
     `- Liquidity USD: ${e.marketActivity.liquidityUsd ?? 'n/a'}`,
     `- 24h volume USD: ${e.marketActivity.volume24hUsd ?? 'n/a'}`,
@@ -568,16 +702,16 @@ export function renderPacketMarkdown(packet) {
     `- Source: ${e.marketActivity.source ?? 'n/a'}`,
     `- Captured: ${e.marketActivity.capturedAt}`,
     '',
-    '## 7. Product and repository',
+    '## 8. Product and repository',
     `- Repository: ${e.productAndRepository.repository}`,
     `- Website title: ${e.productAndRepository.websiteTitle ?? 'n/a'}`,
     `- Jupiter token page: ${e.jupiterListing?.url ?? packet.identity.urls.jupiter}`,
     '',
-    '## 8. Representative',
+    '## 9. Representative',
     `- ${e.representative.name} <${e.representative.email}>`,
     `- Authority note: ${e.representative.authorityNote}`,
     '',
-    '## 9. Name/ticker collision',
+    '## 10. Name/ticker collision',
     e.collisionNote,
     '',
     '## CMC duplicate search (manual required)',
@@ -614,18 +748,18 @@ export function renderPacketMarkdown(packet) {
 
 export function packetClaimsSubmittable(packet) {
   const md = renderPacketMarkdown(packet);
-  return !packet.submissionReadiness.ready
+  return packet.submissionReadiness.ready === false
     && !/\bsubmission ready:\s*\*\*yes\*\*/i.test(md)
-    && packet.formAnswers.launchDate == null
-    && packet.submissionReadiness.blockers.length > 0;
+    && packet.formAnswers.launchDate == null;
 }
 
-export async function buildPacket(fetchImpl = fetch) {
+export async function buildPacket(fetchImpl = fetch, { manualConfirmations = EMPTY_MANUAL_CONFIRMATIONS } = {}) {
   const at = new Date().toISOString();
-  const [onchain, coingecko, jupiter, pool, website, howToBuy, faucet, xProfile, cmcProbe] = await Promise.all([
+  const [onchain, coingecko, jupiter, metaplex, pool, website, howToBuy, faucet, xProfile, cmcProbe] = await Promise.all([
     fetchOnChainSupply(fetchImpl),
     fetchCoinGeckoRecord(fetchImpl),
     fetchJupiterTokenRecord(fetchImpl),
+    fetchMetaplexRecord(fetchImpl),
     fetchPoolEvidence(fetchImpl),
     fetchWebsiteIdentity(fetchImpl),
     fetchHowToBuyPage(fetchImpl),
@@ -641,12 +775,14 @@ export async function buildPacket(fetchImpl = fetch) {
     faucet,
     jupiter,
     xProfile,
+    metaplex,
   });
   return buildEvidencePacket({
     at,
     onchain,
     coingecko,
     jupiter,
+    metaplex,
     pool,
     website,
     howToBuy,
@@ -654,6 +790,7 @@ export async function buildPacket(fetchImpl = fetch) {
     xProfile,
     cmcProbe,
     gate,
+    manualConfirmations,
   });
 }
 
@@ -671,7 +808,9 @@ export function buildSubmissionRecord(packet) {
     metadataPass: packet.consistencyGate.metadataPass,
     productionPass: packet.consistencyGate.productionPass,
     submissionReady: packet.submissionReadiness.ready,
+    preflightOnly: packet.submissionReadiness.preflightOnly,
     blockers: packet.submissionReadiness.blockers,
+    manualConfirmations: packet.manualConfirmations,
     note: packet.submission.note,
   };
 }

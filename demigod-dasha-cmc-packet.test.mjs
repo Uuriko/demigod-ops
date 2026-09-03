@@ -29,6 +29,9 @@ import {
   fetchWebsiteIdentity,
   fetchHowToBuyPage,
   fetchFaucetPage,
+  fetchMetaplexRecord,
+  fetchMetaplexMetadata,
+  resolveMetadataDocument,
   probeOfficialX,
   probeCmcMintSearch,
   buildPacket,
@@ -36,7 +39,45 @@ import {
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const MINT = DASHA_CANONICAL.mint;
+const METAPLEX_JSON_URI = 'https://ipfs.io/ipfs/dasha-test-metadata';
 const fixture = (name) => path.join(ROOT, 'fixtures', name);
+
+function metaplexAssetResult() {
+  return {
+    id: MINT,
+    mutable: false,
+    content: {
+      metadata: { name: 'dash_eats', symbol: 'dasha' },
+      json_uri: METAPLEX_JSON_URI,
+      links: { image: 'https://ipfs.io/ipfs/dasha-test-image' },
+    },
+  };
+}
+
+function metaplexRecord(overrides = {}) {
+  return {
+    source: 'https://api.mainnet-beta.solana.com getAsset',
+    capturedAt: '2026-09-02T06:00:00.000Z',
+    mint: MINT,
+    name: 'dash_eats',
+    symbol: 'dasha',
+    jsonUri: METAPLEX_JSON_URI,
+    imageUri: 'https://ipfs.io/ipfs/dasha-test-image',
+    documentResolved: true,
+    documentSource: METAPLEX_JSON_URI,
+    document: {
+      resolved: true,
+      source: METAPLEX_JSON_URI,
+      document: {
+        name: 'dash_eats',
+        symbol: 'dasha',
+        image: 'https://ipfs.io/ipfs/dasha-test-image',
+      },
+      imageUri: 'https://ipfs.io/ipfs/dasha-test-image',
+    },
+    ...overrides,
+  };
+}
 
 function mockFetch(routes) {
   return async (url, init = {}) => {
@@ -88,6 +129,14 @@ function rpcMock({ slot = 12345 } = {}) {
         },
       };
     }
+    if (body.method === 'getAsset') {
+      return {
+        ok: true,
+        async json() {
+          return { result: metaplexAssetResult() };
+        },
+      };
+    }
     throw new Error(`unexpected_rpc:${body.method}`);
   };
 }
@@ -108,6 +157,7 @@ function baseGateInput(overrides = {}) {
       twitter: 'https://x.com/dash_eats',
     },
     xProfile: { reachable: true, status: 200 },
+    metaplex: metaplexRecord(),
     ...overrides,
   };
 }
@@ -148,6 +198,7 @@ function basePacketInput(overrides = {}) {
     howToBuy: { stableForReviewers: true, hasCanonicalMint: true, confusingThirdPartyCopy: [] },
     faucet: { hasH1: true },
     xProfile: { reachable: true, status: 200 },
+    metaplex: metaplexRecord(),
     cmcProbe: {
       status: 302,
       source: 'https://coinmarketcap.com/dexscan/solana/',
@@ -225,6 +276,16 @@ async function fullPacketMocks({ faucetHtml = 'dasha-faucet-no-h1.html', howToBu
       status: 302,
       headers: { get: () => null },
     })],
+    ['ipfs.io/ipfs/dasha-test-metadata', async () => ({
+      ok: true,
+      async json() {
+        return {
+          name: 'dash_eats',
+          symbol: 'dasha',
+          image: 'https://ipfs.io/ipfs/dasha-test-image',
+        };
+      },
+    })],
   ]);
 }
 
@@ -235,7 +296,7 @@ test('canonical identity matches issue #109', () => {
   assert.doesNotMatch(FORM_ANSWERS.projectDescription, /meme studio/i);
 });
 
-test('evaluateSubmissionReadiness keeps manual blockers even when preflight passes', () => {
+test('evaluateSubmissionReadiness keeps manual blockers when confirmations absent', () => {
   const readiness = evaluateSubmissionReadiness({
     gate: { identityPass: true, metadataPass: true },
     cmcProbe: { duplicateStatusKnown: false },
@@ -244,8 +305,29 @@ test('evaluateSubmissionReadiness keeps manual blockers even when preflight pass
   });
   assert.equal(readiness.ready, false);
   assert.equal(readiness.submittable, false);
+  assert.equal(readiness.preflightOnly, true);
   for (const blocker of MANUAL_READINESS_BLOCKERS) {
     assert.ok(readiness.blockers.includes(blocker));
+  }
+});
+
+test('evaluateSubmissionReadiness clears manual blockers when confirmations set', () => {
+  const readiness = evaluateSubmissionReadiness({
+    gate: { identityPass: true, metadataPass: true },
+    cmcProbe: { duplicateStatusKnown: false },
+    holderCount: 1302,
+    launchDate: null,
+    manualConfirmations: {
+      launchDateConfirmed: true,
+      cmcBrowserSearchConfirmed: true,
+      representativeAuthorityConfirmed: true,
+    },
+  });
+  assert.equal(readiness.ready, true);
+  assert.equal(readiness.submittable, true);
+  assert.equal(readiness.preflightOnly, false);
+  for (const blocker of MANUAL_READINESS_BLOCKERS) {
+    assert.equal(readiness.blockers.includes(blocker), false);
   }
 });
 
@@ -259,12 +341,23 @@ test('evaluateSubmissionReadiness fails when launch date auto-filled', () => {
   assert.ok(readiness.blockers.includes('launch_date_auto_filled'));
 });
 
-test('evaluateConsistencyGate includes metadata and holder checks', () => {
+test('evaluateConsistencyGate requires metaplex metadata and corroboration', () => {
   const gate = evaluateConsistencyGate(baseGateInput());
   assert.equal(gate.metadataPass, true);
   assert.equal(gate.identityPass, true);
+  assert.ok(gate.checks.some((row) => row.id === 'metaplex_mint' && row.pass));
+  assert.ok(gate.checks.some((row) => row.id === 'metaplex_uri_resolves' && row.pass));
+  assert.ok(gate.checks.some((row) => row.id === 'aggregator_corroboration' && row.pass));
   assert.ok(gate.checks.some((row) => row.id === 'holder_count' && row.pass));
   assert.ok(gate.checks.some((row) => row.id === 'jupiter_mint' && row.pass));
+});
+
+test('evaluateConsistencyGate fails metadata without metaplex resolution', () => {
+  const gate = evaluateConsistencyGate(baseGateInput({
+    metaplex: metaplexRecord({ documentResolved: false, jsonUri: null }),
+  }));
+  assert.equal(gate.metadataPass, false);
+  assert.ok(gate.checks.some((row) => row.id === 'metaplex_uri_resolves' && !row.pass));
 });
 
 test('buildEvidencePacket does not auto-fill launch date', () => {
@@ -272,7 +365,9 @@ test('buildEvidencePacket does not auto-fill launch date', () => {
   assert.equal(packet.formAnswers.launchDate, null);
   assert.equal(packet.evidence.marketPair.canonicalPoolCreatedAt, '2025-02-03T15:29:15Z');
   assert.equal(packet.submissionReadiness.ready, false);
-  assert.equal(packet.schema, 'demigod.dasha-cmc-packet/2');
+  assert.equal(packet.schema, 'demigod.dasha-cmc-packet/3');
+  assert.equal(packet.identity.metadataUri, METAPLEX_JSON_URI);
+  assert.equal(packet.evidence.metaplexMetadata.mint, MINT);
 });
 
 test('renderPacketMarkdown includes CMC probe limitation and readiness blockers', () => {
@@ -282,6 +377,8 @@ test('renderPacketMarkdown includes CMC probe limitation and readiness blockers'
   assert.match(md, /CMC duplicate search \(manual required\)/);
   assert.match(md, /Browser exact-mint search/i);
   assert.match(md, /Submission ready: \*\*no\*\*/);
+  assert.match(md, /On-chain Metaplex metadata \(primary\)/);
+  assert.match(md, /Preflight only: yes/);
   assert.match(md, /Canonical pool created \(not launch date\)/);
   assert.match(md, /UNRESOLVED — manual/);
   assert.doesNotMatch(md, /meme studio/i);
@@ -327,10 +424,47 @@ test('probeCmcMintSearch never claims duplicate status', async () => {
   assert.match(probe.note, /does not establish/);
 });
 
-test('buildPacket assembles mocked evidence with holder count', async () => {
+test('probeOfficialX records reachability', async () => {
+  const reachable = await probeOfficialX(mockFetch([
+    ['x.com/dash_eats', async () => ({ ok: true, status: 200 })],
+  ]));
+  assert.equal(reachable.reachable, true);
+  assert.equal(reachable.status, 200);
+
+  const unreachable = await probeOfficialX(mockFetch([
+    ['x.com/dash_eats', async () => ({ ok: false, status: 404 })],
+  ]));
+  assert.equal(unreachable.reachable, false);
+  assert.equal(unreachable.status, 404);
+});
+
+test('fetchMetaplexRecord resolves json_uri document', async () => {
+  const fetchImpl = mockFetch([
+    ['api.mainnet-beta.solana.com', rpcMock()],
+    ['ipfs.io/ipfs/dasha-test-metadata', async () => ({
+      ok: true,
+      async json() {
+        return {
+          name: 'dash_eats',
+          symbol: 'dasha',
+          image: 'https://ipfs.io/ipfs/dasha-test-image',
+        };
+      },
+    })],
+  ]);
+  const record = await fetchMetaplexRecord(fetchImpl);
+  assert.equal(record.mint, MINT);
+  assert.equal(record.name, 'dash_eats');
+  assert.equal(record.documentResolved, true);
+  assert.equal(record.document.imageUri, 'https://ipfs.io/ipfs/dasha-test-image');
+});
+
+test('buildPacket assembles mocked evidence with holder count and metaplex', async () => {
   const packet = await buildPacket(await fullPacketMocks());
   assert.equal(packet.evidence.holderCount.count, 1302);
+  assert.equal(packet.evidence.metaplexMetadata.mint, MINT);
   assert.equal(packet.consistencyGate.identityPass, true);
+  assert.equal(packet.consistencyGate.metadataPass, true);
   assert.equal(packet.submissionReadiness.ready, false);
 });
 
