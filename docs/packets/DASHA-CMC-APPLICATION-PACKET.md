@@ -2,7 +2,7 @@
 
 > Regenerate this packet immediately before CMC submission. Volatile supply, market, and holder figures below are point-in-time captures only.
 
-Captured: 2026-09-03T04:38:51.501Z
+Captured: 2026-09-03T04:43:22.110Z
 Cost lane: free
 CMC form: https://coinmarketcap.com/request/
 Submission ready: **no** (launch_date_manual_required, cmc_browser_search_required, representative_authority_manual, production_gate_faucet_h1)
@@ -29,8 +29,8 @@ Preflight only: yes
 ## 4. CoinGecko listing (same mint)
 - URL: https://www.coingecko.com/en/coins/dash_eats
 - Mint on CoinGecko: `53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump`
-- Captured: 2026-09-03T04:38:51.725Z
-- Rank: 3501
+- Captured: 2026-09-03T04:43:22.417Z
+- Rank: 3502
 
 ## 5. On-chain Metaplex metadata (primary)
 - Mint: `53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump`
@@ -43,7 +43,7 @@ Preflight only: yes
 ## 6. Supply, authority, and holders
 - Decimals: 6
 - Total supply (UI): 999831814.51809
-- RPC slot: 443881657 (finalized)
+- RPC slot: 443882516 (finalized)
 - Mint authority: null
 - Freeze authority: null
 - Supply source: https://api.mainnet-beta.solana.com
@@ -54,11 +54,11 @@ Preflight only: yes
 
 ## 7. Market activity
 - Pool created: 2025-02-03T15:29:15Z
-- Liquidity USD: 82901.1
-- 24h volume USD: 207554.075179295
-- FDV USD: 480491.580398355
+- Liquidity USD: 83802.0161
+- 24h volume USD: 208303.57905327
+- FDV USD: 488605.408540709
 - Source: https://api.geckoterminal.com/api/v2/networks/solana/pools/9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7
-- Captured: 2026-09-03T04:38:51.724Z
+- Captured: 2026-09-03T04:43:22.397Z
 
 ## 8. Product and repository
 - Repository: https://github.com/Uuriko/dasha-desk
@@ -88,7 +88,7 @@ The ticker DASHA and similar names exist on other chains and assets. Identity is
 - [x] aggregator_corroboration: metaplex=dash_eats/dasha; coingecko=dash_eats/dasha; jupiter=dash_eats/dasha
 - [x] jupiter_mint: 53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump
 - [x] jupiter_graduated_pool: 9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7
-- [x] vrfd_mint_verified: mint=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump; verified=true; tags=verified,launchpad
+- [x] vrfd_mint_verified: mint=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump; verified=true; tags=launchpad,verified
 - [x] vrfd_portal_reachable: https://verified.jup.ag/tokens status 200
 - [x] official_x_reachable: https://x.com/dash_eats status 200
 - [x] official_x_handle: https://x.com/dash_eats

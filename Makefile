@@ -1,5 +1,5 @@
 .PHONY: test verify
 test:
-	bash scripts/verify-dasha-cmc-packet.sh
+	bash scripts/verify.sh
 
 verify: test

@@ -698,7 +698,7 @@ test('scanHowToBuyHtml flags confusing third-party copy from fixture', async () 
 });
 
 test('verify script entry point passes', () => {
-  const result = spawnSync('bash', [path.join(ROOT, 'scripts', 'verify-dasha-cmc-packet.sh')], {
+  const result = spawnSync('bash', [path.join(ROOT, 'scripts', 'verify.sh')], {
     cwd: ROOT,
     encoding: 'utf8',
   });
