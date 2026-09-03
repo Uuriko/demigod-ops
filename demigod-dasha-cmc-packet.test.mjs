@@ -7,6 +7,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { createPacketFixtureFetch } from './fixtures/dasha-cmc-packet-fetch.mjs';
 import {
   DASHA_CANONICAL,
   FORM_ANSWERS,
@@ -229,85 +230,7 @@ function basePacketInput(overrides = {}) {
 }
 
 async function fullPacketMocks({ faucetHtml = 'dasha-faucet-no-h1.html', howToBuyHtml = 'dasha-how-to-buy-clean.html' } = {}) {
-  const [home, howToBuy, faucet] = await Promise.all([
-    readFile(fixture('dasha-home.html'), 'utf8'),
-    readFile(fixture(howToBuyHtml), 'utf8'),
-    readFile(fixture(faucetHtml), 'utf8'),
-  ]);
-  return mockFetch([
-    ['api.mainnet-beta.solana.com', rpcMock()],
-    ['api.coingecko.com', async () => ({
-      ok: true,
-      async json() {
-        return {
-          id: 'dash_eats',
-          name: 'dash_eats',
-          symbol: 'dasha',
-          platforms: { solana: MINT },
-          links: { homepage: ['https://www.getdasha.com'], repos_url: { github: [] } },
-          market_cap_rank: 3101,
-          preview_listing: false,
-        };
-      },
-    })],
-    ['lite-api.jup.ag', async () => ({
-      ok: true,
-      async json() {
-        return [{
-          id: MINT,
-          name: 'dash_eats',
-          symbol: 'dasha',
-          holderCount: 1302,
-          graduatedPool: DASHA_CANONICAL.pair,
-          twitter: 'https://x.com/dash_eats',
-          isVerified: true,
-          tags: ['launchpad', 'verified'],
-        }];
-      },
-    })],
-    ['geckoterminal.com', async () => ({
-      ok: true,
-      async json() {
-        return {
-          data: {
-            attributes: {
-              pool_name: 'dasha / SOL',
-              pool_created_at: '2025-02-03T15:29:15Z',
-              reserve_in_usd: '102240.9179',
-              volume_usd: { h24: '82190.79' },
-              fdv_usd: '747101.11',
-            },
-            relationships: {
-              base_token: { data: { id: `solana_${MINT}` } },
-              dex: { data: { id: 'raydium' } },
-            },
-          },
-        };
-      },
-    })],
-    ['www.getdasha.com/how-to-buy', async () => ({ ok: true, text: async () => howToBuy })],
-    ['www.getdasha.com/faucet', async () => ({ ok: true, text: async () => faucet })],
-    ['www.getdasha.com', async (key) => {
-      if (key.includes('/how-to-buy') || key.includes('/faucet')) throw new Error(`leaked:${key}`);
-      return { ok: true, text: async () => home };
-    }],
-    ['x.com/dash_eats', async () => ({ ok: true, status: 200 })],
-    ['coinmarketcap.com/dexscan', async () => ({
-      status: 302,
-      headers: { get: () => null },
-    })],
-    ['verified.jup.ag/tokens', async () => ({ ok: true, status: 200 })],
-    ['ipfs.io/ipfs/dasha-test-metadata', async () => ({
-      ok: true,
-      async json() {
-        return {
-          name: 'dash_eats',
-          symbol: 'dasha',
-          image: 'https://ipfs.io/ipfs/dasha-test-image',
-        };
-      },
-    })],
-  ]);
+  return createPacketFixtureFetch({ root: ROOT, faucetHtml, howToBuyHtml });
 }
 
 test('canonical identity matches issue #109', () => {
@@ -646,6 +569,43 @@ test('fetchMetaplexRecord leaves documentResolved false when json_uri missing', 
   assert.equal(record.jsonUri, null);
 });
 
+test('fetchPoolEvidence degrades on GeckoTerminal rate limit', async () => {
+  const record = await fetchPoolEvidence(mockFetch([
+    ['geckoterminal.com', async () => ({ ok: false, status: 429 })],
+  ]));
+  assert.equal(record.fetchError, 'gecko_terminal_http_429');
+  assert.equal(record.baseMint, null);
+  assert.match(record.note, /rate-limited/i);
+});
+
+test('fetchPoolEvidence still throws on non-retryable HTTP errors', async () => {
+  await assert.rejects(
+    () => fetchPoolEvidence(mockFetch([
+      ['geckoterminal.com', async () => ({ ok: false, status: 500 })],
+    ])),
+    /gecko_terminal_http_500/,
+  );
+});
+
+test('renderPacketMarkdown shows pool fetch error when metrics unavailable', () => {
+  const packet = buildEvidencePacket(basePacketInput({
+    pool: {
+      baseMint: null,
+      poolCreatedAt: null,
+      liquidityUsd: null,
+      volume24hUsd: null,
+      source: 'https://api.geckoterminal.com/api/v2/networks/solana/pools/test',
+      capturedAt: '2026-09-02T06:00:00.000Z',
+      fetchError: 'gecko_terminal_http_429',
+      note: 'GeckoTerminal rate-limited or unavailable; regenerate pool metrics before CMC submission.',
+    },
+    gateInput: { pool: { baseMint: null } },
+  }));
+  const md = renderPacketMarkdown(packet);
+  assert.match(md, /Fetch error: gecko_terminal_http_429/);
+  assert.match(md, /rate-limited/i);
+});
+
 test('buildPacket assembles mocked evidence with holder count, metaplex, and VRFD', async () => {
   const packet = await buildPacket(await fullPacketMocks());
   assert.equal(packet.evidence.holderCount.count, 1302);
@@ -683,6 +643,7 @@ test('CLI build --out writes artifacts', async (context) => {
   const result = spawnSync(process.execPath, [path.join(ROOT, 'demigod-dasha-cmc-packet.mjs'), 'build', '--out', out], {
     cwd: ROOT,
     encoding: 'utf8',
+    env: { ...process.env, DASHA_CMC_PACKET_FIXTURES: '1' },
   });
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const md = await readFile(out, 'utf8');

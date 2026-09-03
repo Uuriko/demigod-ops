@@ -39,4 +39,4 @@ jobs:
       - name: Live contract library
         run: node demigod-live-lib.test.mjs
       - name: DASHA CMC application packet
-        run: bash scripts/verify-dasha-cmc-packet.sh
+        run: bash scripts/verify.sh

@@ -177,7 +177,25 @@ export async function fetchJupiterTokenRecord(fetchImpl = fetch) {
 export async function fetchPoolEvidence(fetchImpl = fetch) {
   const url = `https://api.geckoterminal.com/api/v2/networks/solana/pools/${DASHA_CANONICAL.pair}`;
   const response = await fetchImpl(url);
-  if (!response.ok) throw new Error(`gecko_terminal_http_${response.status}`);
+  const capturedAt = new Date().toISOString();
+  if (!response.ok) {
+    const retryable = response.status === 429 || response.status === 503;
+    if (!retryable) throw new Error(`gecko_terminal_http_${response.status}`);
+    return {
+      source: url,
+      capturedAt,
+      pair: DASHA_CANONICAL.pair,
+      baseMint: null,
+      poolName: null,
+      poolCreatedAt: null,
+      liquidityUsd: null,
+      volume24hUsd: null,
+      fdvUsd: null,
+      dex: null,
+      fetchError: `gecko_terminal_http_${response.status}`,
+      note: 'GeckoTerminal rate-limited or unavailable; regenerate pool metrics before CMC submission.',
+    };
+  }
   const json = await response.json();
   const attrs = json?.data?.attributes;
   if (!attrs) throw new Error('gecko_terminal_pool_missing');
@@ -185,7 +203,7 @@ export async function fetchPoolEvidence(fetchImpl = fetch) {
   const baseMint = baseTokenId.replace(/^solana_/, '');
   return {
     source: url,
-    capturedAt: new Date().toISOString(),
+    capturedAt,
     pair: DASHA_CANONICAL.pair,
     baseMint,
     poolName: attrs.pool_name || attrs.name || null,
@@ -670,6 +688,8 @@ export function buildEvidencePacket({
         volume24hUsd: pool?.volume24hUsd || null,
         fdvUsd: pool?.fdvUsd || null,
         source: pool?.source || null,
+        fetchError: pool?.fetchError || null,
+        note: pool?.note || null,
       },
       productAndRepository: {
         repository: DASHA_CANONICAL.repository,
@@ -775,6 +795,12 @@ export function renderPacketMarkdown(packet) {
     `- FDV USD: ${e.marketActivity.fdvUsd ?? 'n/a'}`,
     `- Source: ${e.marketActivity.source ?? 'n/a'}`,
     `- Captured: ${e.marketActivity.capturedAt}`,
+  );
+  if (e.marketActivity.fetchError) {
+    lines.push(`- Fetch error: ${e.marketActivity.fetchError}`);
+    if (e.marketActivity.note) lines.push(`- Note: ${e.marketActivity.note}`);
+  }
+  lines.push(
     '',
     '## 8. Product and repository',
     `- Repository: ${e.productAndRepository.repository}`,
@@ -903,7 +929,16 @@ export function writePacketArtifacts(packet, outPath, { asJson = false } = {}) {
   return { target, recordPath };
 }
 
+async function resolveFetchImpl() {
+  if (process.env.DASHA_CMC_PACKET_FIXTURES === '1') {
+    const { createPacketFixtureFetch } = await import('./fixtures/dasha-cmc-packet-fetch.mjs');
+    return createPacketFixtureFetch({ root: ROOT });
+  }
+  return fetch;
+}
+
 async function main() {
+  const fetchImpl = await resolveFetchImpl();
   const args = process.argv.slice(2);
   const cmd = args[0] || 'build';
   const asJson = args.includes('--json');
@@ -911,7 +946,7 @@ async function main() {
   const outPath = outIdx >= 0 ? args[outIdx + 1] : null;
 
   if (cmd === 'gate') {
-    const packet = await buildPacket();
+    const packet = await buildPacket(fetchImpl);
     const payload = {
       ok: packet.consistencyGate.preflightPass,
       identityPass: packet.consistencyGate.identityPass,
@@ -931,7 +966,7 @@ async function main() {
     process.exit(2);
   }
 
-  const packet = await buildPacket();
+  const packet = await buildPacket(fetchImpl);
   if (outPath) {
     const { target, recordPath } = writePacketArtifacts(packet, outPath, { asJson });
     console.error(`wrote ${target}`);
