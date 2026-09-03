@@ -578,6 +578,15 @@ test('fetchPoolEvidence degrades on GeckoTerminal rate limit', async () => {
   assert.match(record.note, /rate-limited/i);
 });
 
+test('fetchPoolEvidence degrades on GeckoTerminal service unavailable', async () => {
+  const record = await fetchPoolEvidence(mockFetch([
+    ['geckoterminal.com', async () => ({ ok: false, status: 503 })],
+  ]));
+  assert.equal(record.fetchError, 'gecko_terminal_http_503');
+  assert.equal(record.baseMint, null);
+  assert.match(record.note, /unavailable/i);
+});
+
 test('fetchPoolEvidence still throws on non-retryable HTTP errors', async () => {
   await assert.rejects(
     () => fetchPoolEvidence(mockFetch([
@@ -604,6 +613,23 @@ test('renderPacketMarkdown shows pool fetch error when metrics unavailable', () 
   const md = renderPacketMarkdown(packet);
   assert.match(md, /Fetch error: gecko_terminal_http_429/);
   assert.match(md, /rate-limited/i);
+});
+
+test('buildPacket completes when GeckoTerminal is rate-limited', async () => {
+  const baseFetch = await fullPacketMocks();
+  const fetchImpl = async (url, init) => {
+    if (String(url).includes('geckoterminal.com')) {
+      return { ok: false, status: 429 };
+    }
+    return baseFetch(url, init);
+  };
+  const packet = await buildPacket(fetchImpl);
+  assert.equal(packet.evidence.marketActivity.fetchError, 'gecko_terminal_http_429');
+  assert.equal(packet.evidence.marketPair.canonicalPoolCreatedAt, null);
+  assert.equal(packet.consistencyGate.identityPass, false);
+  assert.ok(packet.consistencyGate.checks.some((row) => row.id === 'pool_base_mint' && !row.pass));
+  const md = renderPacketMarkdown(packet);
+  assert.match(md, /Fetch error: gecko_terminal_http_429/);
 });
 
 test('buildPacket assembles mocked evidence with holder count, metaplex, and VRFD', async () => {
