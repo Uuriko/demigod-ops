@@ -465,6 +465,18 @@ test('renderPacketMarkdown shows VRFD failure when mint mismatches', () => {
   assert.match(md, /\[ \] vrfd_mint_verified/);
 });
 
+test('renderPacketMarkdown shows VRFD portal unreachable', () => {
+  const packet = buildEvidencePacket(basePacketInput({
+    gateInput: {
+      vrfd: vrfdRecord({ portal: { reachable: false, status: 503 } }),
+    },
+    vrfd: vrfdRecord({ portal: { reachable: false, status: 503 } }),
+  }));
+  const md = renderPacketMarkdown(packet);
+  assert.match(md, /VRFD portal: https:\/\/verified\.jup\.ag\/tokens \(reachable: no\)/);
+  assert.match(md, /\[ \] vrfd_portal_reachable/);
+});
+
 test('packetClaimsSubmittable rejects ready-looking partial packets', () => {
   const packet = buildEvidencePacket(basePacketInput());
   assert.equal(packetClaimsSubmittable(packet), true);
