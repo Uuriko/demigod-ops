@@ -73,6 +73,9 @@ screenshots/
 playwright-report/
 test-results/
 
+# Agent / studio metadata (do not ship in PRs)
+.agent-nio/issue-comments.json
+
 # Optional: keep package-lock if present
 # package-lock.json is fine to track
 
