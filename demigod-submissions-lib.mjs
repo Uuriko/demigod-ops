@@ -2,9 +2,10 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { fileURLToPath } from 'node:url';
 import { atomicWrite, withFileLock } from './demigod-agent-tools-lib.mjs';
 
-const ROOT = '/home/potter';
+const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 export const BOARD_PATH = path.join(ROOT, 'DEMIGOD-BOARD.json');
 export const BOARD_LOCK = path.join(ROOT, 'DEMIGOD-BOARD.json.lock');
 export const BOARD_AUDIT = path.join(ROOT, 'DEMIGOD-BOARD-AUDIT.jsonl');
