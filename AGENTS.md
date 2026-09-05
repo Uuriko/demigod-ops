@@ -9,6 +9,9 @@
 
 **Docs & Exchange:** **Start here:** `DEMIGOD-COMPRESSED-STATE.md` (living single source). Then `docs/exchange/DEMIGOD-PUBLISH-LOAD-POSTMORTEM-2026-07-09.md`, `DEMIGOD-WORKFLOW.md`, `docs/exchange/DEMIGOD-AGENT-INFO-EXCHANGE-2026-07-09*.md`. Always start Claude prompts with "Demigod (Webflow talent matching). Current phase: GTM + pre-services honesty."
 
+## Swarm
+- Swarm mailbox: dasha-desk draft PR #167 (protocol: docs/SWARM-GITHUB-CHANNEL.md). Address agents with [Instinct]/[Codex]/[Grok Bot]; new comments only; no merge/deploy/publish from agent discussion.
+
 ## Hard stops (game)
 
 Never touch these unless the user says "reopen the game" or names a specific game file:
