@@ -1,12 +1,34 @@
-import { test } from 'node:test';
+import { after, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
-import {
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+const root = mkdtempSync(path.join(tmpdir(), 'demigod-submissions-test-'));
+const previousRoot = process.env.DEMIGOD_ROOT;
+process.env.DEMIGOD_ROOT = root;
+const {
   anonymizeRole,
   anonymizeCandidate,
   ingestSubmission,
   shouldAutoReject,
   filterBoard,
-} from './demigod-submissions-lib.mjs';
+  BOARD_PATH,
+  INBOX_PATH,
+  loadInbox,
+} = await import('./demigod-submissions-lib.mjs');
+
+assert.equal(path.dirname(BOARD_PATH), root);
+assert.equal(path.dirname(INBOX_PATH), root);
+beforeEach(() => {
+  rmSync(BOARD_PATH, { force: true });
+  rmSync(INBOX_PATH, { force: true });
+});
+after(() => {
+  rmSync(root, { recursive: true, force: true });
+  if (previousRoot === undefined) delete process.env.DEMIGOD_ROOT;
+  else process.env.DEMIGOD_ROOT = previousRoot;
+});
 
 test('anonymizeRole strips PII', () => {
   const r = anonymizeRole({
@@ -49,6 +71,7 @@ test('ingestSubmission inbox-only by default', () => {
   });
   assert.equal(featured, null);
   assert.equal(record.status, 'new');
+  assert.equal(loadInbox().items[0].id, record.id);
 });
 
 test('ingestSubmission auto-features when opted in', () => {
