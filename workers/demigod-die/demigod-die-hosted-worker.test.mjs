@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Hosted DIE desk Worker — H2 / H2.1 gates.
+ * Hosted DIE desk Worker — H3 gates.
  * Run: node --test workers/demigod-die/demigod-die-hosted-worker.test.mjs
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { handleRequest } from "./demigod-die-hosted-worker.js";
+import { handleRequest, PUBLIC_MOVERS, roleList } from "./demigod-die-hosted-worker.js";
 
 const ORIGIN = "https://app.trydemigod.com";
 
@@ -30,11 +30,12 @@ describe("demigod-die hosted worker", () => {
     assert.equal(res.status, 200);
     assert.equal(res.headers.get("x-demigod-die"), "hosted-read-only");
     assert.match(body, /"ok":true/);
-    assert.match(body, /hosted-read-only-h2\.1/);
+    assert.match(body, /hosted-read-only-h3/);
     assert.doesNotMatch(body, /OpenAI/i);
     assert.doesNotMatch(body, /cand-/i);
     const json = JSON.parse(body);
     assert.equal(json.service, "demigod-die");
+    assert.equal(json.release, "hosted-read-only-h3");
     assert.equal(Object.keys(json).sort().join(","), "ok,release,service");
   });
 
@@ -61,5 +62,24 @@ describe("demigod-die hosted worker", () => {
     assert.equal(res.status, 404);
     assert.equal(JSON.parse(body).error, "not_found");
     assert.doesNotMatch(body, /cand-/i);
+  });
+
+  it("H3 role list is named OpenAI plus 20 public movers", async () => {
+    assert.equal(PUBLIC_MOVERS.length, 20);
+    const list = roleList();
+    assert.equal(list.total, 21);
+    assert.equal(list.rows.length, 21);
+    assert.equal(list.rows[0].roleId, "named:wd:Q21708200");
+    assert.equal(list.rows[0].companyName, "OpenAI");
+    assert.equal(list.rows.filter((r) => r.source === "public_weekly").length, 20);
+    assert.ok(list.rows.every((r) => !JSON.stringify(r).includes("cand-")));
+
+    const headers = { "Cf-Access-Jwt-Assertion": shapeJwt() };
+    const res = await call("/api/v1/roles", { headers });
+    const body = await textOf(res);
+    assert.equal(res.status, 200);
+    const json = JSON.parse(body);
+    assert.equal(json.total, 21);
+    assert.doesNotMatch(body, /cand-/);
   });
 });

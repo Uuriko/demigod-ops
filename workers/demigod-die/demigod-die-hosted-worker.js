@@ -1,10 +1,11 @@
 /**
  * DIE operator desk — hosted read-only Worker for app.trydemigod.com.
  * Access JWT *shape* gate on app routes. Public GET/HEAD /healthz only.
- * Named OpenAI · Account Director stub. No people-data. Mutations off.
- * Header: x-demigod-die: hosted-read-only
+ * H3: named OpenAI · Account Director + 20 public weekly movers.
+ * No people-data. Mutations off. Header: x-demigod-die: hosted-read-only
  */
 const PUBLIC_HOST = "app.trydemigod.com";
+const RELEASE = "hosted-read-only-h3";
 const NAMED = Object.freeze({
   roleId: "named:wd:Q21708200",
   title: "Account Director, Digital Native",
@@ -32,6 +33,40 @@ const NAMED = Object.freeze({
     reviewed: 0,
   },
 });
+
+export const PUBLIC_MOVERS = Object.freeze([
+  { companyId: "yc:array-labs", companyName: "Array Labs", domain: "arraylabs.io" },
+  { companyId: "wd:Q110778747", companyName: "Block, Inc.", domain: "block.xyz" },
+  { companyId: "wd:Q30668026", companyName: "Calm", domain: "calm.com" },
+  { companyId: "yc:caremessage", companyName: "CareMessage", domain: "caremessage.org" },
+  { companyId: "yc:culdesac", companyName: "Culdesac", domain: "culdesac.com" },
+  { companyId: "wd:Q48851948", companyName: "Donorbox", domain: "donorbox.org" },
+  { companyId: "yc:flagright", companyName: "Flagright", domain: "flagright.com" },
+  { companyId: "yc:golf", companyName: "Golf", domain: "golf.dev" },
+  { companyId: "yc:happyrobot", companyName: "HappyRobot", domain: "happyrobot.ai" },
+  { companyId: "yc:jerry-inc", companyName: "Jerry", domain: "jerry.ai" },
+  { companyId: "wd:Q141124620", companyName: "LightSource", domain: "lightsource.ai" },
+  { companyId: "yc:litellm", companyName: "LiteLLM", domain: "litellm.ai" },
+  { companyId: "hn:livekit.io", companyName: "LiveKit", domain: "livekit.io" },
+  { companyId: "hn:mintmcp.com", companyName: "MintMCP", domain: "mintmcp.com" },
+  { companyId: "yc:nanonets", companyName: "NanoNets", domain: "nanonets.com" },
+  { companyId: "wd:Q121299892", companyName: "Payward", domain: "kraken.com" },
+  { companyId: "wd:Q1136", companyName: "Reddit", domain: "reddit.com" },
+  { companyId: "yc:spherecast", companyName: "Spherecast", domain: "spherecast.ai" },
+  { companyId: "wd:Q138845452", companyName: "Hex", domain: "hex.tech" },
+  { companyId: "yc:haladir", companyName: "Haladir", domain: "haladir.com" },
+].map((m) => Object.freeze({
+  ...m,
+  website: `https://${m.domain}/`,
+  source: "public_weekly",
+  state: "public_mover",
+  stage: "observed_movement",
+  demo: false,
+  title: null,
+  roleId: `mover:${m.companyId}`,
+  href: `/companies/${encodeURIComponent(m.companyId)}`,
+  companyHref: `/companies/${encodeURIComponent(m.companyId)}`,
+})));
 
 export function accessJwtShapeOk(value) {
   const raw = String(value || "").trim();
@@ -116,46 +151,96 @@ function esc(value) {
   })[ch]);
 }
 
-function roleList() {
+function emptyChannelCounts() {
   return {
-    schema: "demigod.die-role-list/1",
-    q: "",
-    total: 1,
-    limit: 20,
-    cursor: 0,
-    nextCursor: null,
-    rows: [{
-      roleId: NAMED.roleId,
-      title: NAMED.title,
-      companyId: NAMED.companyId,
-      demo: false,
-      state: NAMED.state,
-      stage: NAMED.stage,
-      checkpoints: NAMED.checkpoints,
-      channelCounts: NAMED.channelCounts,
-      updatedAt: null,
-      version: 0,
-      editable: false,
-      href: NAMED.href,
-    }],
+    inbound: 0,
+    referrals: 0,
+    shortlist: 0,
+    rediscovery: 0,
+    priorPairs: 0,
+    reviewed: 0,
   };
 }
 
-function companyList() {
+function namedRoleRow() {
+  return {
+    roleId: NAMED.roleId,
+    title: NAMED.title,
+    companyId: NAMED.companyId,
+    companyName: NAMED.companyName,
+    demo: false,
+    state: NAMED.state,
+    stage: NAMED.stage,
+    source: NAMED.source,
+    checkpoints: NAMED.checkpoints,
+    channelCounts: NAMED.channelCounts,
+    updatedAt: null,
+    version: 0,
+    editable: false,
+    href: NAMED.href,
+  };
+}
+
+function moverRoleRow(m) {
+  return {
+    roleId: m.roleId,
+    title: m.title,
+    companyId: m.companyId,
+    companyName: m.companyName,
+    demo: false,
+    state: m.state,
+    stage: m.stage,
+    source: m.source,
+    checkpoints: [],
+    channelCounts: emptyChannelCounts(),
+    updatedAt: null,
+    version: 0,
+    editable: false,
+    href: m.href,
+  };
+}
+
+export function roleList() {
+  const rows = [namedRoleRow(), ...PUBLIC_MOVERS.map(moverRoleRow)];
+  return {
+    schema: "demigod.die-role-list/1",
+    q: "",
+    total: rows.length,
+    limit: 40,
+    cursor: 0,
+    nextCursor: null,
+    rows,
+  };
+}
+
+export function companyList() {
+  const named = {
+    id: NAMED.companyId,
+    name: NAMED.companyName,
+    domain: NAMED.domain,
+    website: NAMED.website,
+    href: NAMED.companyHref,
+    state: NAMED.state,
+    source: NAMED.source,
+  };
+  const movers = PUBLIC_MOVERS.map((m) => ({
+    id: m.companyId,
+    name: m.companyName,
+    domain: m.domain,
+    website: m.website,
+    href: m.companyHref,
+    state: m.state,
+    source: m.source,
+  }));
+  const rows = [named, ...movers];
   return {
     schema: "demigod.die-company-list/1",
     q: "",
-    total: 1,
-    limit: 20,
+    total: rows.length,
+    limit: 40,
     cursor: 0,
     nextCursor: null,
-    rows: [{
-      id: NAMED.companyId,
-      name: NAMED.companyName,
-      domain: NAMED.domain,
-      website: NAMED.website,
-      href: NAMED.companyHref,
-    }],
+    rows,
   };
 }
 
@@ -211,6 +296,22 @@ function session() {
   };
 }
 
+function rolesHtml() {
+  const namedLine = `<li><strong>${esc(NAMED.companyName)}</strong> · ${esc(NAMED.title)} · <a href="${esc(NAMED.href)}">Open workspace</a></li>`;
+  const moverLines = PUBLIC_MOVERS.map(
+    (m) => `<li><strong>${esc(m.companyName)}</strong> · public mover · ${esc(m.companyId)}</li>`,
+  ).join("");
+  return `<h1>Roles</h1><ul>${namedLine}${moverLines}</ul><p>Read-only. Mutations stay off. ${PUBLIC_MOVERS.length + 1} rows (named brief + public movers).</p>`;
+}
+
+function companiesHtml() {
+  const namedLine = `<li><a href="${esc(NAMED.companyHref)}">${esc(NAMED.companyName)}</a> · ${esc(NAMED.companyId)}</li>`;
+  const moverLines = PUBLIC_MOVERS.map(
+    (m) => `<li>${esc(m.companyName)} · ${esc(m.companyId)} · ${esc(m.domain)}</li>`,
+  ).join("");
+  return `<h1>Companies</h1><ul>${namedLine}${moverLines}</ul>`;
+}
+
 export async function handleRequest(request) {
   const url = new URL(request.url);
   const method = request.method.toUpperCase();
@@ -219,7 +320,7 @@ export async function handleRequest(request) {
   }
   const kind = hostedPath(url.pathname);
   if (kind === "healthz") {
-    return json(200, { ok: true, service: "demigod-die", release: "hosted-read-only-h2.1" });
+    return json(200, { ok: true, service: "demigod-die", release: RELEASE });
   }
   if (!accessJwtShapeOk(request.headers.get("Cf-Access-Jwt-Assertion"))) {
     return json(403, { ok: false, error: "access_required" });
@@ -244,20 +345,8 @@ export async function handleRequest(request) {
       identity: { id: NAMED.companyId, name: NAMED.companyName, domain: NAMED.domain, website: NAMED.website },
     });
   }
-  if (kind === "roles") {
-    return html(
-      200,
-      "Roles · DIE",
-      `<h1>Roles</h1><p>${esc(NAMED.companyName)} · ${esc(NAMED.title)}</p><p><a href="${esc(NAMED.href)}">Open workspace</a></p><p>Read-only. Mutations stay off.</p>`,
-    );
-  }
-  if (kind === "companies") {
-    return html(
-      200,
-      "Companies · DIE",
-      `<h1>Companies</h1><p><a href="${esc(NAMED.companyHref)}">${esc(NAMED.companyName)}</a> · ${esc(NAMED.companyId)}</p>`,
-    );
-  }
+  if (kind === "roles") return html(200, "Roles · DIE", rolesHtml());
+  if (kind === "companies") return html(200, "Companies · DIE", companiesHtml());
   if (kind === "role") {
     return html(
       200,
