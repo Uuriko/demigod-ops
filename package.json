@@ -145,6 +145,7 @@
     "demigod:partnerships:playtest": "node demigod-partnerships-playtest.mjs",
     "demigod:verify:unit": "node --test demigod-live-lib.test.mjs",
     "demigod:die:hosted": "node --test workers/demigod-die/demigod-die-hosted-worker.test.mjs",
+    "demigod:html:worker": "node --test workers/demigod-html/demigod-html-worker.test.mjs",
     "demigod:verify:source": "node demigod-verify-source.mjs",
     "demigod:verify:live": "node demigod-verify-live.mjs",
     "demigod:verify:smoke": "node demigod-foot-smoke.mjs",

@@ -1,0 +1,11 @@
+{
+  // Demigod product HTML edge. Instinct/Potter deploy lane — do not wrangler deploy from this PR.
+  "name": "demigod-html",
+  "account_id": "5a919d6c1785d47e15e10c24450a8ff7",
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "www.trydemigod.com/*", "zone_name": "trydemigod.com" }
+  ],
+  "main": "demigod-html-worker.js",
+  "compatibility_date": "2026-09-10"
+}
