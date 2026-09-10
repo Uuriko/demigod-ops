@@ -30,6 +30,23 @@ export const MOTLEY_HOME_IA_CSS = `
 .use a{color:#D3A093}
 .use a:hover{color:#E4DED2}
 .section-cta{display:flex;align-items:center;gap:14px;padding-top:36px;flex-wrap:wrap}
+.method .wrap,.walk .wrap{padding:88px 48px}
+.method-head,.walk-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:36px;gap:24px}
+.method-h{font-family:'Instrument Serif',Georgia,serif;font-size:42px;line-height:1.06;letter-spacing:-.015em;margin:0;font-weight:400;color:#E4DED2}
+.walk-h{font-family:'Instrument Serif',Georgia,serif;font-size:42px;line-height:1.06;letter-spacing:-.015em;margin:0;font-weight:400;color:#23211D}
+.method-label,.walk-label{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:rgba(228,222,210,.42);white-space:nowrap}
+.method-grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.method-card{display:flex;flex-direction:column;gap:10px;padding:0 34px 0 0}
+.method-card + .method-card{padding:0 0 0 34px;border-left:1px solid rgba(228,222,210,.16)}
+.method-k{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.16em;color:#D3A093;text-transform:uppercase}
+.method-t{font-family:'Instrument Serif',Georgia,serif;font-size:26px;line-height:1.15;color:#E4DED2}
+.method-b{font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:15px;line-height:1.8;color:rgba(228,222,210,.68);max-width:420px;text-wrap:pretty}
+.walk-beats{display:grid;grid-template-columns:repeat(4,1fr);gap:0;list-style:none;margin:0;padding:0}
+.walk-beat{display:flex;flex-direction:column;gap:8px;padding-right:22px}
+.walk-beat + .walk-beat{padding-left:22px;border-left:1px solid rgba(35,33,29,.14)}
+.walk-n{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.16em;color:#8a8378}
+.walk-t{font-family:'Instrument Serif',Georgia,serif;font-size:22px;line-height:1.2;color:#23211D}
+.walk-b{font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:14px;line-height:1.7;color:#6b665e;text-wrap:pretty}
 .faq-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}
 .faq-chip{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;border:1px solid rgba(228,222,210,.24);color:rgba(228,222,210,.7)}
 .faq-chip:hover{color:#E4DED2;border-color:#E4DED2}
@@ -47,10 +64,12 @@ export const MOTLEY_HOME_IA_CSS = `
 .ia-col a:hover{color:#D3A093}
 .ia-note{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.14em;color:rgba(228,222,210,.28);text-transform:uppercase;margin-top:18px}
 @media(max-width:760px){
-  .triad .wrap,.uses .wrap,.faq-band .wrap{padding-left:22px;padding-right:22px;padding-top:64px;padding-bottom:64px}
-  .triad-h,.uses-h,.faq-h{font-size:32px}
-  .triad-head,.uses-head,.faq-head{flex-direction:column;gap:12px}
-  .triad-grid,.uses-grid,.ia-foot{grid-template-columns:1fr 1fr}
+  .triad .wrap,.uses .wrap,.faq-band .wrap,.method .wrap,.walk .wrap{padding-left:22px;padding-right:22px;padding-top:64px;padding-bottom:64px}
+  .triad-h,.uses-h,.faq-h,.method-h,.walk-h{font-size:32px}
+  .triad-head,.uses-head,.faq-head,.method-head,.walk-head{flex-direction:column;gap:12px}
+  .triad-grid,.uses-grid,.ia-foot,.method-grid,.walk-beats{grid-template-columns:1fr 1fr}
+  .method-card,.walk-beat{padding:22px 0 0;border-left:0}
+  .method-card + .method-card,.walk-beat + .walk-beat{border-left:0;border-top:1px solid rgba(228,222,210,.16);padding:22px 0 0}
   .triad-card{padding:22px 0 0;border-left:0}
   .triad-card + .triad-card{border-left:0;border-top:1px solid rgba(35,33,29,.14);padding-top:22px}
   .triad-card:first-child{padding-top:0}
@@ -63,6 +82,73 @@ export const MOTLEY_HOME_IA_CSS = `
 export function sectionCtaHtml(briefHref = BRIEF_HREF, tone = "ink") {
   const btn = tone === "bone" ? "btn btn-ink" : "btn btn-primary";
   return `<div class="actions section-cta"><a class="${btn}" href="${briefHref}">Start a brief</a></div>`;
+}
+
+export function ctaLadderHtml(briefHref = BRIEF_HREF) {
+  return `<div class="actions" id="cta-ladder">
+        <a class="btn btn-primary" id="brief" href="${briefHref}">Start a brief</a>
+        <a class="btn btn-secondary" href="#how">How it goes</a>
+        <a class="dir" href="/companies">Explore the map</a>
+      </div>`;
+}
+
+export function methodHtml() {
+  return `<section class="band band-ink method" id="method" data-screen-label="How matching works">
+  <div class="grain grain-dark" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="method-head">
+      <h2 class="method-h">How a match is made.</h2>
+      <span class="method-label">THE WORKINGS</span>
+    </div>
+    <div class="method-grid">
+      <article class="method-card">
+        <span class="method-k">THE BRIEF</span>
+        <span class="method-t">You say the actual work once</span>
+        <span class="method-b">Role, constraints, comp. A person reads it. No blast. No rank.</span>
+      </article>
+      <article class="method-card">
+        <span class="method-k">THE YES</span>
+        <span class="method-t">Names move after mutual yes</span>
+        <span class="method-b">Both sides have already said yes to that exact role. Consent is per match.</span>
+      </article>
+    </div>
+  </div>
+</section>`;
+}
+
+export function walkHtml(briefHref = BRIEF_HREF) {
+  return `<section class="band band-bone walk" id="walk" data-screen-label="Brief to match">
+  <div class="grain grain-bone" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="walk-head">
+      <h2 class="walk-h">Brief to match.</h2>
+      <span class="walk-label">THE WALK</span>
+    </div>
+    <ol class="walk-beats">
+      <li class="walk-beat">
+        <span class="walk-n">01</span>
+        <span class="walk-t">Write a brief</span>
+        <span class="walk-b">One role. The actual work.</span>
+      </li>
+      <li class="walk-beat">
+        <span class="walk-n">02</span>
+        <span class="walk-t">A person reads</span>
+        <span class="walk-b">Only names they chose get proposed.</span>
+      </li>
+      <li class="walk-beat">
+        <span class="walk-n">03</span>
+        <span class="walk-t">Mutual yes</span>
+        <span class="walk-b">Both sides, that exact role.</span>
+      </li>
+      <li class="walk-beat">
+        <span class="walk-n">04</span>
+        <span class="walk-t">You meet</span>
+        <span class="walk-b">Nothing moves until you do.</span>
+      </li>
+    </ol>
+    ${sectionCtaHtml(briefHref, "bone")}
+  </div>
+</section>`;
 }
 
 export function triadHtml(briefHref = BRIEF_HREF) {
@@ -230,7 +316,9 @@ export function iaFooterHtml() {
 }
 
 export function motleyHomeIaHtml(briefHref = BRIEF_HREF) {
-  return `${triadHtml(briefHref)}
+  return `${methodHtml()}
+${walkHtml(briefHref)}
+${triadHtml(briefHref)}
 ${usesHtml()}
 ${doorsHtml(briefHref)}
 ${faqHtml()}`;
@@ -253,17 +341,27 @@ export function motleyHomeIaMarkdown() {
 ## Two rooms
 
 This site is the Motley map and the network. The operator desk is [app.trydemigod.com](https://app.trydemigod.com) — hosted, read-only.
+
+## How matching works
+
+The brief is the actual work. A person reads it. Names move after mutual yes.
 `;
 }
 
 /** Splice IA into a Motley home HTML document (live demigodHomeHtml shape). */
 export function applyMotleyHomeIa(html, briefHref = BRIEF_HREF) {
   let page = String(html || "");
-  if (page.includes('id="for-whom"') && page.includes('id="work"') && page.includes("ia-foot-wrap")) {
+  if (page.includes('id="for-whom"') && page.includes('id="work"') && page.includes("ia-foot-wrap") && page.includes('id="cta-ladder"')) {
     return page;
   }
   if (!page.includes(MOTLEY_HOME_IA_CSS.trim().slice(0, 40))) {
     page = page.replace("@media(max-width:760px){", `${MOTLEY_HOME_IA_CSS}\n@media(max-width:760px){`);
+  }
+  if (page.includes('id="brief"') && !page.includes('id="cta-ladder"')) {
+    page = page.replace(
+      /<div class="actions">\s*<a class="btn btn-primary" id="brief" href="[^"]+">Start a brief<\/a>\s*(?:<a class="dir"[^>]*>one packet<\/a>)?\s*<\/div>/,
+      ctaLadderHtml(briefHref),
+    );
   }
   page = page.replace(
     '<section class="band band-bone process" data-screen-label="Process">',

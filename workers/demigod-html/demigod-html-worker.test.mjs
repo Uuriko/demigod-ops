@@ -74,12 +74,18 @@ describe("Motley home IA", () => {
     assert.match(html, /id="desk"/);
     assert.match(html, /Motley map/);
     assert.match(html, /hosted, read-only/);
+    assert.match(html, /id="method"/);
+    assert.match(html, /How a match is made/);
+    assert.match(html, /THE BRIEF/);
+    assert.match(html, /THE YES/);
+    assert.match(html, /id="walk"/);
+    assert.match(html, /Brief to match/);
     assert.match(html, /id="faq"/);
     assert.match(html, /href="#faq-brief"/);
     assert.match(html, /href="#faq-consent"/);
     assert.match(html, /href="#faq-weekly"/);
     assert.match(html, /href="#faq-desk"/);
-    assert.doesNotMatch(html, /Ashby|Greenhouse|Lever|people-data|ATS spam/i);
+    assert.doesNotMatch(html, /Ashby|Greenhouse|Lever|people-data|ATS spam|placed \d+|hired \d+/i);
     assert.match(html, /app\.trydemigod\.com/);
   });
 
@@ -87,6 +93,11 @@ describe("Motley home IA", () => {
     const html = home();
     assert.match(html, /A motley crew is assembled quietly/);
     assert.match(html, /id="brief"/);
+    assert.match(html, /id="cta-ladder"/);
+    assert.match(html, /How it goes/);
+    assert.match(html, /Explore the map/);
+    assert.match(html, /id="method"/);
+    assert.match(html, /id="walk"/);
     assert.match(html, /href="\/\?wiz=startup"/);
     assert.match(html, /id="for-whom"/);
     assert.match(html, /id="work"/);
@@ -146,6 +157,8 @@ describe("demigod-html fetch home-motley", () => {
       assert.equal(res.status, 200);
       assert.equal(res.headers.get("x-demigod-edge"), "home-motley");
       assert.match(html, /id="for-whom"/);
+      assert.match(html, /id="cta-ladder"/);
+      assert.match(html, /id="method"/);
       assert.match(html, /id="work"/);
       assert.match(html, /Start a brief/);
       assert.match(html, /href="\/\?wiz=startup"/);
