@@ -969,6 +969,7 @@ var LEFTOVER_SHELLS = {
   "/blog": "/",
   "/jobs": "/",
   "/openings": "/",
+  "/start": "/",
   "/apply": "/",
   "/careers": "/",
   "/engineers": "/",
@@ -1016,7 +1017,7 @@ var LEFTOVER_PEOPLE = [
 ];
 function leftoverRedirectPath(pathname) {
   const path = String(pathname || "").replace(/\/+$/, "") || "/";
-  return LEFTOVER_SHELLS[path] || "";
+  return LEFTOVER_SHELLS[path] || LEFTOVER_SHELLS[path.toLowerCase()] || "";
 }
 __name(leftoverRedirectPath, "leftoverRedirectPath");
 __name2(leftoverRedirectPath, "leftoverRedirectPath");
