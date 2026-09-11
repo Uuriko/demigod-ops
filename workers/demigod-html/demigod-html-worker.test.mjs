@@ -7,11 +7,13 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { describe, it } from "node:test";
 import {
+  applyMotleyHeroDepth,
   applyMotleyHomeIa,
   BRIEF_HREF,
   DESK_HREF,
   DESK_HEALTHZ,
   iaFooterHtml,
+  MOTLEY_HERO_DEPTH_CSS,
   motleyHomeIaHtml,
   NETWORK_HREF,
 } from "./demigod-home-ia.js";
@@ -137,6 +139,48 @@ describe("Motley home IA", () => {
     const twice = applyMotleyHomeIa(once);
     assert.equal((once.match(/id="for-whom"/g) || []).length, 1);
     assert.equal((twice.match(/id="for-whom"/g) || []).length, 1);
+    assert.equal((once.match(/id="hero-depth"/g) || []).length, 1);
+    assert.equal((twice.match(/id="hero-depth"/g) || []).length, 1);
+    assert.equal((once.match(/id="hero-path"/g) || []).length, 1);
+    assert.equal((twice.match(/id="hero-path"/g) || []).length, 1);
+  });
+
+  it("paints Motley cinematic hero depth without purple-wash or WebGL", () => {
+    const html = home();
+    assert.match(MOTLEY_HERO_DEPTH_CSS, /\.hero-vignette\{/);
+    assert.match(MOTLEY_HERO_DEPTH_CSS, /\.hero-focal\{/);
+    assert.match(MOTLEY_HERO_DEPTH_CSS, /@keyframes hero-focal-float/);
+    assert.match(MOTLEY_HERO_DEPTH_CSS, /\.hero-cta-card\{/);
+    assert.match(MOTLEY_HERO_DEPTH_CSS, /\.hero-punch\{/);
+    assert.match(MOTLEY_HERO_DEPTH_CSS, /prefers-reduced-motion:reduce/);
+    assert.match(MOTLEY_HERO_DEPTH_CSS, /\.hero-focal\{animation:none\}/);
+    assert.doesNotMatch(MOTLEY_HERO_DEPTH_CSS, /#482bd9|Nantes|three\.js|WebGL|webgl/i);
+    assert.match(html, /id="hero-depth"/);
+    assert.match(html, /class="hero-vignette"/);
+    assert.match(html, /class="hero-focal"/);
+    assert.match(html, /hero-focal-core/);
+    assert.match(html, /@keyframes hero-focal-float/);
+    assert.match(html, /id="hero-cta-card"/);
+    assert.match(html, /class="hero-punch"/);
+    assert.match(html, /id="hero-path"/);
+    assert.match(html, /hero-path-n">01/);
+    assert.match(html, /hero-path-n">02/);
+    assert.match(html, /hero-path-n">03/);
+    assert.match(html, /hero-path-n">04/);
+    assert.match(html, /href="\/\?wiz=startup">Brief</);
+    assert.match(html, /href="\/room">Room</);
+    assert.match(html, /href="#how">Meet</);
+    assert.match(html, /A motley crew is assembled quietly/);
+    assert.match(html, /id="cta-ladder"/);
+    assert.doesNotMatch(html, /hamburger|nav-overlay|menu-toggle/i);
+    assert.doesNotMatch(html, /plugin\.jup\.ag/);
+    assert.doesNotMatch(html, /#482bd9/i);
+    assert.doesNotMatch(html, /three\.js|WebGLRenderer|webgl/i);
+    assert.doesNotMatch(html, /\+N teams|\+\d+ teams/i);
+    assert.doesNotMatch(html, /getdasha\.com\/compute/);
+    const again = applyMotleyHeroDepth(html);
+    assert.equal((again.match(/class="hero-vignette"/g) || []).length, 1);
+    assert.equal((again.match(/id="hero-cta-card"/g) || []).length, 1);
   });
 
   it("footer uses existing URLs only", () => {
@@ -167,6 +211,9 @@ describe("demigod-html fetch home-motley", () => {
       const html = await res.text();
       assert.equal(res.status, 200);
       assert.equal(res.headers.get("x-demigod-edge"), "home-motley");
+      assert.match(html, /id="hero-depth"/);
+      assert.match(html, /id="hero-cta-card"/);
+      assert.match(html, /id="hero-path"/);
       assert.match(html, /id="for-whom"/);
       assert.match(html, /id="cta-ladder"/);
       assert.match(html, /id="method"/);
