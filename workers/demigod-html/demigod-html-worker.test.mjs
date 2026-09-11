@@ -493,6 +493,53 @@ describe("leftover openings + pricing conversion CTAs", () => {
     assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
   });
 
+  const introMatchJsonLeftovers = ["/intro.json", "/match.json"];
+
+  for (const path of introMatchJsonLeftovers) {
+    const titled = path.replace(/[a-z]+/g, (part) => part[0].toUpperCase() + part.slice(1));
+    it(`maps leftoverRedirectPath("${path}") to hire-home /`, () => {
+      assert.equal(leftoverRedirectPath(path), "/");
+      assert.equal(leftoverRedirectPath(`${path}/`), "/");
+      assert.equal(leftoverRedirectPath(titled), "/");
+      assert.equal(leftoverRedirectPath("/intro"), "/");
+      assert.equal(leftoverRedirectPath("/match"), "/");
+      assert.equal(leftoverRedirectPath("/compute"), "");
+      assert.equal(leftoverRedirectPath("/directory"), "");
+      assert.equal(leftoverRedirectPath("/product"), "");
+      assert.equal(leftoverRedirectPath("/factory"), "");
+      assert.equal(leftoverRedirectPath("/wiz"), "");
+      assert.equal(leftoverRedirectPath("/jd"), "");
+    });
+
+    it(`GET ${path} leftover-redirects to hire-home /`, async () => {
+      const res = await workerModule.fetch(new Request(`https://www.trydemigod.com${path}`), {});
+      assert.equal(res.status, 308);
+      assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+      assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+    });
+
+    it(`HEAD ${path} leftover-redirects to hire-home /`, async () => {
+      const res = await workerModule.fetch(new Request(`https://www.trydemigod.com${path}`, { method: "HEAD" }), {});
+      assert.equal(res.status, 308);
+      assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+      assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+    });
+  }
+
+  it("GET /Intro.Json leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/Intro.Json"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /Match.Json leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/Match.Json"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
   it('maps leftoverRedirectPath("/signup") to /app/login', () => {
     assert.equal(leftoverRedirectPath("/signup"), "/app/login");
     assert.equal(leftoverRedirectPath("/signup/"), "/app/login");
