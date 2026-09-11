@@ -10,7 +10,7 @@ export const DESK_HREF = "https://app.trydemigod.com";
 export const DESK_HEALTHZ = "https://app.trydemigod.com/healthz";
 
 export const MOTLEY_HOME_IA_CSS = `
-.triad .wrap,.uses .wrap,.faq-band .wrap{padding:88px 48px}
+.triad .wrap,.uses .wrap,.faq-band .wrap{padding:72px 48px}
 .triad-head,.uses-head,.faq-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:36px;gap:24px}
 .triad-h,.uses-h,.faq-h{font-family:'Instrument Serif',Georgia,serif;font-size:42px;line-height:1.06;letter-spacing:-.015em;margin:0;font-weight:400}
 .triad-label,.uses-label,.faq-label{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;white-space:nowrap}
@@ -20,18 +20,16 @@ export const MOTLEY_HOME_IA_CSS = `
 .triad-card + .triad-card{border-left:1px solid rgba(35,33,29,.14)}
 .triad-k{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.16em;color:#8a8378;text-transform:uppercase}
 .triad-t{font-family:'Instrument Serif',Georgia,serif;font-size:26px;line-height:1.15;color:#23211D}
-.triad-b{font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:14px;line-height:1.75;color:#6b665e;text-wrap:pretty}
-.triad-more{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#8a8378}
-.triad-more:hover{color:#23211D}
+.triad-b{font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:14px;line-height:1.5;color:#6b665e;text-wrap:pretty}
 .uses-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(228,222,210,.16);border:1px solid rgba(228,222,210,.16)}
-.use{background:#0B120F;padding:22px 24px;display:flex;flex-direction:column;gap:8px;min-height:140px}
+.use{background:#0B120F;padding:22px 24px;display:flex;flex-direction:column;gap:8px;min-height:112px}
 .use-k{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.16em;color:rgba(228,222,210,.42);text-transform:uppercase}
 .use-t{font-family:'Instrument Serif',Georgia,serif;font-size:24px;line-height:1.2;color:#E4DED2}
-.use-b{font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:14px;line-height:1.7;color:rgba(228,222,210,.6);text-wrap:pretty}
+.use-b{font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:14px;line-height:1.5;color:rgba(228,222,210,.6);text-wrap:pretty}
 .use a{color:#D3A093}
 .use a:hover{color:#E4DED2}
 .section-cta{display:flex;align-items:center;gap:14px;padding-top:36px;flex-wrap:wrap}
-.method .wrap,.walk .wrap{padding:88px 48px}
+.method .wrap,.walk .wrap{padding:72px 48px}
 .method-head,.walk-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:36px;gap:24px}
 .method-h{font-family:'Instrument Serif',Georgia,serif;font-size:42px;line-height:1.06;letter-spacing:-.015em;margin:0;font-weight:400;color:#E4DED2}
 .walk-h{font-family:'Instrument Serif',Georgia,serif;font-size:42px;line-height:1.06;letter-spacing:-.015em;margin:0;font-weight:400;color:#23211D}
@@ -41,13 +39,12 @@ export const MOTLEY_HOME_IA_CSS = `
 .method-card + .method-card{padding:0 0 0 34px;border-left:1px solid rgba(228,222,210,.16)}
 .method-k{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.16em;color:#D3A093;text-transform:uppercase}
 .method-t{font-family:'Instrument Serif',Georgia,serif;font-size:26px;line-height:1.15;color:#E4DED2}
-.method-b{font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:15px;line-height:1.8;color:rgba(228,222,210,.68);max-width:420px;text-wrap:pretty}
+.method-b{font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:15px;line-height:1.5;color:rgba(228,222,210,.68);max-width:320px;text-wrap:pretty}
 .walk-beats{display:grid;grid-template-columns:repeat(4,1fr);gap:0;list-style:none;margin:0;padding:0}
 .walk-beat{display:flex;flex-direction:column;gap:8px;padding-right:22px}
 .walk-beat + .walk-beat{padding-left:22px;border-left:1px solid rgba(35,33,29,.14)}
 .walk-n{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.16em;color:#8a8378}
-.walk-t{font-family:'Instrument Serif',Georgia,serif;font-size:22px;line-height:1.2;color:#23211D}
-.walk-b{font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:14px;line-height:1.7;color:#6b665e;text-wrap:pretty}
+.walk-t{font-family:'Instrument Serif',Georgia,serif;font-size:24px;line-height:1.2;color:#23211D}
 .faq-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}
 .faq-chip{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;border:1px solid rgba(228,222,210,.24);color:rgba(228,222,210,.7)}
 .faq-chip:hover{color:#E4DED2;border-color:#E4DED2}
@@ -56,7 +53,7 @@ export const MOTLEY_HOME_IA_CSS = `
 .faq-stack:has(.faq-panel:target) .faq-panel{display:none}
 .faq-stack:has(.faq-panel:target) .faq-panel:target{display:block}
 .faq-q{font-family:'Instrument Serif',Georgia,serif;font-size:26px;line-height:1.2;color:#E4DED2;margin:0 0 10px}
-.faq-a{font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:15px;line-height:1.8;color:rgba(228,222,210,.68);max-width:540px;text-wrap:pretty;margin:0}
+.faq-a{font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:15px;line-height:1.5;color:rgba(228,222,210,.68);max-width:420px;text-wrap:pretty;margin:0}
 .desk-line{font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:14px;line-height:1.7;color:#4a463f;max-width:470px;text-wrap:pretty}
 .ia-foot{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px 28px;width:100%;text-transform:none;letter-spacing:0;padding-top:8px}
 .ia-col{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
@@ -179,13 +176,13 @@ export function methodHtml() {
     <div class="method-grid">
       <article class="method-card">
         <span class="method-k">THE BRIEF</span>
-        <span class="method-t">You say the actual work once</span>
-        <span class="method-b">Role, constraints, comp. A person reads it. No blast. No rank.</span>
+        <span class="method-t">You say the work once</span>
+        <span class="method-b">Role, constraints, comp.</span>
       </article>
       <article class="method-card">
         <span class="method-k">THE YES</span>
         <span class="method-t">Names move after mutual yes</span>
-        <span class="method-b">Both sides have already said yes to that exact role. Consent is per match.</span>
+        <span class="method-b">Both sides. That role.</span>
       </article>
     </div>
   </div>
@@ -203,23 +200,19 @@ export function walkHtml(briefHref = BRIEF_HREF) {
     <ol class="walk-beats">
       <li class="walk-beat">
         <span class="walk-n">01</span>
-        <span class="walk-t">Write a brief</span>
-        <span class="walk-b">One role. The actual work.</span>
+        <span class="walk-t">Brief</span>
       </li>
       <li class="walk-beat">
         <span class="walk-n">02</span>
-        <span class="walk-t">A person reads</span>
-        <span class="walk-b">Only names they chose get proposed.</span>
+        <span class="walk-t">Read</span>
       </li>
       <li class="walk-beat">
         <span class="walk-n">03</span>
-        <span class="walk-t">Mutual yes</span>
-        <span class="walk-b">Both sides, that exact role.</span>
+        <span class="walk-t">Yes</span>
       </li>
       <li class="walk-beat">
         <span class="walk-n">04</span>
-        <span class="walk-t">You meet</span>
-        <span class="walk-b">Nothing moves until you do.</span>
+        <span class="walk-t">Meet</span>
       </li>
     </ol>
     ${sectionCtaHtml(briefHref, "bone")}
@@ -239,22 +232,19 @@ export function triadHtml(briefHref = BRIEF_HREF) {
       <article class="triad-card">
         <span class="triad-k">FOUNDERS</span>
         <span class="triad-t">Start a brief</span>
-        <span class="triad-b">One role, the constraints, the actual work. A person reads it.</span>
-        <a class="triad-more" href="#how">Learn more</a>
+        <span class="triad-b">One role. A person reads it.</span>
         <a class="btn btn-ink" href="${briefHref}">Start a brief</a>
       </article>
       <article class="triad-card">
         <span class="triad-k">TALENT</span>
         <span class="triad-t">Join the network</span>
-        <span class="triad-b">How it goes: a person chooses, then knocks. Names move after mutual yes.</span>
-        <a class="triad-more" href="#how">Learn more</a>
+        <span class="triad-b">A person chooses, then knocks.</span>
         <a class="btn btn-bone-ghost" href="${NETWORK_HREF}">Join the network</a>
       </article>
       <article class="triad-card">
         <span class="triad-k">OPERATORS</span>
         <span class="triad-t">The desk</span>
-        <span class="triad-b">Hosted, read-only. Health is public. Roles when Access is ready.</span>
-        <a class="triad-more" href="#desk">Learn more</a>
+        <span class="triad-b">Hosted, read-only. Health is public.</span>
         <a class="dir" href="${DESK_HREF}">app.trydemigod.com</a>
       </article>
     </div>
@@ -274,25 +264,25 @@ export function usesHtml() {
       <article class="use">
         <span class="use-k">SEED</span>
         <span class="use-t">Seed first seats</span>
-        <span class="use-b">The first five decide what it becomes. A brief, not a blast.</span>
+        <span class="use-b">The first five. A brief, not a blast.</span>
         <a href="${BRIEF_HREF}">Start a brief</a>
       </article>
       <article class="use">
         <span class="use-k">SERIES A</span>
         <span class="use-t">Series A eng seats</span>
-        <span class="use-b">Senior engineering seats. A person picks. Mutual yes before names move.</span>
+        <span class="use-b">A person picks. Mutual yes before names move.</span>
         <a href="${BRIEF_HREF}">Start a brief</a>
       </article>
       <article class="use">
         <span class="use-k">WEEKLY</span>
         <span class="use-t">Weekly movers snapshot</span>
-        <span class="use-b">Observed board movement in the snapshot. Not a catalog. Not a recommendation.</span>
+        <span class="use-b">Observed movement. Not a catalog.</span>
         <a href="/weekly">Weekly</a>
       </article>
       <article class="use">
         <span class="use-k">DESK</span>
         <span class="use-t">Company intelligence desk</span>
-        <span class="use-b">Public company facts on the map. The operator desk is next door, hosted read-only.</span>
+        <span class="use-b">Public facts on the map. Desk next door.</span>
         <a href="/companies">Companies</a>
       </article>
     </div>
@@ -308,7 +298,7 @@ export function doorsHtml(briefHref = BRIEF_HREF) {
     <div class="doors-copy">
       <span class="doors-kicker">TWO ROOMS</span>
       <span class="doors-h">The map is here. The desk is next door.</span>
-      <span class="doors-b">This site is the Motley map and the network. The operator desk lives at app.trydemigod.com — hosted, read-only for now.</span>
+      <span class="doors-b">Motley map here. Desk next door — hosted, read-only.</span>
       ${sectionCtaHtml(briefHref, "bone")}
     </div>
     <aside class="doors-side">
@@ -336,19 +326,19 @@ export function faqHtml() {
     <div class="faq-stack">
       <div class="faq-panel" id="faq-brief">
         <p class="faq-q">What is a brief?</p>
-        <p class="faq-a">You write it once — the role, the constraints, the actual work. A person reads it. Nothing leaves the room until mutual yes.</p>
+        <p class="faq-a">One role. A person reads it. Mutual yes before names move.</p>
       </div>
       <div class="faq-panel" id="faq-consent">
         <p class="faq-q">When do names move?</p>
-        <p class="faq-a">After both sides have already said yes. Consent is per match, not a list.</p>
+        <p class="faq-a">After mutual yes. Per match, not a list.</p>
       </div>
       <div class="faq-panel" id="faq-weekly">
         <p class="faq-q">What is Weekly?</p>
-        <p class="faq-a">Observed board movement in the snapshot. First-seen is ours. Not a catalog of every opening. Not a recommendation.</p>
+        <p class="faq-a">Observed movement. Not a catalog.</p>
       </div>
       <div class="faq-panel" id="faq-desk">
         <p class="faq-q">What is the desk?</p>
-        <p class="faq-a">The operator desk at app.trydemigod.com is hosted, read-only. Health is public. Roles when Access is ready.</p>
+        <p class="faq-a">Hosted, read-only. Health is public.</p>
       </div>
     </div>
   </div>
@@ -416,11 +406,11 @@ export function motleyHomeIaMarkdown() {
 
 ## Two rooms
 
-This site is the Motley map and the network. The operator desk is [app.trydemigod.com](https://app.trydemigod.com) — hosted, read-only.
+Motley map here. Desk next door — [app.trydemigod.com](https://app.trydemigod.com), hosted, read-only.
 
 ## How matching works
 
-The brief is the actual work. A person reads it. Names move after mutual yes.
+The brief is the work. A person reads it. Names move after mutual yes.
 `;
 }
 
