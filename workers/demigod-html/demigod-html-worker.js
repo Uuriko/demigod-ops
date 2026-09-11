@@ -970,6 +970,7 @@ var LEFTOVER_SHELLS = {
   "/start": "/",
   "/briefs": "/",
   "/recruit": "/",
+  "/recruit-family": "/",
   "/hire-me": "/",
   "/die": "/",
   "/recruiter": "/",

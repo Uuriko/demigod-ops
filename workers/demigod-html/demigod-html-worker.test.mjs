@@ -352,6 +352,34 @@ describe("leftover openings + pricing conversion CTAs", () => {
     assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
   });
 
+  it('maps leftoverRedirectPath("/recruit-family") to hire-home /', () => {
+    assert.equal(leftoverRedirectPath("/recruit-family"), "/");
+    assert.equal(leftoverRedirectPath("/recruit-family/"), "/");
+    assert.equal(leftoverRedirectPath("/Recruit-Family"), "/");
+    assert.equal(leftoverRedirectPath("/compute"), "");
+  });
+
+  it("GET /recruit-family leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/recruit-family"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /recruit-family/ leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/recruit-family/"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /Recruit-Family leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/Recruit-Family"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
   it('maps leftoverRedirectPath("/hire-me") to hire-home /', () => {
     assert.equal(leftoverRedirectPath("/hire-me"), "/");
     assert.equal(leftoverRedirectPath("/hire-me/"), "/");
