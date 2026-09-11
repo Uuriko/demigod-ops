@@ -531,6 +531,44 @@ describe("leftover openings + pricing conversion CTAs", () => {
     assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
   });
 
+  const authLoginLeftovers = [
+    "/sign-up",
+    "/sign_up",
+    "/register",
+    "/signin",
+    "/sign-in",
+    "/auth",
+    "/log-in",
+    "/log_in",
+  ];
+
+  for (const path of authLoginLeftovers) {
+    const titled = path.replace(/[a-z]+/g, (part) => part[0].toUpperCase() + part.slice(1));
+    it(`maps leftoverRedirectPath("${path}") to /app/login`, () => {
+      assert.equal(leftoverRedirectPath(path), "/app/login");
+      assert.equal(leftoverRedirectPath(`${path}/`), "/app/login");
+      assert.equal(leftoverRedirectPath(titled), "/app/login");
+      assert.equal(leftoverRedirectPath("/signup"), "/app/login");
+      assert.equal(leftoverRedirectPath("/login"), "/app/login");
+      assert.equal(leftoverRedirectPath("/compute"), "");
+      assert.equal(leftoverRedirectPath("/directory"), "");
+    });
+
+    it(`GET ${path} leftover-redirects to /app/login`, async () => {
+      const res = await workerModule.fetch(new Request(`https://www.trydemigod.com${path}`), {});
+      assert.equal(res.status, 308);
+      assert.equal(res.headers.get("location"), "https://www.trydemigod.com/app/login");
+      assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+    });
+
+    it(`HEAD ${path} leftover-redirects to /app/login`, async () => {
+      const res = await workerModule.fetch(new Request(`https://www.trydemigod.com${path}`, { method: "HEAD" }), {});
+      assert.equal(res.status, 308);
+      assert.equal(res.headers.get("location"), "https://www.trydemigod.com/app/login");
+      assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+    });
+  }
+
   it('maps leftoverRedirectPath("/hire-me") to hire-home /', () => {
     assert.equal(leftoverRedirectPath("/hire-me"), "/");
     assert.equal(leftoverRedirectPath("/hire-me/"), "/");
@@ -621,6 +659,11 @@ describe("leftover openings + pricing conversion CTAs", () => {
     assert.equal(leftoverRedirectPath("/dasha"), "");
     assert.equal(leftoverRedirectPath("/directory"), "");
     assert.equal(leftoverRedirectPath("/wiz"), "");
+    assert.equal(leftoverRedirectPath("/product"), "");
+    assert.equal(leftoverRedirectPath("/products"), "");
+    assert.equal(leftoverRedirectPath("/factory"), "");
+    assert.equal(leftoverRedirectPath("/jd"), "");
+    assert.equal(leftoverRedirectPath("/auth/grok/start"), "");
   });
 
   it("rewrites dead pricing Get started / Contact / footer Pricing", () => {
