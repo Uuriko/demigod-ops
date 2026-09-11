@@ -380,6 +380,42 @@ describe("leftover openings + pricing conversion CTAs", () => {
     assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
   });
 
+  it('maps leftoverRedirectPath("/motley") to hire-home /', () => {
+    assert.equal(leftoverRedirectPath("/motley"), "/");
+    assert.equal(leftoverRedirectPath("/motley/"), "/");
+    assert.equal(leftoverRedirectPath("/Motley"), "/");
+    assert.equal(leftoverRedirectPath("/compute"), "");
+    assert.equal(leftoverRedirectPath("/directory"), "");
+  });
+
+  it("GET /motley leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/motley"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /motley/ leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/motley/"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("HEAD /motley leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/motley", { method: "HEAD" }), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /Motley leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/Motley"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
   it('maps leftoverRedirectPath("/hire-me") to hire-home /', () => {
     assert.equal(leftoverRedirectPath("/hire-me"), "/");
     assert.equal(leftoverRedirectPath("/hire-me/"), "/");
@@ -468,6 +504,7 @@ describe("leftover openings + pricing conversion CTAs", () => {
     assert.equal(leftoverRedirectPath("/learn"), "");
     assert.equal(leftoverRedirectPath("/graph"), "");
     assert.equal(leftoverRedirectPath("/dasha"), "");
+    assert.equal(leftoverRedirectPath("/directory"), "");
   });
 
   it("rewrites dead pricing Get started / Contact / footer Pricing", () => {

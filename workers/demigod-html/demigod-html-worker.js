@@ -1008,6 +1008,7 @@ var LEFTOVER_SHELLS = {
   "/terms": "/legal",
   "/cookies": "/",
   "/desk": "/",
+  "/motley": "/",
   "/privacy": "/legal",
   "/posting-age": "/",
   "/posting-age-index": "/",
