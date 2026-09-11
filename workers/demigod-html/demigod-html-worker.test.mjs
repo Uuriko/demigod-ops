@@ -735,6 +735,96 @@ describe("leftover openings + pricing conversion CTAs", () => {
     assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
   });
 
+  const agencyVacancyLeftovers = [
+    "/agency",
+    "/agencies",
+    "/search-firm",
+    "/search_firm",
+    "/searchfirm",
+    "/talent-partner",
+    "/talent_partner",
+    "/talentpartner",
+    "/headhunter",
+    "/headhunters",
+    "/opportunities",
+    "/opportunity",
+    "/posting",
+    "/postings",
+    "/vacancy",
+    "/vacancies",
+  ];
+
+  for (const path of agencyVacancyLeftovers) {
+    const titled = path.replace(/[a-z]+/g, (part) => part[0].toUpperCase() + part.slice(1));
+    it(`maps leftoverRedirectPath("${path}") to hire-home /`, () => {
+      assert.equal(leftoverRedirectPath(path), "/");
+      assert.equal(leftoverRedirectPath(`${path}/`), "/");
+      assert.equal(leftoverRedirectPath(titled), "/");
+      assert.equal(leftoverRedirectPath("/jobs"), "/");
+      assert.equal(leftoverRedirectPath("/careers"), "/");
+      assert.equal(leftoverRedirectPath("/compute"), "");
+      assert.equal(leftoverRedirectPath("/directory"), "");
+      assert.equal(leftoverRedirectPath("/studio"), "");
+      assert.equal(leftoverRedirectPath("/product"), "");
+      assert.equal(leftoverRedirectPath("/factory"), "");
+      assert.equal(leftoverRedirectPath("/wiz"), "");
+      assert.equal(leftoverRedirectPath("/jd"), "");
+      assert.equal(leftoverRedirectPath("/placement"), "");
+      assert.equal(leftoverRedirectPath("/placements"), "");
+      assert.equal(leftoverRedirectPath("/people"), "");
+      assert.equal(leftoverRedirectPath("/search"), "");
+    });
+
+    it(`GET ${path} leftover-redirects to hire-home /`, async () => {
+      const res = await workerModule.fetch(new Request(`https://www.trydemigod.com${path}`), {});
+      assert.equal(res.status, 308);
+      assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+      assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+    });
+  }
+
+  it("GET /agency/ leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/agency/"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /vacancies/ leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/vacancies/"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /Headhunter leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/Headhunter"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("keeps parked leftovers, placements, and people-data paths 404", async () => {
+    for (const path of [
+      "/directory",
+      "/compute",
+      "/studio",
+      "/product",
+      "/factory",
+      "/wiz",
+      "/jd",
+      "/placement",
+      "/placements",
+      "/people",
+      "/search",
+    ]) {
+      const res = await workerModule.fetch(new Request(`https://www.trydemigod.com${path}`), {});
+      assert.equal(res.status, 404, path);
+      assert.equal(res.headers.get("x-demigod-edge"), "not-found", path);
+      assert.equal(leftoverRedirectPath(path), "");
+    }
+  });
+
   it("does not invent parked product leftover aliases", () => {
     assert.equal(leftoverRedirectPath("/compute"), "");
     assert.equal(leftoverRedirectPath("/studio"), "");
