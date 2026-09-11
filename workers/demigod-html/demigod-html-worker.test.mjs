@@ -214,8 +214,22 @@ describe("leftover openings + pricing conversion CTAs", () => {
     assert.equal(leftoverRedirectPath("/jobs"), "/");
   });
 
+  it('maps leftoverRedirectPath("/start") to hire-home /', () => {
+    assert.equal(leftoverRedirectPath("/start"), "/");
+    assert.equal(leftoverRedirectPath("/start/"), "/");
+    assert.equal(leftoverRedirectPath("/Start"), "/");
+    assert.equal(leftoverRedirectPath("/compute"), "");
+  });
+
   it("GET /openings leftover-redirects to /", async () => {
     const res = await workerModule.fetch(new Request("https://www.trydemigod.com/openings"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /start leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/start"), {});
     assert.equal(res.status, 308);
     assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
     assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
