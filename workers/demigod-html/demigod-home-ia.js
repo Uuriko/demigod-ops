@@ -1,6 +1,7 @@
 /**
  * Motley home IA — value triad, use-cases, brief repetition, map vs desk, FAQ chips, footer columns.
  * Quiet literary voice. No violet clone. No display-serif takeover. Tokens stay Motley.
+ * Hero depth is CSS only: one glacial focal, clay rim, punch H1. No WebGL.
  */
 
 export const BRIEF_HREF = "/?wiz=startup";
@@ -79,17 +80,92 @@ export const MOTLEY_HOME_IA_CSS = `
 }
 `;
 
+/** Himanshu-energy first paint — Motley clay, never Immersity purple-wash. */
+export const MOTLEY_HERO_DEPTH_CSS = `
+.hero-depth{isolation:isolate}
+.hero-vignette{
+  position:absolute;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 72% 58% at 36% 40%,transparent 0%,transparent 44%,rgba(11,18,15,.38) 76%,rgba(11,18,15,.72) 100%),
+    radial-gradient(ellipse 42% 34% at 82% 16%,rgba(211,160,147,.16),transparent 64%);
+}
+.hero-depth>.wrap{z-index:1}
+.hero-punch{
+  font-size:clamp(48px,8.2vw,88px);
+  letter-spacing:-.028em;
+  text-shadow:0 0 42px rgba(211,160,147,.16);
+}
+.hero-focal{
+  position:absolute;right:7%;top:20%;width:128px;height:128px;z-index:0;pointer-events:none;
+  animation:hero-focal-float 16s ease-in-out infinite;
+}
+.hero-focal-core{
+  display:block;width:100%;height:100%;border-radius:50%;
+  border:1px solid rgba(211,160,147,.48);
+  background:
+    radial-gradient(circle at 36% 30%,rgba(228,222,210,.24),transparent 44%),
+    radial-gradient(circle at 62% 72%,rgba(211,160,147,.22),transparent 52%),
+    rgba(11,18,15,.35);
+  box-shadow:
+    0 0 0 14px rgba(211,160,147,.06),
+    0 32px 64px rgba(211,160,147,.18),
+    inset 0 -20px 36px rgba(211,160,147,.24),
+    inset 0 14px 22px rgba(228,222,210,.08);
+}
+@keyframes hero-focal-float{
+  0%,100%{transform:translate3d(0,0,0)}
+  50%{transform:translate3d(0,-12px,0)}
+}
+.hero-cta-card{
+  position:relative;display:inline-flex;align-self:flex-start;padding:3px;
+  background:linear-gradient(180deg,rgba(211,160,147,.4),rgba(211,160,147,.08));
+  box-shadow:0 20px 44px rgba(211,160,147,.14),0 0 0 1px rgba(211,160,147,.24);
+}
+.hero-cta-card .actions{padding:10px 12px;background:#0B120F}
+.hero-path{align-self:flex-start}
+.hero-path{
+  display:flex;flex-wrap:wrap;gap:0;list-style:none;margin:2px 0 0;padding:0;
+  font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;
+}
+.hero-path li{display:flex;align-items:baseline;gap:8px;padding-right:20px}
+.hero-path li+li{padding-left:20px;border-left:1px solid rgba(228,222,210,.16)}
+.hero-path-n{color:rgba(228,222,210,.35)}
+.hero-path a,.hero-path span{color:rgba(228,222,210,.55)}
+.hero-path a:hover{color:#D3A093}
+@media(max-width:760px){
+  .hero-focal{width:72px;height:72px;right:5%;top:12%;opacity:.65}
+  .hero-path li+li{border-left:0;padding-left:0}
+}
+@media(prefers-reduced-motion:reduce){
+  .hero-focal{animation:none}
+  .hero-punch{text-shadow:none}
+  .hero-cta-card{box-shadow:0 0 0 1px rgba(211,160,147,.24)}
+}
+`;
+
 export function sectionCtaHtml(briefHref = BRIEF_HREF, tone = "ink") {
   const btn = tone === "bone" ? "btn btn-ink" : "btn btn-primary";
   return `<div class="actions section-cta"><a class="${btn}" href="${briefHref}">Start a brief</a></div>`;
 }
 
+export function founderPathHtml(briefHref = BRIEF_HREF) {
+  return `<ol class="hero-path" id="hero-path" aria-label="Founder path">
+        <li><span class="hero-path-n">01</span><span>Open</span></li>
+        <li><span class="hero-path-n">02</span><a href="${briefHref}">Brief</a></li>
+        <li><span class="hero-path-n">03</span><a href="/room">Room</a></li>
+        <li><span class="hero-path-n">04</span><a href="#how">Meet</a></li>
+      </ol>`;
+}
+
 export function ctaLadderHtml(briefHref = BRIEF_HREF) {
-  return `<div class="actions" id="cta-ladder">
+  return `<div class="hero-cta-card" id="hero-cta-card">
+        <div class="actions" id="cta-ladder">
         <a class="btn btn-primary" id="brief" href="${briefHref}">Start a brief</a>
         <a class="btn btn-secondary" href="#how">How it goes</a>
         <a class="dir" href="/companies">Explore the map</a>
-      </div>`;
+      </div>
+      </div>
+      ${founderPathHtml(briefHref)}`;
 }
 
 export function methodHtml() {
@@ -348,11 +424,59 @@ The brief is the actual work. A person reads it. Names move after mutual yes.
 `;
 }
 
+/** CSS depth on the Motley hero. Idempotent. Tokens stay clay / ink. */
+export function applyMotleyHeroDepth(html, briefHref = BRIEF_HREF) {
+  let page = String(html || "");
+  if (!page.includes(".hero-vignette{") && page.includes("</style>")) {
+    page = page.replace("</style>", `${MOTLEY_HERO_DEPTH_CSS}\n</style>`);
+  }
+  if (!page.includes('id="hero-depth"')) {
+    page = page.replace(
+      '<section class="band band-ink" data-screen-label="Hero">',
+      '<section class="band band-ink hero-depth" data-screen-label="Hero" id="hero-depth">',
+    );
+  }
+  if (!page.includes('class="hero-vignette"')) {
+    page = page.replace(
+      '<div class="grain grain-dark" aria-hidden="true"></div>\n  <div class="wrap">\n    <header class="mast">',
+      `<div class="grain grain-dark" aria-hidden="true"></div>
+  <div class="hero-vignette" aria-hidden="true"></div>
+  <div class="hero-focal" aria-hidden="true"><span class="hero-focal-core"></span></div>
+  <div class="wrap">
+    <header class="mast">`,
+    );
+  }
+  if (!page.includes('class="hero-punch"')) {
+    page = page.replace(
+      "<h1>A motley crew is assembled quietly.</h1>",
+      '<h1 class="hero-punch">A motley crew is assembled quietly.</h1>',
+    );
+  }
+  if (page.includes('id="cta-ladder"') && !page.includes('id="hero-cta-card"')) {
+    page = page.replace(
+      '<div class="actions" id="cta-ladder">',
+      '<div class="hero-cta-card" id="hero-cta-card"><div class="actions" id="cta-ladder">',
+    );
+    page = page.replace(
+      /(<div class="hero-cta-card" id="hero-cta-card"><div class="actions" id="cta-ladder">[\s\S]*?<\/div>)/,
+      "$1</div>",
+    );
+  }
+  if (page.includes('id="hero-cta-card"') && !page.includes('id="hero-path"')) {
+    page = page.replace(
+      /(<div class="hero-cta-card" id="hero-cta-card">[\s\S]*?<\/div>\s*<\/div>)/,
+      `$1\n      ${founderPathHtml(briefHref)}`,
+    );
+  }
+  return page;
+}
+
 /** Splice IA into a Motley home HTML document (live demigodHomeHtml shape). */
 export function applyMotleyHomeIa(html, briefHref = BRIEF_HREF) {
   let page = String(html || "");
-  if (page.includes('id="for-whom"') && page.includes('id="work"') && page.includes("ia-foot-wrap") && page.includes('id="cta-ladder"')) {
-    return page;
+  const iaReady = page.includes('id="for-whom"') && page.includes('id="work"') && page.includes("ia-foot-wrap") && page.includes('id="cta-ladder"');
+  if (iaReady) {
+    return applyMotleyHeroDepth(page, briefHref);
   }
   if (!page.includes(MOTLEY_HOME_IA_CSS.trim().slice(0, 40))) {
     page = page.replace("@media(max-width:760px){", `${MOTLEY_HOME_IA_CSS}\n@media(max-width:760px){`);
@@ -383,5 +507,5 @@ export function applyMotleyHomeIa(html, briefHref = BRIEF_HREF) {
   if (page.includes('<footer class="foot">') && !page.includes("ia-foot-wrap")) {
     page = page.replace(/<footer class="foot">[\s\S]*?<\/footer>/, iaFooterHtml());
   }
-  return page;
+  return applyMotleyHeroDepth(page, briefHref);
 }
