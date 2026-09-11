@@ -256,6 +256,69 @@ describe("leftover openings + pricing conversion CTAs", () => {
     assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
   });
 
+  it('maps leftoverRedirectPath("/recruit") to hire-home /', () => {
+    assert.equal(leftoverRedirectPath("/recruit"), "/");
+    assert.equal(leftoverRedirectPath("/recruit/"), "/");
+    assert.equal(leftoverRedirectPath("/Recruit"), "/");
+    assert.equal(leftoverRedirectPath("/compute"), "");
+  });
+
+  it("GET /recruit leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/recruit"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /recruit/ leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/recruit/"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it('maps leftoverRedirectPath("/hire-me") to hire-home /', () => {
+    assert.equal(leftoverRedirectPath("/hire-me"), "/");
+    assert.equal(leftoverRedirectPath("/hire-me/"), "/");
+    assert.equal(leftoverRedirectPath("/Hire-Me"), "/");
+    assert.equal(leftoverRedirectPath("/compute"), "");
+  });
+
+  it("GET /hire-me leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/hire-me"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /hire-me/ leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/hire-me/"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it('maps leftoverRedirectPath("/die") to hire-home /', () => {
+    assert.equal(leftoverRedirectPath("/die"), "/");
+    assert.equal(leftoverRedirectPath("/die/"), "/");
+    assert.equal(leftoverRedirectPath("/Die"), "/");
+    assert.equal(leftoverRedirectPath("/compute"), "");
+  });
+
+  it("GET /die leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/die"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /die/ leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/die/"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
   it("rewrites dead pricing Get started / Contact / footer Pricing", () => {
     const src = [
       '<a href="/?wiz=startup" class="button on-inverse w-inline-block"><div class="button_label">Start a brief</div></a>',
