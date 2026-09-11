@@ -3524,6 +3524,9 @@ function roomEntry(request) {
   return new Response(request.method === "HEAD" ? null : ROOM_ENTRY_HTML, { headers });
 }
 __name(roomEntry, "roomEntry");
+// Staging door only — no production Room custom domain in this tree.
+var PROJECT_ROOM_HREF = "https://project-room-staging.getdasha.workers.dev";
+var COMPUTE_HREF = "https://getdasha.com/compute";
 var ROOM_ENTRY_HTML = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>Project Room \xB7 Demigod</title>
@@ -3534,10 +3537,12 @@ body{min-height:100vh;font:18px/1.55 "Hanken Grotesk",system-ui,sans-serif;displ
 main{width:min(40rem,calc(100% - 2.5rem));margin:0 auto;padding:18vh 0 3rem;flex:1}
 .brand{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
 h1{font-family:Georgia,"Instrument Serif",serif;font-size:clamp(2.4rem,8vw,3.8rem);line-height:1.05;letter-spacing:-.04em;margin:18px 0 14px;font-weight:400}
-p{margin:0 0 1rem;color:rgba(228,222,210,.82);max-width:34em}
-.open{display:inline-flex;align-items:center;min-height:48px;margin:10px 0 22px;padding:0 22px;background:var(--clay);color:var(--ink);text-decoration:none;font-weight:650;letter-spacing:.02em}
+p{margin:0 0 1rem;color:rgba(228,222,210,.82);max-width:32em}
+.open{display:inline-flex;align-items:center;min-height:48px;margin:10px 0 28px;padding:0 22px;background:var(--clay);color:var(--ink);text-decoration:none;font-weight:650;letter-spacing:.02em}
 .open:hover{filter:brightness(1.05)}
-.help{font-size:15px;color:var(--mute)}
+.aside{font-size:14px;color:var(--mute);max-width:28em}
+.aside a{color:var(--clay);text-decoration:none}
+.aside a:hover{color:#E4DED2}
 footer{width:min(40rem,calc(100% - 2.5rem));margin:0 auto;padding:0 0 2.5rem;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
 footer a{color:var(--clay);text-decoration:none}
 a:focus-visible{outline:1px solid var(--clay);outline-offset:3px}
@@ -3545,10 +3550,10 @@ a:focus-visible{outline:1px solid var(--clay);outline-offset:3px}
 <main>
   <div class="brand"><a href="/" style="color:inherit;text-decoration:none">Demigod</a></div>
   <h1>Project Room</h1>
-  <p>A shared space to talk, work together, and pick up where you left off.</p>
-  <a class="open" href="https://project-room-staging.getdasha.workers.dev">Open Project Room</a>
-  <p class="help">Use an invitation to join, or sign in with your existing access. Already joined? Open it in the same browser to return.</p>
-  <p class="help">Need an invitation? Ask the room owner.</p>
+  <p>The work has a ledger. Work Items, next actions, receipts.</p>
+  <p>Agents sit as Members.</p>
+  <a class="open" href="${PROJECT_ROOM_HREF}">Open Project Room</a>
+  <p class="aside">Compute is the run factory. Separate. <a href="${COMPUTE_HREF}">getdasha.com/compute</a></p>
 </main>
 <footer>\xA9 2026 Demigod \xB7 <a href="/">Home</a> \xB7 <a href="/contact">Contact</a> \xB7 <a href="/legal">Privacy</a></footer>
 </body></html>`;

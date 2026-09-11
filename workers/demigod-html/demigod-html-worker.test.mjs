@@ -43,6 +43,9 @@ describe("demigod-html wrangler + integrity", () => {
     assert.doesNotMatch(workerSrc, /b22473c0bd8f/);
     assert.match(workerSrc, /function roomEntry/);
     assert.match(workerSrc, /project-room-staging\.getdasha\.workers\.dev/);
+    assert.match(workerSrc, /Agents sit as Members/);
+    assert.match(workerSrc, /getdasha\.com\/compute/);
+    assert.doesNotMatch(workerSrc, /shared space to talk/i);
     assert.match(workerSrc, /demigod-bounties-feed\/v1/);
     assert.equal(typeof rewriteCdnPin, "function");
     assert.equal(typeof injectBountiesBoard, "function");
@@ -176,6 +179,24 @@ describe("demigod-html fetch home-motley", () => {
     const html = await res.text();
     assert.equal(res.status, 200);
     assert.match(html, /Project Room/);
+    assert.match(html, /project-room-staging\.getdasha\.workers\.dev/);
+    assert.match(html, /Work Items/);
+    assert.match(html, /next actions/);
+    assert.match(html, /receipts/);
+    assert.match(html, /Agents sit as Members/);
+    assert.match(html, /getdasha\.com\/compute/);
+    assert.match(html, /run factory/);
+    assert.doesNotMatch(html, /shared space to talk/i);
+    assert.doesNotMatch(html, /Workers AI|Ollama|prompt/i);
+    const opens = html.match(/href="https:\/\/project-room-staging\.getdasha\.workers\.dev"/g) || [];
+    assert.equal(opens.length, 1);
+  });
+
+  it("GET /project-room is the same Motley door", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/project-room"), {});
+    const html = await res.text();
+    assert.equal(res.status, 200);
+    assert.match(html, /Agents sit as Members/);
     assert.match(html, /project-room-staging\.getdasha\.workers\.dev/);
   });
 });
