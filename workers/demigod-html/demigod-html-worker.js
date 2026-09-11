@@ -968,6 +968,7 @@ var LEFTOVER_SHELLS = {
   "/roles": "/journal",
   "/blog": "/",
   "/jobs": "/",
+  "/openings": "/",
   "/apply": "/",
   "/careers": "/",
   "/engineers": "/",
@@ -1606,6 +1607,36 @@ __name(stripLeftoverTemplate, "stripLeftoverTemplate");
 __name2(stripLeftoverTemplate, "stripLeftoverTemplate");
 __name22(stripLeftoverTemplate, "stripLeftoverTemplate");
 __name222(stripLeftoverTemplate, "stripLeftoverTemplate");
+function conversionCtaLabel(inner) {
+  return String(inner || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+__name(conversionCtaLabel, "conversionCtaLabel");
+__name2(conversionCtaLabel, "conversionCtaLabel");
+__name22(conversionCtaLabel, "conversionCtaLabel");
+__name222(conversionCtaLabel, "conversionCtaLabel");
+function rewriteDeadConversionCtas(html) {
+  return String(html || "").replace(
+    /<a\b([^>]*\bhref=["']#["'][^>]*)>((?:(?!<a\b)[\s\S])*?)<\/a>/gi,
+    (full, attrs, inner) => {
+      const label = conversionCtaLabel(inner);
+      const classes = String(attrs || "");
+      let dest = "";
+      if (/^get started$/i.test(label))
+        dest = "/?wiz=startup";
+      else if (/^contact(?: support)?$/i.test(label))
+        dest = "/contact";
+      else if (/^pricing$/i.test(label) && /\bfooter_link\b/i.test(classes))
+        dest = "/pricing";
+      if (!dest)
+        return full;
+      return `<a${String(attrs || "").replace(/\bhref=["']#["']/i, `href="${dest}"`)}>${inner}</a>`;
+    }
+  );
+}
+__name(rewriteDeadConversionCtas, "rewriteDeadConversionCtas");
+__name2(rewriteDeadConversionCtas, "rewriteDeadConversionCtas");
+__name22(rewriteDeadConversionCtas, "rewriteDeadConversionCtas");
+__name222(rewriteDeadConversionCtas, "rewriteDeadConversionCtas");
 function shieldHomeFirstPaint(html) {
   return String(html || "").replace(/<html\b([^>]*)>/i, (tag, attrs) => {
     if (/\bclass=["'][^"']*\bdg-route-boot\b/.test(attrs))
@@ -3318,6 +3349,7 @@ async function productEdge(request, url, env) {
   let html = await upstream.text();
   html = rewriteStaleSnapshotDates(rewriteCdnPin(stripGoldAccent(html)));
   html = stripLeftoverTemplate(html);
+  html = rewriteDeadConversionCtas(html);
   if (isHomePath(url.pathname))
     html = shieldHomeFirstPaint(html);
   if (isHirePath(url.pathname) || wiz)
@@ -3632,6 +3664,7 @@ export {
   journalRowMeta,
   leftoverRedirect,
   leftoverRedirectPath,
+  rewriteDeadConversionCtas,
   memoHtml,
   namedBriefHref,
   normalizeBountiesFeed,

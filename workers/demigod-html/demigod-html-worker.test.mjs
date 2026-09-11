@@ -15,7 +15,13 @@ import {
   motleyHomeIaHtml,
   NETWORK_HREF,
 } from "./demigod-home-ia.js";
-import workerModule, { demigodHomeHtml, injectBountiesBoard, rewriteCdnPin } from "./demigod-html-worker.js";
+import workerModule, {
+  demigodHomeHtml,
+  injectBountiesBoard,
+  leftoverRedirectPath,
+  rewriteCdnPin,
+  rewriteDeadConversionCtas,
+} from "./demigod-html-worker.js";
 
 const root = new URL("./", import.meta.url);
 const workerSrc = await readFile(new URL("./demigod-html-worker.js", root), "utf8");
@@ -177,5 +183,43 @@ describe("demigod-html fetch home-motley", () => {
     assert.equal(res.status, 200);
     assert.match(html, /Project Room/);
     assert.match(html, /project-room-staging\.getdasha\.workers\.dev/);
+  });
+});
+
+describe("leftover openings + pricing conversion CTAs", () => {
+  it('maps leftoverRedirectPath("/openings") to home', () => {
+    assert.equal(leftoverRedirectPath("/openings"), "/");
+    assert.equal(leftoverRedirectPath("/openings/"), "/");
+    assert.equal(leftoverRedirectPath("/jobs"), "/");
+  });
+
+  it("GET /openings leftover-redirects to /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/openings"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("rewrites dead pricing Get started / Contact / footer Pricing", () => {
+    const src = [
+      '<a href="/?wiz=startup" class="button on-inverse w-inline-block"><div class="button_label">Start a brief</div></a>',
+      '<div class="ix-link-wrapper flex_vertical"><a href="#" class="button is-secondary on-inverse w-inline-block"><div>Get started</div></a></div>',
+      '<a href="#" class="button is-small on-inverse w-button">Get started</a>',
+      '<a href="#" class="button w-button">Contact</a>',
+      '<a href="#" class="nav_dropdown-link w-inline-block"><div class="button_label">Contact support</div></a>',
+      '<a href="#" class="footer_link on-inverse w-inline-block"><div>Pricing</div></a>',
+      '<a href="#" class="nav_link on-inverse w-inline-block"><div>About</div></a>',
+      '<a href="#" class="footer_link on-inverse w-inline-block"><div>Blog</div></a>',
+    ].join("");
+    const html = rewriteDeadConversionCtas(src);
+    assert.doesNotMatch(html, /<a\b[^>]*href=["']#["'][^>]*>[\s\S]*?Get started[\s\S]*?<\/a>/i);
+    assert.match(html, /href="\/\?wiz=startup" class="button is-secondary on-inverse w-inline-block"><div>Get started<\/div>/);
+    assert.match(html, /href="\/\?wiz=startup" class="button is-small on-inverse w-button">Get started/);
+    assert.match(html, /href="\/contact" class="button w-button">Contact</);
+    assert.match(html, /href="\/contact" class="nav_dropdown-link[\s\S]*button_label">Contact support/);
+    assert.match(html, /href="\/pricing" class="footer_link[\s\S]*<div>Pricing<\/div>/);
+    assert.match(html, /href="#" class="nav_link on-inverse w-inline-block"><div>About<\/div>/);
+    assert.match(html, /href="#" class="footer_link on-inverse w-inline-block"><div>Blog<\/div>/);
+    assert.match(html, /href="\/\?wiz=startup" class="button on-inverse w-inline-block"><div class="button_label">Start a brief<\/div>/);
   });
 });
