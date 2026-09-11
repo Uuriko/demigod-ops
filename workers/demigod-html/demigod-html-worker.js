@@ -18,7 +18,7 @@ var __defProp22 = Object.defineProperty;
 var __name22 = /* @__PURE__ */ __name2((target, value) => __defProp22(target, "name", { value, configurable: true }), "__name");
 var __defProp222 = Object.defineProperty;
 var __name222 = /* @__PURE__ */ __name22((target, value) => __defProp222(target, "name", { value, configurable: true }), "__name");
-var HOME_DESCRIPTION = "You\u2019re not filling a seat. You\u2019re deciding who\u2019s in the boat. A person picks better candidates, then knocks once.";
+var HOME_DESCRIPTION = "You\u2019re deciding who\u2019s in the boat. A person picks, then knocks once.";
 var OG_IMAGE = "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@a1a851ac48e9/art/frege-hero.jpg";
 function demigodHomeHtml(map) {
   return applyMotleyHomeIa(demigodHomeHtmlRaw(map));
@@ -55,7 +55,7 @@ function demigodHomeHtmlRaw(map) {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=IM+Fell+English&family=Hanken+Grotesk:wght@300;400;500&family=JetBrains+Mono:wght@400&family=Sorts+Mill+Goudy&display=swap">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230B120F'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='Georgia,serif' font-size='16' fill='%23D3A093'%3ED%3C/text%3E%3C/svg%3E">
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://www.trydemigod.com/#org","name":"Demigod","url":"https://www.trydemigod.com/","email":"potter@trydemigod.com","areaServed":{"@type":"AdministrativeArea","name":"San Francisco Bay Area"}},{"@type":"Service","@id":"https://www.trydemigod.com/#desk","name":"Demigod","url":"https://www.trydemigod.com/","email":"potter@trydemigod.com","areaServed":{"@type":"AdministrativeArea","name":"San Francisco Bay Area"},"description":"SF Bay Area recruiting desk. A person picks better candidates. Names move after mutual yes. 10% of first-year base after a verified start. Stripe-hosted invoice to the hiring company. Talent pays nothing.","image":"https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@a1a851ac48e9/art/frege-hero.jpg","priceRange":"10% of first-year base after a verified start","provider":{"@id":"https://www.trydemigod.com/#org"}},{"@type":"WebSite","name":"Demigod","url":"https://www.trydemigod.com/","publisher":{"@id":"https://www.trydemigod.com/#org"}},{"@type":"HowTo","name":"How it goes","description":"Every crew starts with two people who recognized each other.","step":[{"@type":"HowToStep","position":1,"name":"You say it once","text":"One brief, one profile \u2014 the role, the constraints, the comp, the actual work."},{"@type":"HowToStep","position":2,"name":"A person chooses","text":"A human reads every profile it surfaces and decides what's worth proposing to you."},{"@type":"HowToStep","position":3,"name":"You meet","text":"Names change hands only after both sides have already said yes. Nothing moves until you do."}]}]}<\/script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://www.trydemigod.com/#org","name":"Demigod","url":"https://www.trydemigod.com/","email":"potter@trydemigod.com","areaServed":{"@type":"AdministrativeArea","name":"San Francisco Bay Area"}},{"@type":"Service","@id":"https://www.trydemigod.com/#desk","name":"Demigod","url":"https://www.trydemigod.com/","email":"potter@trydemigod.com","areaServed":{"@type":"AdministrativeArea","name":"San Francisco Bay Area"},"description":"SF Bay Area recruiting desk. A person picks better candidates. Names move after mutual yes. 10% of first-year base after a verified start. Stripe-hosted invoice to the hiring company. Talent pays nothing.","image":"https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@a1a851ac48e9/art/frege-hero.jpg","priceRange":"10% of first-year base after a verified start","provider":{"@id":"https://www.trydemigod.com/#org"}},{"@type":"WebSite","name":"Demigod","url":"https://www.trydemigod.com/","publisher":{"@id":"https://www.trydemigod.com/#org"}},{"@type":"HowTo","name":"How it goes","description":"Every crew starts with two people who recognized each other.","step":[{"@type":"HowToStep","position":1,"name":"Say it once","text":"One brief. The actual work."},{"@type":"HowToStep","position":2,"name":"A person chooses","text":"A person reads. Only names they chose."},{"@type":"HowToStep","position":3,"name":"Meet","text":"Mutual yes. Nothing moves until you do."}]}]}<\/script>
 <style>
 :root{
   --ink:#0B120F;
@@ -99,7 +99,7 @@ a:hover{color:#E4DED2}
 .eyebrow{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.2em;color:#D3A093;text-transform:uppercase}
 h1{margin:0;font-family:'Instrument Serif',Georgia,serif;font-size:76px;font-weight:400;line-height:1.02;letter-spacing:-.02em;color:#E4DED2;max-width:800px;text-wrap:balance}
 .hero-split{display:flex;gap:44px;align-items:flex-start;padding-top:4px}
-.lede{flex:1.4;margin:0;max-width:500px;font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:16px;line-height:1.8;color:rgba(228,222,210,.68);text-wrap:pretty}
+.lede{flex:1.4;margin:0;max-width:380px;font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:15px;line-height:1.55;color:rgba(228,222,210,.68);text-wrap:pretty}
 .tonight{flex:1;display:flex;flex-direction:column;gap:12px;border-left:1px solid rgba(228,222,210,.16);padding-left:26px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;line-height:1.7;color:rgba(228,222,210,.5)}
 .tonight-label{letter-spacing:.16em;color:rgba(228,222,210,.35);text-transform:uppercase}
 .tonight-live{display:flex;align-items:center;gap:8px;color:#D3A093}
@@ -133,11 +133,11 @@ h1{margin:0;font-family:'Instrument Serif',Georgia,serif;font-size:76px;font-wei
 .dir{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:rgba(228,222,210,.5)}
 .dir:hover{color:#E4DED2}
 .mast>a:not(.word){color:inherit}
-.process .wrap{padding:96px 48px}
+.process .wrap{padding:72px 48px}
 .process-head{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(35,33,29,.18);padding-bottom:14px;margin-bottom:56px}
 .process-word{font-family:'IM Fell English',Georgia,serif;font-size:24px;color:#23211D}
 .process-kicker{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.18em;color:#8a8378;text-transform:uppercase}
-.process-h{font-family:'Instrument Serif',Georgia,serif;font-size:52px;line-height:1.06;letter-spacing:-.015em;color:#23211D;max-width:620px;text-wrap:balance;margin:0 0 56px}
+.process-h{font-family:'Instrument Serif',Georgia,serif;font-size:52px;line-height:1.06;letter-spacing:-.015em;color:#23211D;max-width:620px;text-wrap:balance;margin:0 0 36px}
 .process-cols{display:flex;gap:0}
 .step{flex:1;display:flex;flex-direction:column;gap:10px}
 .step-1{padding-right:34px}
@@ -155,7 +155,6 @@ h1{margin:0;font-family:'Instrument Serif',Georgia,serif;font-size:76px;font-wei
 .cell-k{font-size:9px;letter-spacing:.16em;color:rgba(228,222,210,.42);text-transform:uppercase}
 .cell-v{font-size:13px;color:#E4DED2}
 .cell-human{color:#D3A093}
-.check-body{font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:15px;line-height:1.8;color:rgba(228,222,210,.6);max-width:520px;padding-top:22px;text-wrap:pretty}
 .who-cols{display:flex;gap:0}
 .who-col{flex:1;display:flex;flex-direction:column;gap:10px}
 .who-col-a{padding-right:40px}
@@ -216,7 +215,7 @@ h1{margin:0;font-family:'Instrument Serif',Georgia,serif;font-size:76px;font-wei
       <div class="eyebrow">CHAPTER ONE</div>
       <h1>A motley crew is assembled quietly.</h1>
       <div class="hero-split">
-        <p class="lede">You're not filling a seat. You're deciding who's in the boat. The first five people decide what the company becomes \u2014 so we don't send names into the world automatically. A person picks better candidates, then knocks once.</p>
+        <p class="lede">You're deciding who's in the boat. A person picks, then knocks once.</p>
         <aside class="tonight" aria-label="Tonight">
           <span class="tonight-label">TONIGHT</span>
           <span class="tonight-live"><span class="dot"></span>A person reads every brief.</span>
@@ -246,18 +245,18 @@ h1{margin:0;font-family:'Instrument Serif',Georgia,serif;font-size:76px;font-wei
     <div class="process-cols">
       <div class="step step-1">
         <span class="step-n">01</span>
-        <span class="step-t">You say it once</span>
-        <span class="step-b">One brief, one profile \u2014 the role, the constraints, the comp, the actual work.</span>
+        <span class="step-t">Say it once</span>
+        <span class="step-b">One brief. The actual work.</span>
       </div>
       <div class="step step-2">
         <span class="step-n">02</span>
         <span class="step-t">A person chooses</span>
-        <span class="step-b">Better candidates. A person reads what surfaces and only proposes names they chose.</span>
+        <span class="step-b">A person reads. Only names they chose.</span>
       </div>
       <div class="step step-3">
         <span class="step-n">03</span>
-        <span class="step-t">You meet</span>
-        <span class="step-b">Names change hands only after both sides have already said yes. Nothing moves until you do.</span>
+        <span class="step-t">Meet</span>
+        <span class="step-b">Mutual yes. Nothing moves until you do.</span>
       </div>
     </div>
   </div>
@@ -288,7 +287,6 @@ h1{margin:0;font-family:'Instrument Serif',Georgia,serif;font-size:76px;font-wei
         <span class="cell-v cell-human">a person</span>
       </div>
     </div>
-    <div class="check-body">A person decides what to propose. There is no fit rank. You only hear about it when both sides have already said yes.</div>
   </div>
 </section>
 
@@ -297,11 +295,11 @@ h1{margin:0;font-family:'Instrument Serif',Georgia,serif;font-size:76px;font-wei
   <div class="wrap">
     <div class="price-copy">
       <span class="price-kicker">BETTER CANDIDATES</span>
-      <span class="price-h">A person picks better candidates. You only meet the ones that hold.</span>
+      <span class="price-h">You only meet the ones that hold.</span>
       <span class="price-b">10% of first-year base after a verified start. Stripe-hosted invoice to the hiring company. Talent pays nothing.</span>
     </div>
     <div class="quote">
-      <span class="quote-t">We didn't want a pipeline. We wanted the two people who'd still be here in three years.</span>
+      <span class="quote-t">The two who'd still be here in three years.</span>
       <span class="quote-a">FOUNDER, SEED-STAGE \xB7 SF</span>
     </div>
   </div>
@@ -590,9 +588,9 @@ A person picks better candidates. Names move after mutual yes.
 
 Every crew starts with two people who recognized each other.
 
-1. You say it once. One brief, one profile \u2014 the role, the constraints, the comp, the actual work.
-2. A person chooses better candidates. Only names a person chose get proposed.
-3. You meet. Names change hands only after both sides have already said yes. Nothing moves until you do.
+1. Say it once. One brief. The actual work.
+2. A person reads. Only names they chose.
+3. Meet. Mutual yes. Nothing moves until you do.
 
 ## Fee
 
@@ -626,7 +624,7 @@ SF \xB7 Seed and Series A \xB7 First engineering seats.
 
 # A motley crew is assembled quietly.
 
-You are not filling a seat. You are deciding who is in the boat. A person picks better candidates, then knocks once.
+You are deciding who is in the boat. A person picks, then knocks once.
 
 Names move after mutual yes.
 
@@ -634,13 +632,13 @@ Names move after mutual yes.
 
 Every crew starts with two people who recognized each other.
 
-1. You say it once. One brief, one profile \u2014 the role, the constraints, the comp, the actual work.
-2. A person chooses better candidates. Only names a person chose get proposed.
-3. You meet. Names change hands only after both sides have already said yes. Nothing moves until you do.
+1. Say it once. One brief. The actual work.
+2. A person reads. Only names they chose.
+3. Meet. Mutual yes. Nothing moves until you do.
 
 ## What we look at
 
-Role, the actual work. Comp, the real range. Location, SF Bay. Reviewed by a person. There is no fit rank.
+Role, the actual work. Comp, the real range. Location, SF Bay. Reviewed by a person.
 
 ## Fee
 

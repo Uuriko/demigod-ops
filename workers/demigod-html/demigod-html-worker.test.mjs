@@ -183,6 +183,34 @@ describe("Motley home IA", () => {
     assert.equal((again.match(/id="hero-cta-card"/g) || []).length, 1);
   });
 
+  it("cuts lede/how/for-whom essays to punch lines", () => {
+    const html = home();
+    assert.match(html, /class="lede">You're deciding who's in the boat\. A person picks, then knocks once\./);
+    assert.match(html, /step-t">Say it once</);
+    assert.match(html, /step-b">One brief\. The actual work\./);
+    assert.match(html, /step-b">Mutual yes\. Nothing moves until you do\./);
+    assert.match(html, /walk-t">Brief</);
+    assert.match(html, /walk-t">Read</);
+    assert.match(html, /walk-t">Yes</);
+    assert.match(html, /walk-t">Meet</);
+    assert.match(html, /triad-b">One role\. A person reads it\./);
+    assert.match(html, /method-b">Both sides\. That role\./);
+    assert.match(html, /faq-a">After mutual yes\. Per match, not a list\./);
+    const lede = (html.match(/<p class="lede">([\s\S]*?)<\/p>/) || [])[1] || "";
+    const ledeWords = lede.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length;
+    assert.ok(ledeWords <= 14, `lede should be punchy, got ${ledeWords} words`);
+    assert.doesNotMatch(html, /You're not filling a seat/);
+    assert.doesNotMatch(html, /first five people decide what the company becomes/);
+    assert.doesNotMatch(html, /send names into the world automatically/);
+    assert.doesNotMatch(html, /There is no fit rank/);
+    assert.doesNotMatch(html, /We didn't want a pipeline/);
+    assert.doesNotMatch(html, /both sides have already said yes/i);
+    assert.doesNotMatch(html, /class="check-body"/);
+    assert.doesNotMatch(html, /Learn more/);
+    assert.doesNotMatch(html, /triad-more/);
+    assert.doesNotMatch(html, /#482bd9/i);
+  });
+
   it("footer uses existing URLs only", () => {
     const foot = iaFooterHtml();
     assert.match(foot, /href="\/"/);
