@@ -416,6 +416,117 @@ describe("leftover openings + pricing conversion CTAs", () => {
     assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
   });
 
+  it('maps leftoverRedirectPath("/founder") to hire-home /', () => {
+    assert.equal(leftoverRedirectPath("/founder"), "/");
+    assert.equal(leftoverRedirectPath("/founder/"), "/");
+    assert.equal(leftoverRedirectPath("/Founder"), "/");
+    assert.equal(leftoverRedirectPath("/founders"), "/");
+    assert.equal(leftoverRedirectPath("/compute"), "");
+    assert.equal(leftoverRedirectPath("/directory"), "");
+  });
+
+  it("GET /founder leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/founder"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /founder/ leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/founder/"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("HEAD /founder leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/founder", { method: "HEAD" }), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /Founder leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/Founder"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it('maps leftoverRedirectPath("/intro") to hire-home /', () => {
+    assert.equal(leftoverRedirectPath("/intro"), "/");
+    assert.equal(leftoverRedirectPath("/intro/"), "/");
+    assert.equal(leftoverRedirectPath("/Intro"), "/");
+    assert.equal(leftoverRedirectPath("/intros"), "/");
+    assert.equal(leftoverRedirectPath("/match"), "/");
+    assert.equal(leftoverRedirectPath("/compute"), "");
+  });
+
+  it("GET /intro leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/intro"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /intro/ leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/intro/"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("HEAD /intro leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/intro", { method: "HEAD" }), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /Intro leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/Intro"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it('maps leftoverRedirectPath("/signup") to /app/login', () => {
+    assert.equal(leftoverRedirectPath("/signup"), "/app/login");
+    assert.equal(leftoverRedirectPath("/signup/"), "/app/login");
+    assert.equal(leftoverRedirectPath("/Signup"), "/app/login");
+    assert.equal(leftoverRedirectPath("/login"), "/app/login");
+    assert.equal(leftoverRedirectPath("/compute"), "");
+    assert.equal(leftoverRedirectPath("/directory"), "");
+  });
+
+  it("GET /signup leftover-redirects to /app/login", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/signup"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/app/login");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /signup/ leftover-redirects to /app/login", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/signup/"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/app/login");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("HEAD /signup leftover-redirects to /app/login", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/signup", { method: "HEAD" }), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/app/login");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /Signup leftover-redirects to /app/login", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/Signup"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/app/login");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
   it('maps leftoverRedirectPath("/hire-me") to hire-home /', () => {
     assert.equal(leftoverRedirectPath("/hire-me"), "/");
     assert.equal(leftoverRedirectPath("/hire-me/"), "/");
