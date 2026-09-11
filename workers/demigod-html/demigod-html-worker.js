@@ -19,7 +19,7 @@ var __name22 = /* @__PURE__ */ __name2((target, value) => __defProp22(target, "n
 var __defProp222 = Object.defineProperty;
 var __name222 = /* @__PURE__ */ __name22((target, value) => __defProp222(target, "name", { value, configurable: true }), "__name");
 var HOME_DESCRIPTION = "You\u2019re not filling a seat. You\u2019re deciding who\u2019s in the boat. A person picks better candidates, then knocks once.";
-var OG_IMAGE = "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg";
+var OG_IMAGE = "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@a1a851ac48e9/art/frege-hero.jpg";
 function demigodHomeHtml(map) {
   return applyMotleyHomeIa(demigodHomeHtmlRaw(map));
 }
@@ -55,7 +55,7 @@ function demigodHomeHtmlRaw(map) {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=IM+Fell+English&family=Hanken+Grotesk:wght@300;400;500&family=JetBrains+Mono:wght@400&family=Sorts+Mill+Goudy&display=swap">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230B120F'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='Georgia,serif' font-size='16' fill='%23D3A093'%3ED%3C/text%3E%3C/svg%3E">
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://www.trydemigod.com/#org","name":"Demigod","url":"https://www.trydemigod.com/","email":"potter@trydemigod.com","areaServed":{"@type":"AdministrativeArea","name":"San Francisco Bay Area"}},{"@type":"Service","@id":"https://www.trydemigod.com/#desk","name":"Demigod","url":"https://www.trydemigod.com/","email":"potter@trydemigod.com","areaServed":{"@type":"AdministrativeArea","name":"San Francisco Bay Area"},"description":"SF Bay Area recruiting desk. A person picks better candidates. Names move after mutual yes. 10% of first-year base after a verified start. Stripe-hosted invoice to the hiring company. Talent pays nothing.","image":"https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg","priceRange":"10% of first-year base after a verified start","provider":{"@id":"https://www.trydemigod.com/#org"}},{"@type":"WebSite","name":"Demigod","url":"https://www.trydemigod.com/","publisher":{"@id":"https://www.trydemigod.com/#org"}},{"@type":"HowTo","name":"How it goes","description":"Every crew starts with two people who recognized each other.","step":[{"@type":"HowToStep","position":1,"name":"You say it once","text":"One brief, one profile \u2014 the role, the constraints, the comp, the actual work."},{"@type":"HowToStep","position":2,"name":"A person chooses","text":"A human reads every profile it surfaces and decides what's worth proposing to you."},{"@type":"HowToStep","position":3,"name":"You meet","text":"Names change hands only after both sides have already said yes. Nothing moves until you do."}]}]}<\/script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://www.trydemigod.com/#org","name":"Demigod","url":"https://www.trydemigod.com/","email":"potter@trydemigod.com","areaServed":{"@type":"AdministrativeArea","name":"San Francisco Bay Area"}},{"@type":"Service","@id":"https://www.trydemigod.com/#desk","name":"Demigod","url":"https://www.trydemigod.com/","email":"potter@trydemigod.com","areaServed":{"@type":"AdministrativeArea","name":"San Francisco Bay Area"},"description":"SF Bay Area recruiting desk. A person picks better candidates. Names move after mutual yes. 10% of first-year base after a verified start. Stripe-hosted invoice to the hiring company. Talent pays nothing.","image":"https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@a1a851ac48e9/art/frege-hero.jpg","priceRange":"10% of first-year base after a verified start","provider":{"@id":"https://www.trydemigod.com/#org"}},{"@type":"WebSite","name":"Demigod","url":"https://www.trydemigod.com/","publisher":{"@id":"https://www.trydemigod.com/#org"}},{"@type":"HowTo","name":"How it goes","description":"Every crew starts with two people who recognized each other.","step":[{"@type":"HowToStep","position":1,"name":"You say it once","text":"One brief, one profile \u2014 the role, the constraints, the comp, the actual work."},{"@type":"HowToStep","position":2,"name":"A person chooses","text":"A human reads every profile it surfaces and decides what's worth proposing to you."},{"@type":"HowToStep","position":3,"name":"You meet","text":"Names change hands only after both sides have already said yes. Nothing moves until you do."}]}]}<\/script>
 <style>
 :root{
   --ink:#0B120F;
@@ -343,13 +343,13 @@ function demigodContactHtml() {
 <meta property="og:title" content="Contact \xB7 Demigod">
 <meta property="og:description" content="Write potter@trydemigod.com. Or start a brief.">
 <meta property="og:url" content="https://www.trydemigod.com/contact">
-<meta property="og:image" content="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@a1a851ac48e9/art/frege-hero.jpg">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="720">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Contact \xB7 Demigod">
 <meta name="twitter:description" content="Write potter@trydemigod.com. Or start a brief.">
-<meta name="twitter:image" content="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg">
+<meta name="twitter:image" content="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@a1a851ac48e9/art/frege-hero.jpg">
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"ContactPage","name":"Contact \xB7 Demigod","url":"https://www.trydemigod.com/contact","mainEntity":{"@id":"https://www.trydemigod.com/#org"}},{"@type":"Organization","@id":"https://www.trydemigod.com/#org","name":"Demigod","url":"https://www.trydemigod.com/","email":"potter@trydemigod.com"},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Demigod","item":"https://www.trydemigod.com/"},{"@type":"ListItem","position":2,"name":"Contact","item":"https://www.trydemigod.com/contact"}]}]}<\/script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

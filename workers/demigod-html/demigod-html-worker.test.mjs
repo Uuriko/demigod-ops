@@ -39,6 +39,8 @@ describe("demigod-html wrangler + integrity", () => {
     assert.doesNotMatch(workerSrc, /const briefHref = namedBriefHref/);
     assert.match(workerSrc, /Sign in with Grok Bot/);
     assert.match(workerSrc, /function rewriteCdnPin/);
+    assert.match(workerSrc, /demigod-site-cdn@a1a851ac48e9/);
+    assert.doesNotMatch(workerSrc, /b22473c0bd8f/);
     assert.match(workerSrc, /function roomEntry/);
     assert.match(workerSrc, /project-room-staging\.getdasha\.workers\.dev/);
     assert.match(workerSrc, /demigod-bounties-feed\/v1/);
