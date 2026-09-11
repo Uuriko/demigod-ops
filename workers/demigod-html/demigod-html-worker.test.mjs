@@ -235,6 +235,27 @@ describe("leftover openings + pricing conversion CTAs", () => {
     assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
   });
 
+  it('maps leftoverRedirectPath("/briefs") to hire-home /', () => {
+    assert.equal(leftoverRedirectPath("/briefs"), "/");
+    assert.equal(leftoverRedirectPath("/briefs/"), "/");
+    assert.equal(leftoverRedirectPath("/Briefs"), "/");
+    assert.equal(leftoverRedirectPath("/compute"), "");
+  });
+
+  it("GET /briefs leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/briefs"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /briefs/ leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/briefs/"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
   it("rewrites dead pricing Get started / Contact / footer Pricing", () => {
     const src = [
       '<a href="/?wiz=startup" class="button on-inverse w-inline-block"><div class="button_label">Start a brief</div></a>',
