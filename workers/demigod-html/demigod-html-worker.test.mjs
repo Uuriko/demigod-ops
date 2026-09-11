@@ -319,6 +319,54 @@ describe("leftover openings + pricing conversion CTAs", () => {
     assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
   });
 
+  const hireAtsLeftovers = [
+    "/recruiter",
+    "/hiring",
+    "/talent-pool",
+    "/ats",
+    "/greenhouse",
+    "/ashby",
+    "/lever",
+    "/intros",
+    "/match",
+    "/matching",
+    "/operators",
+    "/operator",
+  ];
+
+  for (const path of hireAtsLeftovers) {
+    const titled = path.replace(/[a-z]+/g, (part) => part[0].toUpperCase() + part.slice(1));
+    it(`maps leftoverRedirectPath("${path}") to hire-home /`, () => {
+      assert.equal(leftoverRedirectPath(path), "/");
+      assert.equal(leftoverRedirectPath(`${path}/`), "/");
+      assert.equal(leftoverRedirectPath(titled), "/");
+      assert.equal(leftoverRedirectPath("/compute"), "");
+    });
+
+    it(`GET ${path} leftover-redirects to hire-home /`, async () => {
+      const res = await workerModule.fetch(new Request(`https://www.trydemigod.com${path}`), {});
+      assert.equal(res.status, 308);
+      assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+      assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+    });
+  }
+
+  it("GET /hiring/ leftover-redirects to hire-home /", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/hiring/"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("does not invent parked product leftover aliases", () => {
+    assert.equal(leftoverRedirectPath("/compute"), "");
+    assert.equal(leftoverRedirectPath("/studio"), "");
+    assert.equal(leftoverRedirectPath("/verse"), "");
+    assert.equal(leftoverRedirectPath("/learn"), "");
+    assert.equal(leftoverRedirectPath("/graph"), "");
+    assert.equal(leftoverRedirectPath("/dasha"), "");
+  });
+
   it("rewrites dead pricing Get started / Contact / footer Pricing", () => {
     const src = [
       '<a href="/?wiz=startup" class="button on-inverse w-inline-block"><div class="button_label">Start a brief</div></a>',
