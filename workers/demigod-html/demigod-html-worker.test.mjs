@@ -23,6 +23,7 @@ import workerModule, {
   leftoverRedirectPath,
   rewriteCdnPin,
   rewriteDeadConversionCtas,
+  roomDiscoveryDoc,
 } from "./demigod-html-worker.js";
 
 const root = new URL("./", import.meta.url);
@@ -50,6 +51,9 @@ describe("demigod-html wrangler + integrity", () => {
     assert.match(workerSrc, /demigod-site-cdn@a1a851ac48e9/);
     assert.doesNotMatch(workerSrc, /b22473c0bd8f/);
     assert.match(workerSrc, /function roomEntry/);
+    assert.match(workerSrc, /function roomDiscoveryDoc/);
+    assert.match(workerSrc, /\/room\/llms\.txt/);
+    assert.match(workerSrc, /\/room\/\.well-known\/agent\.json/);
     assert.match(workerSrc, /project-room-staging\.getdasha\.workers\.dev/);
     assert.match(workerSrc, /Agents sit as Members/);
     assert.match(workerSrc, /getdasha\.com\/compute/);
@@ -616,6 +620,7 @@ describe("leftover openings + pricing conversion CTAs", () => {
     assert.equal(leftoverRedirectPath("/graph"), "");
     assert.equal(leftoverRedirectPath("/dasha"), "");
     assert.equal(leftoverRedirectPath("/directory"), "");
+    assert.equal(leftoverRedirectPath("/wiz"), "");
   });
 
   it("rewrites dead pricing Get started / Contact / footer Pricing", () => {
@@ -639,5 +644,100 @@ describe("leftover openings + pricing conversion CTAs", () => {
     assert.match(html, /href="#" class="nav_link on-inverse w-inline-block"><div>About<\/div>/);
     assert.match(html, /href="#" class="footer_link on-inverse w-inline-block"><div>Blog<\/div>/);
     assert.match(html, /href="\/\?wiz=startup" class="button on-inverse w-inline-block"><div class="button_label">Start a brief<\/div>/);
+  });
+});
+
+describe("Room agent discovery /room/llms.txt + /room/.well-known/agent.json", () => {
+  it("maps roomDiscoveryDoc to the two discovery paths only", () => {
+    const llms = roomDiscoveryDoc("/room/llms.txt");
+    const llmsSlash = roomDiscoveryDoc("/room/llms.txt/");
+    const card = roomDiscoveryDoc("/room/.well-known/agent.json");
+    const cardSlash = roomDiscoveryDoc("/room/.well-known/agent.json/");
+    assert.equal(llms?.type, "text/plain; charset=utf-8");
+    assert.equal(llmsSlash?.body, llms?.body);
+    assert.equal(card?.type, "application/json; charset=utf-8");
+    assert.equal(cardSlash?.body, card?.body);
+    assert.equal(roomDiscoveryDoc("/room"), null);
+    assert.equal(roomDiscoveryDoc("/room/"), null);
+    assert.equal(roomDiscoveryDoc("/llms.txt"), null);
+    assert.equal(roomDiscoveryDoc("/room/llms-full.txt"), null);
+    assert.equal(roomDiscoveryDoc("/.well-known/agent.json"), null);
+    assert.equal(leftoverRedirectPath("/room/llms.txt"), "");
+    assert.equal(leftoverRedirectPath("/directory"), "");
+    assert.equal(leftoverRedirectPath("/compute"), "");
+    assert.equal(leftoverRedirectPath("/wiz"), "");
+  });
+
+  it("GET /room/llms.txt returns 200 text/plain Room discovery", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/room/llms.txt"), {});
+    const body = await res.text();
+    assert.equal(res.status, 200);
+    assert.match(String(res.headers.get("content-type") || ""), /^text\/plain/);
+    assert.equal(res.headers.get("x-demigod-edge"), "room-discovery");
+    assert.match(body, /^# Project Room/);
+    assert.match(body, /door https:\/\/www\.trydemigod\.com\/room/);
+    assert.match(body, /Agents are Members/);
+    assert.match(body, /www\.getdasha\.com\/\.well-known\/agent\.json/);
+    assert.doesNotMatch(body, /Dasha Compute/);
+    assert.doesNotMatch(body, /<!doctype html>/i);
+  });
+
+  it("GET /room/llms.txt/ returns the same 200 text/plain", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/room/llms.txt/"), {});
+    const body = await res.text();
+    assert.equal(res.status, 200);
+    assert.match(String(res.headers.get("content-type") || ""), /^text\/plain/);
+    assert.equal(res.headers.get("x-demigod-edge"), "room-discovery");
+    assert.match(body, /^# Project Room/);
+  });
+
+  it("HEAD /room/llms.txt returns 200 text/plain with empty body", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/room/llms.txt", { method: "HEAD" }), {});
+    const body = await res.text();
+    assert.equal(res.status, 200);
+    assert.match(String(res.headers.get("content-type") || ""), /^text\/plain/);
+    assert.equal(res.headers.get("x-demigod-edge"), "room-discovery");
+    assert.equal(body, "");
+  });
+
+  it("GET /room/.well-known/agent.json returns 200 application/json Room card", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/room/.well-known/agent.json"), {});
+    const body = await res.text();
+    const card = JSON.parse(body);
+    assert.equal(res.status, 200);
+    assert.match(String(res.headers.get("content-type") || ""), /^application\/json/);
+    assert.equal(res.headers.get("x-demigod-edge"), "room-discovery");
+    assert.equal(card.name, "Project Room");
+    assert.equal(card.door, "https://www.trydemigod.com/room");
+    assert.equal(card.protocol, "project-room-discovery");
+    assert.equal(card.product?.not, "run factory");
+    assert.equal(card.public_doors?.demigod, "https://www.trydemigod.com/room");
+    assert.notEqual(card.name, "Dasha Compute");
+    assert.doesNotMatch(body, /<!doctype html>/i);
+  });
+
+  it("HEAD /room/.well-known/agent.json returns 200 application/json with empty body", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/room/.well-known/agent.json", { method: "HEAD" }), {});
+    const body = await res.text();
+    assert.equal(res.status, 200);
+    assert.match(String(res.headers.get("content-type") || ""), /^application\/json/);
+    assert.equal(res.headers.get("x-demigod-edge"), "room-discovery");
+    assert.equal(body, "");
+  });
+
+  it("keeps the /room HTML door and parked synonym 404s", async () => {
+    const room = await workerModule.fetch(new Request("https://www.trydemigod.com/room"), {});
+    const roomHtml = await room.text();
+    assert.equal(room.status, 200);
+    assert.match(roomHtml, /Project Room/);
+    assert.match(roomHtml, /Agents sit as Members/);
+    assert.doesNotMatch(roomHtml, /^# Project Room/);
+
+    for (const path of ["/directory", "/compute", "/wiz"]) {
+      const res = await workerModule.fetch(new Request(`https://www.trydemigod.com${path}`), {});
+      assert.equal(res.status, 404, path);
+      assert.equal(res.headers.get("x-demigod-edge"), "not-found", path);
+      assert.equal(leftoverRedirectPath(path), "");
+    }
   });
 });

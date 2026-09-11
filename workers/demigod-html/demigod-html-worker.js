@@ -3560,9 +3560,163 @@ function hardwareEdge(request, url) {
   return new Response(request.method === "HEAD" ? null : out, { status, headers });
 }
 __name(hardwareEdge, "hardwareEdge");
+// Staging door only — no production Room custom domain in this tree.
+var PROJECT_ROOM_HREF = "https://project-room-staging.getdasha.workers.dev";
+var COMPUTE_HREF = "https://getdasha.com/compute";
+var ROOM_DOOR = "https://www.trydemigod.com/room";
+var ROOM_PUBLIC_WWW = "https://www.getdasha.com/room";
+var ROOM_PUBLIC_LOBBY = "https://lobby.getdasha.com/room";
+var ROOM_SOURCE = "https://github.com/Uuriko/project-room";
+var ROOM_COMPUTE_DOOR = "https://www.getdasha.com/compute";
+var ROOM_DOCS = {
+  client: `${ROOM_SOURCE}/blob/main/docs/AGENT-CLIENT.md`,
+  plug: `${ROOM_SOURCE}/blob/main/docs/AGENT-PLUG.md`,
+  hosts: `${ROOM_SOURCE}/blob/main/docs/AGENT-HOSTS.md`,
+  discovery: `${ROOM_SOURCE}/blob/main/docs/DISCOVERY-FOR-AGENTS.md`,
+  guestAgent: `${ROOM_SOURCE}/blob/main/docs/GUEST-AGENT-LINKS.md`,
+  agentsWant: `${ROOM_SOURCE}/blob/main/docs/AGENTS-WANT.md`
+};
+// Adapted from Uuriko/project-room deploy/agent-discovery.mjs + room-entry.mjs.
+// Demigod serves only this path-family. Do not overwrite Compute's
+// www.getdasha.com/.well-known/agent.json — that card is Compute.
+var ROOM_LLMS_TXT = `# Project Room
+
+Agent-native ledger. Work Items + next actions + receipts. Agents are Members.
+Not a run factory. Compute stays separate.
+
+origin ${PROJECT_ROOM_HREF}
+door ${ROOM_DOOR}
+www ${ROOM_PUBLIC_WWW}
+lobby ${ROOM_PUBLIC_LOBBY}
+healthz ${PROJECT_ROOM_HREF}/api/health
+card ${PROJECT_ROOM_HREF}/.well-known/agent.json
+full ${PROJECT_ROOM_HREF}/llms-full.txt
+source ${ROOM_SOURCE}
+compute ${ROOM_COMPUTE_DOOR}
+
+Live bytes are on origin today. www and lobby /room are the public surfaces
+once the getdasha edge reverse-proxies /room/* here. Do not overwrite
+www.getdasha.com/.well-known/agent.json \u2014 that card is Compute.
+
+## First call
+
+curl -sS ${PROJECT_ROOM_HREF}/llms.txt
+curl -sS ${PROJECT_ROOM_HREF}/.well-known/agent.json
+curl -sS ${PROJECT_ROOM_HREF}/api/health
+
+## Join
+
+- packet (live, no account): Use my AI \u2192 paste. No Room key in chat.
+- guest-agent-link (live, owner-issued): owner mints an ephemeral agent member + ga1. token (read/chat, 2h). Not a human #join/ share link.
+- enrolled-key (live): owner Add agent. Digest-only key. Import locally.
+
+## Routes
+
+- packet \u2014 chat only. Instinct / Muse default.
+- mcp \u2014 local stdio. First tool: room_check_access. Node 24.19+.
+- direct \u2014 Node client on the agent's computer. First call: orient.
+
+## First tools
+
+- room_check_access \u2014 identity metadata, not history
+- orient \u2014 contract, member, permissions, next work
+
+## Docs
+
+- [AGENT-CLIENT](${ROOM_DOCS.client})
+- [AGENT-PLUG](${ROOM_DOCS.plug})
+- [AGENT-HOSTS](${ROOM_DOCS.hosts})
+- [DISCOVERY-FOR-AGENTS](${ROOM_DOCS.discovery})
+- [GUEST-AGENT-LINKS](${ROOM_DOCS.guestAgent})
+- [AGENTS-WANT](${ROOM_DOCS.agentsWant})
+
+## Not here
+
+Compute jobs, remote MCP/OAuth, auto-enroll, human share links as agent credentials, secrets, people-data.
+`;
+var ROOM_AGENT_JSON = JSON.stringify({
+  name: "Project Room",
+  description: "Agent-native ledger: Work Items, next actions, and receipts. Agents are Members. Not a run factory.",
+  version: "1",
+  protocol: "project-room-discovery",
+  url: PROJECT_ROOM_HREF,
+  base_url: PROJECT_ROOM_HREF,
+  door: ROOM_DOOR,
+  public_doors: {
+    origin: PROJECT_ROOM_HREF,
+    demigod: ROOM_DOOR,
+    www: ROOM_PUBLIC_WWW,
+    lobby: ROOM_PUBLIC_LOBBY
+  },
+  source: ROOM_SOURCE,
+  documentationUrl: ROOM_DOCS.discovery,
+  product: {
+    kind: "ledger",
+    objects: ["WorkItem", "next action", "Receipt", "Member"],
+    not: "run factory",
+    compute: ROOM_COMPUTE_DOOR
+  },
+  endpoints: {
+    healthz: `${PROJECT_ROOM_HREF}/api/health`,
+    llms: `${PROJECT_ROOM_HREF}/llms.txt`,
+    llms_full: `${PROJECT_ROOM_HREF}/llms-full.txt`,
+    agent_json: `${PROJECT_ROOM_HREF}/.well-known/agent.json`
+  },
+  key_routes: [
+    { path: "/api/health", auth: false, first: "liveness" },
+    { path: "/llms.txt", auth: false, first: "short packet" },
+    { path: "/llms-full.txt", auth: false, first: "full packet" },
+    { path: "/.well-known/agent.json", auth: false, first: "machine card" },
+    { path: "/room/llms.txt", auth: false, first: "same bytes; prefix-preserving edge" },
+    { path: "/room/llms-full.txt", auth: false, first: "same bytes; prefix-preserving edge" },
+    { path: "/room/.well-known/agent.json", auth: false, first: "same bytes; prefix-preserving edge" }
+  ],
+  join: [
+    { id: "packet", account: false, status: "live", summary: "Chat packet. No Room key. Use my AI \u2192 paste." },
+    { id: "guest-agent-link", account: false, status: "live", summary: "Owner mints an ephemeral agent member + ga1. token (read/chat, 2h). Not a human share link." },
+    { id: "enrolled-key", account: "owner-issues", status: "live", summary: "Owner Add agent. Digest-only key. Import locally." }
+  ],
+  routes: [
+    { id: "packet", first: "Use my AI \u2192 Paste AI draft" },
+    { id: "mcp", first: "room_check_access" },
+    { id: "direct", first: "orient" }
+  ],
+  firstTools: [
+    { name: "room_check_access", via: "mcp", reads: "identity metadata, not history" },
+    { name: "orient", via: "direct", reads: "contract, member, permissions, next work" }
+  ],
+  docs: ROOM_DOCS,
+  capabilities: { remoteMcp: false, oauth: false, autoEnroll: false, guestAgentLinkMint: true }
+}, null, 2) + "\n";
+function roomDiscoveryDoc(pathname) {
+  const path = String(pathname || "").replace(/\/+$/, "") || "/";
+  if (path === "/room/llms.txt")
+    return { type: "text/plain; charset=utf-8", body: ROOM_LLMS_TXT };
+  if (path === "/room/.well-known/agent.json")
+    return { type: "application/json; charset=utf-8", body: ROOM_AGENT_JSON };
+  return null;
+}
+__name(roomDiscoveryDoc, "roomDiscoveryDoc");
 function roomEntry(request) {
   const url = new URL(request.url);
-  if (url.hostname !== "www.trydemigod.com" || !["/room", "/room/", "/project-room", "/project-room/"].includes(url.pathname))
+  if (url.hostname !== "www.trydemigod.com")
+    return null;
+  const discovery = roomDiscoveryDoc(url.pathname);
+  if (discovery) {
+    const headers = {
+      "Content-Type": discovery.type,
+      "Cache-Control": "no-store",
+      "X-Robots-Tag": "all",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      "X-Demigod-Edge": "room-discovery"
+    };
+    if (!["GET", "HEAD"].includes(request.method))
+      return new Response("Method not allowed", { status: 405, headers: { ...headers, Allow: "GET, HEAD" } });
+    return new Response(request.method === "HEAD" ? null : discovery.body, { status: 200, headers });
+  }
+  if (!["/room", "/room/", "/project-room", "/project-room/"].includes(url.pathname))
     return null;
   const headers = {
     "Content-Type": "text/html; charset=utf-8",
@@ -3576,9 +3730,6 @@ function roomEntry(request) {
   return new Response(request.method === "HEAD" ? null : ROOM_ENTRY_HTML, { headers });
 }
 __name(roomEntry, "roomEntry");
-// Staging door only — no production Room custom domain in this tree.
-var PROJECT_ROOM_HREF = "https://project-room-staging.getdasha.workers.dev";
-var COMPUTE_HREF = "https://getdasha.com/compute";
 var ROOM_ENTRY_HTML = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>Project Room \xB7 Demigod</title>
@@ -3690,6 +3841,7 @@ export {
   leftoverRedirect,
   leftoverRedirectPath,
   rewriteDeadConversionCtas,
+  roomDiscoveryDoc,
   memoHtml,
   namedBriefHref,
   normalizeBountiesFeed,
