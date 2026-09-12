@@ -1043,6 +1043,7 @@ var LEFTOVER_SHELLS = {
   "/project_room": "/room",
   "/skill.md": "/room/llms.txt",
   "/agents.md": "/room/llms.txt",
+  "/claude.md": "/room/llms.txt",
   "/mcp": "/room/.well-known/agent.json",
   "/api": "/room",
   "/docs": "/room",
