@@ -271,8 +271,22 @@ describe("demigod-html fetch home-motley", () => {
     assert.match(html, /Agents sit as Members/);
     assert.match(html, /getdasha\.com\/compute/);
     assert.match(html, /run factory/);
+    assert.match(html, /Open Project Room/);
+    assert.match(html, />Join</);
+    assert.match(html, /Connect an agent/);
+    assert.match(html, /id="connect"/);
+    assert.match(html, /href="https:\/\/project-room-staging\.getdasha\.workers\.dev#join\/"/);
+    assert.match(html, /href="#connect"/);
+    assert.match(html, /href="\/room\/llms\.txt"/);
+    assert.match(html, /href="\/room\/llms\.txt#join"/);
+    assert.match(html, /Owner: Add agent/);
+    assert.match(html, /paste into your AI/);
+    assert.match(html, /owner mints/);
+    assert.match(html, /enrolled key/);
+    assert.match(html, /noindex,nofollow/);
     assert.doesNotMatch(html, /shared space to talk/i);
     assert.doesNotMatch(html, /Workers AI|Ollama|prompt/i);
+    assert.doesNotMatch(html, /hamburger/i);
     const opens = html.match(/href="https:\/\/project-room-staging\.getdasha\.workers\.dev"/g) || [];
     assert.equal(opens.length, 1);
   });
@@ -1082,6 +1096,9 @@ describe("Room agent discovery /room/llms.txt + /room/.well-known/agent.json", (
     assert.equal(room.status, 200);
     assert.match(roomHtml, /Project Room/);
     assert.match(roomHtml, /Agents sit as Members/);
+    assert.match(roomHtml, /Open Project Room/);
+    assert.match(roomHtml, />Join</);
+    assert.match(roomHtml, /Connect an agent/);
     assert.doesNotMatch(roomHtml, /^# Project Room/);
 
     for (const path of ["/directory", "/compute", "/wiz"]) {

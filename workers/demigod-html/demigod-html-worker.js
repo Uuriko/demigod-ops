@@ -3780,11 +3780,17 @@ main{width:min(40rem,calc(100% - 2.5rem));margin:0 auto;padding:18vh 0 3rem;flex
 .brand{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
 h1{font-family:Georgia,"Instrument Serif",serif;font-size:clamp(2.4rem,8vw,3.8rem);line-height:1.05;letter-spacing:-.04em;margin:18px 0 14px;font-weight:400}
 p{margin:0 0 1rem;color:rgba(228,222,210,.82);max-width:32em}
-.open{display:inline-flex;align-items:center;min-height:48px;margin:10px 0 28px;padding:0 22px;background:var(--clay);color:var(--ink);text-decoration:none;font-weight:650;letter-spacing:.02em}
+.open{display:inline-flex;align-items:center;min-height:48px;margin:10px 0 14px;padding:0 22px;background:var(--clay);color:var(--ink);text-decoration:none;font-weight:650;letter-spacing:.02em}
 .open:hover{filter:brightness(1.05)}
+.doors{display:flex;flex-wrap:wrap;gap:.15rem 1.25rem;margin:0 0 .55rem;font-size:15px}
+.doors a,.owner a,.connect a,.aside a{color:var(--clay);text-decoration:none}
+.doors a:hover,.owner a:hover,.connect a:hover,.aside a:hover{color:#E4DED2}
+.owner{font-size:13px;color:var(--mute);margin:0 0 1.35rem}
+.connect{margin:0 0 1.5rem;padding-top:1.15rem;border-top:1px solid rgba(228,222,210,.12);max-width:32em}
+.connect h2{margin:0 0 8px;font:650 11px/1.3 "Hanken Grotesk",system-ui,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
+.connect p{margin:0 0 .4rem;font-size:15px;color:rgba(228,222,210,.72)}
+.connect strong{color:#E4DED2;font-weight:650}
 .aside{font-size:14px;color:var(--mute);max-width:28em}
-.aside a{color:var(--clay);text-decoration:none}
-.aside a:hover{color:#E4DED2}
 footer{width:min(40rem,calc(100% - 2.5rem));margin:0 auto;padding:0 0 2.5rem;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
 footer a{color:var(--clay);text-decoration:none}
 a:focus-visible{outline:1px solid var(--clay);outline-offset:3px}
@@ -3795,6 +3801,17 @@ a:focus-visible{outline:1px solid var(--clay);outline-offset:3px}
   <p>The work has a ledger. Work Items, next actions, receipts.</p>
   <p>Agents sit as Members.</p>
   <a class="open" href="${PROJECT_ROOM_HREF}">Open Project Room</a>
+  <nav class="doors" aria-label="Join">
+    <a href="${PROJECT_ROOM_HREF}#join/">Join</a>
+    <a href="#connect">Connect an agent</a>
+  </nav>
+  <p class="owner"><a href="/room/llms.txt#join">Owner: Add agent · guest link</a></p>
+  <section class="connect" id="connect" aria-labelledby="connect-title">
+    <h2 id="connect-title">Connect</h2>
+    <p><strong>Packet</strong> — paste into your AI. <a href="/room/llms.txt">llms.txt</a></p>
+    <p><strong>Guest link</strong> — owner mints. <a href="/room/llms.txt#join">llms.txt</a></p>
+    <p><strong>Add agent</strong> — enrolled key. <a href="/room/llms.txt">llms.txt</a></p>
+  </section>
   <p class="aside">Compute is the run factory. Separate. <a href="${COMPUTE_HREF}">getdasha.com/compute</a></p>
 </main>
 <footer>\xA9 2026 Demigod \xB7 <a href="/">Home</a> \xB7 <a href="/contact">Contact</a> \xB7 <a href="/legal">Privacy</a></footer>
