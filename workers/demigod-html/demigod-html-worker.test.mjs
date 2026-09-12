@@ -619,6 +619,9 @@ describe("leftover openings + pricing conversion CTAs", () => {
     ["/skill.md", "/room/llms.txt"],
     ["/agents.md", "/room/llms.txt"],
     ["/claude.md", "/room/llms.txt"],
+    ["/room/skill.md", "/room/llms.txt"],
+    ["/room/agents.md", "/room/llms.txt"],
+    ["/room/claude.md", "/room/llms.txt"],
     ["/mcp", "/room/.well-known/agent.json"],
     ["/api", "/room"],
     ["/docs", "/room"],
@@ -687,6 +690,27 @@ describe("leftover openings + pricing conversion CTAs", () => {
 
   it("GET /Claude.Md leftover-redirects to /room/llms.txt", async () => {
     const res = await workerModule.fetch(new Request("https://www.trydemigod.com/Claude.Md"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/room/llms.txt");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /room/AGENTS.md leftover-redirects to /room/llms.txt", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/room/AGENTS.md"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/room/llms.txt");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /room/CLAUDE.md leftover-redirects to /room/llms.txt", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/room/CLAUDE.md"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/room/llms.txt");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /room/Skill.Md leftover-redirects to /room/llms.txt", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/room/Skill.Md"), {});
     assert.equal(res.status, 308);
     assert.equal(res.headers.get("location"), "https://www.trydemigod.com/room/llms.txt");
     assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
@@ -939,6 +963,10 @@ describe("leftover openings + pricing conversion CTAs", () => {
     assert.equal(leftoverRedirectPath("/factory"), "");
     assert.equal(leftoverRedirectPath("/jd"), "");
     assert.equal(leftoverRedirectPath("/auth/grok/start"), "");
+    assert.equal(leftoverRedirectPath("/create-key"), "");
+    assert.equal(leftoverRedirectPath("/guest"), "");
+    assert.equal(leftoverRedirectPath("/room/create-key"), "");
+    assert.equal(leftoverRedirectPath("/room/guest"), "");
   });
 
   it("rewrites dead pricing Get started / Contact / footer Pricing", () => {
@@ -980,7 +1008,12 @@ describe("Room agent discovery /room/llms.txt + /room/.well-known/agent.json", (
     assert.equal(roomDiscoveryDoc("/llms.txt"), null);
     assert.equal(roomDiscoveryDoc("/room/llms-full.txt"), null);
     assert.equal(roomDiscoveryDoc("/.well-known/agent.json"), null);
+    assert.equal(roomDiscoveryDoc("/room/skill.md"), null);
+    assert.equal(roomDiscoveryDoc("/room/agents.md"), null);
+    assert.equal(roomDiscoveryDoc("/room/claude.md"), null);
     assert.equal(leftoverRedirectPath("/room/llms.txt"), "");
+    assert.equal(leftoverRedirectPath("/room/skill.md"), "/room/llms.txt");
+    assert.equal(leftoverRedirectPath("/room/agents.md"), "/room/llms.txt");
     assert.equal(leftoverRedirectPath("/directory"), "");
     assert.equal(leftoverRedirectPath("/compute"), "");
     assert.equal(leftoverRedirectPath("/wiz"), "");
