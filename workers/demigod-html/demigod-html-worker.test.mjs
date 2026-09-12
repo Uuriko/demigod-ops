@@ -618,6 +618,7 @@ describe("leftover openings + pricing conversion CTAs", () => {
   const roomDiscoveryLeftovers = [
     ["/skill.md", "/room/llms.txt"],
     ["/agents.md", "/room/llms.txt"],
+    ["/claude.md", "/room/llms.txt"],
     ["/mcp", "/room/.well-known/agent.json"],
     ["/api", "/room"],
     ["/docs", "/room"],
@@ -672,6 +673,20 @@ describe("leftover openings + pricing conversion CTAs", () => {
 
   it("GET /Agents.Md leftover-redirects to /room/llms.txt", async () => {
     const res = await workerModule.fetch(new Request("https://www.trydemigod.com/Agents.Md"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/room/llms.txt");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /CLAUDE.md leftover-redirects to /room/llms.txt", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/CLAUDE.md"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/room/llms.txt");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+  });
+
+  it("GET /Claude.Md leftover-redirects to /room/llms.txt", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/Claude.Md"), {});
     assert.equal(res.status, 308);
     assert.equal(res.headers.get("location"), "https://www.trydemigod.com/room/llms.txt");
     assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
