@@ -20,7 +20,9 @@ import {
 import workerModule, {
   demigodHomeHtml,
   injectBountiesBoard,
+  leftoverHonestyDoc,
   leftoverRedirectPath,
+  leftoverSameHostLocation,
   rewriteCdnPin,
   rewriteDeadConversionCtas,
   roomDiscoveryDoc,
@@ -983,6 +985,37 @@ describe("leftover openings + pricing conversion CTAs", () => {
     assert.equal(leftoverRedirectPath("/room/guest"), "");
   });
 
+  it("maps leftover Motley machine faces same-host, never getdasha", () => {
+    assert.equal(leftoverRedirectPath("/.well-known/mcp.json"), "/room/.well-known/agent.json");
+    assert.equal(leftoverRedirectPath("/mcp.json"), "/room/.well-known/agent.json");
+    assert.equal(leftoverRedirectPath("/openapi.json"), "/compute");
+    assert.equal(leftoverRedirectPath("/compute/openapi.json"), "/compute");
+    assert.equal(leftoverRedirectPath("/compute/skill.md"), "/room/llms.txt");
+    assert.equal(leftoverRedirectPath("/humans.txt"), "");
+    assert.equal(leftoverRedirectPath("/contribute"), "");
+    assert.equal(leftoverRedirectPath("/.well-known/ai-plugin.json"), "");
+    assert.equal(leftoverSameHostLocation("https://www.getdasha.com/contribute"), "");
+    assert.equal(leftoverSameHostLocation("https://www.getdasha.com/.well-known/mcp.json"), "");
+    assert.equal(leftoverSameHostLocation("https://lobby.getdasha.com/room"), "");
+    assert.equal(leftoverSameHostLocation("/room/.well-known/agent.json"), "https://www.trydemigod.com/room/.well-known/agent.json");
+  });
+
+  it("GET /.well-known/mcp.json leftover-redirects same-host to Room agent.json", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/.well-known/mcp.json"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/room/.well-known/agent.json");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+    assert.doesNotMatch(String(res.headers.get("location") || ""), /getdasha/i);
+  });
+
+  it("GET /openapi.json leftover-redirects same-host to /compute", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/openapi.json"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/compute");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+    assert.doesNotMatch(String(res.headers.get("location") || ""), /getdasha/i);
+  });
+
   it("rewrites dead pricing Get started / Contact / footer Pricing", () => {
     const src = [
       '<a href="/?wiz=startup" class="button on-inverse w-inline-block"><div class="button_label">Start a brief</div></a>',
@@ -1107,5 +1140,93 @@ describe("Room agent discovery /room/llms.txt + /room/.well-known/agent.json", (
       assert.equal(res.headers.get("x-demigod-edge"), "not-found", path);
       assert.equal(leftoverRedirectPath(path), "");
     }
+  });
+});
+
+describe("leftover Motley honesty — humans.txt + ai-plugin.json", () => {
+  it("pins leftover-motley.json SHA and never 308s honesty faces to getdasha", () => {
+    assert.match(workerSrc, /LEFTOVER_MOTLEY_PIN = "73e5ff7eb843ff478a27c7c238610cc4c5c9c1e5"/);
+    assert.match(workerSrc, /function leftoverHonesty/);
+    assert.match(workerSrc, /function leftoverSameHostLocation/);
+    assert.doesNotMatch(workerSrc, /Location: `https:\/\/www\.getdasha\.com/);
+    const humans = leftoverHonestyDoc("/humans.txt");
+    const plugin = leftoverHonestyDoc("/.well-known/ai-plugin.json");
+    const alias = leftoverHonestyDoc("/ai-plugin.json");
+    const slash = leftoverHonestyDoc("/humans.txt/");
+    assert.equal(humans?.kind, "face");
+    assert.equal(humans?.edge, "humans");
+    assert.match(humans?.type || "", /^text\/plain/);
+    assert.match(humans?.body || "", /Desk:\s*Demigod/);
+    assert.doesNotMatch(humans?.body || "", /Contribute to Dasha|<!doctype html/i);
+    assert.equal(plugin?.kind, "face");
+    assert.equal(plugin?.edge, "ai-plugin");
+    const card = JSON.parse(plugin?.body || "{}");
+    assert.equal(card.name, "Demigod");
+    assert.equal(card.api?.url, "https://www.trydemigod.com/room/.well-known/agent.json");
+    assert.notEqual(card.name, "Dasha Compute");
+    assert.equal(alias?.kind, "alias");
+    assert.equal(alias?.dest, "/.well-known/ai-plugin.json");
+    assert.equal(slash?.kind, "face");
+    assert.equal(leftoverHonestyDoc("/compute"), null);
+    assert.equal(leftoverHonestyDoc("/people"), null);
+  });
+
+  it("GET /humans.txt returns 200 text/plain Demigod desk", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/humans.txt"), {});
+    const body = await res.text();
+    assert.equal(res.status, 200);
+    assert.match(String(res.headers.get("content-type") || ""), /^text\/plain/);
+    assert.equal(res.headers.get("x-demigod-edge"), "humans");
+    assert.equal(res.headers.get("location"), null);
+    assert.match(body, /Desk:\s*Demigod/);
+    assert.match(body, /potter@trydemigod\.com/);
+    assert.match(body, /https:\/\/www\.trydemigod\.com\/room/);
+    assert.doesNotMatch(body, /Contribute to Dasha|<!doctype html/i);
+    assert.doesNotMatch(body, /getdasha\.com\/contribute/i);
+  });
+
+  it("HEAD /humans.txt returns 200 text/plain with empty body", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/humans.txt", { method: "HEAD" }), {});
+    const body = await res.text();
+    assert.equal(res.status, 200);
+    assert.match(String(res.headers.get("content-type") || ""), /^text\/plain/);
+    assert.equal(res.headers.get("x-demigod-edge"), "humans");
+    assert.equal(body, "");
+  });
+
+  it("GET /contribute returns 200 text/plain Demigod, not Dasha HTML", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/contribute"), {});
+    const body = await res.text();
+    assert.equal(res.status, 200);
+    assert.match(String(res.headers.get("content-type") || ""), /^text\/plain/);
+    assert.equal(res.headers.get("x-demigod-edge"), "contribute");
+    assert.equal(res.headers.get("location"), null);
+    assert.match(body, /Contribute to Demigod/);
+    assert.match(body, /Uuriko\/demigod-ops/);
+    assert.doesNotMatch(body, /Contribute to Dasha|<!doctype html/i);
+  });
+
+  it("GET /.well-known/ai-plugin.json returns 200 Demigod desk/Room discovery", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/.well-known/ai-plugin.json"), {});
+    const body = await res.text();
+    const card = JSON.parse(body);
+    assert.equal(res.status, 200);
+    assert.match(String(res.headers.get("content-type") || ""), /^application\/json/);
+    assert.equal(res.headers.get("x-demigod-edge"), "ai-plugin");
+    assert.equal(res.headers.get("location"), null);
+    assert.equal(card.name, "Demigod");
+    assert.equal(card.name_for_human, "Demigod");
+    assert.equal(card.api?.url, "https://www.trydemigod.com/room/.well-known/agent.json");
+    assert.notEqual(card.name, "Dasha Compute");
+    assert.doesNotMatch(body, /getdasha\.com\/contribute|plugin\.jup\.ag/i);
+    assert.doesNotMatch(body, /"name"\s*:\s*"Dasha Compute"/);
+  });
+
+  it("GET /ai-plugin.json leftover-redirects same-host to /.well-known/ai-plugin.json", async () => {
+    const res = await workerModule.fetch(new Request("https://www.trydemigod.com/ai-plugin.json"), {});
+    assert.equal(res.status, 308);
+    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/.well-known/ai-plugin.json");
+    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+    assert.doesNotMatch(String(res.headers.get("location") || ""), /getdasha/i);
   });
 });

@@ -1,7 +1,9 @@
 /**
  * demigod-html — www.trydemigod.com Motley edge.
  * Snapshot of live Worker (2026-09-10) + Motley home IA splice.
- * Do not wrangler deploy from this PR (Instinct/Potter lane).
+ * Leftover honesty (humans.txt / ai-plugin) is same-host; pin
+ * LEFTOVER_MOTLEY_PIN. Do not wrangler deploy from this PR
+ * (Instinct/Potter lane — cherry-pick onto live laptop source).
  */
 import {
   applyMotleyHomeIa,
@@ -1056,7 +1058,16 @@ var LEFTOVER_SHELLS = {
   "/posting-age-index": "/",
   "/data": "/",
   "/404": "/",
-  "/proof": "/"
+  "/proof": "/",
+  "/.well-known/mcp.json": "/room/.well-known/agent.json",
+  "/mcp.json": "/room/.well-known/agent.json",
+  "/openapi": "/compute",
+  "/openapi.json": "/compute",
+  "/openapi.yaml": "/compute",
+  "/compute/openapi.json": "/compute",
+  "/compute/openapi.yaml": "/compute",
+  "/compute/mcp.json": "/compute",
+  "/compute/skill.md": "/room/llms.txt"
 };
 var LEFTOVER_PEOPLE = [
   "Jordan Avery",
@@ -1083,12 +1094,13 @@ __name22(leftoverRedirectPath, "leftoverRedirectPath");
 __name222(leftoverRedirectPath, "leftoverRedirectPath");
 function leftoverRedirect(url) {
   const dest = leftoverRedirectPath(url.pathname);
-  if (!dest)
+  const location = leftoverSameHostLocation(dest);
+  if (!location)
     return null;
   return new Response(null, {
     status: 308,
     headers: {
-      Location: `https://www.trydemigod.com${dest}`,
+      Location: location,
       "Cache-Control": "public, max-age=3600",
       "X-Demigod-Edge": "leftover-redirect"
     }
@@ -1098,6 +1110,148 @@ __name(leftoverRedirect, "leftoverRedirect");
 __name2(leftoverRedirect, "leftoverRedirect");
 __name22(leftoverRedirect, "leftoverRedirect");
 __name222(leftoverRedirect, "leftoverRedirect");
+// CDN leftover-motley.json @ Uuriko/demigod-site-cdn#24. Live Worker does
+// not fetch this file today; these faces are the same bytes. Pin so laptop
+// can wire loadCdnJson("leftover-motley.json") later without guessing SHA.
+var LEFTOVER_MOTLEY_PIN = "73e5ff7eb843ff478a27c7c238610cc4c5c9c1e5";
+var NEVER_LOCATION_HOSTS = ["getdasha.com", "www.getdasha.com", "lobby.getdasha.com"];
+var HUMANS_TXT = `/* TEAM */
+Desk: Demigod
+Contact: potter@trydemigod.com
+Site: https://www.trydemigod.com/
+From: San Francisco Bay Area
+
+/* SITE */
+Last update: 2026-09-17
+Language: English
+Standards: HTML5
+
+Demigod is an SF Bay Area recruiting desk. Seed and Series A. First engineering seats.
+A person picks better candidates. Names move after mutual yes.
+10% of first-year base after a verified start. Stripe-hosted invoice to the hiring company. Talent pays nothing.
+
+Contact: https://www.trydemigod.com/contact
+Room: https://www.trydemigod.com/room
+Legal: https://www.trydemigod.com/legal
+Agents: https://www.trydemigod.com/llms.txt
+
+This host is Demigod. Not Dasha.
+`;
+var CONTRIBUTE_TXT = `# Contribute to Demigod
+
+Demigod is the SF Bay Area recruiting desk. A person picks better candidates.
+
+GitHub is the official room:
+https://github.com/Uuriko/demigod-ops/blob/master/CONTRIBUTING.md
+
+Write potter@trydemigod.com
+https://www.trydemigod.com/contact
+
+Site: https://www.trydemigod.com/
+Room: https://www.trydemigod.com/room
+
+This host is Demigod. Not Dasha.
+`;
+var AI_PLUGIN_JSON = JSON.stringify({
+  schema_version: "demigod.desk-room-discovery/1",
+  name_for_human: "Demigod",
+  name_for_model: "demigod",
+  description_for_human: "SF Bay Area recruiting desk. A person picks better candidates. Names move after mutual yes.",
+  description_for_model: "Demigod is a recruiting desk on trydemigod.com. Not Dasha Compute. Not a run factory. People write potter@trydemigod.com. Agents start at /llms.txt and /room.",
+  auth: { type: "none" },
+  api: {
+    type: "discovery",
+    has_user_authentication: false,
+    url: "https://www.trydemigod.com/room/.well-known/agent.json"
+  },
+  logo_url: "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@a1a851ac48e9/art/frege-hero.jpg",
+  contact_email: "potter@trydemigod.com",
+  legal_info_url: "https://www.trydemigod.com/legal",
+  name: "Demigod",
+  description: "SF Bay Area recruiting desk. Seed and Series A. First engineering seats. A person picks better candidates.",
+  url: "https://www.trydemigod.com/",
+  product: {
+    kind: "desk",
+    not: ["Dasha Compute", "run factory", "Dasha contribute page"]
+  },
+  desk: "https://www.trydemigod.com/",
+  contact: "https://www.trydemigod.com/contact",
+  room: "https://www.trydemigod.com/room",
+  llms: "https://www.trydemigod.com/llms.txt",
+  legal: "https://www.trydemigod.com/legal",
+  grok: "https://www.trydemigod.com/.well-known/grok-bot.json",
+  note: "Desk/Room discovery for this host. Do not serve Dasha Compute plugin JSON from trydemigod.com."
+});
+var LEFTOVER_HONESTY_FACES = {
+  "/humans.txt": { body: HUMANS_TXT, type: "text/plain; charset=utf-8", edge: "humans" },
+  "/contribute": { body: CONTRIBUTE_TXT, type: "text/plain; charset=utf-8", edge: "contribute" },
+  "/.well-known/ai-plugin.json": { body: AI_PLUGIN_JSON, type: "application/json; charset=utf-8", edge: "ai-plugin" }
+};
+var LEFTOVER_HONESTY_ALIASES = {
+  "/ai-plugin.json": "/.well-known/ai-plugin.json"
+};
+function leftoverSameHostLocation(dest) {
+  const raw = String(dest || "").trim();
+  if (!raw)
+    return "";
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const u = new URL(raw);
+      const host = u.hostname.toLowerCase();
+      if (NEVER_LOCATION_HOSTS.includes(host) || host.endsWith(".getdasha.com"))
+        return "";
+      if (host === "www.trydemigod.com" || host === "trydemigod.com")
+        return `https://www.trydemigod.com${u.pathname}${u.search}${u.hash}`;
+      return "";
+    } catch {
+      return "";
+    }
+  }
+  if (!raw.startsWith("/"))
+    return "";
+  return `https://www.trydemigod.com${raw}`;
+}
+__name(leftoverSameHostLocation, "leftoverSameHostLocation");
+__name2(leftoverSameHostLocation, "leftoverSameHostLocation");
+__name22(leftoverSameHostLocation, "leftoverSameHostLocation");
+__name222(leftoverSameHostLocation, "leftoverSameHostLocation");
+function leftoverHonestyDoc(pathname) {
+  const path = String(pathname || "").replace(/\/+$/, "") || "/";
+  const alias = LEFTOVER_HONESTY_ALIASES[path] || LEFTOVER_HONESTY_ALIASES[path.toLowerCase()] || "";
+  const key = alias || path;
+  const face = LEFTOVER_HONESTY_FACES[key] || LEFTOVER_HONESTY_FACES[key.toLowerCase()] || null;
+  if (!face)
+    return null;
+  return alias ? { kind: "alias", dest: alias, ...face } : { kind: "face", dest: key, ...face };
+}
+__name(leftoverHonestyDoc, "leftoverHonestyDoc");
+__name2(leftoverHonestyDoc, "leftoverHonestyDoc");
+__name22(leftoverHonestyDoc, "leftoverHonestyDoc");
+__name222(leftoverHonestyDoc, "leftoverHonestyDoc");
+function leftoverHonesty(url, method) {
+  const doc = leftoverHonestyDoc(url.pathname);
+  if (!doc)
+    return null;
+  if (doc.kind === "alias") {
+    const location = leftoverSameHostLocation(doc.dest);
+    if (!location)
+      return null;
+    return new Response(null, {
+      status: 308,
+      headers: {
+        Location: location,
+        "Cache-Control": "public, max-age=3600",
+        "X-Demigod-Edge": "leftover-redirect"
+      }
+    });
+  }
+  const { headers } = textResponse(doc.body, doc.edge, doc.type);
+  return new Response(method === "HEAD" ? null : doc.body, { status: 200, headers });
+}
+__name(leftoverHonesty, "leftoverHonesty");
+__name2(leftoverHonesty, "leftoverHonesty");
+__name22(leftoverHonesty, "leftoverHonesty");
+__name222(leftoverHonesty, "leftoverHonesty");
 function isFounderAppPath(pathname) {
   const p = String(pathname || "");
   return p === "/app" || p === "/app/" || p.startsWith("/app/");
@@ -3831,6 +3985,9 @@ var demigod_html_worker_default = {
         const pretty = await briefJoinRedirect(url);
         if (pretty)
           return pretty;
+        const honesty = leftoverHonesty(url, request.method);
+        if (honesty)
+          return honesty;
         const leftover = leftoverRedirect(url);
         if (leftover)
           return leftover;
@@ -3894,8 +4051,11 @@ export {
   journalEventsOf,
   journalHtml,
   journalRowMeta,
+  leftoverHonesty,
+  leftoverHonestyDoc,
   leftoverRedirect,
   leftoverRedirectPath,
+  leftoverSameHostLocation,
   rewriteDeadConversionCtas,
   roomDiscoveryDoc,
   memoHtml,
