@@ -109,7 +109,19 @@ export function hostedPath(pathname) {
     return "api-company";
   }
   if (p === "/api/v1/session") return "api-session";
+  if (catalogCompany(p, "/companies/")) return "company";
+  if (catalogCompany(p, "/api/v1/companies/")) return "api-company";
   return null;
+}
+
+// Resolve only identities already advertised by the public catalog. Unknown
+// or malformed paths never become arbitrary company pages.
+function catalogCompany(pathname, prefix) {
+  if (!pathname.startsWith(prefix)) return null;
+  let id;
+  try { id = decodeURIComponent(pathname.slice(prefix.length)); }
+  catch { return null; }
+  return companyList().rows.find(company => company.id === id) || null;
 }
 
 function json(status, body, extra = {}) {
@@ -340,9 +352,10 @@ export async function handleRequest(request) {
   }
   if (kind === "api-workspace") return json(200, workspace());
   if (kind === "api-company") {
+    const company = catalogCompany(url.pathname, "/api/v1/companies/");
     return json(200, {
       schema: "demigod.die-company/1",
-      identity: { id: NAMED.companyId, name: NAMED.companyName, domain: NAMED.domain, website: NAMED.website },
+      identity: { id: company.id, name: company.name, domain: company.domain, website: company.website },
     });
   }
   if (kind === "roles") return html(200, "Roles · DIE", rolesHtml());
@@ -355,10 +368,11 @@ export async function handleRequest(request) {
     );
   }
   if (kind === "company") {
+    const company = catalogCompany(url.pathname, "/companies/");
     return html(
       200,
-      `${NAMED.companyName} · DIE`,
-      `<h1>${esc(NAMED.companyName)}</h1><p>${esc(NAMED.companyId)}</p>`,
+      `${company.name} · DIE`,
+      `<h1>${esc(company.name)}</h1><p>${esc(company.id)}</p>`,
     );
   }
   return json(404, { ok: false, error: "not_found" });
