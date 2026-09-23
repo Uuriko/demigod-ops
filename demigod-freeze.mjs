@@ -11,18 +11,47 @@
  *   node demigod-freeze.mjs check [--tag session] [--all]   # exit 1 if changed
  *   node demigod-freeze.mjs status [--tag session]
  *   node demigod-freeze.mjs clear [--tag session]
+ *
+ * The snapshot is written in DEMIGOD_ROOT. The command does not publish.
  */
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { BUSY, sha256File, ensureBusy, flag, opt } from './demigod-agent-tools-lib.mjs';
+import { sha256File, flag, opt } from './demigod-agent-tools-lib.mjs';
 
-const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
-const FREEZE_DIR = path.join(BUSY, 'freeze');
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function fail(error) {
+  console.error(JSON.stringify({
+    ok: false,
+    error,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+  process.exit(1);
+}
+
+function diskFootVer() {
+  try {
+    const foot = fs.readFileSync(path.join(dataRoot(), 'demigod-foot-core.js'), 'utf8');
+    return (foot.match(/__dgFootVer='(\d+)'/) || [])[1] || null;
+  } catch {
+    return null;
+  }
+}
+
 const args = process.argv.slice(2);
+if (args.includes('--publish')) fail('publish_refused');
+
 const cmd = args[0] || 'status';
 const tag = opt(args, '--tag', process.env.DG_FREEZE_TAG || 'default');
-const SNAP = path.join(FREEZE_DIR, `${tag.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
+const safeTag = String(tag).replace(/[^a-zA-Z0-9._-]/g, '_');
+function snapPath() {
+  return path.join(dataRoot(), 'DEMIGOD-FREEZE', `${safeTag}.json`);
+}
 
 const CRITICAL = [
   'demigod-foot-core.js',
@@ -41,7 +70,7 @@ function watchList() {
 function snapFiles(list) {
   const files = {};
   for (const rel of list) {
-    const full = path.join(ROOT, rel);
+    const full = path.join(dataRoot(), rel);
     let st = null;
     try {
       st = fs.statSync(full);
@@ -59,10 +88,15 @@ function snapFiles(list) {
 }
 
 function writeSnap(rec) {
-  ensureBusy();
-  fs.mkdirSync(FREEZE_DIR, { recursive: true });
-  fs.writeFileSync(SNAP, JSON.stringify(rec, null, 2) + '\n');
+  fs.mkdirSync(path.dirname(snapPath()), { recursive: true });
+  fs.writeFileSync(snapPath(), JSON.stringify(rec, null, 2) + '\n');
 }
+
+const flags = {
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+};
 
 if (cmd === 'snapshot') {
   const list = watchList();
@@ -70,15 +104,27 @@ if (cmd === 'snapshot') {
   const rec = {
     at: new Date().toISOString(),
     tag,
-    root: ROOT,
+    path: snapPath(),
+    diskFootVer: diskFootVer(),
+    root: dataRoot(),
     all: flag(args, '--all'),
     list,
     files,
+    ...flags,
   };
   writeSnap(rec);
   console.log(
     JSON.stringify(
-      { ok: true, action: 'snapshot', tag, path: SNAP, count: Object.keys(files).length, all: rec.all },
+      {
+        ok: true,
+        action: 'snapshot',
+        tag,
+        path: snapPath(),
+        diskFootVer: rec.diskFootVer,
+        count: Object.keys(files).length,
+        all: rec.all,
+        ...flags,
+      },
       null,
       2,
     ),
@@ -88,10 +134,10 @@ if (cmd === 'snapshot') {
 
 if (cmd === 'clear') {
   try {
-    fs.unlinkSync(SNAP);
-    console.log(JSON.stringify({ ok: true, cleared: tag, path: SNAP }));
+    fs.unlinkSync(snapPath());
+    console.log(JSON.stringify({ ok: true, cleared: tag, path: snapPath(), ...flags }));
   } catch {
-    console.log(JSON.stringify({ ok: true, cleared: false, note: 'no snap', tag }));
+    console.log(JSON.stringify({ ok: true, cleared: false, note: 'no snap', tag, path: snapPath(), ...flags }));
   }
   process.exit(0);
 }
@@ -99,7 +145,7 @@ if (cmd === 'clear') {
 if (cmd === 'status' || cmd === 'check') {
   let prev = null;
   try {
-    prev = JSON.parse(fs.readFileSync(SNAP, 'utf8'));
+    prev = JSON.parse(fs.readFileSync(snapPath(), 'utf8'));
   } catch {
     if (cmd === 'check') {
       console.error(
@@ -107,12 +153,14 @@ if (cmd === 'status' || cmd === 'check') {
           ok: false,
           error: 'no_snapshot',
           tag,
+          path: snapPath(),
           hint: 'node demigod-freeze.mjs snapshot [--tag session]',
+          ...flags,
         }),
       );
       process.exit(2);
     }
-    console.log(JSON.stringify({ ok: true, snapshot: false, tag }));
+    console.log(JSON.stringify({ ok: true, snapshot: false, tag, path: snapPath(), diskFootVer: diskFootVer(), ...flags }));
     process.exit(0);
   }
 
@@ -135,11 +183,13 @@ if (cmd === 'status' || cmd === 'check') {
   const report = {
     ok: changes.length === 0,
     tag,
+    path: snapPath(),
+    diskFootVer: diskFootVer(),
     snapshotAt: prev.at,
     checkedAt: new Date().toISOString(),
     changed: changes.length,
     changes,
-    path: SNAP,
+    ...flags,
   };
   console.log(JSON.stringify(report, null, 2));
   if (cmd === 'check' && changes.length) process.exit(1);

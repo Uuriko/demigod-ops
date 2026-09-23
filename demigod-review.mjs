@@ -12,7 +12,7 @@
  *   node demigod-review-selftest.mjs
  *
  * Modules: demigod-review-{lib,rules,fix,gates,llm}.mjs
- * Out: /tmp/dg-busy/review-latest.{json,md} review-fix-prompt.md review-latest.sarif.json
+ * Out: DEMIGOD_ROOT/DEMIGOD-REVIEW.json and DEMIGOD-REVIEW.sarif.json
  */
 import path from 'path';
 import crypto from 'crypto';
@@ -69,6 +69,17 @@ const flags = {
   base: opt('--diff', null),
   files: listAfter('--files'),
 };
+
+if (flag('--publish')) {
+  console.error(JSON.stringify({
+    ok: false,
+    error: 'publish_refused',
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+  process.exit(1);
+}
 
 if (flags.catalog) {
   const cat = listRuleCatalog();

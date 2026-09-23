@@ -1,128 +1,152 @@
 #!/usr/bin/env node
-/** Heavy verdict cleanup: Webflow canvas DELETE + page SEO + publish + verify. */
+/**
+ * Local leak check for planted markup in an explicit data root.
+ * Writes DEMIGOD-HEAVY-CLEANUP.json under DEMIGOD_ROOT. Does not delete or publish.
+ */
 import fs from 'fs';
 import path from 'path';
-import puppeteer from 'puppeteer-core';
-import { CDP_URL } from './cdp-config.mjs';
-import {
-  ROOT,
-  wlog,
-  submitWebflowAiPrompt,
-  waitWebflowTurnComplete,
-  captureDemigodScreenshots,
-} from './demigod-turn-lib.mjs';
-import { fetchLiveHtml } from './demigod-live-lib.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const OUT = path.join(ROOT, 'DEMIGOD-HEAVY-CLEANUP.json');
-const SPEC = JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-COPY-SPEC.json'), 'utf8'));
+const localFlags = {
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+  liveFetch: false,
+  aiSubmit: false,
+  deleted: false,
+  published: false,
+};
+const LEAKS = [
+  'pantheon',
+  'SYNDICATE SUBSCRIPTION',
+  'Hermes received',
+  'demigod.ai',
+  'METHODOLOGY',
+  'tally-startup-embed',
+];
 
-const PROMPT = `HEAVY CLEANUP PASS — trydemigod.com home page ONLY. Permanent DELETE from canvas (not hide).
-
-DELETE entire sections/elements containing:
-1. Mythic/legacy: HERMES, PANTHEON, DIVINE, SYNDICATE, SUMMON, FORGE, ELITE SYNDICATE, demigod.ai, THE COVENANT, AI AGENTS
-2. Subscription pricing card: SYNDICATE SUBSCRIPTION, $5K/MO, CHOOSE SUBSCRIPTION, MOST POPULAR, PLUS 10% COMMISSION
-3. Bloat: METHODOLOGY, CURATED INSIGHTS, HIRING MADE SIMPLE, GET IN TOUCH, FAQ accordion, ATHENA, HEPHAESTUS
-4. Footer mega-nav columns (Company/Services/Resources/Legal grids, social icons, Get started, dead # links) — keep only logo area minimal
-5. Tally embed divs: #tally-startup-embed, #tally-engineer-embed
-6. Orphan forms outside modals: Email Form, Test Form
-7. Hidden modal fields: team-size, urgency, hiring-model, availability, Source, Years Experience dropdown
-8. Hero junk: LAT. 37.7749 coords, SF // CA, old "Two buttons" placeholder text
-9. Ghost copy in modals: Oops error blocks, Hermes received, Welcome to the pantheon, CALL HAS BEEN HEARD
-10. Page custom scripts: remove GSAP, SplitText, ScrollTrigger if attached to page (hero uses CSS only)
-
-FORM FIXES (Designer):
-- Startup modal form: rename to startup-hire, data-name startup-hire (not email-form)
-- Engineer modal form: id engineer-join, data-name engineer-join
-- Delete duplicate hiring-model radios
-
-PAGE SETTINGS (SEO tab):
-- Title: ${SPEC.ogTitle}
-- Meta description: ${SPEC.metaDescription}
-- OG title: ${SPEC.ogTitle}
-- OG description: ${SPEC.ogDescription}
-
-KEEP: Hero (HIRE TALENT + JOIN NETWORK), trust block area, single On hire pricing card, both modals with current fields, hello@trydemigod.com, © 2026 Demigod.
-
-Publish to production + staging when done. List every section you deleted.`;
-
-async function sourceLeakCheck() {
-  const { html } = await fetchLiveHtml();
-  const leaks = ['pantheon', 'SYNDICATE SUBSCRIPTION', 'Hermes received', 'demigod.ai', 'METHODOLOGY', 'tally-startup-embed'];
-  const found = leaks.filter((k) => new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(html));
-  return { found, clean: found.length === 0, htmlLen: html.length };
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-HEAVY-CLEANUP.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'heavy-cleanup');
 }
 
-async function shotSource(page) {
-  const dir = path.join(ROOT, 'audit-shots', 'cleanup');
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
+  process.exit(1);
+}
+
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
+}
+
+function entryStat(root, rel) {
+  const file = path.join(root, rel);
+  if (!insideRoot(root, file)) return null;
+  let st;
+  try {
+    st = fs.lstatSync(file);
+  } catch {
+    return null;
+  }
+  if (st.isSymbolicLink()) return null;
+  return { file, st };
+}
+
+function readText(root, rel) {
+  const found = entryStat(root, rel);
+  if (!found || !found.st.isFile()) return null;
+  return fs.readFileSync(found.file, 'utf8');
+}
+
+function leakHits(html) {
+  return LEAKS.filter((needle) => {
+    const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(escaped, 'i').test(html);
+  });
+}
+
+function main() {
+  if (
+    process.argv.includes('--publish')
+    || process.argv.includes('--push')
+    || process.argv.includes('--live')
+    || process.argv.includes('--designer')
+    || process.argv.includes('--ai')
+    || process.argv.includes('--submit')
+    || process.argv.includes('--fetch')
+  ) {
+    refuse('publish_refused');
+  }
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('cleanup_root_required');
+  }
+  const footText = readText(root, 'demigod-foot-core.js');
+  const html = readText(root, 'demigod-heavy-cleanup-source.html');
+  if (footText == null && html == null) refuse('source_required');
+  const htmlText = html || '';
+  const found = leakHits(htmlText);
+  const pass = html != null && found.length === 0;
+  const footMarker = ((footText || htmlText).match(/Harbor \S+ keep/) || [''])[0];
+  const dir = shotDir();
+  const shot = path.join(dir, 'source.shot');
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, shot) || !insideRoot(root, report)) {
+    refuse('cleanup_root_required');
+  }
   fs.mkdirSync(dir, { recursive: true });
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const shot = path.join(dir, `source-view-${stamp}.png`);
-  await page.setViewport({ width: 1400, height: 900 });
-  await page.goto(`view-source:https://www.trydemigod.com/?v=cleanup-${Date.now()}`, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
-  await new Promise((r) => setTimeout(r, 1500));
-  await page.screenshot({ path: shot, fullPage: false }).catch(() => {});
-  return shot;
+  fs.writeFileSync(shot, `${footMarker}\n${found.length === 0 ? 'clean' : 'leak'}\n`);
+  const body = {
+    ok: pass,
+    at: new Date().toISOString(),
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    found,
+    clean: found.length === 0,
+    htmlLen: htmlText.length,
+    ...localFlags,
+  };
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
+  console.log(JSON.stringify({
+    ok: pass,
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    found: found.length,
+    leaks: found,
+    clean: found.length === 0,
+    htmlLen: htmlText.length,
+    ...localFlags,
+  }));
+  if (!pass) process.exit(1);
 }
 
-async function main() {
-  wlog('=== HEAVY CLEANUP PASS START ===');
-  const result = { at: new Date().toISOString(), steps: [] };
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
 
-  const submit = await submitWebflowAiPrompt(PROMPT);
-  result.steps.push({ step: 'webflow-ai-submit', ...submit });
-  if (!submit.ok) {
-    fs.writeFileSync(OUT, JSON.stringify(result, null, 2));
-    console.log(JSON.stringify({ ok: false, reason: submit.reason, out: OUT }));
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'heavy_cleanup_failed',
+      detail: String(e.message || e),
+      ...localFlags,
+    }));
     process.exit(1);
   }
-
-  const wait = await waitWebflowTurnComplete(420000, submit.beforeTail || '');
-  result.steps.push({ step: 'webflow-ai-wait', ...wait });
-
-  const shots = await captureDemigodScreenshots('heavy-cleanup');
-  result.screenshots = shots;
-
-  const leaksBefore = await sourceLeakCheck();
-  result.sourceBefore = leaksBefore;
-
-  // Re-publish custom code (head meta already has Heavy spec)
-  const { spawnSync } = await import('child_process');
-  const pub = spawnSync('node', ['demigod-fix-custom-code.mjs'], { cwd: ROOT, encoding: 'utf8' });
-  result.steps.push({ step: 'custom-code-publish', code: pub.status, stdout: (pub.stdout || '').slice(-400) });
-
-  await new Promise((r) => setTimeout(r, 8000));
-  const leaksAfter = await sourceLeakCheck();
-  result.sourceAfter = leaksAfter;
-
-  const browser = await puppeteer.connect({ browserURL: CDP_URL, protocolTimeout: 120000 });
-  const page = await browser.newPage();
-  result.sourceScreenshot = await shotSource(page);
-  await page.close().catch(() => {});
-  await browser.disconnect();
-
-  const verify = spawnSync('npm', ['run', 'demigod:verify:all'], { cwd: ROOT, encoding: 'utf8' });
-  result.verifyExit = verify.status;
-
-  const formTest = spawnSync('node', ['demigod-form-submit-test.mjs'], { cwd: ROOT, encoding: 'utf8' });
-  result.formTestExit = formTest.status;
-  try {
-    result.formTest = JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-FORM-SUBMIT-TEST.json'), 'utf8'));
-  } catch (_) { /* ignore */ }
-
-  result.pass = wait.ok && leaksAfter.clean && verify.status === 0;
-  result.verdict = result.pass ? 'CANVAS + REPO CLEAN PASS + SHIP READY' : 'PARTIAL — see steps';
-  fs.writeFileSync(OUT, JSON.stringify(result, null, 2));
-  console.log(JSON.stringify({
-    ok: result.pass,
-    verdict: result.verdict,
-    webflowAi: wait.ok,
-    leaksAfter: leaksAfter.found,
-    verify: verify.status,
-    formTest: formTest.status,
-    out: OUT,
-  }));
-  wlog('=== HEAVY CLEANUP PASS END ===');
-  process.exit(result.pass ? 0 : 1);
 }
-
-main().catch((e) => { console.error(e); process.exit(1); });

@@ -3,12 +3,33 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { atomicWrite, withFileLock } from './demigod-agent-tools-lib.mjs';
+import { attachAttribution } from './demigod-referral-ledger.mjs';
 
 const ROOT = '/home/potter';
 export const BOARD_PATH = path.join(ROOT, 'DEMIGOD-BOARD.json');
 export const BOARD_LOCK = path.join(ROOT, 'DEMIGOD-BOARD.json.lock');
 export const BOARD_AUDIT = path.join(ROOT, 'DEMIGOD-BOARD-AUDIT.jsonl');
 export const INBOX_PATH = path.join(ROOT, 'DEMIGOD-SUBMISSIONS-INBOX.json');
+
+function opsRoot() {
+  return process.env.DEMIGOD_ROOT || ROOT;
+}
+
+function inboxPath() {
+  return process.env.DEMIGOD_INBOX_PATH || path.join(opsRoot(), 'DEMIGOD-SUBMISSIONS-INBOX.json');
+}
+
+function boardPath() {
+  return process.env.DEMIGOD_BOARD_PATH || path.join(opsRoot(), 'DEMIGOD-BOARD.json');
+}
+
+function boardLockPath() {
+  return `${boardPath()}.lock`;
+}
+
+function boardAuditPath() {
+  return process.env.DEMIGOD_BOARD_AUDIT_PATH || path.join(opsRoot(), 'DEMIGOD-BOARD-AUDIT.jsonl');
+}
 
 const STAGE_RE = /\b(pre-?seed|seed|series\s*[a-d]|yc|stealth)\b/i;
 const VERTICAL_RE = /\b(b2b\s*saas?|consumer|fintech|healthtech|devtools|ai|marketplace|hardware)\b/i;
@@ -63,18 +84,22 @@ export function shouldAutoReject(data = {}, formName = '', inbox = {}) {
   return { reject: reasons.length > 0, reasons, email };
 }
 
-/** Drop featured cards older than ARCHIVE_DAYS (board filter stub). */
+function freshItem(item, cutoff) {
+  const at = item.featuredAt || item.at;
+  if (!at) return true;
+  return new Date(at).getTime() >= cutoff;
+}
+
+/** Drop stale cards. Keep logged pilots. Cap non-pilot featured cards at 3. */
 export function filterBoard(board = {}) {
   const cutoff = Date.now() - ARCHIVE_DAYS * 86400000;
-  const fresh = (item) => {
-    const at = item.featuredAt || item.at;
-    if (!at) return true;
-    return new Date(at).getTime() >= cutoff;
-  };
+  const roles = (board.roles || []).filter((item) => freshItem(item, cutoff));
+  const pilots = roles.filter((role) => role && role.pilot === true);
+  const cards = roles.filter((role) => !(role && role.pilot === true)).slice(0, 3);
   return {
     ...board,
-    roles: (board.roles || []).filter(fresh).slice(0, 3),
-    candidates: (board.candidates || []).filter(fresh).slice(0, 3),
+    roles: [...pilots, ...cards],
+    candidates: (board.candidates || []).filter((item) => freshItem(item, cutoff)).slice(0, 3),
   };
 }
 
@@ -137,7 +162,7 @@ export function anonymizeCandidate(raw = {}) {
 
 export function loadBoard() {
   try {
-    return JSON.parse(fs.readFileSync(BOARD_PATH, 'utf8'));
+    return JSON.parse(fs.readFileSync(boardPath(), 'utf8'));
   } catch (_) {
     return { at: new Date().toISOString(), roles: [], candidates: [], cdnUrl: null };
   }
@@ -145,7 +170,7 @@ export function loadBoard() {
 
 export function loadInbox() {
   try {
-    return JSON.parse(fs.readFileSync(INBOX_PATH, 'utf8'));
+    return JSON.parse(fs.readFileSync(inboxPath(), 'utf8'));
   } catch (_) {
     return { at: new Date().toISOString(), items: [] };
   }
@@ -202,12 +227,14 @@ export function publicStatus(record = {}) {
 
 export function saveInbox(inbox) {
   inbox.at = new Date().toISOString();
-  fs.writeFileSync(INBOX_PATH, JSON.stringify(inbox, null, 2));
+  const file = inboxPath();
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(inbox, null, 2));
 }
 
 export function saveBoard(board, opts = {}) {
   return withFileLock(
-    BOARD_LOCK,
+    boardLockPath(),
     () => persistBoardCore(board, opts),
     { timeoutMs: 20000, staleMs: 120000 },
   );
@@ -219,7 +246,7 @@ export function saveBoard(board, opts = {}) {
  */
 export function writeBoard(mutator, opts = {}) {
   return withFileLock(
-    BOARD_LOCK,
+    boardLockPath(),
     () => {
       const board = loadBoard();
       const next = typeof mutator === 'function' ? mutator(JSON.parse(JSON.stringify(board))) : mutator;
@@ -235,7 +262,7 @@ function shaStable(obj) {
 
 function appendBoardAudit(entry) {
   try {
-    fs.appendFileSync(BOARD_AUDIT, JSON.stringify(entry) + '\n');
+    fs.appendFileSync(boardAuditPath(), JSON.stringify(entry) + '\n');
   } catch {
     /* */
   }
@@ -263,7 +290,7 @@ function persistBoardCore(board, opts = {}) {
   const reason = opts.reason || 'unspecified';
   let before = null;
   try {
-    before = JSON.parse(fs.readFileSync(BOARD_PATH, 'utf8'));
+    before = JSON.parse(fs.readFileSync(boardPath(), 'utf8'));
   } catch {
     before = null;
   }
@@ -273,14 +300,17 @@ function persistBoardCore(board, opts = {}) {
   delete filtered.allowRealRoles;
   delete filtered.allowRealReceipts;
   filtered.at = new Date().toISOString();
+  if (!opts.allowOverCap) {
+    const rolesNow = filtered.roles || [];
+    const pilots = rolesNow.filter((role) => role && role.pilot === true);
+    const cards = rolesNow.filter((role) => !(role && role.pilot === true)).slice(0, 3);
+    filtered.roles = [...pilots, ...cards];
+  }
   const roles = filtered.roles || [];
   const realRoles = roles.filter((r) => r && r.sample === false);
   const realReceipts = (filtered.receipts || []).filter(
     (r) => r && r.sample === false && !/sample|demo/i.test(r.note || '') && !/^demo/i.test(r.hash || ''),
   );
-  if (roles.length > 3 && !opts.allowOverCap) {
-    filtered.roles = roles.slice(0, 3);
-  }
   const allowReal =
     (opts.allowRealRoles === true || opts.real === true) && realRolesEnvOk();
   const allowReceipts =
@@ -299,7 +329,7 @@ function persistBoardCore(board, opts = {}) {
     err.code = 'REAL_RECEIPTS_REFUSED';
     throw err;
   }
-  atomicWrite(BOARD_PATH, JSON.stringify(filtered, null, 2) + '\n');
+  atomicWrite(boardPath(), JSON.stringify(filtered, null, 2) + '\n');
   appendBoardAudit({
     at: filtered.at,
     actor,
@@ -380,6 +410,7 @@ export function ingestSubmission(body = {}, opts = {}) {
     status: gate.reject ? (gate.reasons.includes('test_keyword') ? 'spam' : 'rejected') : 'new',
     rejectReasons: gate.reject ? gate.reasons : undefined,
   };
+  attachAttribution(record, data);
   inbox.items = [record, ...(inbox.items || [])].slice(0, 200);
   saveInbox(inbox);
 
@@ -403,18 +434,39 @@ export function ingestSubmission(body = {}, opts = {}) {
   return { inbox, board, record, featured };
 }
 
-/** Parse Webflow webhook POST body (v2 envelope + legacy shapes) */
+function formNameOf(source = {}, fallback = '') {
+  return source.name || source.formName || source.displayName || source['form-name'] || fallback || '';
+}
+
+/** Map component field-element ids back to the wizard field names. Named keys pass through. */
+function mappedFormData(source = {}) {
+  const raw = source.data || source.fields;
+  const bag = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : null;
+  if (!bag) return {};
+  const byElement = new Map();
+  for (const row of Array.isArray(source.schema) ? source.schema : []) {
+    if (row?.fieldElementId && row?.fieldName) byElement.set(String(row.fieldElementId), String(row.fieldName));
+  }
+  const data = {};
+  for (const [key, value] of Object.entries(bag)) data[byElement.get(key) || key] = value;
+  return data;
+}
+
+/** Parse Webflow webhook POST body (v2 envelope + legacy shapes). Does not call Webflow. */
 export function parseWebhookPayload(buf) {
   const text = Buffer.isBuffer(buf) ? buf.toString('utf8') : String(buf);
   try {
     const j = JSON.parse(text);
-    if (j.triggerType === 'form_submission' && j.payload) {
-      const p = j.payload;
-      return { name: p.name || '', data: p.data || {} };
+    if (j.triggerType && j.triggerType !== 'form_submission') {
+      return { name: '', data: {}, ignored: true, reason: 'not_form_submission' };
     }
-    const name = j.name || j.formName || j['form-name'] || j.payload?.name || '';
-    const data = j.data || j.payload?.data || (j.payload && !j.payload.name ? j.payload : j);
-    const fields = data && typeof data === 'object' && !Array.isArray(data) ? data : {};
+    if (j.triggerType === 'form_submission' && j.payload) {
+      return { name: formNameOf(j.payload), data: mappedFormData(j.payload) };
+    }
+    const name = formNameOf(j) || formNameOf(j.payload || {});
+    const data = mappedFormData(j.payload ? { ...j.payload, data: j.data || j.payload.data || j.payload.fields } : j);
+    if (Object.keys(data).length) return { name, data };
+    const fields = j.data && typeof j.data === 'object' && !Array.isArray(j.data) ? j.data : {};
     return { name, data: fields };
   } catch (_) {
     const params = new URLSearchParams(text);

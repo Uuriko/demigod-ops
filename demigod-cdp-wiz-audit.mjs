@@ -1,56 +1,153 @@
 #!/usr/bin/env node
 /**
- * Demigod CDP WIZ audit helper (internal tool).
- * For Cursor / Grok / Fable to quickly check vis, 90day, review, scroll lock, labels.
- * Safe, non-site-JS. Uses --local playtest logic or can be extended for real CDP.
- *
- * Usage:
- *   node demigod-cdp-wiz-audit.mjs --local
- *   node demigod-cdp-wiz-audit.mjs --help
- *
- * Always run after WIZ changes (with verify:source).
+ * Local wizard audit check in an explicit data root.
+ * Writes DEMIGOD-CDP-WIZ-AUDIT.json under DEMIGOD_ROOT. Does not open a browser or send a prompt.
  */
-
-import { execSync } from 'child_process';
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const args = process.argv.slice(2);
-if (args.includes('--help') || args.length === 0) {
-  console.log(`Demigod CDP WIZ audit
---local   run the wiz-cdp-playtest --local and parse key flags (vis, has90, review)
---cdp     (future) direct CDP checks via MCP or puppeteer
-Outputs summary + exits 0 on basic pass, 1 on issues.
-Ties to P0 WIZ vis + scroll from keep-going issues list.`);
-  process.exit(0);
+const localFlags = {
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+  liveFetch: false,
+  aiSubmit: false,
+};
+const MARKERS = [
+  { name: 'WIZ', re: /wiz/i },
+  { name: 'VIS', re: /vis/i },
+  { name: 'REVIEW', re: /review/i },
+  { name: 'SCROLL', re: /scroll/i },
+  { name: 'LOCAL', re: /local/i },
+];
+
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-CDP-WIZ-AUDIT.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'cdp-wiz-audit');
 }
 
-console.log('Demigod CDP WIZ audit (fresh ' + new Date().toISOString() + ')');
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
+  process.exit(1);
+}
 
-if (args.includes('--local')) {
+function refusedFlag(arg) {
+  return arg === '--publish'
+    || arg === '--push'
+    || arg === '--designer'
+    || arg === '--live'
+    || arg === '--send'
+    || arg === '--ai'
+    || arg === '--fetch'
+    || arg === '--capture'
+    || arg === '--cdp'
+    || arg === '--local'
+    || arg === '--shots'
+    || arg === '--help';
+}
+
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
+}
+
+function entryStat(root, rel) {
+  const file = path.join(root, rel);
+  if (!insideRoot(root, file)) return null;
+  let st;
   try {
-    const out = execSync('node demigod-wiz-cdp-playtest.mjs --local 2>&1 | cat', { encoding: 'utf8', timeout: 180000 });
-    // Lean, user-visible checks per Playwright best practices + YAGNI (bare min for P0s + labels).
-    const has90 = /has90|90day/i.test(out) && !/has90.*false|vis=0.*90/i.test(out);
-    const vis = !/vis=0|fields not visible/i.test(out);
-    const review = /hasReview|review/i.test(out);
-    const scroll = /scroll|lock|fixed|overflow.*hidden/i.test(out);
-    const labels = /label|for=|aria|contact-email|90day/i.test(out);
-    console.log('local playtest summary:');
-    console.log('  vis likely good:', vis);
-    console.log('  has90 detected:', has90);
-    console.log('  review step:', review);
-    console.log('  scroll/lock mentions:', scroll);
-    console.log('  labels signal:', labels);
-    console.log('Raw tail (last lines):');
-    console.log(out.split('\n').slice(-10).join('\n'));
-    const ok = vis && has90 && scroll;
-    console.log(ok ? 'BASIC PASS (local, key P0s)' : 'ISSUES (see above + full log)');
-    process.exit(ok ? 0 : 1);
+    st = fs.lstatSync(file);
+  } catch {
+    return null;
+  }
+  if (st.isSymbolicLink()) return null;
+  return { file, st };
+}
+
+function readText(root, rel) {
+  const found = entryStat(root, rel);
+  if (!found || !found.st.isFile()) return null;
+  return fs.readFileSync(found.file, 'utf8');
+}
+
+function markerHits(text) {
+  const found = {};
+  for (const marker of MARKERS) found[marker.name] = marker.re.test(text);
+  return found;
+}
+
+function main() {
+  if (process.argv.some(refusedFlag)) refuse('publish_refused');
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('wiz_root_required');
+  }
+  const footText = readText(root, 'demigod-foot-core.js');
+  const notes = readText(root, 'HEAVY-CDP-WIZ-AUDIT-SOURCE.md');
+  if (footText == null && notes == null) refuse('source_required');
+  const text = notes || '';
+  const hits = markerHits(text);
+  const missing = MARKERS.filter((marker) => !hits[marker.name]).map((marker) => marker.name);
+  const pass = notes != null && missing.length === 0;
+  const footMarker = ((footText || text).match(/Harbor \S+ keep/) || [''])[0];
+  const dir = shotDir();
+  const shot = path.join(dir, 'audit.shot');
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, shot) || !insideRoot(root, report)) {
+    refuse('wiz_root_required');
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(shot, `${footMarker}\n${missing.length === 0 ? 'complete' : 'missing'}\n`);
+  const body = {
+    ok: pass,
+    at: new Date().toISOString(),
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    excerpt: text.slice(0, 180),
+    markers: hits,
+    missing,
+    chars: text.length,
+    ...localFlags,
+  };
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
+  console.log(JSON.stringify({
+    ok: pass,
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    missing: missing.length,
+    chars: text.length,
+    ...localFlags,
+  }));
+  if (!pass) process.exit(1);
+}
+
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
   } catch (e) {
-    console.error('playtest error', e.message);
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'wiz_failed',
+      detail: String(e.message || e),
+      ...localFlags,
+    }));
     process.exit(1);
   }
 }
-
-console.log('For full CDP use chrome-devtools MCP or agent-dev CDP + evaluate.');
-process.exit(0);

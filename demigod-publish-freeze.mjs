@@ -2,22 +2,27 @@
 /**
  * Publish freeze switch — hard-stop real publishes when site is green.
  *
- * State: /tmp/dg-busy/publish-freeze.json + env DEMIGOD_PUBLISH_FREEZE
+ * State: DEMIGOD_ROOT/DEMIGOD-PUBLISH-FREEZE.json + env DEMIGOD_PUBLISH_FREEZE. The command does not publish.
  *
  * Usage:
  *   node demigod-publish-freeze.mjs status
  *   node demigod-publish-freeze.mjs on  [--why "site green"]
  *   node demigod-publish-freeze.mjs off
  */
-import fs from 'fs';
 import path from 'path';
-import { BUSY, ensureBusy, atomicWrite, readJson, opt } from './demigod-agent-tools-lib.mjs';
-
-const FILE = path.join(BUSY, 'publish-freeze.json');
 import { fileURLToPath } from 'url';
+import { atomicWrite, readJson, opt } from './demigod-agent-tools-lib.mjs';
+
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+function freezeFile() {
+  return path.join(dataRoot(), 'DEMIGOD-PUBLISH-FREEZE.json');
+}
+const localFlags = { sent: false, liveMail: false, livePublish: false };
 
 export function status() {
-  const j = readJson(FILE);
+  const j = readJson(freezeFile());
   const envOn =
     process.env.DEMIGOD_PUBLISH_FREEZE === '1' ||
     process.env.DEMIGOD_PUBLISH_FREEZE === 'true' ||
@@ -31,7 +36,8 @@ export function status() {
     why: j?.why || null,
     at: j?.at || null,
     by: j?.by || null,
-    path: FILE,
+    path: freezeFile(),
+    ...localFlags,
   };
 }
 
@@ -65,6 +71,10 @@ const isMain =
 
 if (isMain) {
   const args = process.argv.slice(2);
+  if (args.includes('--publish')) {
+    console.error(JSON.stringify({ ok: false, error: 'publish_refused', ...localFlags }));
+    process.exit(1);
+  }
   const cmd = args[0] || 'status';
 
   if (cmd === 'status') {
@@ -73,17 +83,16 @@ if (isMain) {
   }
 
   if (cmd === 'on') {
-    ensureBusy();
     const rec = {
       on: true,
       at: new Date().toISOString(),
       by: process.env.DG_LOCK_OWNER || process.env.USER || 'agent',
       why: opt(args, '--why', 'site green — no thrash'),
     };
-    atomicWrite(FILE, JSON.stringify(rec, null, 2) + '\n');
+    atomicWrite(freezeFile(), JSON.stringify(rec, null, 2) + '\n');
     console.log(
       JSON.stringify(
-        { ok: true, ...rec, hint: 'export DEMIGOD_PUBLISH_FREEZE=1 for child processes' },
+        { ok: true, ...rec, path: freezeFile(), ...localFlags, hint: 'export DEMIGOD_PUBLISH_FREEZE=1 for child processes' },
         null,
         2,
       ),
@@ -92,16 +101,13 @@ if (isMain) {
   }
 
   if (cmd === 'off') {
-    ensureBusy();
-    atomicWrite(
-      FILE,
-      JSON.stringify({
-        on: false,
-        at: new Date().toISOString(),
-        by: process.env.DG_LOCK_OWNER || process.env.USER || 'agent',
-      }, null, 2) + '\n',
-    );
-    console.log(JSON.stringify({ ok: true, on: false }));
+    const rec = {
+      on: false,
+      at: new Date().toISOString(),
+      by: process.env.DG_LOCK_OWNER || process.env.USER || 'agent',
+    };
+    atomicWrite(freezeFile(), JSON.stringify(rec, null, 2) + '\n');
+    console.log(JSON.stringify({ ok: true, ...rec, path: freezeFile(), ...localFlags }));
     process.exit(0);
   }
 

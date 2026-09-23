@@ -4,7 +4,8 @@
  * Routes through mintBoardEntry so sample/review gates stay honest.
  */
 import { spawnSync } from 'child_process';
-import { ROOT } from './demigod-turn-lib.mjs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import {
   loadInbox,
   saveInbox,
@@ -12,6 +13,8 @@ import {
   loadBoard,
 } from './demigod-submissions-lib.mjs';
 import { isFrozen } from './demigod-agent-tools-lib.mjs';
+
+const OPS = path.dirname(fileURLToPath(import.meta.url));
 
 function usage() {
   console.log('Usage: node demigod-submissions-approve.mjs <sub-id|--latest|--list>');
@@ -106,7 +109,7 @@ if (freeze.on && process.env.DEMIGOD_FORCE_PUBLISH !== '1') {
     hint: 'board minted locally; CDN when freeze OFF or DEMIGOD_FORCE_PUBLISH=1',
   };
 } else {
-  const pub = spawnSync('node', ['demigod-board-publish.mjs'], { cwd: ROOT, encoding: 'utf8' });
+  const pub = spawnSync(process.execPath, ['demigod-board-publish.mjs'], { cwd: OPS, encoding: 'utf8' });
   publish = {
     skipped: false,
     ok: pub.status === 0,
@@ -114,8 +117,8 @@ if (freeze.on && process.env.DEMIGOD_FORCE_PUBLISH !== '1') {
   };
 }
 
-const honesty = spawnSync('node', ['demigod-verify-board-honesty.mjs'], {
-  cwd: ROOT,
+const honesty = spawnSync(process.execPath, ['demigod-verify-board-honesty.mjs'], {
+  cwd: OPS,
   encoding: 'utf8',
 });
 

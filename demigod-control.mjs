@@ -39,11 +39,18 @@ import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { BUSY, ensureBusy, atomicWrite, readJson } from './demigod-agent-tools-lib.mjs';
+import { BUSY, atomicWrite, readJson } from './demigod-agent-tools-lib.mjs';
 
-const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-CONTROL-PLANE.json');
+}
+
+const ROOT = dataRoot();
 const DASH = process.env.DEMIGOD_DASH || 'http://127.0.0.1:9878';
-const OUT = path.join(BUSY, 'control-plane.json');
 
 /** Module map — the cohesion layer (UI + CLI + API) */
 export const MODULES = {
@@ -209,20 +216,24 @@ async function fetchJson(url, ms = 8000) {
   }
 }
 
-export async function buildControlPlane() {
-  ensureBusy();
-  const freeze = safeJsonFile(path.join(BUSY, 'publish-freeze.json')) || {};
+export async function buildControlPlane({ skipRefresh = false } = {}) {
+  const freeze = safeJsonFile(path.join(dataRoot(), 'DEMIGOD-PUBLISH-FREEZE.json')) || {};
   const envRaw = String(process.env.DEMIGOD_PUBLISH_FREEZE || '').toLowerCase();
   const envFreeze = ['1', 'true', 'yes', 'on'].includes(envRaw);
   const frozen = envFreeze || Boolean(freeze.on);
 
   // Prefer busy cache to avoid recursive dash status when called FROM dash
   let dashStatus = safeJsonFile(path.join(BUSY, 'dashboard-status.json'));
-  if (!dashStatus?.at || Date.now() - Date.parse(dashStatus.at) > 120000) {
+  if (!skipRefresh && (!dashStatus?.at || Date.now() - Date.parse(dashStatus.at) > 120000)) {
     dashStatus = (await fetchJson(`${DASH}/api/status`)) || dashStatus;
   }
+  const localWf = safeJsonFile(path.join(dataRoot(), 'DEMIGOD-WEBFLOW-STATUS.json'));
   const [webflow, review, hygiene, matchesBusy] = await Promise.all([
-    Promise.resolve(safeJsonFile(path.join(BUSY, 'webflow-status.json')) || fetchJson(`${DASH}/api/webflow`)),
+    Promise.resolve(
+      localWf ||
+        safeJsonFile(path.join(BUSY, 'webflow-status.json')) ||
+        (skipRefresh ? null : fetchJson(`${DASH}/api/webflow`)),
+    ),
     Promise.resolve(safeJsonFile(path.join(BUSY, 'review-latest.json'))),
     Promise.resolve(safeJsonFile(path.join(BUSY, 'laptop-hygiene.json'))),
     Promise.resolve(safeJsonFile(path.join(BUSY, 'match-review-latest.json'))),
@@ -230,9 +241,9 @@ export async function buildControlPlane() {
 
   // refresh thin modules if missing (best-effort, short)
   let wf = webflow;
-  if (!wf?.at) {
-    sh('node demigod-webflow.mjs status --json >/tmp/dg-busy/webflow-status.json 2>/dev/null', 25000);
-    wf = safeJsonFile(path.join(BUSY, 'webflow-status.json'));
+  if (!wf?.at && !skipRefresh) {
+    sh('node demigod-webflow.mjs status --json >/dev/null 2>/dev/null', 25000);
+    wf = safeJsonFile(path.join(dataRoot(), 'DEMIGOD-WEBFLOW-STATUS.json'));
   }
 
   const boardH = safeJsonFile(path.join(ROOT, 'DEMIGOD-BOARD-HONESTY.json'));
@@ -335,13 +346,15 @@ export async function buildControlPlane() {
   });
   // Orca remote seat (phone ↔ laptop)
   let orcaReach = null;
-  try {
-    const st = sh('orca-ide status --json 2>/dev/null', 5000);
-    if (st.status === 0 && st.stdout) {
-      const d = JSON.parse(st.stdout);
-      orcaReach = Boolean(d?.result?.runtime?.reachable);
-    }
-  } catch { /* ignore */ }
+  if (!skipRefresh) {
+    try {
+      const st = sh('orca-ide status --json 2>/dev/null', 5000);
+      if (st.status === 0 && st.stdout) {
+        const d = JSON.parse(st.stdout);
+        orcaReach = Boolean(d?.result?.runtime?.reachable);
+      }
+    } catch { /* ignore */ }
+  }
   const keepPid = path.join(ROOT, '.keep-awake.pid');
   let awake = false;
   try {
@@ -479,9 +492,13 @@ export async function buildControlPlane() {
       r: 'refresh',
       '?': 'help',
     },
+    path: reportPath(),
+    sent: false,
+    liveMail: false,
+    livePublish: false,
   };
 
-  atomicWrite(OUT, JSON.stringify(plane, null, 2) + '\n');
+  atomicWrite(reportPath(), JSON.stringify(plane, null, 2) + '\n');
   return plane;
 }
 
@@ -512,7 +529,7 @@ function printHome(plane) {
   lines.push('```');
   lines.push('  bin/dg  ──►  modules (webflow|matches|review|hygiene|…)');
   lines.push('     │');
-  lines.push('     ├── writes /tmp/dg-busy/control-plane.json');
+  lines.push('     ├── writes DEMIGOD-CONTROL-PLANE.json');
   lines.push('     │');
   lines.push('  Dash :9878 ──► same modules as tabs + /api/control');
   lines.push('     │');
@@ -526,8 +543,19 @@ function printHome(plane) {
 
 async function main() {
   const args = process.argv.slice(2);
+  if (args.includes('--publish')) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'publish_refused',
+      sent: false,
+      liveMail: false,
+      livePublish: false,
+    }));
+    process.exit(1);
+  }
   const cmd = args[0] || 'home';
   const asJson = args.includes('--json');
+  const skipRefresh = args.includes('--offline');
 
   // Dispatch: bin/dg webflow doctor → demigod-webflow doctor
   if (DISPATCH[cmd]) {
@@ -563,7 +591,7 @@ async function main() {
   }
 
   if (cmd === 'home' || cmd === 'status' || cmd === 'next' || cmd === 'plane') {
-    const plane = await buildControlPlane();
+    const plane = await buildControlPlane({ skipRefresh });
     if (cmd === 'next') {
       if (asJson) {
         console.log(JSON.stringify({ next: plane.next, spine: plane.spine, frozen: plane.frozen }, null, 2));

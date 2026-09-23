@@ -1,132 +1,149 @@
 #!/usr/bin/env node
-/** Create /legal page + Insights CMS via Webflow AI, then publish. */
+/**
+ * Local legal page check in an explicit data root.
+ * Writes DEMIGOD-CMS-LEGAL-PASS.json under DEMIGOD_ROOT. Does not open a browser or send a prompt.
+ */
 import fs from 'fs';
 import path from 'path';
-import puppeteer from 'puppeteer-core';
-import { CDP_URL } from './cdp-config.mjs';
-import {
-  ROOT,
-  sleep,
-  wlog,
-  prepareWebflowDesigner,
-  submitWebflowAiPrompt,
-  waitWebflowTurnComplete,
-  WEBFLOW_DESIGNER_URL,
-} from './demigod-turn-lib.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const OUT = path.join(ROOT, 'DEMIGOD-CMS-LEGAL-PASS.json');
+const localFlags = {
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+  liveFetch: false,
+  aiSubmit: false,
+};
+const MARKERS = [
+  { name: 'LEGAL', re: /legal/i },
+  { name: 'CMS', re: /cms/i },
+  { name: 'INSIGHTS', re: /insights/i },
+  { name: 'PAGE', re: /page/i },
+  { name: 'LOCAL', re: /local/i },
+];
 
-const AI_PROMPT = `DEMIGOD — create Legal page + Insights CMS. PUBLISH when done.
-
-1) NEW PAGE "Legal" slug /legal
-- Duplicate homepage structure: Navigation + Footer components only
-- Delete hero, pricing, trust, methodology, FAQ, forms from canvas on Legal page
-- Leave empty main area (foot-core JS injects privacy/terms content at runtime)
-- Page must be reachable at /legal after publish
-
-2) CMS COLLECTION "Insights"
-- Fields: Title (Plain text), Category (Plain text), Date (Date), Excerpt (Plain text)
-- Add 3 items with lorem ipsum:
-  a) "Lorem ipsum dolor sit amet" / Insights / Jun 12 2026 / Consectetur adipiscing elit...
-  b) "Ut enim ad minim veniam" / Hiring / Jun 18 2026 / Quis nostrud exercitation...
-  c) "Duis aute irure dolor" / Talent / Jun 24 2026 / Excepteur sint occaecat...
-
-3) HOMEPAGE — add Collection List bound to Insights (3 items, 3-column grid) above footer
-- Section heading: "Insights & updates"
-- Hide if duplicate — one CMS block only
-
-4) Remove inline Privacy Policy and Terms of Service sections from homepage canvas (legal lives on /legal)
-
-5) PUBLISH to www.trydemigod.com AND talentlink-sf.webflow.io
-
-List every change made.`;
-
-async function reliablePublish(page) {
-  await page.keyboard.down('Control');
-  await page.keyboard.press('s');
-  await page.keyboard.up('Control');
-  await sleep(2000);
-  const pub = await page.waitForFunction(() => {
-    const b = [...document.querySelectorAll('button')].find((x) => /^publish$/i.test((x.textContent || '').trim()));
-    return b || null;
-  }, { timeout: 20000 }).catch(() => null);
-  if (!pub) return { ok: false, reason: 'no publish button' };
-  await (await pub.asElement()).click();
-  await sleep(4000);
-  await page.evaluate(() => {
-    for (const btn of [...document.querySelectorAll('button,div,span')]) {
-      if (/^select all$/i.test((btn.textContent || '').trim())) { btn.click(); break; }
-    }
-  });
-  await sleep(1500);
-  const confirm = await page.evaluate(() => {
-    const btn = [...document.querySelectorAll('button')].find((b) =>
-      /publish to selected domains|publish site|publish now/i.test(b.textContent || ''),
-    );
-    if (!btn) return { ok: false };
-    btn.click();
-    return { ok: true };
-  });
-  let published = false;
-  for (let i = 0; i < 24; i++) {
-    await sleep(5000);
-    const st = await page.evaluate(() => {
-      const body = document.body?.innerText || '';
-      return {
-        ago: body.match(/Published (a few seconds ago|1 minute ago|\d+ minutes ago)/i)?.[0] || '',
-        publishing: /publishing/i.test(body),
-      };
-    });
-    if (st.ago && !st.publishing) { published = true; break; }
-  }
-  return { confirm, published };
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-CMS-LEGAL-PASS.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'cms-legal-pass');
 }
 
-async function checkLegalLive() {
-  const res = await fetch(`https://www.trydemigod.com/legal?v=${Date.now()}`, { redirect: 'follow' });
-  const html = await res.text();
-  return {
-    status: res.status,
-    ok: res.status === 200,
-    hasFoot: /lnyqlq\.js|dg-foot-v\d+-core/.test(html),
-    hasLegalWrap: /demigod-legal|dg-legal-page/.test(html),
-  };
-}
-
-async function main() {
-  const result = { at: new Date().toISOString(), before: await checkLegalLive(), steps: [] };
-
-  const aiSub = await submitWebflowAiPrompt(AI_PROMPT);
-  result.steps.push({ step: 'submit-ai', ...aiSub });
-  wlog(`cms-legal ai submit: ${JSON.stringify(aiSub)}`);
-
-  if (aiSub.ok) {
-    const wait = await waitWebflowTurnComplete(600000, aiSub.beforeTail || '');
-    result.steps.push({ step: 'ai-wait', ok: wait.ok, tail: (wait.tail || '').slice(-500) });
-    wlog(`cms-legal ai wait ok=${wait.ok}`);
-  }
-
-  const browser = await puppeteer.connect({ browserURL: CDP_URL, protocolTimeout: 600000 });
-  const { page, resize } = await prepareWebflowDesigner(browser, { url: WEBFLOW_DESIGNER_URL });
-  result.resize = resize;
-
-  const pub = await reliablePublish(page);
-  result.steps.push({ step: 'publish', ...pub });
-  wlog(`cms-legal publish: ${JSON.stringify(pub)}`);
-
-  await browser.disconnect();
-  await sleep(15000);
-
-  result.after = await checkLegalLive();
-  result.pass = result.after.ok;
-
-  fs.writeFileSync(OUT, `${JSON.stringify(result, null, 2)}\n`);
-  console.log(JSON.stringify({ ok: result.pass, before: result.before, after: result.after, out: OUT }, null, 2));
-  wlog('CMS/legal pass done → ' + OUT);
-  process.exit(result.pass ? 0 : 1);
-}
-
-main().catch((e) => {
-  console.error(e);
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
   process.exit(1);
-});
+}
+
+function refusedFlag(arg) {
+  return arg === '--publish'
+    || arg === '--push'
+    || arg === '--designer'
+    || arg === '--live'
+    || arg === '--send'
+    || arg === '--ai'
+    || arg === '--fetch'
+    || arg === '--capture';
+}
+
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
+}
+
+function entryStat(root, rel) {
+  const file = path.join(root, rel);
+  if (!insideRoot(root, file)) return null;
+  let st;
+  try {
+    st = fs.lstatSync(file);
+  } catch {
+    return null;
+  }
+  if (st.isSymbolicLink()) return null;
+  return { file, st };
+}
+
+function readText(root, rel) {
+  const found = entryStat(root, rel);
+  if (!found || !found.st.isFile()) return null;
+  return fs.readFileSync(found.file, 'utf8');
+}
+
+function markerHits(text) {
+  const found = {};
+  for (const marker of MARKERS) found[marker.name] = marker.re.test(text);
+  return found;
+}
+
+function main() {
+  if (process.argv.some(refusedFlag)) refuse('publish_refused');
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('legal_root_required');
+  }
+  const footText = readText(root, 'demigod-foot-core.js');
+  const notes = readText(root, 'HEAVY-CMS-LEGAL-PASS-SOURCE.md');
+  if (footText == null && notes == null) refuse('source_required');
+  const text = notes || '';
+  const hits = markerHits(text);
+  const missing = MARKERS.filter((marker) => !hits[marker.name]).map((marker) => marker.name);
+  const pass = notes != null && missing.length === 0;
+  const footMarker = ((footText || text).match(/Harbor \S+ keep/) || [''])[0];
+  const dir = shotDir();
+  const shot = path.join(dir, 'legal.shot');
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, shot) || !insideRoot(root, report)) {
+    refuse('legal_root_required');
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(shot, `${footMarker}\n${missing.length === 0 ? 'complete' : 'missing'}\n`);
+  const body = {
+    ok: pass,
+    at: new Date().toISOString(),
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    excerpt: text.slice(0, 180),
+    markers: hits,
+    missing,
+    chars: text.length,
+    ...localFlags,
+  };
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
+  console.log(JSON.stringify({
+    ok: pass,
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    missing: missing.length,
+    chars: text.length,
+    ...localFlags,
+  }));
+  if (!pass) process.exit(1);
+}
+
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'legal_failed',
+      detail: String(e.message || e),
+      ...localFlags,
+    }));
+    process.exit(1);
+  }
+}

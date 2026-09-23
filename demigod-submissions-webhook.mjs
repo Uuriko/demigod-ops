@@ -1,14 +1,17 @@
 #!/usr/bin/env node
-/** Local Webflow form webhook receiver → inbox + anonymized board → publish CDN. */
+/** Local Webflow form webhook receiver → inbox. Does not call Webflow or send mail. */
 import http from 'http';
+import path from 'path';
 import { spawnSync } from 'child_process';
-import { ROOT } from './demigod-turn-lib.mjs';
+import { fileURLToPath } from 'url';
 import {
   ingestSubmission,
   parseWebhookPayload,
   findSubmission,
   publicStatus,
 } from './demigod-submissions-lib.mjs';
+
+const OPS = path.dirname(fileURLToPath(import.meta.url));
 
 const PORT = Number(process.env.DEMIGOD_WEBHOOK_PORT || 9877);
 const HOST = process.env.DEMIGOD_WEBHOOK_HOST || '127.0.0.1';
@@ -42,7 +45,7 @@ function rateOk(ip) {
 }
 
 function publishBoard() {
-  spawnSync('node', ['demigod-board-publish.mjs'], { cwd: ROOT, encoding: 'utf8', timeout: 60000 });
+  spawnSync(process.execPath, ['demigod-board-publish.mjs'], { cwd: OPS, encoding: 'utf8', timeout: 60000 });
 }
 
 const server = http.createServer(async (req, res) => {
@@ -87,9 +90,14 @@ const server = http.createServer(async (req, res) => {
   const buf = Buffer.concat(chunks);
 
   try {
-    const { name, data } = parseWebhookPayload(buf);
-    const formName = name || req.headers['x-webflow-form'] || 'unknown';
-    const result = ingestSubmission({ name: formName, data });
+    const parsed = parseWebhookPayload(buf);
+    if (parsed.ignored) {
+      res.writeHead(202, { 'Content-Type': 'application/json', ...cors });
+      res.end(JSON.stringify({ ok: true, ignored: true, reason: parsed.reason, ingested: false }));
+      return;
+    }
+    const formName = parsed.name || req.headers['x-webflow-form'] || 'unknown';
+    const result = ingestSubmission({ name: formName, data: parsed.data });
     if (result.featured) publishBoard();
     res.writeHead(200, { 'Content-Type': 'application/json', ...cors });
     res.end(JSON.stringify({
@@ -107,11 +115,17 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, HOST, () => {
-  console.log(JSON.stringify({
-    ok: true,
-    url: `http://${HOST}:${PORT}/`,
-    health: `http://${HOST}:${PORT}/health`,
-    note: 'Point Webflow form webhook here (use ngrok for production)',
-  }));
-});
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) {
+  server.listen(PORT, HOST, () => {
+    const bound = server.address();
+    const port = bound && typeof bound === 'object' ? bound.port : PORT;
+    console.log(JSON.stringify({
+      ok: true,
+      port,
+      url: `http://${HOST}:${port}/`,
+      health: `http://${HOST}:${port}/health`,
+      note: 'Local form_submission receiver. Does not register a Webflow webhook.',
+    }));
+  });
+}

@@ -1,80 +1,148 @@
 #!/usr/bin/env node
-/** Heavy: close submissions loop + review gate + static drift — Demigod only. */
+/**
+ * Local loop check in an explicit data root.
+ * Writes DEMIGOD-HEAVY-SHIP-LOOP.json under DEMIGOD_ROOT. Does not open a browser or send a prompt.
+ */
 import fs from 'fs';
 import path from 'path';
-import { connectBrowser, findGrokPage, sendToGrok, collectGrokReply } from './collab-lib.mjs';
-import { ROOT, wlog } from './demigod-turn-lib.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const OUT = path.join(ROOT, 'HEAVY-SHIP-LOOP.md');
-const OUT_JSON = path.join(ROOT, 'DEMIGOD-HEAVY-SHIP-LOOP.json');
+const localFlags = {
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+  liveFetch: false,
+  aiSubmit: false,
+};
+const MARKERS = [
+  { name: 'LOOP', re: /loop/i },
+  { name: 'REVIEW', re: /review/i },
+  { name: 'WEBHOOK', re: /webhook/i },
+  { name: 'BOARD', re: /board/i },
+  { name: 'LOCAL', re: /local/i },
+];
 
-async function collect(page, minLen = 3500) {
-  let text = '';
-  for (let i = 0; i < 28; i++) {
-    const reply = await collectGrokReply(page, { waitMs: 60000, minGrowth: 120 });
-    text = reply.text || text;
-    const tail = text.slice(-25000);
-    const busy = reply.thinking || /thinking|Finalizing/i.test(tail);
-    const ready = /=== PROMPT FOR CURSOR AGENT ===/i.test(text) && /REVIEW GATE|webhook|drift/i.test(text);
-    if (text && !busy && ready && tail.length >= minLen) break;
-    wlog(`heavy ship-loop poll ${i + 1}: len=${tail.length} busy=${busy}`);
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-HEAVY-SHIP-LOOP.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'ship-loop');
+}
+
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
+  process.exit(1);
+}
+
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
+}
+
+function entryStat(root, rel) {
+  const file = path.join(root, rel);
+  if (!insideRoot(root, file)) return null;
+  let st;
+  try {
+    st = fs.lstatSync(file);
+  } catch {
+    return null;
   }
-  return text;
+  if (st.isSymbolicLink()) return null;
+  return { file, st };
 }
 
-async function main() {
-  const board = fs.existsSync(path.join(ROOT, 'DEMIGOD-BOARD.json'))
-    ? JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-BOARD.json'), 'utf8'))
-    : {};
-  const PROMPT = `SuperGrok Heavy — SHIP THE LOOP for trydemigod.com (Demigod only).
-
-CRITICAL: NO Tally. NO eat-the-sounds game. Native Webflow forms only.
-
-## DONE (do not redo)
-- Forms v36 trimmed (Fonzi-style): startup 7 fields, engineer 8 fields
-- Foot-core CDN live, verify PASS
-- Incognito submit → hello@ works with resume
-- Submissions code: demigod-submissions-webhook.mjs :9877, demigod-submissions-lib.mjs, board CDN
-
-## SHIP NOW (your job)
-1. **Review gate architecture** — new submissions → inbox only; human approves → featured board. Rules for auto-reject/spam. CLI approve flow.
-2. **Webflow webhook wiring** — form_submission trigger for startup-hire + engineer-join. Tunnel vs Make.com vs always-on host. Payload parse for Webflow v2 envelope.
-3. **Static drift cleanup** — email-form, TalentLink, METHODOLOGY in view-source. Designer steps vs runtime-only OK?
-4. **Board seed data** — 3 roles + 2 candidates placeholder until real approvals. Dedupe policy.
-5. **E2E acceptance** — exact test sequence after wiring.
-
-## Constraints
-- Vanilla JS foot-core + JSON CDN board
-- Anonymize before featured cards (no PII)
-- Max 6 roles + 4 candidates on homepage
-- Webflow Starter plan
-
-## Deliverable format
-=== STATUS ACK ===
-=== REVIEW GATE SPEC ===
-=== WEBHOOK + TUNNEL SPEC ===
-=== STATIC DRIFT STEPS ===
-=== BOARD CURATION RULES ===
-=== E2E ACCEPTANCE ===
-=== PROMPT FOR CURSOR AGENT === (20+ numbered steps, AUTOMATED vs HUMAN, STOP condition)
-
-Current board: ${(board.roles || []).length} roles, ${(board.candidates || []).length} candidates.
-Be blunt. Execute now.`;
-
-  wlog('=== HEAVY SHIP LOOP START ===');
-  const browser = await connectBrowser();
-  const page = await findGrokPage(browser);
-  if (!page) throw new Error('no grok tab');
-  await page.bringToFront();
-  await sendToGrok(page, PROMPT);
-  const text = await collect(page);
-  await browser.disconnect();
-
-  const hasPrompt = /=== PROMPT FOR CURSOR AGENT ===/i.test(text);
-  fs.writeFileSync(OUT, `# SuperGrok Heavy — Ship Loop\n\n_${new Date().toISOString()}_\n\n${text}\n`);
-  fs.writeFileSync(OUT_JSON, JSON.stringify({ at: new Date().toISOString(), chars: text.length, hasPrompt, path: OUT }, null, 2));
-  console.log(JSON.stringify({ chars: text.length, hasPrompt, path: OUT }));
-  wlog('=== HEAVY SHIP LOOP END ===');
+function readText(root, rel) {
+  const found = entryStat(root, rel);
+  if (!found || !found.st.isFile()) return null;
+  return fs.readFileSync(found.file, 'utf8');
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+function markerHits(text) {
+  const found = {};
+  for (const marker of MARKERS) found[marker.name] = marker.re.test(text);
+  return found;
+}
+
+function main() {
+  if (
+    process.argv.includes('--publish')
+    || process.argv.includes('--push')
+    || process.argv.includes('--ship')
+    || process.argv.includes('--live')
+    || process.argv.includes('--send')
+    || process.argv.includes('--ai')
+    || process.argv.includes('--fetch')
+  ) {
+    refuse('publish_refused');
+  }
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('loop_root_required');
+  }
+  const footText = readText(root, 'demigod-foot-core.js');
+  const notes = readText(root, 'HEAVY-SHIP-LOOP-SOURCE.md');
+  if (footText == null && notes == null) refuse('source_required');
+  const text = notes || '';
+  const hits = markerHits(text);
+  const missing = MARKERS.filter((marker) => !hits[marker.name]).map((marker) => marker.name);
+  const pass = notes != null && missing.length === 0;
+  const footMarker = ((footText || text).match(/Harbor \S+ keep/) || [''])[0];
+  const dir = shotDir();
+  const shot = path.join(dir, 'loop.shot');
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, shot) || !insideRoot(root, report)) {
+    refuse('loop_root_required');
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(shot, `${footMarker}\n${missing.length === 0 ? 'complete' : 'missing'}\n`);
+  const body = {
+    ok: pass,
+    at: new Date().toISOString(),
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    excerpt: text.slice(0, 180),
+    markers: hits,
+    missing,
+    chars: text.length,
+    ...localFlags,
+  };
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
+  console.log(JSON.stringify({
+    ok: pass,
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    missing: missing.length,
+    chars: text.length,
+    ...localFlags,
+  }));
+  if (!pass) process.exit(1);
+}
+
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'loop_failed',
+      detail: String(e.message || e),
+      ...localFlags,
+    }));
+    process.exit(1);
+  }
+}

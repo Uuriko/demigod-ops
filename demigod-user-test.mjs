@@ -6,7 +6,7 @@
  * Modes:  --quick (skip heavy) · --fix (fail on medium) · --json
  *
  * Uses CDP when available; degrades to HTTP for site/dash probes.
- * Writes /tmp/dg-busy/user-test-latest.json + .md
+ * Writes user-test-latest.json + .md in DEMIGOD_ROOT. The command does not publish.
  *
  *   node demigod-user-test.mjs
  *   node demigod-user-test.mjs --suite site
@@ -16,11 +16,20 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
-import WebSocket from 'ws';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = process.env.DEMIGOD_ROOT || __dirname;
-const BUSY = '/tmp/dg-busy';
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || scriptDir();
+}
+function reportJson() {
+  return path.join(dataRoot(), 'user-test-latest.json');
+}
+function reportMd() {
+  return path.join(dataRoot(), 'user-test-latest.md');
+}
+const localFlags = { sent: false, liveMail: false, livePublish: false };
 const CDP = process.env.CDP_URL || 'http://127.0.0.1:9223';
 const LIVE = process.env.DEMIGOD_LIVE || 'https://www.trydemigod.com';
 const DASH = process.env.DEMIGOD_DASH || 'http://127.0.0.1:9878';
@@ -47,11 +56,13 @@ function check(suite, name, ok, detail = '', severity = 'high') {
 }
 
 function runNode(scriptArgs, timeout = 90000) {
-  const r = spawnSync('node', scriptArgs, {
-    cwd: ROOT,
+  const [script, ...rest] = scriptArgs;
+  const scriptPath = path.isAbsolute(script) ? script : path.join(scriptDir(), script);
+  const r = spawnSync('node', [scriptPath, ...rest], {
+    cwd: scriptDir(),
     encoding: 'utf8',
     timeout,
-    env: process.env,
+    env: { ...process.env, DEMIGOD_ROOT: dataRoot() },
   });
   return {
     status: r.status ?? 1,
@@ -100,7 +111,8 @@ async function cdpList() {
   }
 }
 
-function cdpConnect(wsUrl) {
+async function cdpConnect(wsUrl) {
+  const { default: WebSocket } = await import('ws');
   const ws = new WebSocket(wsUrl);
   let id = 1;
   const pending = new Map();
@@ -140,7 +152,7 @@ async function withLivePage(fn) {
     await new Promise((r) => setTimeout(r, 2000));
   }
   if (!tab?.webSocketDebuggerUrl) throw new Error('no live tab');
-  const session = cdpConnect(tab.webSocketDebuggerUrl);
+  const session = await cdpConnect(tab.webSocketDebuggerUrl);
   try {
     await session.send('Runtime.enable');
     await session.send('Page.enable').catch(() => {});
@@ -567,7 +579,7 @@ async function suiteTools() {
     check('tools', 'agent-smoke exit 0', smoke.status === 0, smoke.out.slice(0, 100), 'high');
     const smokeJ = (() => {
       try {
-        return JSON.parse(fs.readFileSync(path.join(BUSY, 'agent-smoke.json'), 'utf8'));
+        return JSON.parse(fs.readFileSync(path.join(dataRoot(), 'DEMIGOD-AGENT-SMOKE.json'), 'utf8'));
       } catch {
         return null;
       }
@@ -588,7 +600,7 @@ async function suiteTools() {
 
   // Shared lib exports
   try {
-    const lib = await import(path.join(ROOT, 'demigod-agent-tools-lib.mjs'));
+    const lib = await import(path.join(scriptDir(), 'demigod-agent-tools-lib.mjs'));
     check('tools', 'lib isFrozen', typeof lib.isFrozen === 'function', '', 'high');
     check('tools', 'lib gateFreshness', typeof lib.gateFreshness === 'function', '', 'medium');
     const fr = lib.isFrozen();
@@ -672,7 +684,9 @@ async function suiteCopy() {
   check('copy', 'hello@ present', /hello@trydemigod\.com/i.test(text), '', 'medium');
   // disk foot COPY
   try {
-    const foot = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
+    const foot = fs.readFileSync(path.join(dataRoot(), 'demigod-foot-core.js'), 'utf8');
+    const marker = (foot.match(/Harbor \S+ keep/) || [''])[0];
+    check('copy', 'foot marker', true, marker, 'low');
     check('copy', 'foot has I\'m hiring CTA', /I.?m hiring/.test(foot), '', 'high');
     check('copy', 'foot has Find a job CTA', /Find a job/.test(foot), '', 'high');
     check('copy', 'foot no 48h promise', !/48\s*h(?:our)?\s+(?:response|SLA|guarantee)/i.test(foot), '', 'high');
@@ -684,7 +698,10 @@ async function suiteCopy() {
 
 // ── Main ──────────────────────────────────────────────
 async function main() {
-  fs.mkdirSync(BUSY, { recursive: true });
+  if (args.has('--publish')) {
+    console.error(JSON.stringify({ ok: false, error: 'publish_refused', ...localFlags }));
+    process.exit(1);
+  }
   const want = suiteArg === 'all' ? ['site', 'dash', 'tools', 'forms', 'copy'] : [suiteArg];
 
   for (const s of want) {
@@ -711,6 +728,8 @@ async function main() {
     suite: suiteArg,
     quick: QUICK,
     strict: STRICT,
+    path: reportJson(),
+    ...localFlags,
     ms: Date.now() - t0,
     pass,
     counts: {
@@ -725,7 +744,8 @@ async function main() {
     results,
   };
 
-  fs.writeFileSync(path.join(BUSY, 'user-test-latest.json'), JSON.stringify(report, null, 2));
+  fs.mkdirSync(dataRoot(), { recursive: true });
+  fs.writeFileSync(reportJson(), JSON.stringify(report, null, 2));
   const md = [
     `# Demigod user-test`,
     `at: ${report.at} · suite=${suiteArg} · ${report.ms}ms · ${pass ? 'PASS' : 'FAIL'}`,
@@ -739,11 +759,11 @@ async function main() {
     ...results.map((r) => `- ${r.ok ? '✓' : '✗'} [${r.severity}] ${r.suite}/${r.name}${r.detail ? ' — ' + r.detail : ''}`),
     '',
   ].join('\n');
-  fs.writeFileSync(path.join(BUSY, 'user-test-latest.md'), md);
+  fs.writeFileSync(reportMd(), md);
 
   if (!JSON_ONLY) {
     console.log(md);
-    console.log('wrote /tmp/dg-busy/user-test-latest.json');
+    console.log(`wrote ${reportJson()}`);
   } else {
     console.log(JSON.stringify(report, null, 2));
   }

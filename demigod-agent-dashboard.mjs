@@ -375,7 +375,7 @@ function deriveActions(ctx) {
   const truthGreen = safeJson(path.join(BUSY, 'truth.json'));
   const liveEqDiskGreen =
     truthGreen?.claims?.['live==disk'] === true || truthGreen?.match?.cdnBodyMatchesDisk === true;
-  const freezeOnGreen = Boolean(safeJson(path.join(BUSY, 'publish-freeze.json'))?.on);
+  const freezeOnGreen = Boolean(safeJson(path.join(process.env.DEMIGOD_ROOT || __dirname, 'DEMIGOD-PUBLISH-FREEZE.json'))?.on);
   if (
     live?.ok &&
     gates?.verifySourcePass === true &&
@@ -762,7 +762,7 @@ async function collectStatus() {
     cockpit = { error: String(e.message || e) };
   }
 
-  const freezeState = safeJson(path.join(BUSY, 'publish-freeze.json')) || { on: false };
+  const freezeState = safeJson(path.join(process.env.DEMIGOD_ROOT || __dirname, 'DEMIGOD-PUBLISH-FREEZE.json')) || { on: false };
   let host = 'local';
   try {
     host = fs.readFileSync('/etc/hostname', 'utf8').trim() || 'local';
@@ -790,7 +790,7 @@ async function collectStatus() {
     boardHonesty: evidenceOf('DEMIGOD-BOARD-HONESTY.json'),
     board: evidenceOf('DEMIGOD-BOARD.json'),
     footCdn: evidenceOf('DEMIGOD-FOOT-CDN.json'),
-    freeze: evidenceOf(path.join(BUSY, 'publish-freeze.json')),
+    freeze: evidenceOf(path.join(process.env.DEMIGOD_ROOT || __dirname, 'DEMIGOD-PUBLISH-FREEZE.json')),
     smoke: evidenceOf(path.join(BUSY, 'agent-smoke.json')),
     truth: evidenceOf(path.join(BUSY, 'truth.json')),
     preflight: evidenceOf(path.join(BUSY, 'preflight-latest.json')),
@@ -1494,7 +1494,7 @@ async function executeJob(jobId, toolId) {
   try {
     // Defense-in-depth: re-check freeze at execute time (not only startJob)
     if (spec.mutate) {
-      const freeze = safeJson(path.join(BUSY, 'publish-freeze.json'));
+      const freeze = safeJson(path.join(process.env.DEMIGOD_ROOT || __dirname, 'DEMIGOD-PUBLISH-FREEZE.json'));
       if (freeze?.on) {
         throw new Error('mutate blocked at execute — publish-freeze ON: ' + (freeze.why || ''));
       }
@@ -1582,7 +1582,7 @@ function startJob(toolId, { allowMutate = false } = {}) {
     };
   }
   if (spec.mutate) {
-    const freeze = safeJson(path.join(BUSY, 'publish-freeze.json'));
+    const freeze = safeJson(path.join(process.env.DEMIGOD_ROOT || __dirname, 'DEMIGOD-PUBLISH-FREEZE.json'));
     if (freeze?.on) {
       return {
         ok: false,

@@ -27,27 +27,53 @@ import crypto from 'crypto';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import {
-  BUSY,
   sha256File,
   atomicWrite,
-  ensureBusy,
   readJson,
   flag,
   opt,
   hostname,
 } from './demigod-agent-tools-lib.mjs';
 
-const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
-const OUTBOX = path.join(BUSY, 'outbox');
-const APPLY_LOG = path.join(BUSY, 'apply-log.jsonl');
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function outboxDir() {
+  return path.join(dataRoot(), 'DEMIGOD-APPLY-OUTBOX');
+}
+
+function applyLog() {
+  return path.join(dataRoot(), 'DEMIGOD-APPLY-LOG.jsonl');
+}
+
+function applyLatest() {
+  return path.join(dataRoot(), 'DEMIGOD-APPLY-LATEST.json');
+}
+
+function backupDir() {
+  return path.join(dataRoot(), 'DEMIGOD-APPLY-BACKUPS');
+}
+
+const ROOT = dataRoot();
 const LEDGER = path.join(ROOT, 'DEMIGOD-PLAN-LEDGER.json');
 const args = process.argv.slice(2);
 const cmd = args[0] || 'list';
+const localFlags = { sent: false, liveMail: false, livePublish: false };
+
+if (args.includes('--publish')) {
+  console.error(JSON.stringify({
+    ok: false,
+    error: 'publish_refused',
+    ...localFlags,
+  }));
+  process.exit(1);
+}
 
 function resolvePlanPath(p) {
   if (!p) return null;
   if (fs.existsSync(p)) return path.resolve(p);
-  const a = path.join(OUTBOX, path.basename(p));
+  const a = path.join(outboxDir(), path.basename(p));
   if (fs.existsSync(a)) return a;
   const b = path.join(ROOT, p);
   if (fs.existsSync(b)) return b;
@@ -224,7 +250,7 @@ function applyReplacements(plan, dry) {
 
     after[rel] = crypto.createHash('sha256').update(text).digest('hex');
     if (!dry) {
-      const bakDir = path.join(BUSY, 'apply-backups');
+      const bakDir = backupDir();
       fs.mkdirSync(bakDir, { recursive: true });
       const safeName = rel.replace(/[\/\\]/g, '__');
       const bak = path.join(bakDir, `${safeName}.${Date.now()}.${crypto.randomBytes(3).toString('hex')}.bak`);
@@ -300,19 +326,18 @@ function ledgerAddApplied(plan, receipt) {
 }
 
 function appendLog(rec) {
-  ensureBusy();
-  fs.appendFileSync(APPLY_LOG, JSON.stringify(rec) + '\n');
-  atomicWrite(path.join(BUSY, 'apply-latest.json'), JSON.stringify(rec, null, 2) + '\n');
+  fs.mkdirSync(dataRoot(), { recursive: true });
+  fs.appendFileSync(applyLog(), JSON.stringify(rec) + '\n');
+  atomicWrite(applyLatest(), JSON.stringify({ ...rec, path: applyLatest(), ...localFlags }, null, 2) + '\n');
 }
 
 if (cmd === 'list') {
-  ensureBusy();
-  fs.mkdirSync(OUTBOX, { recursive: true });
+  fs.mkdirSync(outboxDir(), { recursive: true });
   const files = fs
-    .readdirSync(OUTBOX)
+    .readdirSync(outboxDir())
     .filter((f) => f.endsWith('.json'))
     .map((name) => {
-      const full = path.join(OUTBOX, name);
+      const full = path.join(outboxDir(), name);
       const st = fs.statSync(full);
       const j = readJson(full) || {};
       return {
@@ -324,15 +349,20 @@ if (cmd === 'list') {
       };
     })
     .sort((a, b) => b.mtime.localeCompare(a.mtime));
-  console.log(JSON.stringify({ at: new Date().toISOString(), outbox: OUTBOX, files }, null, 2));
+  console.log(JSON.stringify({
+    at: new Date().toISOString(),
+    outbox: outboxDir(),
+    path: outboxDir(),
+    files,
+    ...localFlags,
+  }, null, 2));
   process.exit(0);
 }
 
 if (cmd === 'scaffold') {
   const title = opt(args, '--title', 'untitled apply plan');
   const file = opt(args, '--file', 'demigod-foot-core.js');
-  ensureBusy();
-  fs.mkdirSync(OUTBOX, { recursive: true });
+  fs.mkdirSync(outboxDir(), { recursive: true });
   const sha = sha256File(path.join(ROOT, file));
   const plan = {
     title,
@@ -353,9 +383,9 @@ if (cmd === 'scaffold') {
     stop: 'anchors pass + verify green',
   };
   const name = `plan-${Date.now().toString(36)}.json`;
-  const full = path.join(OUTBOX, name);
+  const full = path.join(outboxDir(), name);
   atomicWrite(full, JSON.stringify(plan, null, 2) + '\n');
-  console.log(JSON.stringify({ ok: true, path: full, plan }, null, 2));
+  console.log(JSON.stringify({ ok: true, path: full, plan, ...localFlags }, null, 2));
   process.exit(0);
 }
 

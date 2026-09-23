@@ -5,12 +5,36 @@
  * Deterministic tests for Webflow submit confirmation ownership (no live POST).
  * Mirrors dgWfStatusRoot + waitPost contracts from demigod-foot-core.js.
  *
- * Exit 0 = all cases pass. Writes /tmp/dg-busy/submit-fixture.json
+ * Exit 0 = all cases pass. Writes DEMIGOD-SUBMIT-FIXTURE.json in DEMIGOD_ROOT.
  */
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-const BUSY = '/tmp/dg-busy';
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function fixtureJsonPath() {
+  return path.join(dataRoot(), 'DEMIGOD-SUBMIT-FIXTURE.json');
+}
+
+function fixtureMdPath() {
+  return path.join(dataRoot(), 'DEMIGOD-SUBMIT-FIXTURE.md');
+}
+
+function fail(error) {
+  console.error(JSON.stringify({
+    ok: false,
+    error,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+  process.exit(1);
+}
+
+if (process.argv.includes('--publish')) fail('publish_refused');
 
 /** Minimal DOM stubs for form / .w-form / done / fail layouts */
 function el(tag, opts = {}) {
@@ -251,6 +275,7 @@ test('never treat form-as-done-container alone', () => {
 const pass = cases.every((c) => c.ok);
 const out = {
   at: new Date().toISOString(),
+  path: fixtureJsonPath(),
   pass,
   cases,
   contract: {
@@ -258,12 +283,15 @@ const out = {
     waitPost: 'success|fail|timeout|pending',
     noForceDone: 'showStep must not force .w-form-done visible',
   },
+  sent: false,
+  liveMail: false,
+  livePublish: false,
 };
 
-fs.mkdirSync(BUSY, { recursive: true });
-fs.writeFileSync(path.join(BUSY, 'submit-fixture.json'), JSON.stringify(out, null, 2));
+fs.mkdirSync(dataRoot(), { recursive: true });
+fs.writeFileSync(fixtureJsonPath(), JSON.stringify(out, null, 2) + '\n');
 fs.writeFileSync(
-  path.join(BUSY, 'submit-fixture.md'),
+  fixtureMdPath(),
   `# Submit fixture ${out.at}\npass: ${pass}\n` +
     cases.map((c) => `- ${c.ok ? 'OK' : 'FAIL'} ${c.name}${c.error ? ' — ' + c.error : ''}`).join('\n') +
     '\n',

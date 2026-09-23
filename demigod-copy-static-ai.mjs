@@ -1,34 +1,48 @@
 #!/usr/bin/env node
-/** Webflow AI: permanent static scrub of 48h / John Doe + page SEO meta. */
+/**
+ * Local copy check for a planted source in an explicit data root.
+ * Writes DEMIGOD-COPY-STATIC-AI.json under DEMIGOD_ROOT. Does not submit a designer prompt.
+ */
 import fs from 'fs';
 import path from 'path';
-import { ROOT, wlog, submitWebflowAiPrompt, waitWebflowTurnComplete } from './demigod-turn-lib.mjs';
-import { fetchLiveHtml } from './demigod-live-lib.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const OUT = path.join(ROOT, 'DEMIGOD-COPY-STATIC-AI.json');
-const CLEAN_META = 'Demigod matches SF startups with curated talent. Human-reviewed profiles. 10% fee on hire only. hello@trydemigod.com';
-const CLEAN_OG = 'SF startups submit a brief. Candidates upload once. Humans match. 10% on hire.';
-const CLEAN_HERO = 'SF Bay Area startups submit a role brief. Candidates upload a profile once. Humans review every match.';
+const localFlags = {
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+  liveFetch: false,
+  aiSubmit: false,
+};
 
-const PROMPT = `COPY POLICY FIX — Demigod HOME page only. No reply-speed promises. No founder names.
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-COPY-STATIC-AI.json');
+}
 
-PAGE SETTINGS → SEO tab:
-- Meta description: ${CLEAN_META}
-- Open Graph description: ${CLEAN_OG}
-- Twitter description: ${CLEAN_OG}
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, pass: false, error, ...localFlags }));
+  process.exit(1);
+}
 
-CANVAS permanent fixes (edit text, do not rely on hide):
-- Remove/replace ALL "48 hours", "48h", "Within 48", "3-5 matches in 48 hours", "Humans Match Within 48h"
-- Hero description → ${CLEAN_HERO}
-- Engineer modal placeholder "John Doe" → "Your full name"
-- Delete or rewrite step card titled "Humans Match Within 48h"
-- Footer tagline: remove "48 hours" timing
-- Replace TalentLink branding with Demigod
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
+}
 
-Publish to www.trydemigod.com AND talentlink-sf.webflow.io. List every string changed.`;
+function readLocal(root, name) {
+  const file = path.join(root, name);
+  if (!fs.existsSync(file)) return null;
+  return fs.readFileSync(file, 'utf8');
+}
 
-async function metrics() {
-  const { html } = await fetchLiveHtml();
+function metrics(html) {
   return {
     speedLeaks: (html.match(/48\s*h(?:ours?)?|within\s*48|3-5[^<]{0,40}48/gi) || []).length,
     nameLeaks: (html.match(/John\s+Doe/gi) || []).length,
@@ -37,35 +51,68 @@ async function metrics() {
   };
 }
 
-async function main() {
-  wlog('=== COPY STATIC AI START ===');
-  const result = { at: new Date().toISOString(), before: await metrics() };
-
-  const submit = await submitWebflowAiPrompt(PROMPT);
-  result.submit = submit;
-  if (!submit.ok) {
-    fs.writeFileSync(OUT, JSON.stringify(result, null, 2));
-    console.log(JSON.stringify({ ok: false, reason: submit.reason, out: OUT }));
-    process.exit(1);
+function main() {
+  if (
+    process.argv.includes('--publish')
+    || process.argv.includes('--push')
+    || process.argv.includes('--live')
+    || process.argv.includes('--ai')
+  ) {
+    refuse('publish_refused');
   }
-
-  const wait = await waitWebflowTurnComplete(420000, submit.beforeTail || '');
-  result.wait = wait;
-
-  for (let i = 0; i < 8; i++) {
-    await new Promise((r) => setTimeout(r, 8000));
-    result.after = await metrics();
-    if (result.after.speedLeaks === 0 && result.after.nameLeaks === 0 && result.after.badMeta === 0) break;
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('static_root_required');
   }
-
-  result.pass = result.after?.speedLeaks === 0
-    && result.after?.nameLeaks === 0
-    && result.after?.badMeta === 0;
-
-  fs.writeFileSync(OUT, JSON.stringify(result, null, 2));
-  console.log(JSON.stringify({ ok: result.pass, before: result.before, after: result.after, out: OUT }));
-  wlog('=== COPY STATIC AI END ===');
-  process.exit(result.pass ? 0 : 1);
+  const html = readLocal(root, 'demigod-copy-static-source.html');
+  const foot = readLocal(root, 'demigod-foot-core.js');
+  if (html == null && foot == null) refuse('source_required');
+  const htmlText = html || '';
+  const footText = foot || '';
+  const footMarker = (footText.match(/Harbor \S+ keep/) || htmlText.match(/Harbor \S+ keep/) || [''])[0];
+  const found = metrics(htmlText);
+  const pass = found.speedLeaks === 0 && found.nameLeaks === 0 && found.badMeta === 0;
+  const report = reportPath();
+  if (!insideRoot(root, report)) refuse('static_root_required');
+  const body = {
+    ok: pass,
+    pass,
+    at: new Date().toISOString(),
+    path: report,
+    source: 'disk',
+    footMarker,
+    before: found,
+    after: found,
+    ...localFlags,
+  };
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
+  console.log(JSON.stringify({
+    ok: pass,
+    pass,
+    path: report,
+    source: 'disk',
+    footMarker,
+    before: found,
+    after: found,
+    ...localFlags,
+  }));
+  if (!pass) process.exit(1);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({
+      ok: false,
+      pass: false,
+      error: 'copy_static_failed',
+      detail: String(e.message || e),
+      ...localFlags,
+    }));
+    process.exit(1);
+  }
+}

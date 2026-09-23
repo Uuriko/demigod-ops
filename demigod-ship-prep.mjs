@@ -4,6 +4,7 @@
  * unless freeze is OFF.
  *
  *   node demigod-ship-prep.mjs [--json]
+ *   Writes DEMIGOD-SHIP-PREP.json in DEMIGOD_ROOT. Does not publish.
  */
 import fs from 'fs';
 import path from 'path';
@@ -11,12 +12,35 @@ import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { status as freezeStatus } from './demigod-publish-freeze.mjs';
 
-const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
-const BUSY = '/tmp/dg-busy';
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || scriptDir();
+}
+
+function prepPath() {
+  return path.join(dataRoot(), 'DEMIGOD-SHIP-PREP.json');
+}
+
 const asJson = process.argv.includes('--json');
 
+function fail(error) {
+  console.error(JSON.stringify({
+    ok: false,
+    error,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+  process.exit(1);
+}
+
+if (process.argv.includes('--publish')) fail('publish_refused');
+
 function run(label, cmd, timeout = 60000) {
-  const r = spawnSync('bash', ['-lc', cmd], { cwd: ROOT, encoding: 'utf8', timeout });
+  const r = spawnSync('bash', ['-lc', cmd], { cwd: dataRoot(), encoding: 'utf8', timeout });
   return {
     label,
     ok: r.status === 0,
@@ -38,21 +62,22 @@ steps.push(run('ship-checklist', 'node demigod-ship-checklist.mjs 2>/dev/null ||
 let footVer = null;
 let footSrc = '';
 try {
-  footSrc = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
+  footSrc = fs.readFileSync(path.join(dataRoot(), 'demigod-foot-core.js'), 'utf8');
   footVer = (footSrc.match(/__dgFootVer='(\d+)'/) || [])[1];
 } catch {
   /* ignore */
 }
 
 const pastes = {
-  footerLite: path.join(ROOT, 'demigod-footer-lite.html'),
-  headMinimal: path.join(ROOT, 'demigod-head-minimal.html'),
-  footCore: path.join(ROOT, 'demigod-foot-core.js'),
-  headCss: path.join(ROOT, 'demigod-head-styles.css'),
+  footerLite: path.join(dataRoot(), 'demigod-footer-lite.html'),
+  headMinimal: path.join(dataRoot(), 'demigod-head-minimal.html'),
+  footCore: path.join(dataRoot(), 'demigod-foot-core.js'),
+  headCss: path.join(dataRoot(), 'demigod-head-styles.css'),
 };
 
 const report = {
   at: new Date().toISOString(),
+  path: prepPath(),
   freeze,
   diskFootVer: footVer,
   canShip: !freeze.frozen && steps.every((s) => s.ok || s.label === 'ship-checklist'),
@@ -71,10 +96,13 @@ const report = {
         'node demigod-head-css-publish.mjs',
         'paste + Publish custom code',
       ],
+  sent: false,
+  liveMail: false,
+  livePublish: false,
 };
 
-fs.mkdirSync(BUSY, { recursive: true });
-fs.writeFileSync(path.join(BUSY, 'ship-prep.json'), JSON.stringify(report, null, 2) + '\n');
+fs.mkdirSync(dataRoot(), { recursive: true });
+fs.writeFileSync(prepPath(), JSON.stringify(report, null, 2) + '\n');
 
 if (asJson) console.log(JSON.stringify(report, null, 2));
 else {
@@ -82,6 +110,6 @@ else {
   for (const s of steps) console.log(`${s.ok ? '✓' : '✗'} ${s.label}`);
   console.log('\nNext:');
   for (const n of report.next) console.log(`  ${n}`);
-  console.log(`\nreport: ${path.join(BUSY, 'ship-prep.json')}`);
+  console.log(`\nreport: ${prepPath()}`);
 }
 process.exit(steps.filter((s) => !s.ok && s.label !== 'ship-checklist').length ? 1 : 0);

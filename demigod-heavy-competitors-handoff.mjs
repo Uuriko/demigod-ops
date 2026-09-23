@@ -1,77 +1,147 @@
 #!/usr/bin/env node
-/** Competitors + features research brief → SuperGrok Heavy */
+/**
+ * Local competitors brief check in an explicit data root.
+ * Writes DEMIGOD-HEAVY-COMPETITORS-BRIEF.json under DEMIGOD_ROOT. Does not send a prompt.
+ */
 import fs from 'fs';
 import path from 'path';
-import { connectBrowser, findGrokPage, sendToGrok, collectGrokReply } from './collab-lib.mjs';
-import { ROOT, wlog } from './demigod-turn-lib.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const REPORT = path.join(ROOT, 'HEAVY-COMPETITORS-FEATURES-REPORT.md');
-const OUT = path.join(ROOT, 'HEAVY-COMPETITORS-FEATURES-REPLY.md');
-const OUT_JSON = path.join(ROOT, 'DEMIGOD-HEAVY-COMPETITORS-HANDOFF.json');
-const SENT = path.join(ROOT, 'HEAVY-COMPETITORS-FEATURES-SENT.txt');
+const localFlags = {
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+  liveFetch: false,
+  aiSubmit: false,
+};
+const MARKERS = [
+  { name: 'COMPETITOR', re: /competitor/i },
+  { name: 'FEATURE', re: /feature/i },
+  { name: 'ARCHITECTURE', re: /architecture/i },
+  { name: 'Fonzi', re: /fonzi/i },
+  { name: 'Paraform', re: /paraform/i },
+  { name: 'Jill', re: /jill/i },
+];
 
-async function main() {
-  const report = fs.readFileSync(REPORT, 'utf8');
-  const PROMPT = `SuperGrok Heavy — DEMIGOD COMPETITORS + FEATURES RESEARCH
-
-John asked Local Grok to think deeper — anchor competitor research in the **full site architecture** (Webflow + foot-core v62 + submissions pipeline). Local Grok produced a research brief below with seed competitor data (Fonzi, Jack & Jill, Paraform) and architecture-aware feature matrix.
-
-**Your job:** Use web/X/HN research. Return numbered sections **A–F** exactly as specified in section 5 of the brief. Tables, not essays. Mark [SOURCE] vs [INFERRED]. Min 5000 chars. Blunt and build-focused.
-
-**Scope:** Demigod startup only — ignore Eat the Sounds game.
-
-**Critical context:** Demigod wins on 10% fee + human + SF wedge IF proof exists. Competitors win on ledger/testimonials/portals. Architecture allows dynamic board JSON via foot-core without rebuilding to React.
-
----
-
-${report}`;
-
-  wlog('=== HEAVY COMPETITORS HANDOFF START ===');
-  const browser = await connectBrowser();
-  const page = await findGrokPage(browser);
-  if (!page) {
-    await browser.disconnect();
-    throw new Error('no grok tab — open SuperGrok Heavy on grok.com in CDP Chrome');
-  }
-  await page.bringToFront();
-  fs.writeFileSync(SENT, `${new Date().toISOString()}\n${PROMPT.length} chars\n`);
-  wlog(`sending ${PROMPT.length} chars`);
-  await sendToGrok(page, PROMPT);
-
-  let text = '';
-  for (let i = 0; i < 50; i++) {
-    const reply = await collectGrokReply(page, { waitMs: 45000, minGrowth: 200 });
-    if (reply.thinking) {
-      wlog(`poll ${i + 1}: thinking`);
-      continue;
-    }
-    text = reply.text || text;
-    if (text.length > 5000 && !reply.stale) break;
-    wlog(`poll ${i + 1}: len=${text.length} stale=${reply.stale}`);
-  }
-
-  await browser.disconnect();
-
-  const limited = /before limit is gone|Upgrade to SuperGrok/i.test(text);
-  fs.writeFileSync(
-    OUT,
-    `# SuperGrok Heavy — Competitors + Features Reply\n\n_Date: ${new Date().toISOString()}_\n_Limited: ${limited}_\n_Chars: ${text.length}_\n\n${text}\n`,
-  );
-  const out = {
-    at: new Date().toISOString(),
-    sentChars: PROMPT.length,
-    replyChars: text.length,
-    limited,
-    report: REPORT,
-    reply: OUT,
-    sent: SENT,
-  };
-  fs.writeFileSync(OUT_JSON, JSON.stringify(out, null, 2));
-  console.log(JSON.stringify(out, null, 2));
-  wlog('=== HEAVY COMPETITORS HANDOFF END ===');
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-HEAVY-COMPETITORS-BRIEF.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'competitors-brief');
 }
 
-main().catch((e) => {
-  console.error(e);
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
   process.exit(1);
-});
+}
+
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
+}
+
+function entryStat(root, rel) {
+  const file = path.join(root, rel);
+  if (!insideRoot(root, file)) return null;
+  let st;
+  try {
+    st = fs.lstatSync(file);
+  } catch {
+    return null;
+  }
+  if (st.isSymbolicLink()) return null;
+  return { file, st };
+}
+
+function readText(root, rel) {
+  const found = entryStat(root, rel);
+  if (!found || !found.st.isFile()) return null;
+  return fs.readFileSync(found.file, 'utf8');
+}
+
+function markerHits(text) {
+  const found = {};
+  for (const marker of MARKERS) found[marker.name] = marker.re.test(text);
+  return found;
+}
+
+function main() {
+  if (
+    process.argv.includes('--publish')
+    || process.argv.includes('--push')
+    || process.argv.includes('--live')
+    || process.argv.includes('--send')
+    || process.argv.includes('--ai')
+  ) {
+    refuse('publish_refused');
+  }
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('brief_root_required');
+  }
+  const footText = readText(root, 'demigod-foot-core.js');
+  const brief = readText(root, 'HEAVY-COMPETITORS-FEATURES-REPORT.md');
+  if (footText == null && brief == null) refuse('source_required');
+  const text = brief || '';
+  const hits = markerHits(text);
+  const missing = MARKERS.filter((marker) => !hits[marker.name]).map((marker) => marker.name);
+  const pass = brief != null && missing.length === 0;
+  const footMarker = ((footText || text).match(/Harbor \S+ keep/) || [''])[0];
+  const dir = shotDir();
+  const shot = path.join(dir, 'brief.shot');
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, shot) || !insideRoot(root, report)) {
+    refuse('brief_root_required');
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(shot, `${footMarker}\n${missing.length === 0 ? 'complete' : 'missing'}\n`);
+  const body = {
+    ok: pass,
+    at: new Date().toISOString(),
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    excerpt: text.slice(0, 180),
+    markers: hits,
+    missing,
+    chars: text.length,
+    ...localFlags,
+  };
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
+  console.log(JSON.stringify({
+    ok: pass,
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    missing: missing.length,
+    chars: text.length,
+    ...localFlags,
+  }));
+  if (!pass) process.exit(1);
+}
+
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'competitors_brief_failed',
+      detail: String(e.message || e),
+      ...localFlags,
+    }));
+    process.exit(1);
+  }
+}

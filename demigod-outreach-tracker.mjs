@@ -45,6 +45,19 @@ function save(d) {
   atomicWrite(STORE, JSON.stringify(d, null, 2) + '\n');
 }
 
+function findLead(data, id) {
+  if (!id) return null;
+  const exact = data.leads.find((lead) => lead && lead.id === id);
+  if (exact) return exact;
+  const hits = data.leads.filter((lead) => lead && String(lead.id).startsWith(id));
+  if (hits.length === 1) return hits[0];
+  if (hits.length > 1) {
+    console.error(JSON.stringify({ ok: false, error: 'ambiguous_id', matches: hits.map((lead) => lead.id) }));
+    process.exit(1);
+  }
+  return null;
+}
+
 if (cmd === 'list') {
   const d = load();
   console.log(JSON.stringify({ count: d.leads.length, leads: d.leads }, null, 2));
@@ -99,7 +112,7 @@ if (cmd === 'set') {
     process.exit(2);
   }
   const d = load();
-  const lead = d.leads.find((l) => l.id === id || l.id.startsWith(id));
+  const lead = findLead(d, id);
   if (!lead) {
     console.error(JSON.stringify({ ok: false, error: 'not_found' }));
     process.exit(1);

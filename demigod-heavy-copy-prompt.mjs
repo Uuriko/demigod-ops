@@ -1,51 +1,146 @@
 #!/usr/bin/env node
-/** Copy audit → SuperGrok Heavy → COPY SPEC for Cursor. */
+/**
+ * Local copy spec check in an explicit data root.
+ * Writes DEMIGOD-HEAVY-COPY.json under DEMIGOD_ROOT. Does not send a prompt.
+ */
 import fs from 'fs';
 import path from 'path';
-import { connectBrowser, findGrokPage, sendToGrok, collectGrokReply } from './collab-lib.mjs';
-import { ROOT, wlog } from './demigod-turn-lib.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const OUT = path.join(ROOT, 'HEAVY-COPY-SPEC.md');
-const OUT_JSON = path.join(ROOT, 'DEMIGOD-HEAVY-COPY.json');
-const BRIEF = fs.readFileSync(path.join(ROOT, 'HEAVY-COPY-BRIEF.md'), 'utf8');
+const localFlags = {
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+  liveFetch: false,
+  aiSubmit: false,
+};
+const MARKERS = [
+  { name: 'COPY', re: /copy/i },
+  { name: 'SPEC', re: /spec/i },
+  { name: 'FOOT', re: /foot/i },
+  { name: 'HEAD', re: /head/i },
+  { name: 'STRING', re: /string/i },
+];
 
-const PROMPT = `SuperGrok Heavy — COPY FIX for trydemigod.com
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-HEAVY-COPY.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'heavy-copy-spec');
+}
 
-John wants the website copy fixed. You are the copy strategist. Local Cursor agent will implement your exact strings in demigod-foot-core.js + demigod-head-minimal.html.
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
+  process.exit(1);
+}
 
-${BRIEF}
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
+}
 
-Reply with === COPY SPEC FOR CURSOR === block. Be blunt.`;
-
-async function collect(page, minLen = 1500) {
-  let text = '';
-  for (let i = 0; i < 24; i++) {
-    const reply = await collectGrokReply(page, { waitMs: 60000, minGrowth: 100 });
-    text = reply.text || text;
-    const tail = text.slice(-15000);
-    const busy = reply.thinking || /thinking|Finalizing/i.test(tail);
-    const hasSpec = /=== COPY SPEC FOR CURSOR ===/i.test(text);
-    if (text && !busy && hasSpec && tail.length >= minLen) break;
-    if (text && !busy && tail.length >= minLen * 2 && i >= 10) break;
-    wlog(`heavy copy poll ${i + 1}: len=${tail.length} busy=${busy} spec=${hasSpec}`);
+function entryStat(root, rel) {
+  const file = path.join(root, rel);
+  if (!insideRoot(root, file)) return null;
+  let st;
+  try {
+    st = fs.lstatSync(file);
+  } catch {
+    return null;
   }
-  return text;
+  if (st.isSymbolicLink()) return null;
+  return { file, st };
 }
 
-async function main() {
-  wlog('=== HEAVY COPY PROMPT START ===');
-  const browser = await connectBrowser();
-  const page = await findGrokPage(browser);
-  if (!page) throw new Error('no grok tab');
-  await page.bringToFront();
-  await sendToGrok(page, PROMPT);
-  const text = await collect(page);
-  await browser.disconnect();
-  const hasSpec = /COPY SPEC FOR CURSOR/i.test(text);
-  fs.writeFileSync(OUT, `# SuperGrok Heavy — Copy Spec\n\n_${new Date().toISOString()}_\n\n${text}\n`);
-  fs.writeFileSync(OUT_JSON, JSON.stringify({ at: new Date().toISOString(), chars: text.length, hasSpec, path: OUT }, null, 2));
-  console.log(JSON.stringify({ chars: text.length, hasSpec, path: OUT }));
-  wlog('=== HEAVY COPY PROMPT END ===');
+function readText(root, rel) {
+  const found = entryStat(root, rel);
+  if (!found || !found.st.isFile()) return null;
+  return fs.readFileSync(found.file, 'utf8');
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+function markerHits(text) {
+  const found = {};
+  for (const marker of MARKERS) found[marker.name] = marker.re.test(text);
+  return found;
+}
+
+function main() {
+  if (
+    process.argv.includes('--publish')
+    || process.argv.includes('--push')
+    || process.argv.includes('--live')
+    || process.argv.includes('--send')
+    || process.argv.includes('--ai')
+  ) {
+    refuse('publish_refused');
+  }
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('copy_spec_root_required');
+  }
+  const footText = readText(root, 'demigod-foot-core.js');
+  const brief = readText(root, 'HEAVY-COPY-BRIEF.md');
+  if (footText == null && brief == null) refuse('source_required');
+  const text = brief || '';
+  const hits = markerHits(text);
+  const missing = MARKERS.filter((marker) => !hits[marker.name]).map((marker) => marker.name);
+  const pass = brief != null && missing.length === 0;
+  const footMarker = ((footText || text).match(/Harbor \S+ keep/) || [''])[0];
+  const dir = shotDir();
+  const shot = path.join(dir, 'spec.shot');
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, shot) || !insideRoot(root, report)) {
+    refuse('copy_spec_root_required');
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(shot, `${footMarker}\n${missing.length === 0 ? 'complete' : 'missing'}\n`);
+  const body = {
+    ok: pass,
+    at: new Date().toISOString(),
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    excerpt: text.slice(0, 180),
+    markers: hits,
+    missing,
+    chars: text.length,
+    ...localFlags,
+  };
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
+  console.log(JSON.stringify({
+    ok: pass,
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    missing: missing.length,
+    chars: text.length,
+    ...localFlags,
+  }));
+  if (!pass) process.exit(1);
+}
+
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'copy_spec_failed',
+      detail: String(e.message || e),
+      ...localFlags,
+    }));
+    process.exit(1);
+  }
+}

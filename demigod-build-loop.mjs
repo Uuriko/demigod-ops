@@ -3,7 +3,7 @@
  * Autonomous-ish build loop for Demigod software + pages.
  * Does NOT thrash foot or publish. Pulls queue, runs verify, spawns agent reviews.
  *
- * Queue file: /tmp/dg-busy/BUILD-QUEUE.jsonl
+ * Queue file: DEMIGOD-BUILD-QUEUE.jsonl in DEMIGOD_ROOT
  * Each line: { "id","type":"tool|page|fix|review","title","cmd","verify","status","priority" }
  *
  * Usage:
@@ -18,30 +18,57 @@ import path from 'path';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import {
-  BUSY,
-  ensureBusy,
   atomicWrite,
   readJson,
 } from './demigod-agent-tools-lib.mjs';
 
-const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
-const QUEUE = path.join(BUSY, 'BUILD-QUEUE.jsonl');
-const STATE = path.join(BUSY, 'build-loop-state.json');
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || scriptDir();
+}
+
+function queuePath() {
+  return path.join(dataRoot(), 'DEMIGOD-BUILD-QUEUE.jsonl');
+}
+
+function statePath() {
+  return path.join(dataRoot(), 'DEMIGOD-BUILD-LOOP-STATE.json');
+}
+
+function doctorPath() {
+  return path.join(dataRoot(), 'DEMIGOD-BUILD-LOOP-DOCTOR.json');
+}
+
+function fail(error) {
+  console.error(JSON.stringify({
+    ok: false,
+    error,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+  process.exit(1);
+}
+
 const args = process.argv.slice(2);
 const cmd = args[0] || 'status';
+if (args.includes('--publish')) fail('publish_refused');
 
 function run(nodeArgs, timeout = 120000) {
   return spawnSync('node', nodeArgs, {
-    cwd: ROOT,
+    cwd: dataRoot(),
     encoding: 'utf8',
     timeout,
   });
 }
 
 function readQueue() {
-  if (!fs.existsSync(QUEUE)) return [];
+  if (!fs.existsSync(queuePath())) return [];
   return fs
-    .readFileSync(QUEUE, 'utf8')
+    .readFileSync(queuePath(), 'utf8')
     .split('\n')
     .filter(Boolean)
     .map((line) => {
@@ -55,8 +82,7 @@ function readQueue() {
 }
 
 function writeQueue(items) {
-  ensureBusy();
-  atomicWrite(QUEUE, items.map((i) => JSON.stringify(i)).join('\n') + (items.length ? '\n' : ''));
+  atomicWrite(queuePath(), items.map((i) => JSON.stringify(i)).join('\n') + (items.length ? '\n' : ''));
 }
 
 function seed() {
@@ -86,7 +112,7 @@ function seed() {
       priority: 2,
       status: 'ready',
       cmd: 'node demigod-build-loop.mjs doctor',
-      verify: 'test -f /tmp/dg-busy/truth.json',
+      verify: `test -f ${path.join(dataRoot(), 'DEMIGOD-TRUTH.json')}`,
     },
     {
       id: 'seed-page-ux-review',
@@ -94,12 +120,19 @@ function seed() {
       title: 'Queue Sonnet UX review of hire/talent',
       priority: 3,
       status: 'ready',
-      cmd: 'echo "Review demigod-pages/hire.html talent.html for honesty UX" > /tmp/dg-busy/page-ux-todo.txt',
-      verify: 'test -f /tmp/dg-busy/page-ux-todo.txt',
+      cmd: `echo "Review demigod-pages/hire.html talent.html for honesty UX" > ${path.join(dataRoot(), 'page-ux-todo.txt')}`,
+      verify: `test -f ${path.join(dataRoot(), 'page-ux-todo.txt')}`,
     },
   ];
   writeQueue(items);
-  console.log(JSON.stringify({ ok: true, seeded: items.length, queue: QUEUE }, null, 2));
+  console.log(JSON.stringify({
+    ok: true,
+    seeded: items.length,
+    queue: queuePath(),
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }, null, 2));
 }
 
 function doctor() {
@@ -129,15 +162,18 @@ function doctor() {
       'Run claim-verify after any "fixed" claim',
       'Use DG_LOCK_OWNER + DG_LOCK_TOKEN for foot edits',
     ],
+    path: doctorPath(),
     prompts: {
-      fable: '/tmp/dg-multi/fable-loop-master-prompt.txt',
-      codex: '/tmp/dg-multi/codex-loop-master-prompt.txt',
-      sonnet: '/tmp/dg-multi/sonnet-pages-copy-prompt.txt',
-      opus: '/tmp/dg-multi/opus-autonomy-strategy.txt',
+      fable: path.join(dataRoot(), 'fable-loop-master-prompt.txt'),
+      codex: path.join(dataRoot(), 'codex-loop-master-prompt.txt'),
+      sonnet: path.join(dataRoot(), 'sonnet-pages-copy-prompt.txt'),
+      opus: path.join(dataRoot(), 'opus-autonomy-strategy.txt'),
     },
+    sent: false,
+    liveMail: false,
+    livePublish: false,
   };
-  ensureBusy();
-  atomicWrite(path.join(BUSY, 'build-loop-doctor.json'), JSON.stringify(report, null, 2) + '\n');
+  atomicWrite(doctorPath(), JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify(report, null, 2));
   process.exit(report.pass ? 0 : 1);
 }
@@ -156,7 +192,7 @@ function once() {
   writeQueue(items);
 
   const r = spawnSync('bash', ['-lc', next.cmd], {
-    cwd: ROOT,
+    cwd: dataRoot(),
     encoding: 'utf8',
     timeout: 300000,
   });
@@ -165,7 +201,7 @@ function once() {
   let verifyOk = true;
   if (r.status === 0 && next.verify) {
     const v = spawnSync('bash', ['-o', 'pipefail', '-lc', next.verify], {
-      cwd: ROOT,
+      cwd: dataRoot(),
       encoding: 'utf8',
       timeout: 120000,
     });
@@ -182,7 +218,7 @@ function once() {
     last: next,
     remaining: items.filter((i) => i.status === 'ready').length,
   };
-  atomicWrite(STATE, JSON.stringify(state, null, 2) + '\n');
+  atomicWrite(statePath(), JSON.stringify(state, null, 2) + '\n');
   const ok = r.status === 0 && verifyOk;
   console.log(JSON.stringify({ ok, item: next }, null, 2));
   process.exit(ok ? 0 : 1);
@@ -196,15 +232,18 @@ function status() {
     JSON.stringify(
       {
         at: new Date().toISOString(),
-        queue: QUEUE,
+        queue: queuePath(),
         counts: by,
         items: items.slice(0, 20),
-        state: readJson(STATE),
+        state: readJson(statePath()),
+        sent: false,
+        liveMail: false,
+        livePublish: false,
         masterPrompts: [
-          '/tmp/dg-multi/fable-loop-master-prompt.txt',
-          '/tmp/dg-multi/codex-loop-master-prompt.txt',
-          '/tmp/dg-multi/sonnet-pages-copy-prompt.txt',
-          '/tmp/dg-multi/opus-autonomy-strategy.txt',
+          path.join(dataRoot(), 'fable-loop-master-prompt.txt'),
+          path.join(dataRoot(), 'codex-loop-master-prompt.txt'),
+          path.join(dataRoot(), 'sonnet-pages-copy-prompt.txt'),
+          path.join(dataRoot(), 'opus-autonomy-strategy.txt'),
           'docs/exchange/DEMIGOD-AUTONOMOUS-BUILD-SYSTEM.md',
         ],
       },
@@ -221,10 +260,10 @@ else if (cmd === 'prompts') {
   console.log(
     JSON.stringify(
       {
-        fable: '/tmp/dg-multi/fable-loop-master-prompt.txt',
-        codex: '/tmp/dg-multi/codex-loop-master-prompt.txt',
-        sonnet: '/tmp/dg-multi/sonnet-pages-copy-prompt.txt',
-        opus: '/tmp/dg-multi/opus-autonomy-strategy.txt',
+        fable: path.join(dataRoot(), 'fable-loop-master-prompt.txt'),
+        codex: path.join(dataRoot(), 'codex-loop-master-prompt.txt'),
+        sonnet: path.join(dataRoot(), 'sonnet-pages-copy-prompt.txt'),
+        opus: path.join(dataRoot(), 'opus-autonomy-strategy.txt'),
         system: 'docs/exchange/DEMIGOD-AUTONOMOUS-BUILD-SYSTEM.md',
       },
       null,

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Board honesty gate — pre-services phase: fails on any fabricated proof.
 // Always writes DEMIGOD-BOARD-HONESTY.json so control plane / dash can read pass/fail.
-import { readFileSync, writeFileSync, lstatSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, lstatSync, existsSync, statSync } from 'fs';
 import path from 'path';
 
 const ROOT = process.env.DEMIGOD_ROOT || process.cwd();
@@ -10,9 +10,15 @@ const outPath = path.join(ROOT, 'DEMIGOD-BOARD-HONESTY.json');
 const b = JSON.parse(readFileSync(boardPath, 'utf8'));
 const errs = [];
 try {
+  const canonical = path.join(ROOT, 'DEMIGOD-BOARD.json');
   const lower = path.join(ROOT, 'demigod-board.json');
-  if (existsSync(lower) && !lstatSync(lower).isSymbolicLink())
-    errs.push('demigod-board.json is a regular file — split-brain; must be symlink to DEMIGOD-BOARD.json');
+  if (existsSync(lower) && existsSync(canonical)) {
+    const canonStat = statSync(canonical);
+    const lowerStat = statSync(lower);
+    const sameFile = canonStat.dev === lowerStat.dev && canonStat.ino === lowerStat.ino;
+    if (!sameFile && !lstatSync(lower).isSymbolicLink())
+      errs.push('demigod-board.json is a regular file — split-brain; must be symlink to DEMIGOD-BOARD.json');
+  }
 } catch (e) {
   errs.push(`demigod-board.json stat failed: ${e.message || e}`);
 }

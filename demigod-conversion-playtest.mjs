@@ -15,20 +15,37 @@ import path from 'path';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import {
-  BUSY,
-  ensureBusy,
   atomicWrite,
   LIVE_DEFAULT,
   parseFirstJson,
   flag,
 } from './demigod-agent-tools-lib.mjs';
 
-const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function playtestPath() {
+  return path.join(dataRoot(), 'DEMIGOD-CONVERSION-PLAYTEST.json');
+}
+
+function fail(error) {
+  console.error(JSON.stringify({
+    ok: false,
+    error,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+  process.exit(1);
+}
+
 const LIVE = process.env.DEMIGOD_LIVE || LIVE_DEFAULT;
 const args = process.argv.slice(2);
 const wantPw = flag(args, '--pw');
 const local = flag(args, '--local');
 const asJson = flag(args, '--json');
+if (args.includes('--publish')) fail('publish_refused');
 
 const steps = [];
 let pass = true;
@@ -57,7 +74,7 @@ async function liveLayer() {
     // Path pills are JS-injected — check live HTML + disk foot source
     let footDisk = '';
     try {
-      footDisk = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
+      footDisk = fs.readFileSync(path.join(dataRoot(), 'demigod-foot-core.js'), 'utf8');
     } catch {
       /* */
     }
@@ -100,7 +117,7 @@ async function liveLayer() {
 
 function copyPolicyLayer() {
   const r = spawnSync('node', ['demigod-copy-policy.mjs', '--json'], {
-    cwd: ROOT,
+    cwd: dataRoot(),
     encoding: 'utf8',
     timeout: 60000,
   });
@@ -114,7 +131,7 @@ function pwLayer() {
   const argv = ['demigod-form-e2e-pw.mjs'];
   if (local) argv.push('--local');
   const r = spawnSync('node', argv, {
-    cwd: ROOT,
+    cwd: dataRoot(),
     encoding: 'utf8',
     timeout: 120000,
   });
@@ -142,8 +159,19 @@ if (wantPw) {
 // pass = all non-soft steps
 pass = steps.filter((s) => !s.soft).every((s) => s.ok);
 
+function diskFootVer() {
+  try {
+    const foot = fs.readFileSync(path.join(dataRoot(), 'demigod-foot-core.js'), 'utf8');
+    return (foot.match(/__dgFootVer='(\d+)'/) || [])[1] || null;
+  } catch {
+    return null;
+  }
+}
+
 const report = {
   at: new Date().toISOString(),
+  path: playtestPath(),
+  diskFootVer: diskFootVer(),
   pass,
   liveUrl: LIVE,
   live,
@@ -158,10 +186,12 @@ const report = {
   next: pass
     ? 'site conversion markers OK; use white-glove on real submit'
     : 'fix conversion markers before site polish claims',
+  sent: false,
+  liveMail: false,
+  livePublish: false,
 };
 
-ensureBusy();
-atomicWrite(path.join(BUSY, 'conversion-playtest-latest.json'), JSON.stringify(report, null, 2) + '\n');
+atomicWrite(playtestPath(), JSON.stringify(report, null, 2) + '\n');
 
 if (asJson) {
   console.log(JSON.stringify(report, null, 2));
@@ -172,7 +202,7 @@ if (asJson) {
     console.log(`  ${s.ok ? '✓' : '✗'} ${s.name.padEnd(26)} ${s.detail}${soft}`);
   }
   console.log(`next  ${report.next}`);
-  console.log(`wrote /tmp/dg-busy/conversion-playtest-latest.json`);
+  console.log(`wrote ${playtestPath()}`);
 }
 
 process.exit(pass ? 0 : 1);

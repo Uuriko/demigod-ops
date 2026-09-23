@@ -1,12 +1,22 @@
 #!/usr/bin/env node
-/** Bulk-mark e2e / playtest inbox noise as spam. */
+/**
+ * Bulk-mark e2e / playtest inbox noise as spam.
+ * The summary stays under DEMIGOD_ROOT. A dry run does not change status.
+ * This command does not send mail.
+ */
 import fs from 'fs';
 import path from 'path';
-import { ROOT } from './demigod-turn-lib.mjs';
+import { fileURLToPath } from 'url';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 import { loadInbox, saveInbox, extractEmail } from './demigod-submissions-lib.mjs';
 
-const OUT = path.join(ROOT, 'DEMIGOD-INBOX-TRIAGE.json');
-const DRY = process.argv.includes('--dry-run');
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function summaryPath() {
+  return path.join(dataRoot(), 'DEMIGOD-INBOX-TRIAGE.json');
+}
 
 function isE2eItem(item) {
   const raw = item.raw || {};
@@ -43,7 +53,8 @@ function isE2eItem(item) {
   return null;
 }
 
-function main() {
+function triageInbox(argv = process.argv) {
+  const dryRun = argv.includes('--dry-run');
   const inbox = loadInbox();
   const marked = [];
   const kept = [];
@@ -56,27 +67,33 @@ function main() {
       continue;
     }
     marked.push({ id: item.id, form: item.form, reason, was: item.status });
-    if (!DRY) {
+    if (!dryRun) {
       item.status = 'spam';
       item.rejectReasons = [...new Set([...(item.rejectReasons || []), reason, 'bulk_triage'])];
       item.reviewedAt = new Date().toISOString();
     }
   }
 
-  if (!DRY && marked.length) saveInbox(inbox);
+  if (!dryRun && marked.length) saveInbox(inbox);
 
   const summary = {
     at: new Date().toISOString(),
-    dryRun: DRY,
+    dryRun,
     marked: marked.length,
     keptNew: kept.length,
     kept,
-    markedIds: marked.map((m) => m.id),
+    markedIds: marked.map((row) => row.id),
     details: marked,
+    report: summaryPath(),
+    sent: false,
+    liveMail: false,
   };
-  fs.writeFileSync(OUT, JSON.stringify(summary, null, 2));
-  console.log(JSON.stringify(summary, null, 2));
-  process.exit(0);
+  fs.mkdirSync(dataRoot(), { recursive: true });
+  atomicWrite(summary.report, JSON.stringify(summary, null, 2) + '\n');
+  return summary;
 }
 
-main();
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) {
+  console.log(JSON.stringify(triageInbox()));
+}

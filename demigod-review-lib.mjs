@@ -7,13 +7,29 @@ import path from 'path';
 import crypto from 'crypto';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { atomicWrite, BUSY, ensureBusy } from './demigod-agent-tools-lib.mjs';
+import { atomicWrite, BUSY } from './demigod-agent-tools-lib.mjs';
 
-export const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
-export const OUT_JSON = path.join(BUSY, 'review-latest.json');
-export const OUT_MD = path.join(BUSY, 'review-latest.md');
-export const OUT_PROMPT = path.join(BUSY, 'review-fix-prompt.md');
-export const OUT_SARIF = path.join(BUSY, 'review-latest.sarif.json');
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+export function reviewJsonPath() {
+  return path.join(dataRoot(), 'DEMIGOD-REVIEW.json');
+}
+
+export function reviewMdPath() {
+  return path.join(dataRoot(), 'DEMIGOD-REVIEW.md');
+}
+
+export function reviewPromptPath() {
+  return path.join(dataRoot(), 'DEMIGOD-REVIEW-PROMPT.md');
+}
+
+export function reviewSarifPath() {
+  return path.join(dataRoot(), 'DEMIGOD-REVIEW.sarif.json');
+}
+
+export const ROOT = dataRoot();
 export const BASELINE_PATH = path.join(ROOT, 'DEMIGOD-REVIEW-BASELINE.json');
 export const FIXTURE_DIR = path.join(BUSY, 'review-fixtures');
 
@@ -379,7 +395,7 @@ export function toFixPrompt(report) {
   }
   lines.push('```');
   lines.push('');
-  lines.push(`Reports: ${OUT_JSON} · ${OUT_MD}`);
+  lines.push(`Reports: ${reviewJsonPath()} · ${reviewMdPath()}`);
   return lines.join('\n') + '\n';
 }
 
@@ -416,12 +432,19 @@ export function toSarif(report) {
 }
 
 export function writeReports(report, { sarif = true } = {}) {
-  ensureBusy();
-  atomicWrite(OUT_JSON, JSON.stringify(report, null, 2) + '\n');
-  atomicWrite(OUT_MD, toMarkdown(report));
-  atomicWrite(OUT_PROMPT, toFixPrompt(report));
-  if (sarif) atomicWrite(OUT_SARIF, JSON.stringify(toSarif(report), null, 2) + '\n');
-  return { json: OUT_JSON, md: OUT_MD, prompt: OUT_PROMPT, sarif: OUT_SARIF };
+  const jsonPath = reviewJsonPath();
+  const mdPath = reviewMdPath();
+  const promptPath = reviewPromptPath();
+  const sarifPath = reviewSarifPath();
+  report.path = jsonPath;
+  report.sent = false;
+  report.liveMail = false;
+  report.livePublish = false;
+  atomicWrite(jsonPath, JSON.stringify(report, null, 2) + '\n');
+  atomicWrite(mdPath, toMarkdown(report));
+  atomicWrite(promptPath, toFixPrompt(report));
+  if (sarif) atomicWrite(sarifPath, JSON.stringify(toSarif(report), null, 2) + '\n');
+  return { json: jsonPath, md: mdPath, prompt: promptPath, sarif: sarifPath };
 }
 
 export function finalizeFindings(raw, baseline) {

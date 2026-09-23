@@ -2,11 +2,15 @@
 /** Unified inbox view — startup, engineer, partner submissions in one triage report. */
 import fs from 'fs';
 import path from 'path';
-import { ROOT } from './demigod-turn-lib.mjs';
+import { fileURLToPath } from 'url';
 import { loadInbox, saveInbox, extractEmail, publicStatus, findSubmission } from './demigod-submissions-lib.mjs';
 
-const OUT = path.join(ROOT, 'DEMIGOD-INBOX-REPORT.json');
-const BUSY_OUT = '/tmp/dg-busy/submissions-inbox-latest.json';
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-INBOX-REPORT.json');
+}
 
 function parseArgs(argv) {
   const out = { status: 'all', limit: 40, json: false, markReviewed: null };
@@ -111,13 +115,8 @@ function main() {
     refresh: 'node demigod-submissions-inbox.mjs --json',
   };
 
-  fs.writeFileSync(OUT, JSON.stringify(report, null, 2));
-  try {
-    fs.mkdirSync('/tmp/dg-busy', { recursive: true });
-    fs.writeFileSync(BUSY_OUT, JSON.stringify(report, null, 2) + '\n');
-  } catch {
-    /* */
-  }
+  const out = reportPath();
+  fs.writeFileSync(out, JSON.stringify(report, null, 2));
 
   if (args.json) {
     console.log(JSON.stringify(report, null, 2));
@@ -131,7 +130,7 @@ function main() {
   for (const row of rows) {
     console.log(`${row.id} · ${row.kind} · ${row.status} · ${row.email || '—'} · ${row.headline}`);
   }
-  console.log(`\nWrote ${path.relative(ROOT, OUT)} + ${BUSY_OUT}`);
+  console.log(`\nWrote ${out}`);
 }
 
 main();

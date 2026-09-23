@@ -16,8 +16,23 @@ import { execSync } from 'child_process';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = process.env.DEMIGOD_ROOT || __dirname;
 const BUSY = '/tmp/dg-busy';
-const LIVE = 'https://www.trydemigod.com';
 const CDP = process.env.CDP_URL || 'http://127.0.0.1:9223';
+
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || __dirname;
+}
+
+function reportJson() {
+  return path.join(dataRoot(), 'DEMIGOD-COCKPIT.json');
+}
+
+function reportMd() {
+  return path.join(dataRoot(), 'DEMIGOD-COCKPIT.md');
+}
+
+function liveOrigin() {
+  return process.env.DEMIGOD_LIVE || 'https://www.trydemigod.com';
+}
 
 function readJson(p) {
   try {
@@ -69,7 +84,7 @@ export async function buildCockpit({ skipLive = false, liveOverride = null } = {
   const corePath = path.join(ROOT, 'demigod-foot-core.js');
   const footerPath = path.join(ROOT, 'demigod-footer-lite.html');
   const manPath = path.join(ROOT, 'DEMIGOD-FOOT-CDN.json');
-  const freeze = readJson(path.join(BUSY, 'publish-freeze.json')) || {};
+  const freeze = readJson(path.join(dataRoot(), 'DEMIGOD-PUBLISH-FREEZE.json')) || {};
   const truth = readJson(path.join(BUSY, 'truth.json'));
   const ship = readJson(path.join(BUSY, 'ship-status.json'));
   const verify = readJson(path.join(ROOT, 'DEMIGOD-VERIFY-SOURCE.json'));
@@ -109,7 +124,7 @@ export async function buildCockpit({ skipLive = false, liveOverride = null } = {
   } else if (!skipLive) {
     try {
       const t0 = Date.now();
-      const r = await fetch(`${LIVE}/?cb=${Date.now()}`, {
+      const r = await fetch(`${liveOrigin()}/?cb=${Date.now()}`, {
         headers: { 'User-Agent': 'dg-cockpit' },
         signal: AbortSignal.timeout(8000),
       });
@@ -222,7 +237,7 @@ export async function buildCockpit({ skipLive = false, liveOverride = null } = {
       pri: 0,
       id: 'live-down',
       title: 'Live site unreachable',
-      cmd: 'curl -sS -I https://www.trydemigod.com/',
+      cmd: `curl -sS -I ${liveOrigin()}/`,
       mutate: false,
     };
   } else if (!liveEqDiskVer || !liveEqManId || !diskMatchesManifest) {
@@ -334,16 +349,15 @@ export async function buildCockpit({ skipLive = false, liveOverride = null } = {
       'One foot-core writer',
       'No game work',
     ],
+    path: reportJson(),
+    sent: false,
+    liveMail: false,
+    livePublish: false,
   };
 
-  // persist
-  try {
-    fs.mkdirSync(BUSY, { recursive: true });
-    fs.writeFileSync(path.join(BUSY, 'cockpit.json'), JSON.stringify(cockpit, null, 2));
-    fs.writeFileSync(path.join(BUSY, 'cockpit.md'), toMarkdown(cockpit));
-  } catch {
-    /* */
-  }
+  fs.mkdirSync(dataRoot(), { recursive: true });
+  fs.writeFileSync(reportJson(), JSON.stringify(cockpit, null, 2) + '\n');
+  fs.writeFileSync(reportMd(), toMarkdown(cockpit));
   return cockpit;
 }
 
@@ -396,6 +410,16 @@ export function toMarkdown(c) {
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   const args = new Set(process.argv.slice(2));
+  if (args.has('--publish')) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'publish_refused',
+      sent: false,
+      liveMail: false,
+      livePublish: false,
+    }));
+    process.exit(1);
+  }
   const c = await buildCockpit({ skipLive: args.has('--offline') });
   if (args.has('--json')) {
     console.log(JSON.stringify(c, null, 2));

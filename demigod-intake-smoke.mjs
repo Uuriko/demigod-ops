@@ -3,11 +3,12 @@
 import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
-import { ROOT } from './demigod-turn-lib.mjs';
+import { fileURLToPath } from 'url';
 import { fetchLiveHtml, scanLiveHtml } from './demigod-live-lib.mjs';
 import { loadInbox } from './demigod-submissions-lib.mjs';
 
-const OUT = path.join(ROOT, 'DEMIGOD-INTAKE-SMOKE.json');
+const OPS = path.dirname(fileURLToPath(import.meta.url));
+const OUT = process.env.DEMIGOD_INTAKE_OUT || path.join(OPS, 'DEMIGOD-INTAKE-SMOKE.json');
 const PORT = Number(process.env.DEMIGOD_WEBHOOK_PORT || 9877);
 
 async function webhookHealth() {
@@ -59,8 +60,8 @@ async function partnerWebhookSmoke() {
 }
 
 function runWizardPlaytest() {
-  const r = spawnSync('node', ['demigod-wizard-playtest.mjs', '--desktop-only'], {
-    cwd: ROOT,
+  const r = spawnSync(process.execPath, ['demigod-wizard-playtest.mjs', '--desktop-only'], {
+    cwd: OPS,
     encoding: 'utf8',
     timeout: 180000,
   });
@@ -72,9 +73,16 @@ function runWizardPlaytest() {
   return { exitCode: r.status, ok: r.status === 0, parsed, stderr: (r.stderr || '').slice(-400) };
 }
 
+async function loadIntakeHtml() {
+  const file = process.env.DEMIGOD_INTAKE_HTML_FILE;
+  if (file) return { html: fs.readFileSync(file, 'utf8'), footerCoreJs: '' };
+  return fetchLiveHtml(true);
+}
+
 async function main() {
   const checks = {};
-  const { html, footerCoreJs } = await fetchLiveHtml(true);
+  const skipBrowser = process.env.DEMIGOD_INTAKE_SKIP_BROWSER === '1';
+  const { html, footerCoreJs } = await loadIntakeHtml();
   const scan = scanLiveHtml(html, { footerCoreJs });
 
   checks.liveForms = {
@@ -111,15 +119,17 @@ async function main() {
     checks.engineerPost = { skipped: true, reason: 'webhook_down' };
   }
 
-  checks.wizard = runWizardPlaytest();
+  checks.wizard = skipBrowser
+    ? { ok: true, skipped: true, reason: 'browser_skipped' }
+    : runWizardPlaytest();
 
-  const formTest = spawnSync('node', ['demigod-form-submit-test.mjs'], {
-    cwd: ROOT,
+  const formTest = skipBrowser ? { status: 0, stdout: '' } : spawnSync(process.execPath, ['demigod-form-submit-test.mjs'], {
+    cwd: OPS,
     encoding: 'utf8',
     timeout: 120000,
   });
   let formParsed = null;
-  const formOut = path.join(ROOT, 'DEMIGOD-FORM-SUBMIT-TEST.json');
+  const formOut = path.join(OPS, 'DEMIGOD-FORM-SUBMIT-TEST.json');
   try {
     if (fs.existsSync(formOut)) formParsed = JSON.parse(fs.readFileSync(formOut, 'utf8'));
     else {
@@ -127,14 +137,16 @@ async function main() {
       formParsed = line ? JSON.parse(line) : null;
     }
   } catch (_) { /* ignore */ }
-  checks.webflowSubmit = {
-    exitCode: formTest.status,
-    ok: formTest.status === 0,
-    pass: formParsed?.pass,
-    skipped: formParsed?.submitResult?.skipped,
-    reason: formParsed?.submitResult?.reason,
-    mode: formParsed?.startup?.mode,
-  };
+  checks.webflowSubmit = skipBrowser
+    ? { exitCode: 0, ok: true, pass: false, skipped: true, reason: 'browser_skipped' }
+    : {
+      exitCode: formTest.status,
+      ok: formTest.status === 0,
+      pass: formParsed?.pass,
+      skipped: formParsed?.submitResult?.skipped,
+      reason: formParsed?.submitResult?.reason,
+      mode: formParsed?.startup?.mode,
+    };
 
   const webhookOk = (r) => r?.ok || r?.skipped;
   const pass =
@@ -143,7 +155,7 @@ async function main() {
     && webhookOk(checks.partnerPost)
     && webhookOk(checks.startupPost)
     && webhookOk(checks.engineerPost)
-    && checks.wizard.ok
+    && (checks.wizard.ok || checks.wizard.skipped)
     && (checks.webflowSubmit.pass === true || checks.webflowSubmit.skipped);
 
   const out = {

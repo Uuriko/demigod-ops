@@ -7,6 +7,11 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { spawnSync } from 'child_process';
+import { fileURLToPath } from 'url';
+
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
 
 export const BUSY = '/tmp/dg-busy';
 export const LIVE_DEFAULT = 'https://www.trydemigod.com';
@@ -154,8 +159,9 @@ export function positionals(args, flagNames = []) {
 
 
 /** Publish freeze — single choke point for agents/dashboard/jobs */
-export function isFrozen(busy = BUSY) {
-  const j = readJson(path.join(busy, 'publish-freeze.json')) || {};
+export function isFrozen(dir = dataRoot()) {
+  const file = path.join(dir, 'DEMIGOD-PUBLISH-FREEZE.json');
+  const j = readJson(file) || {};
   const envRaw = String(process.env.DEMIGOD_PUBLISH_FREEZE || '').toLowerCase();
   const envOn = ['1', 'true', 'yes', 'on'].includes(envRaw);
   const fileOn = Boolean(j.on);
@@ -166,7 +172,7 @@ export function isFrozen(busy = BUSY) {
     why: j.why || (envOn ? 'DEMIGOD_PUBLISH_FREEZE env' : null),
     at: j.at || null,
     by: j.by || null,
-    path: path.join(busy, 'publish-freeze.json'),
+    path: file,
   };
 }
 

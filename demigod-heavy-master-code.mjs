@@ -1,75 +1,148 @@
 #!/usr/bin/env node
-/** Ask SuperGrok Heavy for Navigation/Footer master + form rename CDP code. */
+/**
+ * Local master check in an explicit data root.
+ * Writes DEMIGOD-HEAVY-MASTER-CODE.json under DEMIGOD_ROOT. Does not fetch a live page or send a prompt.
+ */
 import fs from 'fs';
 import path from 'path';
-import { connectBrowser, findGrokPage, sendToGrok, collectGrokReply } from './collab-lib.mjs';
-import { ROOT, wlog } from './demigod-turn-lib.mjs';
-import { fetchLiveHtml } from './demigod-live-lib.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const OUT = path.join(ROOT, 'HEAVY-MASTER-CODE-HELP.md');
-const OUT_JSON = path.join(ROOT, 'DEMIGOD-HEAVY-MASTER-CODE.json');
+const localFlags = {
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+  liveFetch: false,
+  aiSubmit: false,
+};
+const MARKERS = [
+  { name: 'MASTER', re: /master/i },
+  { name: 'NAV', re: /nav/i },
+  { name: 'FOOTER', re: /footer/i },
+  { name: 'FORM', re: /form/i },
+  { name: 'LOCAL', re: /local/i },
+];
 
-async function main() {
-  const { html } = await fetchLiveHtml(true);
-  const signals = {
-    hireTalent: (html.match(/HIRE TALENT/gi) || []).length,
-    findTalent: (html.match(/FIND TALENT/gi) || []).length,
-    emailForm: (html.match(/data-name="email-form"/gi) || []).length,
-    solutions: /SOLUTIONS/i.test(html),
-    talentLink: /TalentLink/i.test(html),
-    footerCols: /Company|Services|Resources|Legal/i.test(html),
-    hasNav: /w-nav/i.test(html),
-  };
-
-  const PROMPT = `SuperGrok Heavy — MASTER-ONLY CDP AUTOMATION for Demigod Webflow (talentlink-sf).
-
-GOAL: Permanent source fixes via Navigation + Footer component masters + Form Settings — NOT runtime JS.
-
-LIVE HTML SIGNALS NOW:
-${JSON.stringify(signals, null, 2)}
-
-STACK: Puppeteer CDP on Chrome :9223, Webflow Designer, prepareWebflowDesigner() uses Browser.setWindowBounds + reload.
-
-TASKS FOR CURSOR TO IMPLEMENT:
-1. Navigation master: CTA "FIND TALENT" → #startup-modal; delete SOLUTIONS/ABOUT/BLOG/SUPPORT; keep hero "HIRE TALENT" separate
-2. Footer master: delete mega-columns + social; hello@trydemigod.com + © 2026 Demigod + tagline only
-3. Form Settings: rename startup-form → startup-hire, jobseeker-form → engineer-join (remove duplicate email-form data-name)
-4. Delete orphan Email Form / Test Form in dashboard
-
-Deliver:
-A) Exact Webflow Designer click-path for each master (human fallback)
-B) Puppeteer CDP script patterns that work when iframe.contentDocument is accessible
-C) Webflow AI prompt text (master edit language) if CDP fails
-D) Verification grep checks for publish success
-E) What ONLY a human can do in Designer (be explicit)
-
-Max 20 bullets. Copy-paste code blocks where helpful. No essays.`;
-
-  wlog('=== HEAVY MASTER CODE START ===');
-  const browser = await connectBrowser();
-  const page = await findGrokPage(browser);
-  if (!page) {
-    await browser.disconnect();
-    throw new Error('no grok tab — open SuperGrok Heavy on grok.com');
-  }
-  await page.bringToFront();
-  await sendToGrok(page, PROMPT);
-
-  let text = '';
-  for (let i = 0; i < 16; i++) {
-    const reply = await collectGrokReply(page, { waitMs: 45000, minGrowth: 80 });
-    text = reply.text || '';
-    const busy = reply.thinking || /thinking|Finalizing/i.test(text.slice(-2000));
-    if (text.length > 800 && !busy) break;
-    wlog(`heavy master poll ${i + 1}: len=${text.length} busy=${busy}`);
-  }
-  await browser.disconnect();
-
-  fs.writeFileSync(OUT, `# SuperGrok Heavy — Master CDP Help\n\n_${new Date().toISOString()}_\n\n${text}\n`);
-  const out = { at: new Date().toISOString(), chars: text.length, signals, path: OUT };
-  fs.writeFileSync(OUT_JSON, JSON.stringify(out, null, 2));
-  console.log(JSON.stringify(out, null, 2));
-  wlog('=== HEAVY MASTER CODE END ===');
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-HEAVY-MASTER-CODE.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'master-code');
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
+  process.exit(1);
+}
+
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
+}
+
+function entryStat(root, rel) {
+  const file = path.join(root, rel);
+  if (!insideRoot(root, file)) return null;
+  let st;
+  try {
+    st = fs.lstatSync(file);
+  } catch {
+    return null;
+  }
+  if (st.isSymbolicLink()) return null;
+  return { file, st };
+}
+
+function readText(root, rel) {
+  const found = entryStat(root, rel);
+  if (!found || !found.st.isFile()) return null;
+  return fs.readFileSync(found.file, 'utf8');
+}
+
+function markerHits(text) {
+  const found = {};
+  for (const marker of MARKERS) found[marker.name] = marker.re.test(text);
+  return found;
+}
+
+function main() {
+  if (
+    process.argv.includes('--publish')
+    || process.argv.includes('--push')
+    || process.argv.includes('--live')
+    || process.argv.includes('--designer')
+    || process.argv.includes('--send')
+    || process.argv.includes('--ai')
+    || process.argv.includes('--fetch')
+  ) {
+    refuse('publish_refused');
+  }
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('master_root_required');
+  }
+  const footText = readText(root, 'demigod-foot-core.js');
+  const notes = readText(root, 'HEAVY-MASTER-CODE-SOURCE.md');
+  if (footText == null && notes == null) refuse('source_required');
+  const text = notes || '';
+  const hits = markerHits(text);
+  const missing = MARKERS.filter((marker) => !hits[marker.name]).map((marker) => marker.name);
+  const pass = notes != null && missing.length === 0;
+  const footMarker = ((footText || text).match(/Harbor \S+ keep/) || [''])[0];
+  const dir = shotDir();
+  const shot = path.join(dir, 'master.shot');
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, shot) || !insideRoot(root, report)) {
+    refuse('master_root_required');
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(shot, `${footMarker}\n${missing.length === 0 ? 'complete' : 'missing'}\n`);
+  const body = {
+    ok: pass,
+    at: new Date().toISOString(),
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    excerpt: text.slice(0, 180),
+    markers: hits,
+    missing,
+    chars: text.length,
+    ...localFlags,
+  };
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
+  console.log(JSON.stringify({
+    ok: pass,
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    missing: missing.length,
+    chars: text.length,
+    ...localFlags,
+  }));
+  if (!pass) process.exit(1);
+}
+
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'master_failed',
+      detail: String(e.message || e),
+      ...localFlags,
+    }));
+    process.exit(1);
+  }
+}

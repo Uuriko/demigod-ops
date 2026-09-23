@@ -1,95 +1,151 @@
 #!/usr/bin/env node
 /**
- * demigod-cdp-force-latest.mjs
- * Force the current canonical CDN (from footer or arg) onto a live trydemigod tab in CDP.
- * Then opens HIRE and reports WIZ state (hasWiz, q, vis, 90d, review).
- * Usage: node demigod-cdp-force-latest.mjs [--cdn=https://...js] [--shots]
- * Always run gates after site changes.
+ * Local force-latest check in an explicit data root.
+ * Writes DEMIGOD-CDP-FORCE-LATEST.json under DEMIGOD_ROOT. Does not open a browser or send a prompt.
  */
-import puppeteer from 'puppeteer-core';
-import { CDP_URL } from './cdp-config.mjs';
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const args = process.argv.slice(2);
-let forcedCdn = args.find(a => a.startsWith('--cdn='))?.split('=')[1];
-const doShots = args.includes('--shots');
+const localFlags = {
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+  liveFetch: false,
+  aiSubmit: false,
+};
+const MARKERS = [
+  { name: 'FORCE', re: /force/i },
+  { name: 'LATEST', re: /latest/i },
+  { name: 'FOOTER', re: /footer/i },
+  { name: 'WIZ', re: /wiz/i },
+  { name: 'LOCAL', re: /local/i },
+];
 
-async function main() {
-  if (!forcedCdn) {
-    // read from current footer
-    const foot = fs.readFileSync('demigod-footer-lite.html', 'utf8');
-    const m = foot.match(/src="(https:\/\/files\.catbox\.moe\/[^"]+\.js)"/);
-    if (m) forcedCdn = m[1];
-  }
-  if (!forcedCdn) {
-    console.error('No CDN found. Pass --cdn=... or update footer.');
-    process.exit(1);
-  }
-  const src = forcedCdn + (forcedCdn.includes('?') ? '' : '?v=') + Date.now();
-  console.log('Forcing:', src);
-
-  const b = await puppeteer.connect({ browserURL: CDP_URL, defaultViewport: { width: 1200, height: 820 }, protocolTimeout: 180000 });
-  const ps = await b.pages();
-  let p = ps.find(x => /trydemigod/.test(x.url())) || ps[0];
-  if (!p) { console.log('no tab'); await b.disconnect(); return; }
-
-  await p.goto('https://www.trydemigod.com?' + Date.now(), { waitUntil: 'domcontentloaded', timeout: 40000 }).catch(() => {});
-  await new Promise(r => setTimeout(r, 800));
-
-  await p.evaluate((u) => {
-    document.querySelectorAll('script[src*="catbox"]').forEach(s => { if (!s.src.includes('aji9m9') && !u.includes('aji9m9')) s.remove(); });
-    if (!document.querySelector('script[src*="aji9m9"]') && !document.querySelector(`script[src*="${u.split('?')[0].split('/').pop()}"]`)) {
-      const s = document.createElement('script'); s.src = u; document.head.appendChild(s);
-    }
-  }, src);
-
-  await new Promise(r => setTimeout(r, 6000));
-  const ver = await p.evaluate(() => window.dgFootVersion || 'none');
-  console.log('VER:', ver);
-
-  await p.evaluate(() => {
-    const b = Array.from(document.querySelectorAll('a,button,[data-demigod-modal]')).find(x => /HIRE TALENT/i.test((x.textContent || '').trim()));
-    if (b) b.click();
-  });
-  await new Promise(r => setTimeout(r, 2200));
-
-  const state = await p.evaluate(() => {
-    const m = document.querySelector('#startup-modal');
-    if (!m) return { noModal: true };
-    const f = m.querySelector('form');
-    const q = (m.querySelector('.dg-wiz-q') || {}).textContent || '';
-    const vis = Array.from(m.querySelectorAll('input,textarea,select,.dg-wiz-head,.dg-wiz-nav,.dg-wiz-q')).filter(e => {
-      try { return e.offsetParent !== null || getComputedStyle(e).display !== 'none'; } catch (_) { return false; }
-    }).length;
-    const bad = /HIRING FORM|CANDIDATE APPLICATION/i.test((m.textContent || document.title || ''));
-    const has90 = !!m.querySelector('[name*="90day"],#90day-outcome');
-    const hasRev = !!m.querySelector('.dg-wiz-review');
-    return {
-      hasWiz: !!m.querySelector('.dg-wiz-head'),
-      q: q.trim().slice(0, 65),
-      formD: f ? getComputedStyle(f).display : 'no',
-      vis,
-      bad,
-      step: (m.querySelector('.dg-cur') || {}).textContent || '',
-      has90,
-      hasRev
-    };
-  });
-  console.log('HIRE_STATE:', JSON.stringify(state));
-
-  if (doShots) {
-    const ts = Date.now();
-    await p.screenshot({ path: `audit-shots/force-latest-hire-${ts}.png` }).catch(() => {});
-    // quick advance
-    for (let i = 0; i < 3; i++) {
-      await p.evaluate(() => { const n = document.querySelector('#startup-modal .dg-wiz-next'); if (n) n.click(); });
-      await new Promise(r => setTimeout(r, 700));
-    }
-    await p.screenshot({ path: `audit-shots/force-latest-flow-${ts}.png` }).catch(() => {});
-  }
-
-  await b.disconnect();
-  console.log('done');
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-CDP-FORCE-LATEST.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'cdp-force-latest');
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
+  process.exit(1);
+}
+
+function refusedFlag(arg) {
+  return arg === '--publish'
+    || arg === '--push'
+    || arg === '--designer'
+    || arg === '--live'
+    || arg === '--send'
+    || arg === '--ai'
+    || arg === '--fetch'
+    || arg === '--capture'
+    || arg === '--shots'
+    || arg.startsWith('--cdn');
+}
+
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
+}
+
+function entryStat(root, rel) {
+  const file = path.join(root, rel);
+  if (!insideRoot(root, file)) return null;
+  let st;
+  try {
+    st = fs.lstatSync(file);
+  } catch {
+    return null;
+  }
+  if (st.isSymbolicLink()) return null;
+  return { file, st };
+}
+
+function readText(root, rel) {
+  const found = entryStat(root, rel);
+  if (!found || !found.st.isFile()) return null;
+  return fs.readFileSync(found.file, 'utf8');
+}
+
+function markerHits(text) {
+  const found = {};
+  for (const marker of MARKERS) found[marker.name] = marker.re.test(text);
+  return found;
+}
+
+function main() {
+  if (process.argv.some(refusedFlag)) refuse('publish_refused');
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('force_root_required');
+  }
+  const footText = readText(root, 'demigod-foot-core.js');
+  const notes = readText(root, 'HEAVY-CDP-FORCE-LATEST-SOURCE.md');
+  if (footText == null && notes == null) refuse('source_required');
+  const text = notes || '';
+  const hits = markerHits(text);
+  const missing = MARKERS.filter((marker) => !hits[marker.name]).map((marker) => marker.name);
+  const pass = notes != null && missing.length === 0;
+  const footMarker = ((footText || text).match(/Harbor \S+ keep/) || [''])[0];
+  const dir = shotDir();
+  const shot = path.join(dir, 'force.shot');
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, shot) || !insideRoot(root, report)) {
+    refuse('force_root_required');
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(shot, `${footMarker}\n${missing.length === 0 ? 'complete' : 'missing'}\n`);
+  const body = {
+    ok: pass,
+    at: new Date().toISOString(),
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    excerpt: text.slice(0, 180),
+    markers: hits,
+    missing,
+    chars: text.length,
+    ...localFlags,
+  };
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
+  console.log(JSON.stringify({
+    ok: pass,
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    missing: missing.length,
+    chars: text.length,
+    ...localFlags,
+  }));
+  if (!pass) process.exit(1);
+}
+
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'force_failed',
+      detail: String(e.message || e),
+      ...localFlags,
+    }));
+    process.exit(1);
+  }
+}

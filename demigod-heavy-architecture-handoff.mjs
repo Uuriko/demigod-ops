@@ -1,72 +1,142 @@
 #!/usr/bin/env node
-/** Site architecture report → SuperGrok Heavy */
+/**
+ * Local architecture handoff for a planted report in an explicit data root.
+ * Writes DEMIGOD-HEAVY-ARCHITECTURE-HANDOFF.json under DEMIGOD_ROOT. Does not send a prompt.
+ */
 import fs from 'fs';
 import path from 'path';
-import { connectBrowser, findGrokPage, sendToGrok, collectGrokReply } from './collab-lib.mjs';
-import { ROOT, wlog } from './demigod-turn-lib.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const REPORT = path.join(ROOT, 'HEAVY-SITE-ARCHITECTURE-REPORT.md');
-const OUT = path.join(ROOT, 'HEAVY-SITE-ARCHITECTURE-REPLY.md');
-const OUT_JSON = path.join(ROOT, 'DEMIGOD-HEAVY-ARCHITECTURE-HANDOFF.json');
-const SENT = path.join(ROOT, 'HEAVY-SITE-ARCHITECTURE-SENT.txt');
+const localFlags = {
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+  liveFetch: false,
+  aiSubmit: false,
+};
+const TOPICS = ['CDN', 'wizard', 'partner', 'legal'];
 
-async function main() {
-  const report = fs.readFileSync(REPORT, 'utf8');
-  const PROMPT = `SuperGrok Heavy — DEMIGOD SITE ARCHITECTURE HANDOFF
-
-John asked Local Grok to map **every line and detail** of how trydemigod.com is built. Local Grok produced a full technical report (below). **Sync on this.** Scope: Demigod only — ignore Eat the Sounds game.
-
-**Your job:**
-1. ACK the architecture in 3 sentences
-2. GAP ANALYSIS — what's fragile / over-patched / not truly shippable
-3. PRIORITIZED NEXT 10 build tasks (tables, not essays)
-4. RISKS — CDN, sync loader, wizard+Turnstile, partner API form, Designer drift
-5. One paragraph: should legal/partners stay JS-injected or move to Webflow pages?
-
----
-
-${report}`;
-
-  wlog('=== HEAVY ARCHITECTURE HANDOFF START ===');
-  const browser = await connectBrowser();
-  const page = await findGrokPage(browser);
-  if (!page) {
-    await browser.disconnect();
-    throw new Error('no grok tab — open SuperGrok Heavy on grok.com in CDP Chrome');
-  }
-  await page.bringToFront();
-  fs.writeFileSync(SENT, `${new Date().toISOString()}\n${PROMPT.length} chars\n`);
-  wlog(`sending ${PROMPT.length} chars`);
-  await sendToGrok(page, PROMPT);
-
-  let text = '';
-  for (let i = 0; i < 40; i++) {
-    const reply = await collectGrokReply(page, { waitMs: 45000, minGrowth: 200 });
-    if (reply.thinking) {
-      wlog(`poll ${i + 1}: thinking`);
-      continue;
-    }
-    text = reply.text || text;
-    if (text.length > 2500 && !reply.stale) break;
-    wlog(`poll ${i + 1}: len=${text.length} stale=${reply.stale}`);
-  }
-
-  await browser.disconnect();
-
-  const limited = /before limit is gone|Upgrade to SuperGrok/i.test(text);
-  fs.writeFileSync(OUT, `# SuperGrok Heavy — Architecture Handoff Reply\n\n_Date: ${new Date().toISOString()}_\n_Limited: ${limited}_\n_Chars: ${text.length}_\n\n${text}\n`);
-  const out = {
-    at: new Date().toISOString(),
-    sentChars: PROMPT.length,
-    replyChars: text.length,
-    limited,
-    report: REPORT,
-    reply: OUT,
-    sent: SENT,
-  };
-  fs.writeFileSync(OUT_JSON, JSON.stringify(out, null, 2));
-  console.log(JSON.stringify(out, null, 2));
-  wlog('=== HEAVY ARCHITECTURE HANDOFF END ===');
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-HEAVY-ARCHITECTURE-HANDOFF.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'architecture-handoff');
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
+  process.exit(1);
+}
+
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
+}
+
+function entryStat(root, rel) {
+  const file = path.join(root, rel);
+  if (!insideRoot(root, file)) return null;
+  let st;
+  try {
+    st = fs.lstatSync(file);
+  } catch {
+    return null;
+  }
+  if (st.isSymbolicLink()) return null;
+  return { file, st };
+}
+
+function readText(root, rel) {
+  const found = entryStat(root, rel);
+  if (!found || !found.st.isFile()) return null;
+  return fs.readFileSync(found.file, 'utf8');
+}
+
+function topicHits(text) {
+  const found = {};
+  for (const topic of TOPICS) {
+    found[topic] = new RegExp(topic, 'i').test(text);
+  }
+  return found;
+}
+
+function main() {
+  if (
+    process.argv.includes('--publish')
+    || process.argv.includes('--push')
+    || process.argv.includes('--live')
+    || process.argv.includes('--send')
+    || process.argv.includes('--ai')
+  ) {
+    refuse('publish_refused');
+  }
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('handoff_root_required');
+  }
+  const footText = readText(root, 'demigod-foot-core.js');
+  const reportText = readText(root, 'HEAVY-SITE-ARCHITECTURE-REPORT.md');
+  if (footText == null && reportText == null) refuse('source_required');
+  const text = reportText || '';
+  const hits = topicHits(text);
+  const missing = TOPICS.filter((topic) => !hits[topic]);
+  const pass = reportText != null && missing.length === 0;
+  const footMarker = ((footText || text).match(/Harbor \S+ keep/) || [''])[0];
+  const dir = shotDir();
+  const shot = path.join(dir, 'handoff.shot');
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, shot) || !insideRoot(root, report)) {
+    refuse('handoff_root_required');
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(shot, `${footMarker}\n${missing.length === 0 ? 'complete' : 'missing'}\n`);
+  const body = {
+    ok: pass,
+    at: new Date().toISOString(),
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    excerpt: text.slice(0, 180),
+    topics: hits,
+    missing,
+    chars: text.length,
+    ...localFlags,
+  };
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
+  console.log(JSON.stringify({
+    ok: pass,
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    missing: missing.length,
+    chars: text.length,
+    ...localFlags,
+  }));
+  if (!pass) process.exit(1);
+}
+
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'architecture_handoff_failed',
+      detail: String(e.message || e),
+      ...localFlags,
+    }));
+    process.exit(1);
+  }
+}

@@ -8,30 +8,65 @@
  *   node demigod-plan-ledger.mjs set <id> --status applied|partial|ignored|proposed --note "..."
  *   node demigod-plan-ledger.mjs open
  *   node demigod-plan-ledger.mjs show <id>
+ *
+ * The ledger and open list are written in DEMIGOD_ROOT. The command does not publish.
  */
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { BUSY, PLAN_STATUSES, atomicWrite, ensureBusy } from './demigod-agent-tools-lib.mjs';
+import { PLAN_STATUSES, atomicWrite } from './demigod-agent-tools-lib.mjs';
 
-const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
-const LEDGER = path.join(ROOT, 'DEMIGOD-PLAN-LEDGER.json');
-const LEDGER_FLOCK = '/tmp/demigod-plan-ledger.lock';
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function ledgerPath() {
+  return path.join(dataRoot(), 'DEMIGOD-PLAN-LEDGER.json');
+}
+
+function openPath() {
+  return path.join(dataRoot(), 'DEMIGOD-PLAN-LEDGER-OPEN.json');
+}
+
+function lockPath() {
+  return path.join(dataRoot(), 'DEMIGOD-PLAN-LEDGER.lock');
+}
+
+function fail(error) {
+  console.error(JSON.stringify({
+    ok: false,
+    error,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+  process.exit(1);
+}
+
+function diskFootVer() {
+  try {
+    const foot = fs.readFileSync(path.join(dataRoot(), 'demigod-foot-core.js'), 'utf8');
+    return (foot.match(/__dgFootVer='(\d+)'/) || [])[1] || null;
+  } catch {
+    return null;
+  }
+}
 
 function load() {
-  if (!fs.existsSync(LEDGER)) {
+  const file = ledgerPath();
+  if (!fs.existsSync(file)) {
     return { schema: 1, plans: [], at: new Date().toISOString() };
   }
   try {
-    const j = JSON.parse(fs.readFileSync(LEDGER, 'utf8'));
+    const j = JSON.parse(fs.readFileSync(file, 'utf8'));
     if (!j || !Array.isArray(j.plans)) throw new Error('invalid ledger shape');
     return j;
   } catch (e) {
-    const bak = LEDGER + '.corrupt-' + Date.now();
+    const bak = file + '.corrupt-' + Date.now();
     try {
-      fs.copyFileSync(LEDGER, bak);
+      fs.copyFileSync(file, bak);
     } catch {
       /* */
     }
@@ -49,26 +84,31 @@ function load() {
 
 function save(data) {
   data.at = new Date().toISOString();
+  data.path = ledgerPath();
+  data.diskFootVer = diskFootVer();
+  data.sent = false;
+  data.liveMail = false;
+  data.livePublish = false;
   const body = JSON.stringify(data, null, 2) + '\n';
-  // Best-effort serialize concurrent writers
-  spawnSync('flock', ['-w', '20', LEDGER_FLOCK, '-c', 'true'], { timeout: 20000 });
-  atomicWrite(LEDGER, body);
-  try {
-    ensureBusy();
-    atomicWrite(
-      path.join(BUSY, 'plan-ledger-open.json'),
-      JSON.stringify(
-        {
-          at: data.at,
-          open: data.plans.filter((p) => !['applied', 'ignored'].includes(p.status)),
-        },
-        null,
-        2,
-      ) + '\n',
-    );
-  } catch {
-    /* */
-  }
+  // Best-effort serialize concurrent writers in this data root
+  spawnSync('flock', ['-w', '20', lockPath(), '-c', 'true'], { timeout: 20000 });
+  atomicWrite(ledgerPath(), body);
+  atomicWrite(
+    openPath(),
+    JSON.stringify(
+      {
+        at: data.at,
+        path: openPath(),
+        diskFootVer: data.diskFootVer,
+        open: data.plans.filter((p) => !['applied', 'ignored'].includes(p.status)),
+        sent: false,
+        liveMail: false,
+        livePublish: false,
+      },
+      null,
+      2,
+    ) + '\n',
+  );
 }
 
 function findPlan(data, pid) {
@@ -103,6 +143,7 @@ function multi(args, name) {
 }
 
 const args = process.argv.slice(2);
+if (args.includes('--publish')) fail('publish_refused');
 const cmd = args[0] || 'list';
 
 if (cmd === 'list' || cmd === 'open') {
@@ -111,7 +152,17 @@ if (cmd === 'list' || cmd === 'open') {
     cmd === 'open'
       ? data.plans.filter((p) => !['applied', 'ignored'].includes(p.status))
       : data.plans;
-  console.log(JSON.stringify({ at: data.at, count: plans.length, plans }, null, 2));
+  console.log(JSON.stringify({
+    at: data.at,
+    path: ledgerPath(),
+    openPath: openPath(),
+    diskFootVer: diskFootVer(),
+    count: plans.length,
+    plans,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }, null, 2));
 } else if (cmd === 'add') {
   const data = load();
   const plan = {
@@ -129,7 +180,16 @@ if (cmd === 'list' || cmd === 'open') {
   };
   data.plans.unshift(plan);
   save(data);
-  console.log(JSON.stringify({ ok: true, plan }, null, 2));
+  console.log(JSON.stringify({
+    ok: true,
+    path: ledgerPath(),
+    openPath: openPath(),
+    diskFootVer: diskFootVer(),
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+    plan,
+  }, null, 2));
 } else if (cmd === 'set') {
   const pid = args[1];
   const status = opt(args, '--status');
@@ -163,7 +223,7 @@ if (cmd === 'list' || cmd === 'open') {
   if (note) plan.note = note;
   if (status === 'applied') {
     try {
-      const foot = path.join(ROOT, 'demigod-foot-core.js');
+      const foot = path.join(dataRoot(), 'demigod-foot-core.js');
       if (fs.existsSync(foot)) {
         plan.afterSha = crypto.createHash('sha256').update(fs.readFileSync(foot)).digest('hex');
       }
@@ -174,7 +234,16 @@ if (cmd === 'list' || cmd === 'open') {
   plan.history = plan.history || [];
   plan.history.push({ at: new Date().toISOString(), status, by, note });
   save(data);
-  console.log(JSON.stringify({ ok: true, plan }, null, 2));
+  console.log(JSON.stringify({
+    ok: true,
+    path: ledgerPath(),
+    openPath: openPath(),
+    diskFootVer: diskFootVer(),
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+    plan,
+  }, null, 2));
 } else if (cmd === 'show') {
   const pid = args[1];
   const data = load();

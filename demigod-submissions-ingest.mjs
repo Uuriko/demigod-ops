@@ -1,39 +1,82 @@
 #!/usr/bin/env node
-/** CLI: ingest a submission from JSON file or stdin → board + CDN publish. */
+/**
+ * Record one named submission file in that data root.
+ * Does not publish the board or send mail.
+ *
+ * Usage: node demigod-submissions-ingest.mjs submission.json
+ */
 import fs from 'fs';
-import { spawnSync } from 'child_process';
-import { ROOT } from './demigod-turn-lib.mjs';
-import { ingestSubmission } from './demigod-submissions-lib.mjs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { extractEmail, ingestSubmission } from './demigod-submissions-lib.mjs';
 
-const arg = process.argv[2];
-let body = {};
-if (arg && arg !== '-') {
-  body = JSON.parse(fs.readFileSync(arg, 'utf8'));
-} else {
-  const stdin = fs.readFileSync(0, 'utf8');
-  body = JSON.parse(stdin);
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 }
 
-const result = ingestSubmission(body);
+function inboxFile() {
+  return path.join(dataRoot(), 'DEMIGOD-SUBMISSIONS-INBOX.json');
+}
 
-// Honesty gate before any board publish (once — was accidentally duplicated)
-const gate = spawnSync('node', ['demigod-verify-board-honesty.mjs'], {
-  cwd: ROOT,
-  encoding: 'utf8',
-});
-if (gate.status !== 0) {
-  console.error('HONESTY FAIL, skip publish');
-  console.error((gate.stdout || gate.stderr || '').slice(0, 400));
+function fail(error) {
+  console.error(JSON.stringify({
+    ok: false,
+    error,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
   process.exit(1);
 }
 
-const pub = spawnSync('node', ['demigod-board-publish.mjs'], { cwd: ROOT, encoding: 'utf8' });
-console.log(
-  JSON.stringify({
-    ok: pub.status === 0,
-    id: result.record?.id,
-    featured: result.featured,
-    board: { roles: result.board?.roles?.length, candidates: result.board?.candidates?.length },
-    publish: pub.status === 0 ? pub.stdout?.trim() : pub.stderr,
-  }),
-);
+function parseArgs(argv) {
+  const out = { file: '', publish: false };
+  for (const arg of argv) {
+    if (arg === '--publish') out.publish = true;
+    else if (!arg.startsWith('--') && !out.file) out.file = arg;
+  }
+  return out;
+}
+
+function formNameOf(body) {
+  return String(body.name || body.formName || body['form-name'] || '').toLowerCase();
+}
+
+function dataOf(body) {
+  const data = body.data || body.fields || body;
+  return data && typeof data === 'object' ? data : {};
+}
+
+function main() {
+  const args = parseArgs(process.argv.slice(2));
+  if (args.publish) fail('publish_refused');
+  if (!args.file) fail('submission_required');
+  if (!fs.existsSync(args.file)) fail('file_not_found');
+  let body;
+  try {
+    body = JSON.parse(fs.readFileSync(args.file, 'utf8'));
+  } catch {
+    fail('submission_invalid');
+  }
+  if (!body || typeof body !== 'object') fail('submission_invalid');
+  const data = dataOf(body);
+  const email = extractEmail(data, formNameOf(body));
+  if (!email) fail('email_required');
+
+  const result = ingestSubmission(body);
+  const record = result.record || {};
+  console.log(JSON.stringify({
+    ok: true,
+    id: record.id,
+    email,
+    company: String(data['company-name'] || data.companyName || '').trim(),
+    status: record.status,
+    path: inboxFile(),
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+}
+
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) main();

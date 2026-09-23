@@ -14,10 +14,20 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { atomicWrite, withFileLock } from './demigod-agent-tools-lib.mjs';
+import { recordPortionsForMatch } from './demigod-referral-ledger.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 export const PAIRS_PATH = path.join(ROOT, 'DEMIGOD-PAIRS.json');
 export const PAIRS_LOCK = path.join(ROOT, 'DEMIGOD-PAIRS.json.lock');
+
+function pairsPath() {
+  return process.env.DEMIGOD_PAIRS_PATH
+    || path.join(process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url)), 'DEMIGOD-PAIRS.json');
+}
+
+function pairsLock() {
+  return `${pairsPath()}.lock`;
+}
 
 export function pairId(roleId, candId) {
   const a = String(roleId || '').trim();
@@ -29,7 +39,7 @@ export function pairId(roleId, candId) {
 
 export function loadPairs() {
   try {
-    return JSON.parse(fs.readFileSync(PAIRS_PATH, 'utf8'));
+    return JSON.parse(fs.readFileSync(pairsPath(), 'utf8'));
   } catch {
     return { at: new Date().toISOString(), pairs: {} };
   }
@@ -37,7 +47,7 @@ export function loadPairs() {
 
 function savePairs(store) {
   store.at = new Date().toISOString();
-  atomicWrite(PAIRS_PATH, JSON.stringify(store, null, 2) + '\n');
+  atomicWrite(pairsPath(), JSON.stringify(store, null, 2) + '\n');
   return store;
 }
 
@@ -62,9 +72,10 @@ export function proposePair({
   reasons = [],
   actor = 'agent',
   sample = false,
+  identity = null,
 } = {}) {
   if (!roleId || !candId) throw new Error('roleId and candId required');
-  return withFileLock(PAIRS_LOCK, () => {
+  return withFileLock(pairsLock(), () => {
     const store = loadPairs();
     const id = pairId(roleId, candId);
     const prev = store.pairs[id];
@@ -84,6 +95,7 @@ export function proposePair({
     if (sample) pair.sample = true;
     pair.score = score != null ? Number(score) : pair.score;
     if (reasons?.length) pair.reasons = reasons;
+    if (identity && typeof identity === 'object') pair.identity = { ...pair.identity, ...identity };
     pair.updatedAt = now;
     pair.history = [
       ...(pair.history || []),
@@ -91,6 +103,7 @@ export function proposePair({
     ].slice(-40);
     store.pairs[id] = pair;
     savePairs(store);
+    pair.referralPortions = recordPortionsForMatch(pair);
     return pair;
   });
 }
@@ -98,7 +111,7 @@ export function proposePair({
 export function reviewPair(id, { decision, actor = 'agent', note = '' } = {}) {
   const d = String(decision || '').toLowerCase();
   if (!['approve', 'reject', 'defer'].includes(d)) throw new Error('decision must be approve|reject|defer');
-  return withFileLock(PAIRS_LOCK, () => {
+  return withFileLock(pairsLock(), () => {
     const store = loadPairs();
     const pair = store.pairs?.[id];
     if (!pair) throw new Error('pair_not_found');
@@ -122,7 +135,7 @@ export function reviewPair(id, { decision, actor = 'agent', note = '' } = {}) {
 export function consentPair(id, { side, actor = 'agent' } = {}) {
   const s = String(side || '').toLowerCase();
   if (s !== 'founder' && s !== 'candidate') throw new Error('side must be founder|candidate');
-  return withFileLock(PAIRS_LOCK, () => {
+  return withFileLock(pairsLock(), () => {
     const store = loadPairs();
     const pair = store.pairs?.[id];
     if (!pair) throw new Error('pair_not_found');
@@ -145,7 +158,7 @@ export function consentPair(id, { side, actor = 'agent' } = {}) {
 
 /** Drop selftest / fixture pairs (keeps real ops rows). */
 export function prunePairs({ selftest = true, sample = false, dryRun = false } = {}) {
-  return withFileLock(PAIRS_LOCK, () => {
+  return withFileLock(pairsLock(), () => {
     const store = loadPairs();
     const before = Object.keys(store.pairs || {}).length;
     const removed = [];
@@ -168,7 +181,7 @@ export function prunePairs({ selftest = true, sample = false, dryRun = false } =
 
 /** Seed demo pairs from board sample roles + synthetic cand ids (freeze-safe fixtures) */
 function seedFixturePairs() {
-  return withFileLock(PAIRS_LOCK, () => {
+  return withFileLock(pairsLock(), () => {
     const store = loadPairs();
     const now = new Date().toISOString();
     const fixtures = [

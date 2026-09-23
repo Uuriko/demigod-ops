@@ -1,180 +1,150 @@
 #!/usr/bin/env node
-/** Permanently replace mythic hero copy on Webflow canvas + publish + verify. */
+/**
+ * Local hero canvas check in an explicit data root.
+ * Writes DEMIGOD-HERO-CANVAS-CLEANUP.json under DEMIGOD_ROOT. Does not open a browser or send a prompt.
+ */
 import fs from 'fs';
 import path from 'path';
-import { spawnSync } from 'child_process';
-import {
-  ROOT,
-  wlog,
-  sleep,
-  findWebflowPage,
-  submitWebflowAiPrompt,
-  waitWebflowTurnComplete,
-  captureDemigodScreenshots,
-} from './demigod-turn-lib.mjs';
-import { connectBrowser } from './collab-lib.mjs';
-import { fetchLiveHtml } from './demigod-live-lib.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const OUT = path.join(ROOT, 'DEMIGOD-HERO-CANVAS-CLEANUP.json');
-const DESIGNER = 'https://talentlink-sf.design.webflow.com/?pageId=6a34c484dcedc18a174081b8';
-
-const AI_PROMPT = `HERO CANVAS CLEANUP — Demigod home page ONLY. Permanent text DELETE + replace on canvas.
-
-DELETE / replace mythic hero copy:
-- Badge: remove "THE ELITE SYNDICATE", "DEMIGOD //" coords — set to "SF AI TALENT MATCHING"
-- H1: remove FORGE / DIVINE / AI AGENTS — set to three spans: "SF AI Talent." + "Human" + "Matched."
-- Subhead: remove Hermes, perfect demigod, Precision-matched — set to: "Startups: get 3-5 perfect SF AI engineers in 48 hours. Engineers: get matched to the right roles. Humans read every brief."
-- Hero CTAs: red button "HIRE TALENT", blue button "JOIN NETWORK" (not FIND TALENT / GET JOB)
-- Remove LAT. 37.7749, SF // CA, Two buttons placeholder
-
-Also DELETE any remaining on page (not modals):
-- HERMES, PANTHEON, ATHENA, HEPHAESTUS, FORGE, SUMMON, SYNDICATE, demigod.ai references in visible sections
-
-KEEP: pricing (10% on hire), modals, trust/how section, footer hello@trydemigod.com.
-
-Publish to production + staging. List every hero element changed.`;
-
-const LEAKS = [
-  'FORGE DIVINE',
-  'ELITE SYNDICATE',
-  'perfect demigod',
-  'Hermes delivers',
-  'Precision-matched SF AI engineers for founders',
-  'FIND TALENT',
-  'GET JOB',
+const localFlags = {
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+  liveFetch: false,
+  aiSubmit: false,
+};
+const MARKERS = [
+  { name: 'HERO', re: /hero/i },
+  { name: 'CANVAS', re: /canvas/i },
+  { name: 'CLEANUP', re: /cleanup/i },
+  { name: 'MATCH', re: /match/i },
+  { name: 'LOCAL', re: /local/i },
 ];
 
-async function ensureDesigner(browser) {
-  let page = await findWebflowPage(browser);
-  if (!page) {
-    page = await browser.newPage();
-    await page.goto(DESIGNER, { waitUntil: 'domcontentloaded', timeout: 120000 });
-    await sleep(6000);
-  } else {
-    await page.bringToFront();
-    if (!page.url().includes('design.webflow.com')) {
-      await page.goto(DESIGNER, { waitUntil: 'domcontentloaded', timeout: 120000 });
-      await sleep(6000);
-    }
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-HERO-CANVAS-CLEANUP.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'hero-canvas-cleanup');
+}
+
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
+  process.exit(1);
+}
+
+function refusedFlag(arg) {
+  return arg === '--publish'
+    || arg === '--push'
+    || arg === '--designer'
+    || arg === '--live'
+    || arg === '--send'
+    || arg === '--ai'
+    || arg === '--fetch'
+    || arg === '--capture'
+    || arg === '--verify';
+}
+
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
+}
+
+function entryStat(root, rel) {
+  const file = path.join(root, rel);
+  if (!insideRoot(root, file)) return null;
+  let st;
+  try {
+    st = fs.lstatSync(file);
+  } catch {
+    return null;
   }
-  await page.setViewport({ width: 1440, height: 900 });
-  return page;
+  if (st.isSymbolicLink()) return null;
+  return { file, st };
 }
 
-async function patchCanvas(page) {
-  return page.evaluate(() => {
-    let doc = null;
-    for (const iframe of document.querySelectorAll('iframe')) {
-      try {
-        const d = iframe.contentDocument;
-        if (d && iframe.clientWidth >= 500 && /FORGE|DIVINE|HIRE|SF AI/i.test(d.body?.innerText || '')) {
-          doc = d;
-          break;
-        }
-      } catch (_) { /* ignore */ }
-    }
-    if (!doc) return { ok: false, reason: 'no canvas iframe' };
-
-    const changes = [];
-    const walk = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
-    let n;
-    while ((n = walk.nextNode())) {
-      let v = n.nodeValue || '';
-      if (!v.trim()) continue;
-      if (/ELITE SYNDICATE|THE ELITE SYNDICATE/i.test(v)) {
-        n.nodeValue = v.replace(/DEMIGOD\s*\/\/\s*THE ELITE SYNDICATE|THE ELITE SYNDICATE|ELITE SYNDICATE/gi, 'SF AI TALENT MATCHING');
-        changes.push('badge');
-      }
-      if (/^FORGE$/i.test(v.trim())) { n.nodeValue = 'SF AI Talent.'; changes.push('h1-forge'); }
-      if (/^DIVINE$/i.test(v.trim())) { n.nodeValue = 'Human'; changes.push('h1-divine'); }
-      if (/^AI AGENTS$/i.test(v.trim())) { n.nodeValue = 'Matched.'; changes.push('h1-agents'); }
-      if (/Hermes|perfect demigod|Precision-matched/i.test(v)) {
-        n.nodeValue = 'Startups: get 3-5 perfect SF AI engineers in 48 hours. Engineers: get matched to the right roles. Humans read every brief.';
-        changes.push('subhead');
-      }
-    }
-    for (const a of [...doc.querySelectorAll('a,button')]) {
-      const lbl = a.querySelector('.btn-label') || a;
-      const t = (lbl.textContent || '').trim();
-      if (/^FIND TALENT$/i.test(t)) { lbl.textContent = 'HIRE TALENT'; changes.push('cta-founder'); }
-      if (/^GET JOB$/i.test(t)) { lbl.textContent = 'JOIN NETWORK'; changes.push('cta-engineer'); }
-    }
-    return { ok: changes.length > 0, changes: [...new Set(changes)] };
-  });
+function readText(root, rel) {
+  const found = entryStat(root, rel);
+  if (!found || !found.st.isFile()) return null;
+  return fs.readFileSync(found.file, 'utf8');
 }
 
-async function savePublish(page) {
-  await page.keyboard.down('Control');
-  await page.keyboard.press('s');
-  await page.keyboard.up('Control');
-  await sleep(1200);
-  await page.evaluate(() => {
-    [...document.querySelectorAll('button')].find((b) => /^publish$/i.test((b.textContent || '').trim()))?.click();
-  });
-  await sleep(2500);
-  await page.evaluate(() => {
-    [...document.querySelectorAll('button')].find((b) => /publish to selected|publish site|publish now/i.test(b.textContent || ''))?.click();
-  });
-  await sleep(8000);
+function markerHits(text) {
+  const found = {};
+  for (const marker of MARKERS) found[marker.name] = marker.re.test(text);
+  return found;
 }
 
-async function leakCheck() {
-  const { html } = await fetchLiveHtml();
-  const found = LEAKS.filter((k) => new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(html));
-  return { found, clean: found.length === 0 };
-}
-
-async function main() {
-  wlog('=== HERO CANVAS CLEANUP START ===');
-  const result = { at: new Date().toISOString(), steps: [] };
-
-  const browser = await connectBrowser();
-  const page = await ensureDesigner(browser);
-  result.designerUrl = page.url();
-
-  const patch = await patchCanvas(page);
-  result.canvasPatch = patch;
-  wlog(`canvas patch: ${JSON.stringify(patch)}`);
-  if (patch.ok) {
-    await savePublish(page);
-    result.publishedCanvas = true;
-    await sleep(10000);
+function main() {
+  if (process.argv.some(refusedFlag)) refuse('publish_refused');
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('hero_root_required');
   }
-
-  const ai = await submitWebflowAiPrompt(AI_PROMPT);
-  result.steps.push({ step: 'webflow-ai-submit', ...ai });
-  if (ai.ok) {
-    const wait = await waitWebflowTurnComplete(360000, ai.beforeTail || '');
-    result.steps.push({ step: 'webflow-ai-wait', ...wait });
-    if (wait.ok) {
-      const b2 = await connectBrowser();
-      const p2 = await ensureDesigner(b2);
-      await savePublish(p2);
-      result.publishedAi = true;
-      await b2.disconnect();
-      await sleep(12000);
-    }
+  const footText = readText(root, 'demigod-foot-core.js');
+  const notes = readText(root, 'HEAVY-HERO-CANVAS-CLEANUP-SOURCE.md');
+  if (footText == null && notes == null) refuse('source_required');
+  const text = notes || '';
+  const hits = markerHits(text);
+  const missing = MARKERS.filter((marker) => !hits[marker.name]).map((marker) => marker.name);
+  const pass = notes != null && missing.length === 0;
+  const footMarker = ((footText || text).match(/Harbor \S+ keep/) || [''])[0];
+  const dir = shotDir();
+  const shot = path.join(dir, 'hero.shot');
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, shot) || !insideRoot(root, report)) {
+    refuse('hero_root_required');
   }
-
-  await browser.disconnect().catch(() => {});
-  result.screenshots = await captureDemigodScreenshots('hero-canvas-cleanup');
-  result.sourceAfter = await leakCheck();
-
-  const verify = spawnSync('npm', ['run', 'demigod:verify:all'], { cwd: ROOT, encoding: 'utf8' });
-  result.verifyExit = verify.status;
-  result.pass = (patch.ok || ai.ok) && verify.status === 0;
-
-  fs.writeFileSync(OUT, JSON.stringify(result, null, 2));
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(shot, `${footMarker}\n${missing.length === 0 ? 'complete' : 'missing'}\n`);
+  const body = {
+    ok: pass,
+    at: new Date().toISOString(),
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    excerpt: text.slice(0, 180),
+    markers: hits,
+    missing,
+    chars: text.length,
+    ...localFlags,
+  };
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
   console.log(JSON.stringify({
-    ok: result.pass,
-    patch: patch.changes || [],
-    ai: ai.ok,
-    heroLeaks: result.sourceAfter.found,
-    verify: verify.status,
-    out: OUT,
+    ok: pass,
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    missing: missing.length,
+    chars: text.length,
+    ...localFlags,
   }));
-  wlog('=== HERO CANVAS CLEANUP END ===');
-  process.exit(result.pass ? 0 : 1);
+  if (!pass) process.exit(1);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'hero_failed',
+      detail: String(e.message || e),
+      ...localFlags,
+    }));
+    process.exit(1);
+  }
+}

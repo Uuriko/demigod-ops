@@ -18,7 +18,9 @@
 
 import fs from 'fs';
 import path from 'path';
-import { ROOT } from './demigod-turn-lib.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
+
+const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 import { loadBoard, saveBoard, loadInbox, saveInbox, extractEmail } from './demigod-submissions-lib.mjs';
 import { appendPilot, computeSignal } from './demigod-board-lib.mjs';
 import {
@@ -179,14 +181,27 @@ function getCandidates(inbox) {
   return (inbox.items || []).filter(i => /engineer|jobseeker|candidate/i.test(i.form || '') && i.status !== 'rejected' && i.status !== 'spam');
 }
 
-export function suggestMatches(roleTitleOrId, { propose = false, limit = 5 } = {}) {
-  const board = loadBoard();
-  const inbox = loadInbox ? loadInbox() : { items: [] };
-  const roles = getStartupRoles(board);
-  const cands = getCandidates(inbox);
+function uniqueStartupRole(roleTitleOrId) {
+  const roles = getStartupRoles(loadBoard());
+  const needle = String(roleTitleOrId || '');
+  const exactId = roles.find((row) => row.id === needle);
+  if (exactId) return { ok: true, role: exactId };
+  const title = norm(needle);
+  if (!title) return { ok: false, error: 'role_required' };
+  const hits = roles.filter((row) => norm(row.title) === title);
+  if (hits.length === 1) return { ok: true, role: hits[0] };
+  if (hits.length > 1) return { ok: false, error: 'role_ambiguous' };
+  return { ok: false, error: 'role_not_found' };
+}
 
-  const role = roles.find(r => norm(r.title).includes(norm(roleTitleOrId)) || r.id === roleTitleOrId) || roles[0];
-  if (!role) return { error: 'no role' };
+export function suggestMatches(roleTitleOrId, { propose = false, limit = 5 } = {}) {
+  const resolved = uniqueStartupRole(roleTitleOrId);
+  if (!resolved.ok) {
+    return { ok: false, error: resolved.error, role: roleTitleOrId || '', proposed: propose ? [] : undefined };
+  }
+  const inbox = loadInbox ? loadInbox() : { items: [] };
+  const role = resolved.role;
+  const cands = getCandidates(inbox);
 
   const scored = cands.map(c => ({
     candidate: c,
@@ -198,12 +213,20 @@ export function suggestMatches(roleTitleOrId, { propose = false, limit = 5 } = {
   if (propose) {
     for (const m of scored) {
       try {
+        const raw = m.candidate.raw || m.candidate;
         const pair = proposePair({
           roleId: role.id || role.title,
           candId: m.id,
           score: Math.min(1, (m.score || 0) / 100),
           reasons: ['suggest-matches', `score=${m.score}`],
           actor: 'matching-engine',
+          identity: {
+            candidateName: raw['full-name'] || raw.fullName || '',
+            candidateEmail: extractEmail(raw, m.candidate.form),
+            roleTitle: role.title || '',
+            salaryRange: role.comp || role['salary-range'] || '',
+            company: role.company || role.companyName || '',
+          },
         });
         proposed.push({ pairId: pair.pairId, state: pair.state, score: m.score, candId: m.id });
       } catch (e) {
@@ -212,27 +235,47 @@ export function suggestMatches(roleTitleOrId, { propose = false, limit = 5 } = {
     }
   }
 
-  return { role, matches: scored, proposed: propose ? proposed : undefined };
+  return { ok: true, role, matches: scored, proposed: propose ? proposed : undefined };
+}
+
+/** Exact id, or the one board role whose title matches. Never a substring. */
+function uniqueRoleId(roleTitleOrId) {
+  const roles = loadBoard().roles || [];
+  const needle = String(roleTitleOrId || '');
+  const exactId = roles.find((row) => row.id === needle);
+  if (exactId) return { ok: true, id: exactId.id };
+  const title = norm(needle);
+  if (!title) return { ok: false, error: 'role_required' };
+  const hits = roles.filter((row) => norm(row.title) === title);
+  if (hits.length === 1) return { ok: true, id: hits[0].id };
+  if (hits.length > 1) return { ok: false, error: 'role_ambiguous' };
+  return { ok: false, error: 'role_not_found' };
 }
 
 function markStartupInterest(roleId, candidateId) {
+  if (!candidateId) return { ok: false, error: 'candidate_required', role: roleId || '' };
+  const resolved = uniqueRoleId(roleId);
+  if (!resolved.ok) return { ok: false, error: resolved.error, role: roleId || '', candidate: candidateId };
+  const id = resolved.id;
   const m = loadMatches();
-  const key = `${roleId}:${candidateId}`;
+  const key = `${id}:${candidateId}`;
   m.interests[key] = { ...(m.interests[key] || {}), startup: true, at: Date.now() };
   saveMatches(m);
-  const pair = mirrorPairInterest(roleId, candidateId, 'founder');
-  return { ok: true, key, pairId: pair?.pairId || makePairId(roleId, candidateId), pair };
+  const pair = mirrorPairInterest(id, candidateId, 'founder');
+  return { ok: true, key, roleId: id, pairId: pair?.pairId || makePairId(id, candidateId), pair };
 }
 
 export function markCandidateOptin(candidateId, roleTitle) {
+  if (!candidateId) return { ok: false, error: 'candidate_required', role: roleTitle || '' };
+  const resolved = uniqueRoleId(roleTitle);
+  if (!resolved.ok) return { ok: false, error: resolved.error, role: roleTitle || '', candidate: candidateId };
+  const roleId = resolved.id;
   const m = loadMatches();
-  const key = `${candidateId}:${norm(roleTitle)}`;
+  const key = `${roleId}:${candidateId}`;
   m.interests[key] = { ...(m.interests[key] || {}), candidate: true, at: Date.now() };
   saveMatches(m);
-  // roleTitle may be id or title — pairs ledger needs stable ids; use title slug as role key when unknown
-  const roleKey = String(roleTitle || '').trim() || 'role-unknown';
-  const pair = mirrorPairInterest(roleKey, candidateId, 'candidate');
-  return { ok: true, key, pairId: pair?.pairId || null, pair };
+  const pair = mirrorPairInterest(roleId, candidateId, 'candidate');
+  return { ok: true, key, roleId, pairId: pair?.pairId || null, pair };
 }
 
 function findMutual() {
@@ -269,12 +312,31 @@ function findMutual() {
     .filter((x) => x.role || x.candidate || x.pair);
 }
 
-function proposeIntro(roleOrId, candIdOrEmail) {
-  const board = loadBoard();
-  const matches = findMutual();
-  const target = matches.find(mm => (mm.role && (mm.role.id === roleOrId || norm(mm.role.title).includes(norm(roleOrId)))) && (mm.candidate && (mm.candidate.id === candIdOrEmail || extractEmail(mm.candidate.raw||{}, mm.candidate.form) === candIdOrEmail )) ) || matches[0];
+function namedMutuals(matches, roleOrId, candIdOrEmail) {
+  const roleKey = norm(roleOrId);
+  return matches.filter((mm) => {
+    const roleId = mm.role?.id || mm.pair?.roleId || '';
+    const roleTitle = mm.role?.title || '';
+    const roleHit = roleId === roleOrId || (roleTitle && norm(roleTitle) === roleKey);
+    const cand = mm.candidate;
+    const candHit = !!cand && (
+      cand.id === candIdOrEmail
+      || extractEmail(cand.raw || {}, cand.form) === candIdOrEmail
+    );
+    return roleHit && candHit;
+  });
+}
 
-  if (!target) return { error: 'no mutual match found' };
+function proposeIntro(roleOrId, candIdOrEmail) {
+  const matches = findMutual();
+  const named = namedMutuals(matches, roleOrId, candIdOrEmail);
+  if (named.length > 1) {
+    return { ok: false, error: 'role_ambiguous', role: roleOrId, candidate: candIdOrEmail };
+  }
+  const target = named[0];
+  if (!target) {
+    return { ok: false, error: 'no mutual match found', role: roleOrId, candidate: candIdOrEmail };
+  }
 
   // Fable 2026-07-09: NEVER write board on mere proposal (appendPilot corrupted honesty).
   // Quarantine intro in matches store only; real receipts go through pilot-logger + honesty gate.
@@ -291,10 +353,10 @@ function proposeIntro(roleOrId, candIdOrEmail) {
   mm.intros.push(introRec);
   saveMatches(mm);
 
-  // Canonical pair ledger: propose + soft to mutual_yes when both consented; leave review to human
-  let pair = null;
+  // Named pair is already mutual. Record the intro. Do not stamp either consent.
+  let pair = target.pair || null;
   try {
-    const rid = target.role?.id || roleOrId;
+    const rid = target.role?.id || target.pair?.roleId || roleOrId;
     const cid = target.candidate?.id || candIdOrEmail;
     pair = proposePair({
       roleId: rid,
@@ -302,13 +364,7 @@ function proposeIntro(roleOrId, candIdOrEmail) {
       reasons: ['propose-intro', 'matching-engine'],
       actor: 'matching-engine',
     });
-    try {
-      consentPair(pair.pairId, { side: 'founder', actor: 'matching-engine' });
-      consentPair(pair.pairId, { side: 'candidate', actor: 'matching-engine' });
-      pair = getPair(pair.pairId);
-    } catch {
-      /* consent best-effort */
-    }
+    pair = getPair(pair.pairId) || pair;
   } catch (e) {
     pair = { error: String(e.message || e) };
   }
@@ -421,6 +477,11 @@ Use: node demigod-matching-engine.mjs propose-intro --role="${roleTitle}" --cand
   return {ok:true, template};
 }
 
+function emit(result) {
+  console.log(JSON.stringify(result, null, 2));
+  if (result && result.ok === false) process.exitCode = 2;
+}
+
 function main() {
   const args = process.argv.slice(2);
   const cmd = args[0] || 'help';
@@ -428,20 +489,19 @@ function main() {
   if (cmd === 'suggest' || cmd === 'list') {
     const q = args[1] || '';
     const doPropose = args.includes('--propose');
-    const res = suggestMatches(q, { propose: doPropose });
-    console.log(JSON.stringify(res, null, 2));
+    emit(suggestMatches(q, { propose: doPropose }));
     return;
   }
   if (cmd === 'startup-interest') {
     const roleId = (args.find(a=>a.startsWith('--role-id='))||'').split('=')[1] || args[1];
     const cand = (args.find(a=>a.startsWith('--candidate-id='))||'').split('=')[1] || args[2];
-    console.log(markStartupInterest(roleId, cand));
+    emit(markStartupInterest(roleId, cand));
     return;
   }
   if (cmd === 'candidate-optin') {
     const cand = (args.find(a=>a.startsWith('--candidate-id='))||'').split('=')[1] || args[1];
     const role = (args.find(a=>a.startsWith('--role='))||'').split('=')[1] || args[2];
-    console.log(markCandidateOptin(cand, role));
+    emit(markCandidateOptin(cand, role));
     return;
   }
   if (cmd === 'mutual-intros' || cmd === 'mutuals') {
@@ -451,7 +511,7 @@ function main() {
   if (cmd === 'propose-intro' || cmd === 'intro') {
     const role = (args.find(a=>a.startsWith('--role='))||'').split('=')[1] || args[1];
     const cand = (args.find(a=>a.startsWith('--candidate='))||'').split('=')[1] || args[2];
-    console.log(proposeIntro(role, cand));
+    emit(proposeIntro(role, cand));
     return;
   }
   if (cmd === 'present-startup') {
@@ -516,7 +576,7 @@ export function generateSmsProof() {
   return text;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main();
 }
 export function decideMatch(role, candidate, threshold=60) {

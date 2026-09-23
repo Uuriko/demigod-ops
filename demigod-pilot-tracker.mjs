@@ -2,12 +2,14 @@
 /**
  * demigod-pilot-tracker.mjs
  * Usage: node demigod-pilot-tracker.mjs --founderEmail=you@co.com --status=briefed
- * Appends to board.pilots[], calls publish, prints Slack copy + demo link.
+ * Appends to board.pilots[]. Publish only when --publish is passed.
  * npm run demigod:verify:all
  * Zero extra deps. Max ~70 lines.
  */
 import fs from 'fs';
+import path from 'path';
 import { spawnSync } from 'child_process';
+import { fileURLToPath } from 'url';
 import { loadBoard, saveBoard } from './demigod-submissions-lib.mjs';
 
 function parseArg(name) {
@@ -24,6 +26,7 @@ const phone = parseArg('phone') || '';
 const intros = parseInt(parseArg('intros') || '0', 10) || 0;
 const resetSla = !!parseArg('reset-sla');
 const dryRun = !!parseArg('dry-run') || !!parseArg('dry');
+const doPublish = parseArg('publish') === true || parseArg('publish') === '1';
 const outcome90d = parseArg('90d-outcome') || parseArg('90d');
 
 const STATUSES = ['new', 'briefed', 'matched', 'intros-sent', 'dm-sent', 'closed', 'churned'];
@@ -93,14 +96,21 @@ if (isNew) {
   entry.history = [...(entry.history || []), { status, at: now.toISOString() }];
 }
 
+let publish = false;
 if (!dryRun) {
   saveBoard(board, { reason: 'pilot-tracker', actor: process.env.USER || 'pilot-tracker' });
-
-  // Publish (re-uses board CDN + real roles logic)
-  const pub = spawnSync('node', ['demigod-board-publish.mjs'], { stdio: 'inherit' });
-  if (pub.status !== 0) console.warn('board-publish non-zero but continuing');
+  if (doPublish) {
+    const pub = spawnSync(process.execPath, ['demigod-board-publish.mjs'], {
+      cwd: path.dirname(fileURLToPath(import.meta.url)),
+      env: process.env,
+      encoding: 'utf8',
+    });
+    publish = pub.status === 0;
+    if (!publish) console.error(JSON.stringify({ ok: false, error: 'publish_failed', status: pub.status, livePublish: false }));
+  }
 } else {
-  console.log('[dry-run] skipping saveBoard + publish');
+  console.log(JSON.stringify({ ok: true, dryRun: true, saved: false, publish: false, livePublish: false }));
+  process.exit(0);
 }
 
 const demoHash = (board.receipts && board.receipts[0] && board.receipts[0].hash) || 'demo';
@@ -124,3 +134,11 @@ const dueSoon = open.filter(p => {
 console.log('Pre-services pipeline:', pre.length, 'pilots —', JSON.stringify(byStatus));
 if (dueSoon.length) console.log('SLA due <24h:', dueSoon.map(p => p.email).join(', '));
 if (overdue.length) console.log('SLA BREACHED:', overdue.map(p => p.email).join(', '));
+console.log(JSON.stringify({
+  ok: true,
+  email,
+  status: entry.status,
+  saved: true,
+  publish,
+  livePublish: false,
+}));

@@ -7,9 +7,13 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
-import { BUSY, ensureBusy, readJson, atomicWrite } from './demigod-agent-tools-lib.mjs';
+import { readJson, atomicWrite } from './demigod-agent-tools-lib.mjs';
 
-export const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+export function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+export const ROOT = dataRoot();
 export const CDP = process.env.CDP_URL || process.env.DEMIGOD_CDP || 'http://127.0.0.1:9223';
 export const LIVE = process.env.DEMIGOD_LIVE || 'https://www.trydemigod.com';
 export const DESIGNER = process.env.WEBFLOW_DESIGNER_URL || 'https://talentlink-sf.design.webflow.com/';
@@ -18,8 +22,26 @@ export const CUSTOM_CODE =
   'https://webflow.com/dashboard/sites/talentlink-sf/custom-code';
 export const DASHBOARD = 'https://webflow.com/dashboard';
 export const SITE_SLUG = process.env.WEBFLOW_SITE || 'talentlink-sf';
-export const OUT = path.join(BUSY, 'webflow-status.json');
-export const PLAYBOOK_OUT = path.join(BUSY, 'webflow-playbook-latest.md');
+export function statusPath() {
+  return path.join(dataRoot(), 'DEMIGOD-WEBFLOW-STATUS.json');
+}
+
+export function playbookPath() {
+  return path.join(dataRoot(), 'DEMIGOD-WEBFLOW-PLAYBOOK.md');
+}
+
+export function doctorPath() {
+  return path.join(dataRoot(), 'DEMIGOD-WEBFLOW-DOCTOR.json');
+}
+
+export function briefPath() {
+  return path.join(dataRoot(), 'DEMIGOD-WEBFLOW-BRIEF.md');
+}
+
+export function runPath(id) {
+  const safe = String(id || 'tool').replace(/[^a-z0-9_-]/gi, '') || 'tool';
+  return path.join(dataRoot(), `DEMIGOD-WEBFLOW-RUN-${safe}.json`);
+}
 
 export const CANONICAL = {
   footCore: 'demigod-foot-core.js',
@@ -82,7 +104,7 @@ export async function listPages() {
 }
 
 export function freezeStatus() {
-  const j = readJson(path.join(BUSY, 'publish-freeze.json')) || {};
+  const j = readJson(path.join(dataRoot(), 'DEMIGOD-PUBLISH-FREEZE.json')) || {};
   const envOn = process.env.DEMIGOD_PUBLISH_FREEZE === '1' || process.env.DEMIGOD_PUBLISH_FREEZE === 'true';
   const fileOn = Boolean(j.on);
   return {
@@ -96,17 +118,17 @@ export function freezeStatus() {
 }
 
 export function diskTruth() {
-  const footPath = path.join(ROOT, CANONICAL.footCore);
+  const footPath = path.join(dataRoot(), CANONICAL.footCore);
   const foot = fs.existsSync(footPath) ? fs.readFileSync(footPath, 'utf8') : '';
   const ver =
     (foot.match(/__dgFootVer\s*=\s*['"](\d+)/) || [])[1] ||
     (foot.match(/dgFootVersion\s*=\s*['"]v?(\d+)/) || [])[1] ||
     null;
-  const footer = fs.existsSync(path.join(ROOT, CANONICAL.footerLite))
-    ? fs.readFileSync(path.join(ROOT, CANONICAL.footerLite), 'utf8')
+  const footer = fs.existsSync(path.join(dataRoot(), CANONICAL.footerLite))
+    ? fs.readFileSync(path.join(dataRoot(), CANONICAL.footerLite), 'utf8')
     : '';
   const footLoaderVer = (footer.match(/demigod-foot-cdn-loader v(\d+)/) || [])[1] || null;
-  const man = readJson(path.join(ROOT, CANONICAL.footManifest)) || {};
+  const man = readJson(path.join(dataRoot(), CANONICAL.footManifest)) || {};
   const sha = foot ? crypto.createHash('sha256').update(foot).digest('hex') : null;
   return {
     footVer: ver ? `v${ver}` : null,
@@ -119,15 +141,15 @@ export function diskTruth() {
     },
     diskMatchesManifest: Boolean(sha && man.sha256 && sha === man.sha256),
     files: {
-      footCore: fs.existsSync(path.join(ROOT, CANONICAL.footCore)),
-      footerLite: fs.existsSync(path.join(ROOT, CANONICAL.footerLite)),
-      headMinimal: fs.existsSync(path.join(ROOT, CANONICAL.headMinimal)),
+      footCore: fs.existsSync(path.join(dataRoot(), CANONICAL.footCore)),
+      footerLite: fs.existsSync(path.join(dataRoot(), CANONICAL.footerLite)),
+      headMinimal: fs.existsSync(path.join(dataRoot(), CANONICAL.headMinimal)),
     },
     bytes: {
       footCore: foot.length,
       footerLite: footer.length,
-      headMinimal: fs.existsSync(path.join(ROOT, CANONICAL.headMinimal))
-        ? fs.readFileSync(path.join(ROOT, CANONICAL.headMinimal), 'utf8').length
+      headMinimal: fs.existsSync(path.join(dataRoot(), CANONICAL.headMinimal))
+        ? fs.readFileSync(path.join(dataRoot(), CANONICAL.headMinimal), 'utf8').length
         : 0,
     },
   };
@@ -291,7 +313,6 @@ export function agentTips(status) {
 }
 
 export async function buildStatus() {
-  ensureBusy();
   const cdp = await cdpUp();
   const pages = cdp.ok ? await listPages() : [];
   const pageOnly = pages.filter((p) => p.type === 'page');
@@ -304,6 +325,7 @@ export async function buildStatus() {
   const live = await liveTruth();
   const status = {
     at: new Date().toISOString(),
+    path: statusPath(),
     site: SITE_SLUG,
     urls: {
       live: LIVE,
@@ -332,13 +354,16 @@ export async function buildStatus() {
     paste: Boolean(cdp.ok && byRole['custom-code'] && !freeze.frozen),
     publish: Boolean(cdp.ok && !freeze.frozen),
   };
-  atomicWrite(OUT, JSON.stringify(status, null, 2) + '\n');
+  status.sent = false;
+  status.liveMail = false;
+  status.livePublish = false;
+  atomicWrite(statusPath(), JSON.stringify(status, null, 2) + '\n');
   return status;
 }
 
 export function runNode(args, opts = {}) {
   return spawnSync('node', args, {
-    cwd: ROOT,
+    cwd: dataRoot(),
     encoding: 'utf8',
     timeout: opts.timeout || 180000,
     env: { ...process.env, ...(opts.env || {}) },

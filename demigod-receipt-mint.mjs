@@ -1,37 +1,75 @@
 #!/usr/bin/env node
-/** Mint intro receipt → board JSON + publish CDN. */
-import { spawnSync } from 'child_process';
-import { ROOT } from './demigod-turn-lib.mjs';
+/**
+ * Record a named intro receipt on that data root's board.
+ * Does not publish, send mail, or invent an intro count.
+ *
+ * Usage: node demigod-receipt-mint.mjs --note="Harbor East brief" --intros=2
+ */
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { loadBoard, saveBoard } from './demigod-submissions-lib.mjs';
-import { mintReceipt, computeSignal } from './demigod-board-lib.mjs';
+import { mintReceipt } from './demigod-board-lib.mjs';
+
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function boardFile() {
+  return path.join(dataRoot(), 'DEMIGOD-BOARD.json');
+}
+
+function fail(error) {
+  console.error(JSON.stringify({
+    ok: false,
+    error,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+  process.exit(1);
+}
 
 function parseArgs(argv) {
-  const out = { intros: 3, status: 'delivered', note: '', publish: true };
-  for (let i = 2; i < argv.length; i++) {
-    const a = argv[i];
-    if (a.startsWith('--intros=')) out.intros = Number(a.slice(9)) || 3;
-    else if (a.startsWith('--status=')) out.status = a.slice(9);
-    else if (a.startsWith('--note=')) out.note = a.slice(7);
-    else if (a === '--no-publish') out.publish = false;
+  const out = { intros: null, status: 'recorded_local', note: '', publish: false };
+  for (const arg of argv) {
+    if (arg.startsWith('--intros=')) out.intros = arg.slice(9);
+    else if (arg.startsWith('--status=')) out.status = arg.slice(9);
+    else if (arg.startsWith('--note=')) out.note = arg.slice(7);
+    else if (arg === '--publish') out.publish = true;
+    else if (arg === '--no-publish') out.publish = false;
   }
   return out;
 }
 
-function main() {
-  const args = parseArgs(process.argv);
-  const board = loadBoard();
-  const receipt = mintReceipt(board, args);
-  board.signal = computeSignal(board);
-  saveBoard(board, { reason: 'receipt-mint', actor: process.env.USER || 'receipt-mint' });
-
-  let publishNote = 'skipped';
-  if (args.publish) {
-    const pub = spawnSync('node', ['demigod-board-publish.mjs'], { cwd: ROOT, encoding: 'utf8', timeout: 90_000 });
-    publishNote = pub.status === 0 ? 'ok' : `failed:${pub.status}`;
-  }
-
-  const url = `https://www.trydemigod.com/#receipt/${receipt.hash}`;
-  console.log(JSON.stringify({ ok: true, receipt, url, publish: publishNote }, null, 2));
+function parseIntros(raw) {
+  if (raw == null || String(raw).trim() === '') return { error: 'intros_required' };
+  if (!/^\d+$/.test(String(raw).trim())) return { error: 'intros_invalid' };
+  return { value: Number(String(raw).trim()) };
 }
 
-main();
+function main() {
+  const args = parseArgs(process.argv.slice(2));
+  if (args.publish) fail('publish_refused');
+  const note = String(args.note || '').trim();
+  if (!note) fail('note_required');
+  const intros = parseIntros(args.intros);
+  if (intros.error) fail(intros.error);
+  const status = String(args.status || '').trim();
+  if (!status) fail('status_required');
+
+  const board = loadBoard();
+  const receipt = mintReceipt(board, { intros: intros.value, status, note });
+  saveBoard(board, { reason: 'receipt-mint', actor: 'receipt-mint' });
+  console.log(JSON.stringify({
+    ok: true,
+    receipt,
+    path: boardFile(),
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+    url: null,
+  }));
+}
+
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) main();

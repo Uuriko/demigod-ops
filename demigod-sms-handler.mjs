@@ -1,77 +1,139 @@
 #!/usr/bin/env node
 /**
  * Demigod SMS Handler (stub for Twilio webhook, pre-services pending).
- * Users text number to start conversation/onboard (candidate profile from SMS body).
- * Feeds into submissions + matching engine for mutual interest/opt-in.
- * Honest: All "pending" until Twilio live. No real sends.
+ * A text with a sender can start a candidate profile. It does not send SMS.
+ * A suggestion is the one board role whose title or skill words the text names.
  *
- * See demigod-future-services.mjs for central status + stubs (Twilio, Stripe, Azure/MS Startups).
- * Build now: modular so real Twilio client can drop in later. Keep all pending language.
- *
- * Usage (when webhook live): POST from Twilio -> node demigod-sms-handler.mjs --from=+1415... --body="John PM skills React SF"
- * Or as module: import {handleSms} from './demigod-sms-handler.mjs'
+ * Usage: node demigod-sms-handler.mjs --from=+1415... --body="My name is Mina Chen. skills: React"
  */
 
 import fs from 'fs';
 import path from 'path';
-import { spawnSync } from 'child_process';
-import { ROOT } from './demigod-turn-lib.mjs';
-import { loadInbox, saveInbox, anonymizeCandidate, shouldAutoReject, slugId, inferStageType, loadBoard, saveBoard } from './demigod-submissions-lib.mjs';
+import { fileURLToPath } from 'url';
+import { loadInbox, saveInbox, shouldAutoReject, slugId, loadBoard, saveBoard } from './demigod-submissions-lib.mjs';
 import { suggestMatches, markCandidateOptin, generateIntroRequest } from './demigod-matching-engine.mjs';
-import { appendPilot } from './demigod-board-lib.mjs';  // for auto pilot stub on SMS yes
-import { sendSmsStub, getServiceStatus, isServiceEnabled } from './demigod-future-services.mjs';  // future Twilio adapter (currently pending stub)
+import { appendPilot } from './demigod-board-lib.mjs';
 
-const PENDING_NUMBER = '+1 (415) 555-DEMO'; // placeholder, swap on Twilio setup
-const WEBHOOK_PENDING = 'https://demigod-trydemigod.loca.lt/sms'; // stub
+const PENDING_NUMBER = '+1 (415) 555-DEMO';
+const WEBHOOK_PENDING = 'https://demigod-trydemigod.loca.lt/sms';
+const STOP_SKILLS = new Set(['and', 'the', 'for', 'with', 'from', 'role', 'skills', 'skill']);
+
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function escapeReg(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function startupRoles() {
+  return (loadBoard().roles || []).filter((row) => row && (!row.pilot || row.status === 'Active'));
+}
+
+/** One board role named by the text. A shared skill, or no skill, is no suggestion. */
+export function uniqueNamedRole(text) {
+  const blob = String(text || '');
+  const hits = startupRoles().filter((role) => {
+    const title = String(role.title || '').trim();
+    if (title && new RegExp(`\\b${escapeReg(title)}\\b`, 'i').test(blob)) return true;
+    const tokens = String(role.skills || role['stack-needs'] || '')
+      .toLowerCase()
+      .split(/[^a-z0-9+#.]+/)
+      .filter((token) => token.length >= 3 && !STOP_SKILLS.has(token));
+    return tokens.some((token) => new RegExp(`\\b${escapeReg(token)}\\b`, 'i').test(blob));
+  });
+  if (hits.length !== 1) return null;
+  return hits[0];
+}
+
+function presentRole(role) {
+  if (!role) return [];
+  const suggestions = suggestMatches(role.id, { propose: false, limit: 2 });
+  const matches = suggestions.ok && suggestions.matches ? suggestions.matches.slice(0, 2) : [];
+  if (!matches.length) {
+    return [{
+      role: role.title,
+      roleId: role.id,
+      score: null,
+      action: `Reply "yes ${role.title}" to opt in`,
+    }];
+  }
+  return matches.map((row) => ({
+    role: role.title,
+    roleId: role.id,
+    score: row.score,
+    action: `Reply "yes ${role.title}" to opt in`,
+  }));
+}
 
 export function handleSms({ from, body, to = PENDING_NUMBER }) {
-  // Simple state for multi-turn conversation (pre-services stub)
-  const stateFile = path.join(ROOT, 'demigod-sms-state.json');
-  let state = {};
-  try { state = JSON.parse(fs.readFileSync(stateFile, 'utf8')); } catch {}
-  const prev = state[from] || {};
+  const sender = String(from || '').trim();
+  const text = String(body || '').trim();
+  if (!sender || !text) {
+    return {
+      ok: false,
+      error: !sender ? 'sender_required' : 'body_required',
+      suggestions: [],
+      sent: false,
+      liveSms: false,
+      liveMail: false,
+    };
+  }
 
-  const combinedBody = [prev.body || '', body].filter(Boolean).join(' | ').slice(0,500);
+  const root = dataRoot();
+  fs.mkdirSync(root, { recursive: true });
+  const stateFile = path.join(root, 'demigod-sms-state.json');
+  let state = {};
+  try { state = JSON.parse(fs.readFileSync(stateFile, 'utf8')); } catch { /* first text */ }
+  const prev = state[sender] || {};
+  const command = /^(yes\b|match me\b|opt in\b|interested\b)/i.test(text);
+
+  const combinedBody = [prev.body || '', text].filter(Boolean).join(' | ').slice(0, 500);
   const raw = {
-    'full-name': (body.match(/^[A-Za-z ]+/) || [prev.name || 'SMS User'])[0].trim(),
-    'seeker-email': `sms-${from.replace(/\D/g,'')}@pending.example`,
-    'phone': from,
-    'skills-stack': combinedBody.replace(/join|profile|hi|hey|match me|text me|update|add/i, '').trim() || prev.skills || 'from SMS conversation',
+    'full-name': command && prev.name
+      ? prev.name
+      : (text.match(/^[A-Za-z ]+/) || [prev.name || 'SMS User'])[0].trim(),
+    'seeker-email': `sms-${sender.replace(/\D/g, '')}@pending.example`,
+    'phone': sender,
+    'skills-stack': command && prev.skills
+      ? prev.skills
+      : (combinedBody.replace(/join|profile|hi|hey|match me|text me|update|add/i, '').trim() || prev.skills || 'from SMS conversation'),
     'sf-bay': /sf|bay|san francisco/i.test(combinedBody) ? 'yes' : (prev.sf || 'pending'),
     'experience': combinedBody,
     'links': prev.links || '',
-    'why-this-role': /why|startups|sf|because/i.test(body) ? body : prev.why || '',
+    'why-this-role': /why|startups|sf|because/i.test(text) ? text : prev.why || '',
     source: 'sms',
     smsBody: combinedBody,
-    at: new Date().toISOString()
+    at: new Date().toISOString(),
   };
 
-  // Enhanced multi-turn for richer "text to start a conversation" profiles
-  // Supports: "profile ...", "update skills: ...", "add Figma", "my name is X", "skills: React", "why: first PM", "exp: shipped ..."
-  let updatedFields = [];
-  const b = body.toLowerCase();
-  if (/my name is|name[:=]\s*/i.test(body)) {
-    const nm = body.match(/my name is\s+([A-Za-z ]{2,30})/i) || body.match(/name[:=]\s*([A-Za-z ]{2,30})/i);
-    if (nm) { raw['full-name'] = nm[1].trim(); updatedFields.push('name'); }
+  const updatedFields = [];
+  const lower = text.toLowerCase();
+  if (/my name is|name[:=]\s*/i.test(text)) {
+    const named = text.match(/my name is\s+([A-Za-z ]{2,30})/i) || text.match(/name[:=]\s*([A-Za-z ]{2,30})/i);
+    if (named) {
+      raw['full-name'] = named[1].trim();
+      updatedFields.push('name');
+    }
   }
-  if (/skills?[:=]?\s*[^ ]/i.test(body) || /add.*(skill|figma|react|design|growth)/i.test(body)) {
-    const skMatch = body.match(/skills?[:=]?\s*([^|]+)/i) || body.match(/add\s+(.+?)(?:\s|$)/i);
-    if (skMatch) {
-      const sk = skMatch[1].trim();
-      raw['skills-stack'] = [raw['skills-stack'], sk].filter(Boolean).join(' | ');
+  if (!command && (/skills?[:=]?\s*[^ ]/i.test(text) || /add.*(skill|figma|react|design|growth)/i.test(text))) {
+    const skillMatch = text.match(/skills?[:=]?\s*([^|]+)/i) || text.match(/add\s+(.+?)(?:\s|$)/i);
+    if (skillMatch) {
+      const skill = skillMatch[1].trim();
+      raw['skills-stack'] = [raw['skills-stack'], skill].filter(Boolean).join(' | ');
       updatedFields.push('skills');
     }
   }
-  if (/why[:=]?\s*|because |startups?/i.test(body)) {
-    raw['why-this-role'] = [raw['why-this-role'], body].filter(Boolean).join(' | ');
+  if (/why[:=]?\s*|because |startups?/i.test(text)) {
+    raw['why-this-role'] = [raw['why-this-role'], text].filter(Boolean).join(' | ');
     updatedFields.push('why');
   }
-  if (/exp|experience|shipped|built|worked/i.test(b)) {
-    raw['experience'] = [raw['experience'], body].filter(Boolean).join(' | ');
+  if (/exp|experience|shipped|built|worked/i.test(lower)) {
+    raw['experience'] = [raw['experience'], text].filter(Boolean).join(' | ');
     updatedFields.push('exp');
   }
-  if (!updatedFields.length && /profile|update|add|more details/i.test(body)) {
-    const extra = body.replace(/update|profile|add|more details?/i, '').trim();
+  if (!updatedFields.length && /profile|update|add|more details/i.test(text)) {
+    const extra = text.replace(/update|profile|add|more details?/i, '').trim();
     if (extra) {
       raw['why-this-role'] = [raw['why-this-role'], extra].filter(Boolean).join(' | ');
       raw['skills-stack'] = [raw['skills-stack'], extra].filter(Boolean).join(' ');
@@ -79,20 +141,24 @@ export function handleSms({ from, body, to = PENDING_NUMBER }) {
     }
   }
 
-  state[from] = { name: raw['full-name'], skills: raw['skills-stack'], sf: raw['sf-bay'], why: raw['why-this-role'], body: combinedBody, updated: raw.at };
+  state[sender] = {
+    name: raw['full-name'],
+    skills: raw['skills-stack'],
+    sf: raw['sf-bay'],
+    why: raw['why-this-role'],
+    body: combinedBody,
+    updated: raw.at,
+  };
   fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));
 
   const formName = 'engineer-join-sms';
-  let inbox = loadInbox();
+  const inbox = loadInbox();
   inbox.items = inbox.items || [];
-
-  // SMS-friendly: dedupe/update by phone (not email), allow re-convo updates without dup reject
-  const phoneIdx = inbox.items.findIndex(i => i.phone === from);
+  const phoneIdx = inbox.items.findIndex((item) => item.phone === sender);
   const isExistingSms = phoneIdx >= 0;
 
   let candidate;
   if (isExistingSms) {
-    // update existing convo entry (multi-turn ok)
     candidate = inbox.items[phoneIdx];
     candidate.raw = { ...candidate.raw, ...raw };
     candidate.at = raw.at;
@@ -101,8 +167,16 @@ export function handleSms({ from, body, to = PENDING_NUMBER }) {
   } else {
     const rejectCheck = shouldAutoReject(raw, formName, inbox);
     if (rejectCheck.reject) {
-      console.log('SMS auto-rejected:', rejectCheck.reasons, from);
-      return { ok: false, reason: rejectCheck.reasons };
+      console.log('SMS auto-rejected:', rejectCheck.reasons, sender);
+      return {
+        ok: false,
+        error: 'rejected',
+        reason: rejectCheck.reasons,
+        suggestions: [],
+        sent: false,
+        liveSms: false,
+        liveMail: false,
+      };
     }
     candidate = {
       id: slugId('sms-cand'),
@@ -111,92 +185,122 @@ export function handleSms({ from, body, to = PENDING_NUMBER }) {
       raw,
       status: 'new',
       source: 'sms',
-      phone: from
+      phone: sender,
     };
     inbox.items.unshift(candidate);
   }
   saveInbox(inbox);
 
-  // Role suggestion (no auto opt-in on first message; explicit only)
-  let bestRoleTitle = 'Product Manager';
-  const skills = (raw['skills-stack'] || '').toLowerCase();
-  if (skills.includes('design') || skills.includes('figma')) bestRoleTitle = 'Founding Designer';
-  else if (skills.includes('growth') || skills.includes('plg')) bestRoleTitle = 'Head of Growth';
-  else if (skills.includes('pm') || skills.includes('product')) bestRoleTitle = 'Product Manager';
-  const suggestions = suggestMatches(bestRoleTitle);
-  let presented = [];
-  if (suggestions.matches && suggestions.matches.length) {
-    presented = suggestions.matches.slice(0,2).map(m => ({
-      role: bestRoleTitle,
-      score: m.score,
-      action: 'Reply "yes ' + bestRoleTitle + '" to opt in'
-    }));
-  }
-
-  // Handle conversation commands for "start a conversation" + explicit opt-in
+  const named = uniqueNamedRole(text);
+  const presented = presentRole(named);
   let reply;
-  const yesMatch = body.match(/yes\s+(.+)/i);
+  let pilotBrief = null;
+  const yesMatch = text.match(/^yes\s+(.+)/i);
   if (yesMatch) {
     const optedRole = yesMatch[1].trim();
+    pilotBrief = optedRole;
     markCandidateOptin(candidate.id, optedRole);
-    const gen = generateIntroRequest(candidate.id || from, optedRole);
-    // Integrate: auto log pilot stub for SMS yes (builds proof + GTM signal)
-    const pilotRes = spawnSync('node', ['demigod-pilot-logger.mjs', `--brief=${optedRole}`, '--intros=1', '--source=sms', `--sms-cand=${from}`, `--sms-role=${optedRole}`, '--no-publish', '--no-receipt', '--no-signal'], {encoding: 'utf8'});
-    // append to board as pilot stub (pre-services)
-    let board = loadBoard();
-    const { board: nextBoard } = appendPilot(board, {
-      brief: optedRole,
-      intros: 1,
-      outcome: 'SMS opt-in via text conversation',
-      stageType: 'from SMS',
-      source: 'sms'
-    });
-    saveBoard(nextBoard, { reason: 'sms-optin-pilot', actor: 'sms-handler' });
-    // Also append to .pilots[] (for tracker/SLA/pilot tools) using phone as key
-    let b2 = loadBoard();
-    b2.pilots = Array.isArray(b2.pilots) ? b2.pilots : [];
-    const pemail = `sms-${from.replace(/\D/g,'')}@pending.trydemigod.com`;
-    if (!b2.pilots.find(p => p.email === pemail)) {
-      b2.pilots.push({
-        id: 'plt-sms-' + Date.now().toString(36),
-        email: pemail,
-        status: 'dm-sent',
+    const gen = generateIntroRequest(candidate.id || sender, optedRole);
+    const stored = loadBoard();
+    stored.pilots = Array.isArray(stored.pilots) ? stored.pilots : [];
+    if (!stored.pilots.some((row) => row.phone === sender && row.brief === optedRole)) {
+      stored.pilots.push({
+        id: `plt-sms-${Date.now().toString(36)}`,
+        email: `sms-${sender.replace(/\D/g, '')}@pending.trydemigod.com`,
+        status: 'opted-in',
         at: new Date().toISOString(),
-        slaDue: new Date(Date.now() + 48*3600*1000).toISOString(),
-        preServices: true,
-        pendingIntegrations: ['twilio', 'stripe'],
         brief: optedRole,
-        phone: from,
+        phone: sender,
         phoneProvided: true,
-        introsSent: 1,
+        introsSent: 0,
         source: 'sms',
-        history: [{ status: 'dm-sent', at: new Date().toISOString() }]
+        preServices: true,
+        sent: false,
+        liveSms: false,
+        history: [{ status: 'opted-in', at: new Date().toISOString() }],
       });
-      saveBoard(b2, { reason: 'sms-pilot-append', actor: 'sms-handler' });
     }
-    const tmpl = (gen && (gen.template || gen.ok && 'Intro template generated.')) || '';
-    reply = `Opted in for ${optedRole}! ${tmpl} Pilot logged. Humans will review for intro. Reply more details anytime.`;
-  } else if (/match me|opt in|interested/i.test(body)) {
-    // explicit: mark top suggestion now
-    if (presented.length) markCandidateOptin(candidate.id, bestRoleTitle);
-    reply = `Great! Opted in for top matches. ${presented.length ? JSON.stringify(presented) : 'Humans will propose soon.'} Reply "yes <role>" to confirm or skills update.`;
+    saveBoard(stored, { reason: 'sms-pilot-append', actor: 'sms-handler' });
+    try {
+      const board = loadBoard();
+      const { board: nextBoard } = appendPilot(board, {
+        brief: optedRole,
+        intros: 0,
+        outcome: 'SMS opt-in via text conversation',
+        stageType: 'from SMS',
+        withReceipt: false,
+      });
+      saveBoard(nextBoard, {
+        reason: 'sms-optin-pilot',
+        actor: 'sms-handler',
+        allowRealRoles: true,
+      });
+    } catch {
+      // A featured card stays behind the real-role gate. The opt-in row is already saved.
+    }
+    const tmpl = (gen && (gen.template || (gen.ok && 'Intro template generated.'))) || '';
+    reply = `Opted in for ${optedRole}. ${tmpl} Humans will review before any intro.`;
+  } else if (/match me|opt in|interested/i.test(text)) {
+    if (named) markCandidateOptin(candidate.id, named.id);
+    reply = named
+      ? `Noted interest for ${named.title}. Humans will review before any intro.`
+      : 'Humans will propose soon. Reply with a role title or more skills.';
   } else {
     const note = updatedFields.length ? ` (${updatedFields.join('+')})` : '';
-    reply = `Thanks! Profile updated${note} from conversation (skills: ${raw['skills-stack'].slice(0,60)}). Humans reviewing. Reply "match me" or "yes <role>" or send more details (e.g. "update skills: Figma, why: first PM at seed").`;
+    const roleNote = named ? ` Suggested role: ${named.title}.` : '';
+    reply = `Thanks. Profile updated${note} from the text (skills: ${String(raw['skills-stack']).slice(0, 60)}).${roleNote} Humans reviewing. Reply "yes <role>" or send more skills.`;
   }
 
-  console.log(`SMS conversation updated (pending Twilio): ${from} -> candidate ${candidate.id}. Presented:`, presented);
-
-  return { ok: true, candidate, suggestions: presented, replyForTwilio: reply };
+  console.log(`SMS conversation updated (pending Twilio): ${sender} -> candidate ${candidate.id}. suggested=${presented[0]?.roleId || 'none'}`);
+  return {
+    ok: true,
+    candidate,
+    suggestions: presented,
+    replyForTwilio: reply,
+    to,
+    webhookPending: WEBHOOK_PENDING,
+    pilotBrief,
+    sent: false,
+    liveSms: false,
+    liveMail: false,
+  };
 }
 
-// CLI for testing: node demigod-sms-handler.mjs --from=+14155551234 --body="Alex engineer React SF Bay"
-if (import.meta.url === `file://${process.argv[1]}`) {
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) {
   const args = process.argv.slice(2);
-  const from = (args.find(a => a.startsWith('--from=')) || '').split('=')[1] || '+14155551234';
-  const body = (args.find(a => a.startsWith('--body=')) || '').split('=')[1] || 'Hi, John PM skills product GTM SF';
+  const fromArg = args.find((arg) => arg.startsWith('--from='));
+  const bodyArg = args.find((arg) => arg.startsWith('--body='));
+  const from = fromArg ? fromArg.slice('--from='.length).trim() : '';
+  const body = bodyArg ? bodyArg.slice('--body='.length).trim() : '';
+  if (!from || !body) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: !from ? 'sender_required' : 'body_required',
+      sent: false,
+      liveSms: false,
+      liveMail: false,
+    }));
+    process.exit(1);
+  }
   const result = handleSms({ from, body });
-  console.dir(result, { depth: 2 });
+  const suggested = (result.suggestions || [])[0] || null;
+  const line = {
+    ok: !!result.ok,
+    error: result.error || null,
+    phone: from,
+    suggestedRole: suggested ? suggested.role : null,
+    suggestedRoleId: suggested ? suggested.roleId : null,
+    pilotBrief: result.pilotBrief || null,
+    sent: false,
+    liveSms: false,
+    liveMail: false,
+  };
+  if (result.ok) console.log(JSON.stringify(line));
+  else {
+    console.error(JSON.stringify(line));
+    process.exit(1);
+  }
 }
 
-export default { handleSms, PENDING_NUMBER };
+export default { handleSms, uniqueNamedRole, PENDING_NUMBER };

@@ -15,16 +15,28 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
-const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
-const FOOT = path.join(ROOT, 'demigod-foot-core.js');
-const MANIFEST = path.join(ROOT, 'DEMIGOD-FOOT-CDN.json');
-const FOOTER = path.join(ROOT, 'demigod-footer-lite.html');
-const LIVE = process.env.DEMIGOD_LIVE || 'https://www.trydemigod.com';
-const BUSY = '/tmp/dg-busy';
-const OUT = path.join(BUSY, 'ship-status.json');
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function statusPath() {
+  return path.join(dataRoot(), 'DEMIGOD-SHIP-STATUS.json');
+}
+
 const strict = process.argv.includes('--strict');
 // default human-readable; --json for machines
 const asJson = process.argv.includes('--json');
+
+function fail(error) {
+  console.error(JSON.stringify({
+    ok: false,
+    error,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+  process.exit(1);
+}
 
 function sha256(file) {
   try {
@@ -51,6 +63,12 @@ function footMeta(js) {
 }
 
 async function main() {
+  if (process.argv.includes('--publish')) fail('publish_refused');
+  const root = dataRoot();
+  const FOOT = path.join(root, 'demigod-foot-core.js');
+  const MANIFEST = path.join(root, 'DEMIGOD-FOOT-CDN.json');
+  const FOOTER = path.join(root, 'demigod-footer-lite.html');
+  const LIVE = process.env.DEMIGOD_LIVE || 'https://www.trydemigod.com';
   const stages = [];
   const diskJs = fs.existsSync(FOOT) ? fs.readFileSync(FOOT, 'utf8') : '';
   const diskSha = sha256(FOOT);
@@ -188,8 +206,9 @@ async function main() {
   // lock (respect expiry)
   let lock = null;
   try {
-    if (fs.existsSync(path.join(BUSY, 'foot-lock.json'))) {
-      const j = JSON.parse(fs.readFileSync(path.join(BUSY, 'foot-lock.json'), 'utf8'));
+    const lockPath = path.join(root, 'DEMIGOD-FOOT-LOCK.json');
+    if (fs.existsSync(lockPath)) {
+      const j = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
       const exp = j.expiresAt && Date.parse(j.expiresAt) < Date.now();
       lock = exp ? null : j;
     }
@@ -216,6 +235,7 @@ async function main() {
 
   const report = {
     at: new Date().toISOString(),
+    path: statusPath(),
     shipped: allOk,
     stage: allOk ? 'cdn_body_matches_disk' : next?.id || 'unknown',
     nextAction: next ? next.detail : 'fully shipped',
@@ -227,14 +247,13 @@ async function main() {
     cdnBody,
     lock,
     stages,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
   };
 
-  try {
-    fs.mkdirSync(BUSY, { recursive: true });
-    fs.writeFileSync(OUT, JSON.stringify(report, null, 2) + '\n');
-  } catch {
-    /* */
-  }
+  fs.mkdirSync(root, { recursive: true });
+  fs.writeFileSync(statusPath(), JSON.stringify(report, null, 2) + '\n');
 
   if (asJson) {
     console.log(JSON.stringify(report, null, 2));
@@ -246,7 +265,7 @@ async function main() {
     }
     console.log(`next         ${report.nextAction}`);
     console.log(`cmd          ${nextCmd}`);
-    console.log(`wrote        ${OUT}`);
+    console.log(`wrote        ${statusPath()}`);
   }
 
   if (strict && !allOk) process.exit(1);

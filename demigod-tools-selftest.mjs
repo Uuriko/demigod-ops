@@ -12,12 +12,29 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { parseFirstJson, BUSY } from './demigod-agent-tools-lib.mjs';
 
-const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || scriptDir();
+}
+
+function truthReportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-TRUTH.json');
+}
+
+function selftestReportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-TOOLS-SELFTEST.json');
+}
+
+const ROOT = dataRoot();
 const results = [];
+const args = process.argv.slice(2);
 
 function run(args, opts = {}) {
   const r = spawnSync('node', args, {
-    cwd: ROOT,
+    cwd: scriptDir(),
     encoding: 'utf8',
     timeout: opts.timeout || 90000,
     env: { ...process.env, ...(opts.env || {}) },
@@ -28,6 +45,61 @@ function run(args, opts = {}) {
 
 function assert(name, cond, detail = '') {
   results.push({ name, ok: Boolean(cond), detail: String(detail).slice(0, 220) });
+}
+
+function checkTruthWritten() {
+  const t = run(['demigod-truth.mjs', '--json'], { timeout: 90000 });
+  assert('truth runs', t.status === 0 && t.out.includes('fullyShipped'), t.out.slice(0, 80));
+  assert('truth.json written', fs.existsSync(truthReportPath()));
+  return t;
+}
+
+function writeSelftestReport() {
+  const pass = results.every((row) => row.ok);
+  const report = {
+    at: new Date().toISOString(),
+    pass,
+    path: selftestReportPath(),
+    failed: results.filter((row) => !row.ok).map((row) => row.name),
+    results,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  };
+  fs.mkdirSync(dataRoot(), { recursive: true });
+  fs.writeFileSync(selftestReportPath(), JSON.stringify(report, null, 2) + '\n');
+  return report;
+}
+
+if (args.includes('--publish')) {
+  console.error(JSON.stringify({
+    ok: false,
+    error: 'publish_refused',
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+  process.exit(1);
+}
+
+if (args.includes('--truth')) {
+  checkTruthWritten();
+  const saved = writeSelftestReport();
+  const ran = results.find((row) => row.name === 'truth runs');
+  const written = results.find((row) => row.name === 'truth.json written');
+  const ok = Boolean(ran?.ok && written?.ok);
+  console.log(JSON.stringify({
+    ok,
+    pass: ok,
+    path: truthReportPath(),
+    selftestPath: saved.path,
+    truthRuns: Boolean(ran?.ok),
+    written: Boolean(written?.ok),
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+  process.exit(ok ? 0 : 1);
 }
 
 // clean lock only if free or test owners (never steal a real writer)
@@ -127,7 +199,7 @@ function assert(name, cond, detail = '') {
 {
   const c = run(['demigod-foot-lock.mjs', 'claim', 'legacy-A', '120']);
   const tok = parseFirstJson(c.out)?.claimed?.token;
-  fs.writeFileSync('/tmp/dg-busy/foot-lock.json', '{not-json');
+  fs.writeFileSync(path.join(dataRoot(), 'DEMIGOD-FOOT-LOCK.json'), '{not-json');
   const st = run(['demigod-foot-lock.mjs', 'status']);
   const j = parseFirstJson(st.out);
   assert(
@@ -247,9 +319,7 @@ function assert(name, cond, detail = '') {
   const p = run(['demigod-preflight.mjs'], { timeout: 180000 });
   assert('preflight pass', p.status === 0 && /PASS/.test(p.out), p.out.slice(0, 120));
 
-  const t = run(['demigod-truth.mjs', '--json'], { timeout: 90000 });
-  assert('truth runs', t.status === 0 && t.out.includes('fullyShipped'), t.out.slice(0, 80));
-  assert('truth.json written', fs.existsSync(path.join(BUSY, 'truth.json')));
+  checkTruthWritten();
 
   const h = run(['demigod-handoff.mjs', '--note', 'selftest'], { timeout: 90000 });
   assert('handoff runs', h.status === 0 && /HANDOFF|Truth/.test(h.out), h.out.slice(0, 80));
@@ -468,26 +538,14 @@ for (const b of [
     rev.status === 0 || rev.status === 1,
     `status=${rev.status} findings=${rj?.summary?.count} v=${rj?.version}`,
   );
-  assert('review writes report', fs.existsSync(path.join(BUSY, 'review-latest.json')));
-  assert('review writes sarif', fs.existsSync(path.join(BUSY, 'review-latest.sarif.json')));
+  assert('review writes report', fs.existsSync(path.join(dataRoot(), 'DEMIGOD-REVIEW.json')));
+  assert('review writes sarif', fs.existsSync(path.join(dataRoot(), 'DEMIGOD-REVIEW.sarif.json')));
   const st = run(['demigod-review-selftest.mjs'], { timeout: 60000 });
   assert('review-selftest', st.status === 0, st.out.slice(-120));
 }
 
-const pass = results.every((r) => r.ok);
-const report = {
-  at: new Date().toISOString(),
-  pass,
-  failed: results.filter((r) => !r.ok).map((r) => r.name),
-  results,
-};
-
-try {
-  fs.mkdirSync(BUSY, { recursive: true });
-  fs.writeFileSync(path.join(BUSY, 'tools-selftest.json'), JSON.stringify(report, null, 2));
-} catch {
-  /* */
-}
+const report = writeSelftestReport();
+const pass = report.pass;
 
 console.log(
   `tools-selftest  ${pass ? 'PASS ✓' : 'FAIL ✗'}  (${results.filter((r) => r.ok).length}/${results.length})`,
@@ -496,5 +554,5 @@ for (const r of results) {
   console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.detail ? '  ' + r.detail.slice(0, 70) : ''}`);
 }
 if (!pass) console.log('failed:', report.failed.join(', '));
-console.log('wrote /tmp/dg-busy/tools-selftest.json');
+console.log(`wrote ${selftestReportPath()}`);
 process.exit(pass ? 0 : 1);

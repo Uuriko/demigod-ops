@@ -1,135 +1,147 @@
 #!/usr/bin/env node
-/** Index SuperGrok Heavy Demigod-related threads from local artifacts. */
+/**
+ * Local history digest in an explicit data root.
+ * Writes DEMIGOD-HEAVY-HISTORY-DIGEST.json under DEMIGOD_ROOT. Does not index the checkout at load time.
+ */
 import fs from 'fs';
 import path from 'path';
-import { ROOT } from './demigod-turn-lib.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const OUT_JSON = path.join(ROOT, 'DEMIGOD-HEAVY-HISTORY-DIGEST.json');
-const OUT_MD = path.join(ROOT, 'DEMIGOD-HEAVY-HISTORY-DIGEST.md');
-
-const GLOBS = [
-  'HEAVY-DEMIGOD-*.md',
-  'HEAVY-CURSOR-WEBSITE*.md',
-  'HEAVY-CURSOR-FINISH*.md',
-  'HEAVY-CURSOR-IMPROVE*.md',
-  'HEAVY-CURSOR-ORCHESTRATION*.md',
-  'HEAVY-CURSOR-ROADMAP*.md',
-  'HEAVY-PARTNERSHIP*.md',
-  'HEAVY-LEVERAGE*.md',
-  'HEAVY-STARTUP*.md',
-  'HEAVY-GROK*.md',
-  'HEAVY-FORM*.md',
-  'HEAVY-FULL-AUDIT*.md',
-];
-
-const SENT_PREFIXES = [
-  'HEAVY-DEMIGOD',
-  'HEAVY-CURSOR-WEBSITE',
-  'HEAVY-CURSOR-FINISH',
-  'HEAVY-CURSOR-IMPROVE',
-  'HEAVY-CURSOR-ORCHESTRATION',
-  'HEAVY-PARTNERSHIP',
-  'HEAVY-LEVERAGE',
-  'HEAVY-STARTUP',
-  'HEAVY-GROK',
-  'HEAVY-FULL-AUDIT',
-];
-
-function listFiles() {
-  const all = fs.readdirSync(ROOT);
-  const picked = new Set();
-  for (const pat of GLOBS) {
-    const base = pat.replace('*', '');
-    const isWildcard = pat.includes('*');
-    for (const f of all) {
-      if (f.endsWith('.md') && (!isWildcard || f.startsWith(base.split('*')[0]))) {
-        if (isWildcard ? f.startsWith(pat.replace('*.md', '').replace('*', '')) : f === pat) picked.add(f);
-      }
-    }
-  }
-  // explicit prefix match
-  for (const f of all) {
-    if (!f.endsWith('.md') && !f.endsWith('-SENT.txt')) continue;
-    if (SENT_PREFIXES.some((p) => f.startsWith(p))) picked.add(f);
-  }
-  return [...picked].sort();
-}
-
-function excerpt(text, max = 600) {
-  const clean = text.replace(/\s+/g, ' ').trim();
-  return clean.length <= max ? clean : `${clean.slice(0, max - 1)}…`;
-}
-
-function topics(text) {
-  const keys = [
-    ['forms', /form|tally|intake|submit|field/i],
-    ['design', /design|nav|footer|master|canvas|visual|hero/i],
-    ['copy', /copy|messaging|trust|pricing/i],
-    ['partnership', /partner|allies|portfolio desk|referral/i],
-    ['gtm', /outbound|dm|placement|brief|founder/i],
-    ['cms', /cms|blog|content|collection/i],
-    ['pipeline', /webhook|board|submission|anonym/i],
-    ['competitive', /fonzi|jack|underdog|paraform|dover/i],
-    ['legal', /privacy|terms|atlas|entity|invoice/i],
-    ['tech', /foot-core|head|cdn|verify|mcp|webflow/i],
-  ];
-  return keys.filter(([, re]) => re.test(text)).map(([k]) => k);
-}
-
-function summarizeFile(file) {
-  const full = path.join(ROOT, file);
-  let stat = null;
-  try { stat = fs.statSync(full); } catch { return null; }
-  const text = fs.readFileSync(full, 'utf8');
-  const title = (text.match(/^#\s+(.+)/m) || [])[1] || file;
-  const date = (text.match(/_Date:\s*([^_\n]+)/i) || text.match(/_(\d{4}-\d{2}-\d{2}[^\n]*)/) || [])[1]
-    || stat.mtime.toISOString();
-  const sent = file.endsWith('-SENT.txt');
-  return {
-    file,
-    title: excerpt(title, 120),
-    at: date,
-    bytes: stat.size,
-    type: sent ? 'prompt-sent' : 'reply-artifact',
-    topics: topics(text),
-    excerpt: excerpt(text.replace(/^#.*$/m, '').slice(0, 4000)),
-  };
-}
-
-const files = listFiles();
-const entries = files.map(summarizeFile).filter(Boolean);
-const byTopic = {};
-for (const e of entries) {
-  for (const t of e.topics) {
-    byTopic[t] = byTopic[t] || [];
-    byTopic[t].push(e.file);
-  }
-}
-
-const digest = {
-  at: new Date().toISOString(),
-  fileCount: entries.length,
-  topics: Object.fromEntries(Object.entries(byTopic).map(([k, v]) => [k, [...new Set(v)].sort()])),
-  entries,
-  keyThreads: [
-    { id: 'forms-native', files: entries.filter((e) => e.topics.includes('forms')).map((e) => e.file).slice(0, 8) },
-    { id: 'design-masters', files: entries.filter((e) => e.topics.includes('design')).map((e) => e.file).slice(0, 8) },
-    { id: 'partnership-c', files: entries.filter((e) => e.topics.includes('partnership')).map((e) => e.file) },
-    { id: 'gtm-leverage', files: entries.filter((e) => e.topics.includes('gtm')).map((e) => e.file) },
-    { id: 'competitive', files: entries.filter((e) => e.topics.includes('competitive')).map((e) => e.file).slice(0, 6) },
-  ],
+const localFlags = {
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+  liveFetch: false,
+  aiSubmit: false,
 };
+const MARKERS = [
+  { name: 'HISTORY', re: /history/i },
+  { name: 'DIGEST', re: /digest/i },
+  { name: 'TOPIC', re: /topic/i },
+  { name: 'THREAD', re: /thread/i },
+  { name: 'ARTIFACT', re: /artifact/i },
+];
 
-fs.writeFileSync(OUT_JSON, JSON.stringify(digest, null, 2));
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-HEAVY-HISTORY-DIGEST.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'history-digest');
+}
 
-let md = `# Demigod — SuperGrok Heavy History Digest\n\n_${digest.at}_ · ${digest.fileCount} artifacts indexed\n\n`;
-md += `## Topic index\n\n`;
-for (const [t, files2] of Object.entries(digest.topics).sort()) {
-  md += `### ${t}\n${files2.map((f) => `- ${f}`).join('\n')}\n\n`;
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
+  process.exit(1);
 }
-md += `## Thread summaries\n\n`;
-for (const e of entries.slice(0, 40)) {
-  md += `### ${e.file}\n_${e.at}_ · topics: ${e.topics.join(', ') || '—'}\n\n${e.excerpt}\n\n`;
+
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
 }
-fs.writeFileSync(OUT_MD, md);
-console.log(JSON.stringify({ ok: true, fileCount: digest.fileCount, out: OUT_MD }, null, 2));
+
+function entryStat(root, rel) {
+  const file = path.join(root, rel);
+  if (!insideRoot(root, file)) return null;
+  let st;
+  try {
+    st = fs.lstatSync(file);
+  } catch {
+    return null;
+  }
+  if (st.isSymbolicLink()) return null;
+  return { file, st };
+}
+
+function readText(root, rel) {
+  const found = entryStat(root, rel);
+  if (!found || !found.st.isFile()) return null;
+  return fs.readFileSync(found.file, 'utf8');
+}
+
+function markerHits(text) {
+  const found = {};
+  for (const marker of MARKERS) found[marker.name] = marker.re.test(text);
+  return found;
+}
+
+function main() {
+  if (
+    process.argv.includes('--publish')
+    || process.argv.includes('--push')
+    || process.argv.includes('--live')
+    || process.argv.includes('--send')
+    || process.argv.includes('--ai')
+    || process.argv.includes('--fetch')
+  ) {
+    refuse('publish_refused');
+  }
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('digest_root_required');
+  }
+  const footText = readText(root, 'demigod-foot-core.js');
+  const notes = readText(root, 'HEAVY-HISTORY-DIGEST-SOURCE.md');
+  if (footText == null && notes == null) refuse('source_required');
+  const text = notes || '';
+  const hits = markerHits(text);
+  const missing = MARKERS.filter((marker) => !hits[marker.name]).map((marker) => marker.name);
+  const pass = notes != null && missing.length === 0;
+  const footMarker = ((footText || text).match(/Harbor \S+ keep/) || [''])[0];
+  const dir = shotDir();
+  const shot = path.join(dir, 'digest.shot');
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, shot) || !insideRoot(root, report)) {
+    refuse('digest_root_required');
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(shot, `${footMarker}\n${missing.length === 0 ? 'complete' : 'missing'}\n`);
+  const body = {
+    ok: pass,
+    at: new Date().toISOString(),
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    excerpt: text.slice(0, 180),
+    markers: hits,
+    missing,
+    chars: text.length,
+    ...localFlags,
+  };
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
+  console.log(JSON.stringify({
+    ok: pass,
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    missing: missing.length,
+    chars: text.length,
+    ...localFlags,
+  }));
+  if (!pass) process.exit(1);
+}
+
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'digest_failed',
+      detail: String(e.message || e),
+      ...localFlags,
+    }));
+    process.exit(1);
+  }
+}

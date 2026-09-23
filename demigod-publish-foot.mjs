@@ -9,6 +9,7 @@
  *   node demigod-publish-foot.mjs --no-upload  # skip catbox; use existing CDN if hashes match
  *   node demigod-publish-foot.mjs --no-publish # paste+save only (cm6 --no-publish)
  *   node demigod-publish-foot.mjs --dry-run    # preflight only
+ *   node demigod-publish-foot.mjs --lock-refresh  # claim + refresh the data-root lock, then stop
  *   DG_LOCK_OWNER=grok node demigod-publish-foot.mjs
  */
 import fs from 'fs';
@@ -28,6 +29,27 @@ const args = new Set(process.argv.slice(2));
 const DRY = args.has('--dry-run');
 const NO_UPLOAD = args.has('--no-upload');
 const NO_PUBLISH = args.has('--no-publish');
+const LOCK_REFRESH = args.has('--lock-refresh');
+
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || scriptDir();
+}
+
+function lockJsonPath() {
+  return path.join(dataRoot(), 'DEMIGOD-FOOT-LOCK.json');
+}
+
+function lockTxtPath() {
+  return path.join(dataRoot(), 'DEMIGOD-FOOT-LOCK.txt');
+}
+
+function footFile() {
+  return path.join(dataRoot(), 'demigod-foot-core.js');
+}
 
 function sha256(file) {
   return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
@@ -42,7 +64,7 @@ function runNode(scriptArgs, opts = {}) {
     cwd: ROOT,
     encoding: 'utf8',
     stdio: opts.inherit ? 'inherit' : ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, DG_LOCK_OWNER: OWNER },
+    env: { ...process.env, DG_LOCK_OWNER: OWNER, DEMIGOD_ROOT: dataRoot() },
     timeout: opts.timeout || 300_000,
   });
   if (r.status !== 0 && !opts.allowFail) {
@@ -122,18 +144,29 @@ async function main() {
     console.error(`[publish-foot] ${m}`);
   };
 
+  if (args.has('--publish')) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'publish_refused',
+      sent: false,
+      liveMail: false,
+      livePublish: false,
+    }));
+    process.exit(1);
+  }
+
   // Global freeze switch (site green / human veto)
   {
     let fileFreeze = false;
     try {
-      const fj = JSON.parse(fs.readFileSync('/tmp/dg-busy/publish-freeze.json', 'utf8'));
+      const fj = JSON.parse(fs.readFileSync(path.join(dataRoot(), 'DEMIGOD-PUBLISH-FREEZE.json'), 'utf8'));
       fileFreeze = Boolean(fj?.on);
     } catch {
       /* */
     }
     const envFreeze =
       process.env.DEMIGOD_PUBLISH_FREEZE === '1' || process.env.DEMIGOD_PUBLISH_FREEZE === 'true';
-    if ((envFreeze || fileFreeze) && !DRY) {
+    if ((envFreeze || fileFreeze) && !DRY && !LOCK_REFRESH) {
       console.error(
         JSON.stringify({
           ok: false,
@@ -152,7 +185,7 @@ async function main() {
   let lockToken = process.env.DG_LOCK_TOKEN || null;
   const release = () => {
     if (!lockedByUs) return;
-    const args = ['demigod-foot-lock.mjs', 'release', '--owner', OWNER];
+    const args = [path.join(scriptDir(), 'demigod-foot-lock.mjs'), 'release', '--owner', OWNER];
     if (lockToken) args.push('--token', lockToken);
     else args.push('--force');
     runNode(args, { allowFail: true });
@@ -164,7 +197,7 @@ async function main() {
     step('claim foot lock');
     {
       const claimArgs = [
-        'demigod-foot-lock.mjs',
+        path.join(scriptDir(), 'demigod-foot-lock.mjs'),
         'claim',
         '--owner',
         OWNER,
@@ -189,20 +222,21 @@ async function main() {
       }
       // Refresh lock record with THIS process pid (preserve token)
       try {
-        const lockPath = '/tmp/dg-busy/foot-lock.json';
+        const lockPath = lockJsonPath();
+        const foot = footFile();
         const j = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
         if (j.owner === OWNER) {
           j.pid = process.pid;
           j.at = new Date().toISOString();
           j.expiresAt = new Date(Date.now() + 2400 * 1000).toISOString();
           j.why = 'dg-publish-foot';
-          j.baseSha = sha256(FOOT);
-          j.footVer = footVer(fs.readFileSync(FOOT, 'utf8'));
+          j.baseSha = sha256(foot);
+          j.footVer = footVer(fs.readFileSync(foot, 'utf8'));
           j.ttlSec = 2400;
           if (lockToken) j.token = lockToken;
           fs.writeFileSync(lockPath, JSON.stringify(j, null, 2) + '\n');
           fs.writeFileSync(
-            '/tmp/dg-busy/foot-lock.txt',
+            lockTxtPath(),
             Object.entries(j)
               .map(([k, v]) => k + '=' + v)
               .join('\n') + '\n',
@@ -210,6 +244,27 @@ async function main() {
         }
       } catch {
         /* */
+      }
+      if (LOCK_REFRESH) {
+        const refreshed = JSON.parse(fs.readFileSync(lockJsonPath(), 'utf8'));
+        if (refreshed.owner !== OWNER || refreshed.why !== 'dg-publish-foot') {
+          throw new Error('lock refresh missed the data root');
+        }
+        console.log(JSON.stringify({
+          ok: true,
+          lockRefresh: true,
+          path: lockJsonPath(),
+          txt: lockTxtPath(),
+          owner: refreshed.owner,
+          pid: refreshed.pid,
+          why: refreshed.why,
+          footVer: refreshed.footVer,
+          sent: false,
+          liveMail: false,
+          livePublish: false,
+        }));
+        lockedByUs = false;
+        return;
       }
     }
 

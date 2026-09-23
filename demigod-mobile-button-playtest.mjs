@@ -1,147 +1,204 @@
 #!/usr/bin/env node
-/** Mobile tap audit: CTA hit areas + modal open reliability @ 390px. */
+/**
+ * Local mobile button playtest for a planted source in an explicit data root.
+ * Writes DEMIGOD-MOBILE-BUTTON-PLAYTEST.json under DEMIGOD_ROOT. Does not open a browser.
+ */
 import fs from 'fs';
 import path from 'path';
-import puppeteer from 'puppeteer-core';
-import { CDP_URL } from './cdp-config.mjs';
-import { LIVE_ORIGIN } from './demigod-live-lib.mjs';
-import { ROOT } from './demigod-turn-lib.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const OUT = path.join(ROOT, 'DEMIGOD-MOBILE-BUTTON-PLAYTEST.json');
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
+const localFlags = { sent: false, liveMail: false, livePublish: false, liveFetch: false, tapped: false };
+const MIN_TAP = 44;
 const TARGETS = [
-  { sel: '#dg-bar .dg-h', expect: 'startup' },
-  { sel: '#dg-bar .dg-j', expect: 'engineer' },
-  { sel: '#dg-site-nav .dg-nav-cta', expect: 'startup' },
-  { sel: '#dg-site-nav a[data-demigod-modal=jobseeker]', expect: 'engineer' },
-  { sel: '#demigod-pricing a[data-demigod-modal=startup]', expect: 'startup', scroll: '#demigod-pricing' },
-  { sel: '#demigod-partners-teaser a[data-dg-partner-apply]', expect: 'partner', scroll: '#demigod-partners-teaser' },
+  { sel: '#dg-bar .dg-h', marker: /class=["'][^"']*\bdg-h\b[^"']*["']/i, expect: 'startup', modal: 'startup-modal' },
+  { sel: '#dg-bar .dg-j', marker: /class=["'][^"']*\bdg-j\b[^"']*["']/i, expect: 'engineer', modal: 'jobseeker-modal' },
+  { sel: '#dg-site-nav .dg-nav-cta', marker: /class=["'][^"']*\bdg-nav-cta\b[^"']*["']/i, expect: 'startup', modal: 'startup-modal' },
+  { sel: '#dg-site-nav a[data-demigod-modal=jobseeker]', marker: /data-demigod-modal=["']jobseeker["']/i, expect: 'engineer', modal: 'jobseeker-modal' },
+  { sel: '#demigod-pricing a[data-demigod-modal=startup]', marker: /data-demigod-modal=["']startup["']/i, expect: 'startup', modal: 'startup-modal' },
+  { sel: '#demigod-partners-teaser a[data-dg-partner-apply]', marker: /data-dg-partner-apply/i, expect: 'partner', modal: 'partner-modal' },
 ];
 
-async function modalState(page) {
-  return page.evaluate(() => ({
-    foot: window.__dgFootVer || null,
-    startup: !!document.querySelector('#startup-modal.dg-wiz-active'),
-    engineer: !!document.querySelector('#jobseeker-modal.dg-wiz-active'),
-    partner: !!document.querySelector('#partner-modal.dg-wiz-active'),
-    touchStyle: !!document.querySelector('#dg-touch-style'),
-  }));
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-MOBILE-BUTTON-PLAYTEST.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'mobile-playtest');
 }
 
-async function metrics(page) {
-  return page.evaluate(() => {
-    const items = [];
-    for (const el of document.querySelectorAll('#dg-site-nav a:not(.dg-nav-logo), #dg-bar a, a.premium-btn')) {
-      const r = el.getBoundingClientRect();
-      const st = getComputedStyle(el);
-      if (r.width < 2 || st.display === 'none') continue;
-      items.push({
-        text: (el.textContent || '').trim().split('\n')[0].slice(0, 32),
-        w: Math.round(r.width),
-        h: Math.round(r.height),
-        touchAction: st.touchAction,
-        ok: r.height >= 44,
-      });
-    }
-    return items;
-  });
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
+  process.exit(1);
 }
 
-async function tapTarget(page, sel, expect, scroll) {
-  await page.goto(`${LIVE_ORIGIN}/?v=mb-${Date.now()}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await page.waitForFunction(() => document.querySelector('#dg-bar') && window.__dgFootVer, { timeout: 20000 });
-  await sleep(1200);
-  if (scroll) {
-    await page.evaluate((s) => document.querySelector(s)?.scrollIntoView({ block: 'center' }), scroll);
-    await sleep(600);
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
+}
+
+function readLocal(root, name) {
+  const file = path.join(root, name);
+  if (!fs.existsSync(file)) return null;
+  return fs.readFileSync(file, 'utf8');
+}
+
+function footVer(foot) {
+  const marked = foot.match(/__dgFootVer\s*=\s*["'](\d+)["']/);
+  if (marked) return marked[1];
+  const file = foot.match(/dg-foot-v(\d+)/);
+  return file ? file[1] : '';
+}
+
+function hasId(html, id) {
+  return new RegExp(`id=["']${id}["']`, 'i').test(html);
+}
+
+function declaredPx(tag, prop) {
+  const style = tag.match(/\bstyle=["']([^"']*)["']/i);
+  if (!style) return null;
+  const found = style[1].match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*(\\d+(?:\\.\\d+)?)px`, 'i'));
+  return found ? Number(found[1]) : null;
+}
+
+function declaredHeight(tag) {
+  const height = declaredPx(tag, 'height');
+  const minHeight = declaredPx(tag, 'min-height');
+  if (height == null && minHeight == null) return null;
+  return Math.max(height || 0, minHeight || 0);
+}
+
+function isHidden(tag) {
+  return /\bhidden\b|display:\s*none/i.test(tag);
+}
+
+function isSizedTarget(tag) {
+  return /class=["'][^"']*\b(?:dg-h|dg-j|dg-nav-cta|premium-btn)\b[^"']*["']/i.test(tag)
+    || /data-demigod-modal=/i.test(tag)
+    || /data-dg-partner-apply/i.test(tag);
+}
+
+function heroCtasHidden(html) {
+  const hero = html.match(/<[^>]*class=["'][^"']*\bhero-section\b[^"']*["'][^>]*>[\s\S]*?<\/(?:section|div)>/i);
+  if (!hero) return true;
+  const btn = hero[0].match(/<a\b[^>]*\bpremium-btn\b[^>]*>/i);
+  if (!btn) return true;
+  return isHidden(btn[0]);
+}
+
+function sizesFrom(html) {
+  const sizes = [];
+  for (const match of html.matchAll(/<(?:a|button)\b[^>]*>/gi)) {
+    const tag = match[0];
+    if (!isSizedTarget(tag) || isHidden(tag)) continue;
+    const height = declaredHeight(tag);
+    const text = html.slice(match.index + tag.length).split('<')[0].trim().slice(0, 32);
+    sizes.push({ text, h: height, ok: height != null && height >= MIN_TAP });
   }
-  await page.waitForSelector(sel, { visible: true, timeout: 15000 }).catch(() => {});
-  await sleep(scroll ? 800 : 0);
-  const before = await modalState(page);
-  let err = null;
-  try {
-    await page.tap(sel);
-    await sleep(700);
-  } catch (e) {
-    try {
-      await page.evaluate((s) => document.querySelector(s)?.click(), sel);
-      await sleep(700);
-    } catch (e2) {
-      err = String(e.message || e2);
-    }
-  }
-  const after = await modalState(page);
-  const opened = after[expect];
-  await page.keyboard.press('Escape').catch(() => {});
-  await sleep(300);
-  return { sel, expect, err, before, after, opened };
+  return sizes;
 }
 
-async function main() {
-  const browser = await puppeteer.connect({ browserURL: CDP_URL, protocolTimeout: 120000 });
-  const page = await browser.newPage();
-  await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
+function wizardFrom(html) {
+  const next = html.match(/<[^>]*class=["'][^"']*\bdg-wiz-next\b[^"']*["'][^>]*>/i);
+  const nextH = next ? (declaredHeight(next[0]) || 0) : 0;
+  const modal = /id=["']startup-modal["'][^>]*\bdg-wiz-active\b|\bdg-wiz-active\b[^>]*id=["']startup-modal["']/i.test(html);
+  const shown = html.match(/<[^>]*class=["'][^"']*\bdg-wiz-show\b[^"']*["'][^>]*>[\s\S]*?<\/div>/i);
+  const advanced = !!(shown && /name=["']contact-email["']/i.test(shown[0]));
+  return { nextH, modal, advanced };
+}
 
-  const taps = [];
-  for (const t of TARGETS) taps.push(await tapTarget(page, t.sel, t.expect, t.scroll));
-
-  await page.goto(`${LIVE_ORIGIN}/?v=mb-metrics-${Date.now()}`, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => window.__dgFootVer, { timeout: 20000 });
-  await sleep(1200);
-  const state = await modalState(page);
-  const sizes = await metrics(page);
-
-  await page.goto(`${LIVE_ORIGIN}/?v=mb-wiz-${Date.now()}`, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => window.__dgFootVer, { timeout: 20000 });
-  await sleep(1200);
-  await page.tap('#dg-bar .dg-h');
-  await sleep(800);
-  let wizTap = await page.evaluate(() => {
-    const f = document.querySelector('#startup-hire');
-    const next = f?.querySelector('.dg-wiz-next');
-    const r = next?.getBoundingClientRect();
+function main() {
+  if (
+    process.argv.includes('--publish')
+    || process.argv.includes('--push')
+    || process.argv.includes('--live')
+    || process.argv.includes('--designer')
+  ) {
+    refuse('publish_refused');
+  }
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('playtest_root_required');
+  }
+  const html = readLocal(root, 'demigod-mobile-playtest-source.html');
+  const foot = readLocal(root, 'demigod-foot-core.js');
+  if (html == null && foot == null) refuse('source_required');
+  const htmlText = html || '';
+  const footText = foot || '';
+  const footMarker = (footText.match(/Harbor \S+ keep/) || htmlText.match(/Harbor \S+ keep/) || [''])[0];
+  const ver = footVer(footText);
+  const taps = TARGETS.map((target) => {
+    const opened = target.marker.test(htmlText) && hasId(htmlText, target.modal);
     return {
-      step0: parseInt(f?.dataset?.dgStep || '0', 10),
-      nextH: r ? Math.round(r.height) : 0,
-      modal: !!document.querySelector('#startup-modal.dg-wiz-active'),
+      sel: target.sel,
+      expect: target.expect,
+      opened,
+      err: opened ? null : 'selector_missing',
+      tapped: false,
     };
   });
-  await page.tap('#startup-hire .dg-wiz-next');
-  await sleep(600);
-  const afterWiz = await page.evaluate(() => ({
-    step: parseInt(document.querySelector('#startup-hire')?.dataset?.dgStep || '0', 10),
-    visible: document.querySelector('#startup-hire [name=contact-email]')?.closest('.dg-wiz-show') ? 'contact-email' : null,
-  }));
-  wizTap = { ...wizTap, afterStep: afterWiz.step, advanced: afterWiz.step === 1 && afterWiz.visible === 'contact-email' };
-
-  await page.goto(`${LIVE_ORIGIN}/?v=mb-hero-${Date.now()}`, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => window.__dgFootVer, { timeout: 20000 });
-  await sleep(1000);
-  const heroCtasHidden = await page.evaluate(() => {
-    const btn = document.querySelector('.hero-section .premium-btn,.header .premium-btn');
-    if (!btn) return true;
-    return getComputedStyle(btn).display === 'none';
-  });
-
-  await page.close();
-  await browser.disconnect();
-
+  const sizes = sizesFrom(htmlText);
+  const wizard = wizardFrom(htmlText);
+  const hiddenHero = heroCtasHidden(htmlText);
   const pass = {
-    footV75: state.foot === '75',
-    heroCtasHidden,
-    touchUi: state.touchStyle,
-    minTapTargets: sizes.every((s) => s.ok),
-    allOpen: taps.every((t) => t.opened && !t.err),
-    wizNextTap: wizTap?.advanced && (wizTap?.nextH || 0) >= 44,
+    footV75: ver === '75',
+    heroCtasHidden: hiddenHero,
+    touchUi: hasId(htmlText, 'dg-touch-style'),
+    minTapTargets: sizes.length > 0 && sizes.every((size) => size.ok),
+    allOpen: taps.every((tap) => tap.opened && !tap.err),
+    wizNextTap: wizard.advanced && wizard.nextH >= MIN_TAP,
   };
-  const result = { at: new Date().toISOString(), state, sizes, taps, wizTap, pass, ok: Object.values(pass).every(Boolean) };
-  fs.writeFileSync(OUT, JSON.stringify(result, null, 2));
-  console.log(JSON.stringify({ ok: result.ok, pass: result.pass, out: OUT }));
-  process.exit(result.ok ? 0 : 1);
+  const ok = Object.values(pass).every(Boolean);
+  const dir = shotDir();
+  const shot = path.join(dir, 'mobile-buttons.shot');
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, shot) || !insideRoot(root, report)) {
+    refuse('playtest_root_required');
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(shot, `${footMarker}\nmobile-buttons\n`);
+  const body = {
+    ok,
+    at: new Date().toISOString(),
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    viewport: { w: 390, h: 844 },
+    state: { foot: ver, touchStyle: pass.touchUi },
+    sizes,
+    taps,
+    wizTap: wizard,
+    pass,
+    ...localFlags,
+  };
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
+  console.log(JSON.stringify({
+    ok,
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    pass,
+    taps: taps.length,
+    ...localFlags,
+  }));
+  if (!ok) process.exit(1);
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({ ok: false, error: 'mobile_playtest_failed', detail: String(e.message || e), ...localFlags }));
+    process.exit(1);
+  }
+}

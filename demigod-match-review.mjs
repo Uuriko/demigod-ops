@@ -9,7 +9,14 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { listPairs, reviewPair, loadPairs } from './demigod-pairs-lib.mjs';
 
-const BUSY = '/tmp/dg-busy';
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-MATCH-REVIEW.json');
+}
+
 const args = process.argv.slice(2);
 const asJson = args.includes('--json');
 const stateFlag = args.includes('--state') ? args[args.indexOf('--state') + 1] : null;
@@ -69,17 +76,21 @@ if (isMain) {
     const note = ni >= 0 ? args[ni + 1] : '';
     try {
       const p = reviewPair(id, { decision, note, actor: process.env.USER || 'agent' });
-      console.log(JSON.stringify({ ok: true, pair: p }, null, 2));
+      console.log(JSON.stringify({ ok: true, pair: p, sent: false, liveMail: false }));
     } catch (e) {
-      console.error(JSON.stringify({ ok: false, error: String(e.message || e) }));
+      console.error(JSON.stringify({ ok: false, error: String(e.message || e), sent: false, liveMail: false }));
       process.exit(1);
     }
     process.exit(0);
   }
   const includeSample = args.includes('--include-sample');
   const q = buildQueue({ state: stateFlag, includeSample });
-  fs.mkdirSync(BUSY, { recursive: true });
-  fs.writeFileSync(path.join(BUSY, 'match-review-latest.json'), JSON.stringify(q, null, 2) + '\n');
+  const report = reportPath();
+  q.report = report;
+  q.sent = false;
+  q.liveMail = false;
+  fs.mkdirSync(dataRoot(), { recursive: true });
+  fs.writeFileSync(report, JSON.stringify(q, null, 2) + '\n');
   if (asJson) console.log(JSON.stringify(q, null, 2));
   else {
     const s = q.summary;

@@ -16,7 +16,7 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
 import { BUSY, ensureBusy, atomicWrite, opt, withFileLock } from './demigod-agent-tools-lib.mjs';
-import { proposePair } from './demigod-pairs-lib.mjs';
+import { proposePair, getPair, reviewPair, pairId as makePairId } from './demigod-pairs-lib.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const STORE = path.join(ROOT, 'DEMIGOD-PILOTS.json');
@@ -123,6 +123,8 @@ if (cmd === 'add') {
     process.exit(2);
   }
   let c;
+  let pilotSnap = null;
+  let resolvedId = '';
   try {
     updatePilot((data) => {
       const p = findPilot(data, pid);
@@ -130,6 +132,7 @@ if (cmd === 'add') {
         console.error(JSON.stringify({ ok: false, error: 'pilot_not_found' }));
         process.exit(1);
       }
+      resolvedId = p.id;
       const allowedAdd = new Set(['new', 'matching', 'shortlist', 'active', '']);
       if (!allowedAdd.has(String(p.status || 'new'))) {
         console.error(JSON.stringify({ ok: false, error: 'invalid_status_for_add', status: p.status }));
@@ -154,6 +157,11 @@ if (cmd === 'add') {
       p.updatedAt = new Date().toISOString();
       p.history = p.history || [];
       p.history.push({ at: new Date().toISOString(), status: p.status, by: 'dg-match', note: `add ${c.id}` });
+      pilotSnap = {
+        company: p.company || p.companyName || '',
+        role: p.role || p.roleTitle || '',
+        salaryRange: p['salary-range'] || p.salaryRange || '',
+      };
       return c;
     });
   } catch (e) {
@@ -164,17 +172,24 @@ if (cmd === 'add') {
   let pair = null;
   try {
     pair = proposePair({
-      roleId: String(pid),
+      roleId: resolvedId,
       candId: c.id,
       score: Math.min(1, Math.max(0, (Number(c.score) || 3) / 5)),
       reasons: [c.why, 'pilot-shortlist dual-write'].filter(Boolean),
       actor: 'dg-match',
       sample: true, // pilot shortlist is pre-services / not public proof
+      identity: {
+        candidateName: c.name,
+        candidateLinks: c.links,
+        company: pilotSnap?.company || '',
+        roleTitle: pilotSnap?.role || '',
+        salaryRange: pilotSnap?.salaryRange || '',
+      },
     });
   } catch (e) {
     pair = { error: String(e.message || e) };
   }
-  console.log(JSON.stringify({ ok: true, candidate: c, pairId: pair?.pairId || null, pair }, null, 2));
+  console.log(JSON.stringify({ ok: true, pilotId: resolvedId, candidate: c, pairId: pair?.pairId || null, pair }, null, 2));
   process.exit(0);
 }
 
@@ -185,7 +200,7 @@ if (cmd === 'remove') {
     console.error(JSON.stringify({ ok: false, error: 'id_required', hint: '--id <candidateId>' }));
     process.exit(2);
   }
-  let removedId, shortlist;
+  let removedId, shortlist, resolvedId = '';
   try {
     updatePilot((data) => {
       const p = findPilot(data, pid);
@@ -193,6 +208,7 @@ if (cmd === 'remove') {
         console.error(JSON.stringify({ ok: false, error: 'pilot_not_found' }));
         process.exit(1);
       }
+      resolvedId = p.id;
       const exact = (p.shortlist || []).find((c) => c.id === id);
       const hits = exact ? [exact] : (p.shortlist || []).filter((c) => c.id.startsWith(id));
       if (hits.length !== 1) {
@@ -216,7 +232,27 @@ if (cmd === 'remove') {
     console.error(JSON.stringify({ ok: false, error: String(e.message || e) }));
     process.exit(1);
   }
-  console.log(JSON.stringify({ ok: true, removed: removedId, shortlist }, null, 2));
+  let pairId = null;
+  let pairState = null;
+  try {
+    const existing = resolvedId && removedId ? getPair(makePairId(resolvedId, removedId)) : null;
+    if (existing && existing.state !== 'rejected') {
+      const rejected = reviewPair(existing.pairId, {
+        decision: 'reject',
+        actor: 'dg-match',
+        note: 'removed from shortlist',
+      });
+      pairId = rejected.pairId;
+      pairState = rejected.state;
+    } else if (existing) {
+      pairId = existing.pairId;
+      pairState = existing.state;
+    }
+  } catch (e) {
+    console.error(JSON.stringify({ ok: false, error: String(e.message || e), removed: removedId }));
+    process.exit(1);
+  }
+  console.log(JSON.stringify({ ok: true, pilotId: resolvedId, removed: removedId, pairId, pairState, shortlist }, null, 2));
   process.exit(0);
 }
 

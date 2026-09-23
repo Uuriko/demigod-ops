@@ -1,307 +1,268 @@
 #!/usr/bin/env node
-/** Full-site interactive audit: every visible link/button on key routes. */
+/**
+ * Local button audit for a planted source in an explicit data root.
+ * Writes DEMIGOD-BUTTON-AUDIT.json under DEMIGOD_ROOT. Does not open a browser.
+ */
 import fs from 'fs';
 import path from 'path';
-import puppeteer from 'puppeteer-core';
-import { CDP_URL } from './cdp-config.mjs';
-import { LIVE_ORIGIN } from './demigod-live-lib.mjs';
-import { ROOT } from './demigod-turn-lib.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const CORE = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
-const OUT = path.join(ROOT, 'DEMIGOD-BUTTON-AUDIT.json');
-const SHOTS = path.join(ROOT, 'audit-shots', 'button-audit');
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const localFlags = { sent: false, liveMail: false, livePublish: false, liveFetch: false, clicked: false };
+const QUICK_TARGETS = [
+  /FIND TALENT/i,
+  /^Pricing$/i,
+  /^Partners$/i,
+  /engineer/i,
+  /HIRE TALENT/i,
+  /JOIN NETWORK/i,
+  /^Privacy$/i,
+  /^BECOME A PARTNER$/i,
+  /How it works/i,
+];
+const FULL_ROUTES = ['/', '/#partnerships', '/#privacy', '/#terms', '/#legal'];
 
-const QUICK = process.argv.includes('--quick');
-const ROUTES = QUICK
-  ? ['/']
-  : ['/', '/#partnerships', '/#privacy', '/#terms', '/#legal'];
-
-async function injectCore(page) {
-  await page.setRequestInterception(true);
-  page.removeAllListeners('request');
-  page.on('request', (req) => {
-    if (/catbox\.moe/i.test(req.url())) req.abort();
-    else req.continue();
-  });
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-BUTTON-AUDIT.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'button-audit');
 }
 
-async function load(page, url) {
-  if (QUICK) {
-    await page.goto(`${LIVE_ORIGIN}${url}?audit=${Date.now()}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.waitForFunction(() => /dg-foot-v\d+-core/.test([...document.scripts].map((s) => s.textContent).join('')), { timeout: 10000 }).catch(() => {});
-    await sleep(900);
-    return;
-  }
-  await injectCore(page);
-  await page.goto(`${LIVE_ORIGIN}${url}?audit=${Date.now()}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await page.evaluate((src) => {
-    document.querySelectorAll('script[src*="catbox"],script[data-dg-foot]').forEach((s) => s.remove());
-    const s = document.createElement('script');
-    s.setAttribute('data-dg-foot', 'audit');
-    s.textContent = src;
-    document.body.appendChild(s);
-  }, CORE);
-  await sleep(2200);
-}
-
-function isFrameGone(e) {
-  return /context.*destroyed|navigation|detached/i.test(String(e?.message || e));
-}
-
-async function safeEval(page, fn, ...args) {
-  try {
-    return await page.evaluate(fn, ...args);
-  } catch (e) {
-    if (!isFrameGone(e)) throw e;
-    await sleep(1200);
-    if (page.isClosed()) throw e;
-    await page.waitForFunction(() => !!document.body, { timeout: 20000 }).catch(() => {});
-    return page.evaluate(fn, ...args);
-  }
-}
-
-async function collectInteractives(page) {
-  return safeEval(page, () => {
-    const items = [];
-    const seen = new Set();
-    document.querySelectorAll('a,button,[role=button],input[type=submit]').forEach((el) => {
-      if (el.closest('#startup-modal,#jobseeker-modal,#partner-modal')) return;
-      const r = el.getBoundingClientRect();
-      const st = getComputedStyle(el);
-      if (r.width < 2 || r.height < 2) return;
-      if (st.display === 'none' || st.visibility === 'hidden' || st.opacity === '0') return;
-      const text = (el.textContent || el.value || el.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' ').slice(0, 80);
-      const href = el.getAttribute('href') || '';
-      const key = `${el.tagName}|${href}|${text}`;
-      if (!text && !href && el.tagName !== 'BUTTON') return;
-      if (seen.has(key)) return;
-      seen.add(key);
-      items.push({
-        tag: el.tagName,
-        text,
-        href,
-        modal: el.getAttribute('data-demigod-modal') || '',
-        scroll: el.getAttribute('data-dg-nav') || '',
-        id: el.id || '',
-        cls: (el.className || '').toString().slice(0, 60),
-      });
-    });
-    return items;
-  });
-}
-
-async function clickAndObserve(page, item, idx) {
-  const before = await safeEval(page, () => ({
-    hash: location.hash,
-    path: location.pathname,
-    startupOpen: !!document.querySelector('#startup-modal.dg-wiz-active'),
-    engineerOpen: !!document.querySelector('#jobseeker-modal.dg-wiz-active'),
-    partnerOpen: !!document.querySelector('#partner-modal.dg-wiz-active'),
-    partnersPage: document.body.classList.contains('dg-partners-page'),
-    legalPage: document.body.classList.contains('dg-legal-page'),
-    trustY: document.querySelector('#demigod-trust-block')?.getBoundingClientRect?.().top ?? null,
-    pricingY: document.querySelector('#demigod-pricing')?.getBoundingClientRect?.().top ?? null,
-  }));
-
-  const sel = await safeEval(page, (i) => {
-    const all = [...document.querySelectorAll('a,button,[role=button],input[type=submit]')];
-    let n = 0;
-    for (const el of all) {
-      if (el.closest('#startup-modal,#jobseeker-modal,#partner-modal')) continue;
-      const r = el.getBoundingClientRect();
-      const st = getComputedStyle(el);
-      if (r.width < 2 || r.height < 2) continue;
-      if (st.display === 'none' || st.visibility === 'hidden') continue;
-      const text = (el.textContent || el.value || '').trim().replace(/\s+/g, ' ').slice(0, 80);
-      const href = el.getAttribute('href') || '';
-      if (n === i) {
-        el.setAttribute('data-audit-idx', String(i));
-        return { ok: true, text, href };
-      }
-      n++;
-    }
-    return { ok: false };
-  }, idx);
-
-  if (!sel.ok) return { ...item, result: 'element-not-found' };
-
-  const willNav = item.href === '/' || /^https?:\/\//i.test(item.href || '') || (item.href && !item.href.startsWith('#') && !item.modal);
-  try {
-    if (willNav) {
-      await Promise.all([
-        page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {}),
-        page.click('[data-audit-idx="' + idx + '"]', { delay: 40 }),
-      ]);
-    } else {
-      await page.click('[data-audit-idx="' + idx + '"]', { delay: 40 });
-      await sleep(QUICK ? 450 : 700);
-    }
-  } catch (e) {
-    return { ...item, result: 'click-failed', error: String(e.message || e) };
-  }
-  await sleep(willNav ? 1200 : 0);
-
-  let after;
-  try {
-    after = await safeEval(page, () => ({
-    hash: location.hash,
-    path: location.pathname,
-    startupOpen: !!document.querySelector('#startup-modal.dg-wiz-active'),
-    engineerOpen: !!document.querySelector('#jobseeker-modal.dg-wiz-active'),
-    partnerOpen: !!document.querySelector('#partner-modal.dg-wiz-active'),
-    partnersPage: document.body.classList.contains('dg-partners-page'),
-    legalPage: document.body.classList.contains('dg-legal-page'),
-    trustY: document.querySelector('#demigod-trust-block')?.getBoundingClientRect?.().top ?? null,
-    pricingY: document.querySelector('#demigod-pricing')?.getBoundingClientRect?.().top ?? null,
-    partnersWrap: !!document.querySelector('#demigod-partnerships-wrap') && getComputedStyle(document.querySelector('#demigod-partnerships-wrap')).display !== 'none',
-    legalWrap: !!document.querySelector('#demigod-legal-wrap') && getComputedStyle(document.querySelector('#demigod-legal-wrap')).display !== 'none',
-  }));
-  } catch (e) {
-    return { ...item, result: willNav ? 'navigate' : 'context-lost', broken: false, before, error: String(e.message || e) };
-  }
-
-  // close modals for next click
-  if (after.startupOpen || after.engineerOpen || after.partnerOpen) {
-    await page.keyboard.press('Escape');
-    await sleep(400);
-  }
-
-  let result = 'noop';
-  if (after.startupOpen && !before.startupOpen) result = 'startup-modal';
-  else if (after.engineerOpen && !before.engineerOpen) result = 'engineer-modal';
-  else if (after.partnerOpen && !before.partnerOpen) result = 'partner-modal';
-  else if (after.partnersPage && !before.partnersPage) result = 'partners-page';
-  else if (after.legalPage && !before.legalPage) result = 'legal-page';
-  else if (after.hash !== before.hash) result = 'hash:' + after.hash;
-  else if (after.path !== before.path) result = 'navigate:' + after.path;
-  else if (item.href?.startsWith('mailto:')) result = 'mailto';
-  else if (before.pricingY != null && after.pricingY != null && Math.abs(after.pricingY - before.pricingY) > 80) result = 'scroll-pricing';
-  else if (before.trustY != null && after.trustY != null && Math.abs(after.trustY - before.trustY) > 80) result = 'scroll-trust';
-
-  const broken =
-    (item.text && /^(GET STARTED|LEARN MORE|SUBSCRIBE|CONTACT)$/i.test(item.text)) ||
-    (item.href === '#' && !item.modal && result === 'noop') ||
-    (item.scroll === 'scroll' && result === 'noop') ||
-    (item.text === 'Pricing' && result === 'noop');
-
-  return { ...item, result, broken, before, after };
-}
-
-async function main() {
-  fs.mkdirSync(SHOTS, { recursive: true });
-  const browser = await puppeteer.connect({ browserURL: CDP_URL, protocolTimeout: 180000 });
-  let page = await browser.newPage();
-  await page.setViewport({ width: 1440, height: 900 });
-
-  async function ensurePage() {
-    if (!page.isClosed()) return page;
-    page = await browser.newPage();
-    await page.setViewport({ width: 1440, height: 900 });
-    return page;
-  }
-
-  const report = { at: new Date().toISOString(), quick: QUICK, routes: {}, bareUrls: {} };
-
-  for (const slug of ['legal', 'partnerships']) {
-    try {
-      const res = await fetch(`${LIVE_ORIGIN}/${slug}?probe=${Date.now()}`);
-      const html = await res.text();
-      report.bareUrls[`/${slug}`] = {
-        status: res.status,
-        foot: /catbox\.moe\/[a-z0-9]+\.js/i.test(html) || /dg-foot-v\d+-core/.test(html),
-        is404: /404|not found/i.test(html.slice(0, 8000)),
-      };
-    } catch (e) {
-      report.bareUrls[`/${slug}`] = { error: String(e.message || e) };
-    }
-  }
-
-  for (const route of ROUTES) {
-    try {
-    await ensurePage();
-    await load(page, route);
-    const shot = path.join(SHOTS, route.replace(/[^a-z0-9]+/gi, '_') + '.png');
-    if (!QUICK) await page.screenshot({ path: shot, fullPage: true });
-
-    const meta = await page.evaluate(() => ({
-      foot: /dg-foot-v\d+-core/.test([...document.scripts].map((s) => s.textContent).join('')) || [...document.scripts].some((s) => /catbox\.moe\/[a-z0-9]+\.js/i.test(s.src || '')),
-      nav: !!document.querySelector('#dg-site-nav'),
-      trust: !!document.querySelector('#demigod-trust-block'),
-      pricing: !!document.querySelector('#demigod-pricing'),
-      partnersWrap: !!document.querySelector('#demigod-partnerships-wrap'),
-      legalWrap: !!document.querySelector('#demigod-legal-wrap'),
-      partnersPage: document.body.classList.contains('dg-partners-page'),
-      legalPage: document.body.classList.contains('dg-legal-page'),
-      status: document.title,
-    }));
-
-    const items = await collectInteractives(page);
-    const clicks = [];
-    const quickTargets = QUICK
-      ? [/FIND TALENT/i, /^Pricing$/i, /^Partners$/i, /engineer/i, /HIRE TALENT/i, /JOIN NETWORK/i, /^Privacy$/i, /^BECOME A PARTNER/i, /How it works/i]
-      : null;
-    const clickItems = QUICK
-      ? quickTargets.map((rx) => items.find((it) => rx.test(it.text || '') || rx.test(it.href || ''))).filter(Boolean)
-      : items;
-    const maxClicks = Math.min(clickItems.length, QUICK ? clickItems.length : 18);
-    for (let i = 0; i < maxClicks; i++) {
-      if (i > 0) {
-        const cur = await safeEval(page, () => ({ path: location.pathname, hash: location.hash }));
-        const needReload =
-          cur.path !== route.split('#')[0] ||
-          (route.includes('#') && cur.hash !== '#' + route.split('#')[1]) ||
-          (!route.includes('#') && cur.hash && !['', '#demigod-trust-block', '#demigod-pricing'].includes(cur.hash));
-        if (needReload) await load(page, route);
-      }
-      const fresh = QUICK ? clickItems : await collectInteractives(page);
-      if (i >= fresh.length) break;
-      const clickIdx = QUICK ? items.indexOf(fresh[i]) : i;
-      if (clickIdx < 0) continue;
-      try {
-        clicks.push(await clickAndObserve(page, fresh[i], clickIdx));
-      } catch (e) {
-        if (isFrameGone(e)) {
-          await ensurePage();
-          await load(page, route);
-        }
-        clicks.push({ ...fresh[i], result: 'audit-error', broken: false, error: String(e.message || e) });
-      }
-    }
-
-    report.routes[route] = {
-      meta,
-      shot,
-      interactives: items.length,
-      clicks,
-      broken: clicks.filter((c) => c.broken),
-      deadHash: clicks.filter((c) => c.href === '#' && c.result === 'noop'),
-      missingPricing: !meta.pricing && route === '/',
-    };
-    } catch (e) {
-      report.routes[route] = { error: String(e.message || e), broken: [], clicks: [] };
-      if (isFrameGone(e)) await ensurePage();
-    }
-  }
-
-  report.summary = {
-    totalBroken: Object.values(report.routes).reduce((n, r) => n + r.broken.length, 0),
-    bareLegal404: report.bareUrls['/legal']?.is404 === true,
-    barePartnerships404: report.bareUrls['/partnerships']?.is404 === true,
-  };
-  report.ok = report.summary.totalBroken === 0;
-
-  fs.writeFileSync(OUT, JSON.stringify(report, null, 2));
-  console.log(JSON.stringify({ ok: report.ok, summary: report.summary, out: OUT }));
-  try { await page.close(); } catch (_) {}
-  await browser.disconnect();
-  process.exit(report.ok ? 0 : 1);
-}
-
-main().catch((e) => {
-  console.error(e);
-  try {
-    fs.writeFileSync(OUT, JSON.stringify({ at: new Date().toISOString(), ok: false, crash: String(e.message || e) }, null, 2));
-  } catch (_) {}
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
   process.exit(1);
-});
+}
+
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
+}
+
+function readLocal(root, name) {
+  const file = path.join(root, name);
+  if (!fs.existsSync(file)) return null;
+  return fs.readFileSync(file, 'utf8');
+}
+
+function attr(tag, name) {
+  const found = tag.match(new RegExp(`\\b${name}=["']([^"']*)["']`, 'i'));
+  return found ? found[1] : '';
+}
+
+function hasId(html, id) {
+  return new RegExp(`id=["']${id}["']`, 'i').test(html);
+}
+
+function outsideModals(html) {
+  return html.replace(/<div\b[^>]*id=["'](?:startup-modal|jobseeker-modal|partner-modal)["'][^>]*>[\s\S]*?<\/div>/gi, '');
+}
+
+function textAfter(html, index, tag) {
+  const labeled = attr(tag, 'aria-label') || attr(tag, 'value');
+  if (labeled) return labeled.trim().replace(/\s+/g, ' ').slice(0, 80);
+  const rest = html.slice(index + tag.length);
+  const close = rest.search(/</);
+  return (close < 0 ? rest : rest.slice(0, close)).trim().replace(/\s+/g, ' ').slice(0, 80);
+}
+
+function isHidden(tag) {
+  return /\bhidden\b|display:\s*none|visibility:\s*hidden/i.test(tag);
+}
+
+function interactives(html) {
+  const surface = outsideModals(html);
+  const items = [];
+  const seen = new Set();
+  const re = /<(a|button|input|span|div)\b[^>]*>/gi;
+  let match;
+  while ((match = re.exec(surface)) !== null) {
+    const tag = match[0];
+    const tagName = match[1].toUpperCase();
+    const role = attr(tag, 'role');
+    const submit = tagName === 'INPUT' && /type=["']submit["']/i.test(tag);
+    const interactive = tagName === 'A' || tagName === 'BUTTON' || submit || role === 'button';
+    if (!interactive || isHidden(tag)) continue;
+    const text = textAfter(surface, match.index, tag);
+    const href = attr(tag, 'href');
+    if (!text && !href && tagName !== 'BUTTON') continue;
+    const key = `${tagName}|${href}|${text}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    items.push({
+      tag: tagName,
+      text,
+      href,
+      modal: attr(tag, 'data-demigod-modal'),
+      scroll: attr(tag, 'data-dg-nav'),
+      partnerApply: /data-dg-partner-apply/i.test(tag),
+      id: attr(tag, 'id'),
+      cls: attr(tag, 'class').slice(0, 60),
+    });
+  }
+  return items;
+}
+
+function classify(item, html) {
+  if (item.modal === 'startup' && hasId(html, 'startup-modal')) return 'startup-modal';
+  if ((item.modal === 'engineer' || item.modal === 'jobseeker') && hasId(html, 'jobseeker-modal')) return 'engineer-modal';
+  if ((item.modal === 'partner' || item.partnerApply) && hasId(html, 'partner-modal')) return 'partner-modal';
+  if (item.href === '#partnerships' && hasId(html, 'demigod-partnerships-wrap')) return 'partners-page';
+  if ((item.href === '#privacy' || item.href === '#terms' || item.href === '#legal') && hasId(html, 'demigod-legal-wrap')) return 'legal-page';
+  if (item.href === '#demigod-pricing' && hasId(html, 'demigod-pricing')) return 'hash:#demigod-pricing';
+  if (item.href === '#demigod-trust-block' && hasId(html, 'demigod-trust-block')) return 'scroll-trust';
+  if (item.href.startsWith('mailto:')) return 'mailto';
+  if (item.href === '/' || item.href.startsWith('#')) {
+    const id = item.href.startsWith('#') ? item.href.slice(1) : '';
+    if (id && hasId(html, id)) return `hash:${item.href}`;
+    if (item.href === '/') return 'navigate';
+  }
+  return 'noop';
+}
+
+function isBroken(item, result) {
+  return (item.text && /^(GET STARTED|LEARN MORE|SUBSCRIBE|CONTACT)$/i.test(item.text))
+    || (item.href === '#' && !item.modal && result === 'noop')
+    || (item.scroll === 'scroll' && result === 'noop')
+    || (item.text === 'Pricing' && result === 'noop');
+}
+
+function routeSlug(route) {
+  if (route === '/') return 'home';
+  return route.replace(/[^a-z0-9]+/gi, '_').replace(/^_+/, '') || 'home';
+}
+
+function bareFrom(text) {
+  if (text == null) return { present: false, fetched: false, is404: false, foot: false };
+  const head = text.slice(0, 8000);
+  return {
+    present: true,
+    fetched: false,
+    status: /404|not found/i.test(head) ? 404 : 200,
+    foot: /dg-foot-v\d+-core/.test(text),
+    is404: /404|not found/i.test(head),
+  };
+}
+
+function auditRoute(route, html, items, clicks) {
+  return {
+    meta: {
+      foot: /dg-foot-v\d+-core/.test(html),
+      nav: hasId(html, 'dg-site-nav'),
+      trust: hasId(html, 'demigod-trust-block'),
+      pricing: hasId(html, 'demigod-pricing'),
+      partnersWrap: hasId(html, 'demigod-partnerships-wrap'),
+      legalWrap: hasId(html, 'demigod-legal-wrap'),
+      partnersPage: route.includes('partnerships') && hasId(html, 'demigod-partnerships-wrap'),
+      legalPage: /privacy|terms|legal/.test(route) && hasId(html, 'demigod-legal-wrap'),
+    },
+    interactives: items.length,
+    clicks,
+    broken: clicks.filter((click) => click.broken),
+    deadHash: clicks.filter((click) => click.href === '#' && click.result === 'noop'),
+    missingPricing: !hasId(html, 'demigod-pricing') && route === '/',
+  };
+}
+
+function main() {
+  if (
+    process.argv.includes('--publish')
+    || process.argv.includes('--push')
+    || process.argv.includes('--live')
+    || process.argv.includes('--designer')
+  ) {
+    refuse('publish_refused');
+  }
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('button_root_required');
+  }
+  const html = readLocal(root, 'demigod-button-source.html');
+  const foot = readLocal(root, 'demigod-foot-core.js');
+  if (html == null && foot == null) refuse('source_required');
+  const htmlText = html || '';
+  const footText = foot || '';
+  const footMarker = (footText.match(/Harbor \S+ keep/) || htmlText.match(/Harbor \S+ keep/) || [''])[0];
+  const quick = process.argv.includes('--quick');
+  const routes = quick ? ['/'] : FULL_ROUTES;
+  const items = interactives(htmlText);
+  const chosen = quick
+    ? QUICK_TARGETS.map((rx) => items.find((item) => rx.test(item.text) || rx.test(item.href))).filter(Boolean)
+    : items;
+  const clicks = chosen.map((item) => {
+    const result = classify(item, htmlText);
+    return { ...item, result, broken: isBroken(item, result), clicked: false };
+  });
+  const dir = shotDir();
+  const screenshots = routes.map((route) => path.join(dir, `${routeSlug(route)}.shot`));
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, report) || screenshots.some((file) => !insideRoot(root, file))) {
+    refuse('button_root_required');
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  for (const file of screenshots) {
+    fs.writeFileSync(file, `${footMarker}\n${path.basename(file, '.shot')}\n`);
+  }
+  const routeReports = Object.fromEntries(routes.map((route, index) => {
+    const audited = auditRoute(route, htmlText, items, clicks);
+    audited.shot = screenshots[index];
+    return [route, audited];
+  }));
+  const bareUrls = {
+    '/legal': bareFrom(readLocal(root, 'demigod-button-legal.html')),
+    '/partnerships': bareFrom(readLocal(root, 'demigod-button-partnerships.html')),
+  };
+  const totalBroken = Object.values(routeReports).reduce((count, route) => count + route.broken.length, 0);
+  const summary = {
+    totalBroken,
+    bareLegal404: bareUrls['/legal'].is404 === true,
+    barePartnerships404: bareUrls['/partnerships'].is404 === true,
+  };
+  const ok = totalBroken === 0;
+  const body = {
+    ok,
+    at: new Date().toISOString(),
+    path: report,
+    shotDir: dir,
+    source: 'disk',
+    footMarker,
+    quick,
+    routes: routeReports,
+    bareUrls,
+    summary,
+    screenshots,
+    ...localFlags,
+  };
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
+  console.log(JSON.stringify({
+    ok,
+    path: report,
+    shot: screenshots[0],
+    shots: screenshots.length,
+    source: 'disk',
+    footMarker,
+    quick,
+    summary,
+    clicks: clicks.length,
+    ...localFlags,
+  }));
+  if (!ok) process.exit(1);
+}
+
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({ ok: false, error: 'button_audit_failed', detail: String(e.message || e), ...localFlags }));
+    process.exit(1);
+  }
+}

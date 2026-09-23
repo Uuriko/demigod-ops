@@ -5,15 +5,21 @@
  *   node demigod-intro-draft.mjs <sub-id>
  *   node demigod-intro-draft.mjs <sub-id> --json
  *
- * Writes /tmp/dg-busy/intros/<sub-id>.md
+ * Writes DEMIGOD_ROOT/DEMIGOD-INTROS/<sub-id>.md
  * Redacts full emails in the draft body (uses masked form).
  */
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { findSubmission, extractEmail, publicStatus } from './demigod-submissions-lib.mjs';
 import { getPair } from './demigod-pairs-lib.mjs';
 
-const BUSY = '/tmp/dg-busy';
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+function introDir() {
+  return path.join(dataRoot(), 'DEMIGOD-INTROS');
+}
 const args = process.argv.slice(2);
 const id = args.find((a) => !a.startsWith('--'));
 const asJson = args.includes('--json');
@@ -27,7 +33,18 @@ if (!id) {
 let pair = getPair(id);
 const item = findSubmission(id);
 if (!item && !pair) {
-  console.error(JSON.stringify({ ok: false, error: 'not_found', id, hint: 'pass sub-id or pairId' }));
+  console.error(JSON.stringify({ ok: false, error: 'not_found', id, hint: 'pass sub-id or pairId', sent: false, liveMail: false }));
+  process.exit(1);
+}
+if (item && ['rejected', 'spam'].includes(item.status)) {
+  console.error(JSON.stringify({
+    ok: false,
+    error: 'submission_not_draftable',
+    id: item.id,
+    status: item.status,
+    sent: false,
+    liveMail: false,
+  }));
   process.exit(1);
 }
 
@@ -48,7 +65,7 @@ if (pair && !['approved', 'mutual_yes'].includes(pair.state) && !forced) {
 
 if (!item && pair) {
   // pair-only draft
-  const dir = path.join(BUSY, 'intros');
+  const dir = introDir();
   fs.mkdirSync(dir, { recursive: true });
   const outPath = path.join(dir, `pair-${pair.pairId}.md`);
   const md = [
@@ -73,7 +90,7 @@ if (!item && pair) {
   fs.writeFileSync(outPath, md);
   try {
     fs.appendFileSync(
-      path.join(BUSY, 'intro-draft-audit.jsonl'),
+      path.join(dataRoot(), 'DEMIGOD-INTRO-DRAFT-AUDIT.jsonl'),
       JSON.stringify({
         at: new Date().toISOString(),
         pairId: pair.pairId,
@@ -86,7 +103,7 @@ if (!item && pair) {
   } catch {
     /* */
   }
-  const result = { ok: true, pairId: pair.pairId, state: pair.state, path: outPath, sent: false, forced };
+  const result = { ok: true, pairId: pair.pairId, state: pair.state, path: outPath, sent: false, liveMail: false, forced };
   if (asJson) console.log(JSON.stringify(result, null, 2));
   else {
     console.log(md);
@@ -176,7 +193,7 @@ lines.push(`- pilot gate: node demigod-intro.mjs status <pilotId>`);
 lines.push('- DO NOT send until human confirms. Freeze/publish unrelated.');
 
 const md = lines.join('\n') + '\n';
-const dir = path.join(BUSY, 'intros');
+const dir = introDir();
 fs.mkdirSync(dir, { recursive: true });
 const outPath = path.join(dir, `${item.id}.md`);
 fs.writeFileSync(outPath, md);
@@ -190,6 +207,8 @@ const result = {
   subject,
   path: outPath,
   public: pub,
+  sent: false,
+  liveMail: false,
 };
 
 if (asJson) console.log(JSON.stringify(result, null, 2));

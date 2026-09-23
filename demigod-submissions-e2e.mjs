@@ -1,9 +1,13 @@
 #!/usr/bin/env node
-/** E2E: webhook ingest → inbox → approve → board CDN. */
+/** E2E: webhook ingest → inbox → approve → local board. Does not publish or call Webflow. */
 import { spawnSync } from 'child_process';
-import { ROOT } from './demigod-turn-lib.mjs';
-import { ingestSubmission, loadInbox, BOARD_PATH } from './demigod-submissions-lib.mjs';
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { loadInbox } from './demigod-submissions-lib.mjs';
+
+const OPS = path.dirname(fileURLToPath(import.meta.url));
+const DATA = process.env.DEMIGOD_ROOT || '/home/potter';
 
 const PORT = Number(process.env.DEMIGOD_WEBHOOK_PORT || 9877);
 
@@ -57,37 +61,67 @@ async function main() {
     },
   };
 
+  const engineerEnvelope = {
+    triggerType: 'form_submission',
+    payload: {
+      name: 'engineer-join',
+      siteId: '6a34c484dcedc18a17408187',
+      data: {
+        'full-name': 'Mina Alvarez',
+        'seeker-email': 'mina.alvarez@baymail.co',
+        'skills-stack': 'JavaScript, activation work',
+        experience: 'Led an activation rebuild',
+        'sf-bay': 'yes',
+        availability: 'now',
+        'salary-expectation': '$180k',
+      },
+      submittedAt: new Date().toISOString(),
+    },
+  };
+
   const postStartup = await postWebhook(startupEnvelope);
+  const postEngineer = await postWebhook(engineerEnvelope);
   const postPartner = await postWebhook(partnerEnvelope);
   const inbox = loadInbox();
   const partnerRec = inbox.items.find((i) => i.form === 'partner-apply' && i.raw?.['partner-email'] === 'partner@acme.vc');
+  const engineerRec = inbox.items.find((i) => i.id === postEngineer.json?.id);
   const subId = postStartup.json?.id || inbox.items.find((i) => i.form === 'startup-hire')?.id;
-  const approve = spawnSync('node', ['demigod-submissions-approve.mjs', subId || '--latest'], {
-    cwd: ROOT,
+  const approve = spawnSync(process.execPath, ['demigod-submissions-approve.mjs', subId || '--latest'], {
+    cwd: OPS,
+    env: {
+      ...process.env,
+      DEMIGOD_ROOT: DATA,
+      DEMIGOD_PUBLISH_FREEZE: process.env.DEMIGOD_PUBLISH_FREEZE || '1',
+    },
     encoding: 'utf8',
   });
 
-  const board = JSON.parse(fs.readFileSync(BOARD_PATH, 'utf8'));
-  const cdnUrl = board.cdnUrl;
+  const boardFile = path.join(DATA, 'DEMIGOD-BOARD.json');
+  const board = fs.existsSync(boardFile) ? JSON.parse(fs.readFileSync(boardFile, 'utf8')) : { roles: [] };
+  const localRole = (board.roles || []).some((r) => r.title === 'Founding Engineer');
   let live = null;
-  if (cdnUrl) {
-    live = await (await fetch(`${cdnUrl}?v=${Date.now()}`)).json();
+  if (board.cdnUrl && process.env.DEMIGOD_E2E_LIVE_CDN === '1') {
+    live = await (await fetch(`${board.cdnUrl}?v=${Date.now()}`)).json();
   }
 
   const ok = postStartup.json?.ok && !postStartup.json?.featured
+    && postEngineer.json?.ok && engineerRec?.status === 'new' && engineerRec?.form === 'engineer-join'
     && postPartner.json?.ok && partnerRec?.status === 'new' && partnerRec?.form === 'partner-apply'
     && approve.status === 0
-    && live?.roles?.some((r) => r.title === 'Founding Engineer');
+    && localRole
+    && (live == null || live.roles?.some((r) => r.title === 'Founding Engineer'));
 
   console.log(JSON.stringify({
     ok,
     postStartup,
+    postEngineer,
     postPartner,
     partnerInbox: partnerRec ? { id: partnerRec.id, status: partnerRec.status } : null,
     approved: approve.stdout?.trim(),
     boardRoles: board.roles?.length,
-    liveTitle: live?.roles?.[0]?.title,
-    cdnUrl,
+    localRole,
+    liveTitle: live?.roles?.[0]?.title || null,
+    publishSkipped: true,
   }));
   process.exit(ok ? 0 : 1);
 }

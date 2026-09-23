@@ -19,7 +19,7 @@
  *   bin/dg-webflow brief          # markdown for agents
  *   bin/dg-webflow hygiene [--prune]  # tabs + load (laptop snappy)
  *
- * Out: /tmp/dg-busy/webflow-status.json
+ * Out: DEMIGOD-WEBFLOW-STATUS.json in DEMIGOD_ROOT. Does not publish.
  */
 import fs from 'fs';
 import path from 'path';
@@ -38,12 +38,15 @@ import {
   CUSTOM_CODE,
   LIVE,
   DASHBOARD,
-  OUT,
-  PLAYBOOK_OUT,
+  dataRoot,
+  playbookPath,
+  doctorPath,
+  briefPath,
+  runPath,
   CDP,
   ROOT,
 } from './demigod-webflow-lib.mjs';
-import { ensureBusy, atomicWrite, BUSY } from './demigod-agent-tools-lib.mjs';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
 const args = process.argv.slice(2);
 const cmd = args[0] || 'status';
@@ -116,17 +119,32 @@ async function doctor() {
   const hard = checks.filter((c) => !c.ok && !['designer tab', 'custom-code tab', 'live tab'].includes(c.name));
   const out = {
     at: new Date().toISOString(),
+    path: doctorPath(),
     pass: hard.length === 0,
     checks,
     tips: s.tips,
     freeze: s.freeze,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
   };
-  atomicWrite(path.join(BUSY, 'webflow-doctor.json'), JSON.stringify(out, null, 2) + '\n');
+  atomicWrite(doctorPath(), JSON.stringify(out, null, 2) + '\n');
   return out;
 }
 
+function fail(error) {
+  console.error(JSON.stringify({
+    ok: false,
+    error,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+  process.exit(1);
+}
+
 async function main() {
-  ensureBusy();
+  if (args.includes('--publish')) fail('publish_refused');
 
   if (cmd === 'status' || cmd === '--json') {
     const s = await buildStatus();
@@ -274,8 +292,8 @@ async function main() {
       '- After paste/publish: bin/dg-webflow playbook post-publish-confirm',
       '',
     ].join('\n');
-    atomicWrite(PLAYBOOK_OUT, md + '\n');
-    if (asJson) print({ ...pb, id: name, freeze, path: PLAYBOOK_OUT });
+    atomicWrite(playbookPath(), md + '\n');
+    if (asJson) print({ ...pb, id: name, freeze, path: playbookPath(), sent: false, liveMail: false, livePublish: false });
     else console.log(md);
     process.exit(freeze.frozen && pb.mutate ? 2 : 0);
   }
@@ -315,7 +333,7 @@ async function main() {
       stdout: (r.stdout || '').slice(-4000),
       stderr: (r.stderr || '').slice(-2000),
     };
-    atomicWrite(path.join(BUSY, `webflow-run-${id}.json`), JSON.stringify(out, null, 2) + '\n');
+    atomicWrite(runPath(id), JSON.stringify(out, null, 2) + '\n');
     print(out);
     process.exit(r.status === 0 ? 0 : 1);
   }
@@ -350,7 +368,7 @@ async function main() {
       lines.push(`- ${id}: ${p.title}`);
     }
     const md = lines.join('\n');
-    atomicWrite(path.join(BUSY, 'webflow-brief.md'), md + '\n');
+    atomicWrite(briefPath(), md + '\n');
     console.log(md);
     process.exit(0);
   }

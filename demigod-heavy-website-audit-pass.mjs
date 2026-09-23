@@ -1,194 +1,149 @@
 #!/usr/bin/env node
-/** Full website audit → local scans → SuperGrok Heavy (code + design + verdict). */
+/**
+ * Local website audit in an explicit data root.
+ * Writes DEMIGOD-HEAVY-WEBSITE-AUDIT.json under DEMIGOD_ROOT. Does not open a browser or send a prompt.
+ */
 import fs from 'fs';
 import path from 'path';
-import { spawnSync } from 'child_process';
-import { connectBrowser, findGrokPage, sendToGrok, collectGrokReply } from './collab-lib.mjs';
-import {
-  ROOT,
-  wlog,
-  runHeavyCodeHelp,
-  runHeavyDesignAudit,
-  captureDemigodScreenshots,
-} from './demigod-turn-lib.mjs';
-import { fetchLiveHtml, scanLiveHtml, evaluateFooterCoreCopy } from './demigod-live-lib.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const OUT_DIR = ROOT;
-const HEAVY_OUT = path.join(ROOT, 'HEAVY-WEBSITE-AUDIT-2026.md');
-const HEAVY_JSON = path.join(ROOT, 'DEMIGOD-HEAVY-WEBSITE-AUDIT.json');
+const localFlags = {
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+  liveFetch: false,
+  aiSubmit: false,
+};
+const MARKERS = [
+  { name: 'WEBSITE', re: /website/i },
+  { name: 'AUDIT', re: /audit/i },
+  { name: 'CODE', re: /code/i },
+  { name: 'DESIGN', re: /design/i },
+  { name: 'LOCAL', re: /local/i },
+];
 
-function run(cmd, args = []) {
-  const r = spawnSync(cmd, args, { cwd: ROOT, encoding: 'utf8', timeout: 600000 });
-  return { cmd: [cmd, ...args].join(' '), status: r.status, stdout: (r.stdout || '').slice(-4000), stderr: (r.stderr || '').slice(-800) };
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-HEAVY-WEBSITE-AUDIT.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'website-audit-pass');
 }
 
-function readJson(p) {
-  try { return JSON.parse(fs.readFileSync(path.join(ROOT, p), 'utf8')); } catch { return null; }
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
+  process.exit(1);
 }
 
-function readTail(p, n = 8000) {
-  try { return fs.readFileSync(path.join(ROOT, p), 'utf8').slice(-n); } catch { return ''; }
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
 }
 
-function latestShot(globDir, prefix) {
-  const dir = path.join(ROOT, globDir);
-  if (!fs.existsSync(dir)) return null;
-  const files = fs.readdirSync(dir).filter((f) => f.startsWith(prefix)).sort();
-  return files.length ? path.join(dir, files[files.length - 1]) : null;
-}
-
-async function collectHeavy(page, markers, minLen = 4000) {
-  let text = '';
-  for (let i = 0; i < 30; i++) {
-    const reply = await collectGrokReply(page, { waitMs: 60000, minGrowth: 100 });
-    text = reply.text || text;
-    const tail = text.slice(-28000);
-    const busy = reply.thinking || /thinking|Finalizing/i.test(tail);
-    const ready = markers.every((m) => m.test(text));
-    if (text && !busy && ready && tail.length >= minLen) break;
-    wlog(`heavy audit poll ${i + 1}: len=${tail.length} busy=${busy}`);
+function entryStat(root, rel) {
+  const file = path.join(root, rel);
+  if (!insideRoot(root, file)) return null;
+  let st;
+  try {
+    st = fs.lstatSync(file);
+  } catch {
+    return null;
   }
-  return text;
+  if (st.isSymbolicLink()) return null;
+  return { file, st };
 }
 
-async function main() {
-  wlog('=== FULL WEBSITE AUDIT PASS START ===');
-  const report = { at: new Date().toISOString(), local: {}, heavy: {} };
+function readText(root, rel) {
+  const found = entryStat(root, rel);
+  if (!found || !found.st.isFile()) return null;
+  return fs.readFileSync(found.file, 'utf8');
+}
 
-  report.local.fullAudit = run('node', ['demigod-full-audit.mjs']);
-  report.local.verify = run('npm', ['run', 'demigod:verify:all']);
-  report.local.capture = run('npm', ['run', 'demigod:capture:audit']);
-  report.local.playtest = run('npm', ['run', 'demigod:verify:browser']);
-  report.local.copyInv = run('node', ['demigod-copy-inventory.mjs']);
+function markerHits(text) {
+  const found = {};
+  for (const marker of MARKERS) found[marker.name] = marker.re.test(text);
+  return found;
+}
 
-  const { html, footerCoreJs } = await fetchLiveHtml(true);
-  const scan = scanLiveHtml(html, { footerCoreJs });
-  const footCore = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
-  const coreVer = (footCore.match(/dg-foot-v(\d+)-core/) || [])[1];
-  const boardCdn = (footCore.match(/BOARD_CDN='([^']+)'/) || [])[1];
-
-  report.live = {
-    scan,
-    footerCore: evaluateFooterCoreCopy(footCore),
-    coreVersion: coreVer,
-    boardCdn,
-    staticSignals: {
-      emailForm: (html.match(/data-name=["']email-form["']/gi) || []).length,
-      startupHire: (html.match(/data-name=["']startup-hire["']/gi) || []).length,
-      engineerJoin: (html.match(/data-name=["']engineer-join["']/gi) || []).length,
-      methodology: (html.match(/METHODOLOGY/gi) || []).length,
-      hireTalent: (html.match(/HIRE TALENT/gi) || []).length,
-      findTalent: (html.match(/FIND TALENT/gi) || []).length,
-    },
-    humanActions: readJson('DEMIGOD-HUMAN-ACTIONS.json'),
-    session: readJson('DEMIGOD-SESSION-STATUS.json'),
-    webhook: readJson('DEMIGOD-WEBHOOK-SETUP.json'),
-    playtest: readJson('DEMIGOD-PLAYTEST-REVIEW.json'),
-    fullAuditJson: readJson('DEMIGOD-FULL-AUDIT.json'),
+function main() {
+  if (
+    process.argv.includes('--publish')
+    || process.argv.includes('--push')
+    || process.argv.includes('--live')
+    || process.argv.includes('--send')
+    || process.argv.includes('--ai')
+    || process.argv.includes('--fetch')
+    || process.argv.includes('--verify')
+    || process.argv.includes('--capture')
+  ) {
+    refuse('publish_refused');
+  }
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('website_root_required');
+  }
+  const footText = readText(root, 'demigod-foot-core.js');
+  const notes = readText(root, 'HEAVY-WEBSITE-AUDIT-PASS-SOURCE.md');
+  if (footText == null && notes == null) refuse('source_required');
+  const text = notes || '';
+  const hits = markerHits(text);
+  const missing = MARKERS.filter((marker) => !hits[marker.name]).map((marker) => marker.name);
+  const pass = notes != null && missing.length === 0;
+  const footMarker = ((footText || text).match(/Harbor \S+ keep/) || [''])[0];
+  const dir = shotDir();
+  const shot = path.join(dir, 'pass.shot');
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, shot) || !insideRoot(root, report)) {
+    refuse('website_root_required');
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(shot, `${footMarker}\n${missing.length === 0 ? 'complete' : 'missing'}\n`);
+  const body = {
+    ok: pass,
+    at: new Date().toISOString(),
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    excerpt: text.slice(0, 180),
+    markers: hits,
+    missing,
+    chars: text.length,
+    ...localFlags,
   };
-
-  const shots = await captureDemigodScreenshots('heavy-website-audit');
-  report.screenshots = shots;
-  const landingShot = latestShot('audit-shots/audit', '01-landing') || shots.webflow;
-
-  const briefTail = readTail('HEAVY-FULL-AUDIT-BRIEF.md', 12000);
-  const copyTail = readTail('HEAVY-COPY-INVENTORY.md', 6000);
-  const shipLoop = readTail('HEAVY-SHIP-LOOP.md', 4000);
-
-  const PROMPT = `SuperGrok Heavy — COMPLETE WEBSITE AUDIT + CODE REVIEW + DESIGN REVIEW for trydemigod.com
-
-John wants EVERYTHING website-related audited. NO eat-the-sounds game. NO Tally (native Webflow forms only).
-
-## Architecture (source truth)
-- Webflow site: talentlink-sf → www.trydemigod.com
-- Head: demigod-head-minimal.html + demigod-head-styles.css (catbox CDN)
-- Footer loader: demigod-footer-lite.html → demigod-foot-core.js v${coreVer || '?'} (catbox)
-- Forms: startup-hire (7 fields v36), engineer-join (8 fields v36) — runtime patched by foot-core
-- Board: DEMIGOD-BOARD.json → catbox CDN ${boardCdn || '?'}
-- Pipeline: webhook :9877, review gate (inbox → approve → featured), deferred Webflow API token
-
-## Live scan (just now)
-${JSON.stringify(report.live, null, 2).slice(0, 14000)}
-
-## Full audit brief excerpt
-${briefTail.slice(0, 8000)}
-
-## Copy inventory excerpt
-${copyTail.slice(0, 4000)}
-
-## Prior ship-loop notes
-${shipLoop.slice(0, 3000)}
-
-## Screenshot
-Latest landing: ${landingShot || 'audit-shots/'}
-
-Deliver ALL sections:
-
-=== STATUS ACK ===
-
-=== FULL AUDIT VERDICT ===
-(shipNow yes/no, P0 blockers, P1 polish, static drift vs runtime OK)
-
-=== CODE REVIEW ===
-(demigod-foot-core.js, head CSS, submissions lib, webhook — bugs, races, dead code, what to delete from repo)
-
-=== DESIGN REVIEW ===
-(first impression 1-10 startups + engineers, hero, modals, trust, board, mobile, vs Fonzi/Jack simplicity)
-
-=== CANVAS DELETE LIST ===
-(numbered — METHODOLOGY, email-form rename, nav master, footer master)
-
-=== REPO CLEANUP ===
-(which demigod-*.mjs to archive, legacy files to delete)
-
-=== PROMPT FOR CURSOR AGENT ===
-(20 numbered steps, AUTOMATED vs HUMAN, one-session scope, STOP condition)
-
-Be blunt. Launch-focused.`;
-
-  wlog('dispatching Heavy comprehensive audit...');
-  const browser = await connectBrowser();
-  const page = await findGrokPage(browser);
-  if (!page) throw new Error('no grok tab');
-  await page.bringToFront();
-  await sendToGrok(page, PROMPT);
-  const mega = await collectHeavy(page, [
-    /=== FULL AUDIT VERDICT ===/i,
-    /=== CODE REVIEW ===/i,
-    /=== DESIGN REVIEW ===/i,
-    /=== PROMPT FOR CURSOR AGENT ===/i,
-  ], 5000);
-  await browser.disconnect();
-  report.heavy.mega = { chars: mega.length, hasAll: /CODE REVIEW|DESIGN REVIEW|PROMPT FOR CURSOR/i.test(mega) };
-
-  wlog('dispatching Heavy code help...');
-  try {
-    report.heavy.codeHelp = await runHeavyCodeHelp();
-  } catch (e) {
-    report.heavy.codeHelp = { ok: false, error: String(e.message) };
-  }
-
-  wlog('dispatching Heavy design audit...');
-  try {
-    report.heavy.design = await runHeavyDesignAudit(landingShot);
-  } catch (e) {
-    report.heavy.design = { ok: false, error: String(e.message) };
-  }
-
-  fs.writeFileSync(HEAVY_OUT, `# SuperGrok Heavy — Complete Website Audit\n\n_${new Date().toISOString()}_\n\n${mega}\n\n---\n\n## Code help (separate pass)\n\nSee HEAVY-DEMIGOD-CODE-HELP.md\n\n## Design audit (separate pass)\n\nSee HEAVY-DEMIGOD-DESIGN-AUDIT.md\n`);
-  fs.writeFileSync(HEAVY_JSON, JSON.stringify(report, null, 2));
-  fs.writeFileSync(path.join(ROOT, 'HEAVY-FULL-AUDIT-BRIEF.md'), briefTail || readTail('HEAVY-FULL-AUDIT-BRIEF.md'));
-
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
   console.log(JSON.stringify({
-    ok: true,
-    heavyOut: HEAVY_OUT,
-    heavyJson: HEAVY_JSON,
-    codeHelp: report.heavy.codeHelp?.path,
-    design: report.heavy.design?.path,
-    megaChars: mega.length,
-    coreVersion: coreVer,
+    ok: pass,
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    missing: missing.length,
+    chars: text.length,
+    ...localFlags,
   }));
-  wlog('=== FULL WEBSITE AUDIT PASS END ===');
+  if (!pass) process.exit(1);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'website_failed',
+      detail: String(e.message || e),
+      ...localFlags,
+    }));
+    process.exit(1);
+  }
+}

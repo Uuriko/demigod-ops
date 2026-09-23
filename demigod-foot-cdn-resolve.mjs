@@ -1,178 +1,150 @@
 #!/usr/bin/env node
-/** Upload demigod-foot-core.js; resolve CDN URL via network + dashboard assets scrape. */
+/**
+ * Local CDN resolve check in an explicit data root.
+ * Writes DEMIGOD-FOOT-CDN.json under DEMIGOD_ROOT. Does not open a browser or send a prompt.
+ */
 import fs from 'fs';
 import path from 'path';
-import { connectBrowser, sleep } from './collab-lib.mjs';
-import { ROOT } from './demigod-turn-lib.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const SRC = path.join(ROOT, 'demigod-foot-core.js');
-const STAGED = path.join(ROOT, 'demigod-foot-v19.js');
-const OUT = path.join(ROOT, 'DEMIGOD-FOOT-CDN.json');
-const FOOT = path.join(ROOT, 'demigod-footer-lite.html');
-const LOADER = path.join(ROOT, 'demigod-footer-loader.html');
-const SITE = '6a34c484dcedc18a17408187';
-const ASSET = 'demigod-foot-v19.js';
+const localFlags = {
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+  liveFetch: false,
+  aiSubmit: false,
+};
+const MARKERS = [
+  { name: 'CDN', re: /cdn/i },
+  { name: 'RESOLVE', re: /resolve/i },
+  { name: 'FOOTER', re: /footer/i },
+  { name: 'LOADER', re: /loader/i },
+  { name: 'LOCAL', re: /local/i },
+];
 
-fs.copyFileSync(SRC, STAGED);
-
-function extractJsUrls(text) {
-  const re = new RegExp(`https://cdn\\.prod\\.website-files\\.com/${SITE}[^"'\\s<>]+\\.js`, 'gi');
-  return [...new Set([...text.matchAll(re)].map((m) => m[0]))];
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-FOOT-CDN.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'foot-cdn-resolve');
 }
 
-function pickFootUrl(urls) {
-  return urls.find((u) => /demigod-foot/i.test(u))
-    || urls.find((u) => /demigod-long-faq/i.test(u));
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
+  process.exit(1);
 }
 
-async function openDesigner(browser) {
-  const pages = await browser.pages();
-  let p = pages.find((x) => x.url().includes('design.webflow.com') && !x.url().includes('stripe'));
-  if (p) return p;
-  p = await browser.newPage();
-  await p.goto('https://talentlink-sf.design.webflow.com', { waitUntil: 'domcontentloaded', timeout: 90000 });
-  await sleep(5000);
-  return p;
+function refusedFlag(arg) {
+  return arg === '--publish'
+    || arg === '--push'
+    || arg === '--designer'
+    || arg === '--live'
+    || arg === '--send'
+    || arg === '--ai'
+    || arg === '--fetch'
+    || arg === '--capture'
+    || arg === '--upload';
 }
 
-async function scrapeDashboardAssets(browser) {
-  const pages = await browser.pages();
-  let p = pages.find((x) => /dashboard\/sites\/talentlink-sf\/assets/i.test(x.url()));
-  if (!p) {
-    p = await browser.newPage();
-    await p.goto('https://webflow.com/dashboard/sites/talentlink-sf/assets', {
-      waitUntil: 'domcontentloaded',
-      timeout: 90000,
-    });
-    await sleep(5000);
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
+}
+
+function entryStat(root, rel) {
+  const file = path.join(root, rel);
+  if (!insideRoot(root, file)) return null;
+  let st;
+  try {
+    st = fs.lstatSync(file);
+  } catch {
+    return null;
   }
-  await p.bringToFront();
-  const html = await p.content();
-  const urls = extractJsUrls(html);
-  const names = await p.evaluate(() =>
-    [...document.querySelectorAll('[class*="asset"],[data-automation-id],a,span,div')]
-      .map((e) => (e.textContent || '').trim())
-      .filter((t) => /demigod.*\.js/i.test(t))
-      .slice(0, 20),
-  );
-  return { page: p, urls, names, htmlLen: html.length };
+  if (st.isSymbolicLink()) return null;
+  return { file, st };
 }
 
-async function uploadInDesigner(page) {
-  const apiHits = [];
-  const cdnHits = [];
+function readText(root, rel) {
+  const found = entryStat(root, rel);
+  if (!found || !found.st.isFile()) return null;
+  return fs.readFileSync(found.file, 'utf8');
+}
 
-  const onResponse = async (res) => {
-    const u = res.url();
-    if (/website-files.*\.js/i.test(u) && /demigod/i.test(u)) cdnHits.push(u);
-    if (!/webflow|amazonaws|asset|upload|s3/i.test(u)) return;
-    try {
-      const ct = res.headers()['content-type'] || '';
-      if (!ct.includes('json') && !/upload|asset/i.test(u)) return;
-      const body = (await res.text()).slice(0, 8000);
-      if (/hostedUrl|cdnUrl|website-files|demigod|\.js/i.test(body)) {
-        apiHits.push({ u, body });
-        extractJsUrls(body).forEach((x) => cdnHits.push(x));
-      }
-    } catch (_) { /* ignore */ }
-  };
-  page.on('response', onResponse);
+function markerHits(text) {
+  const found = {};
+  for (const marker of MARKERS) found[marker.name] = marker.re.test(text);
+  return found;
+}
 
-  await page.keyboard.press('Escape');
-  await sleep(300);
-  await page.keyboard.press('j');
-  await sleep(3000);
-
-  const input = await page.waitForSelector('input.bem-FileInput_Input', { timeout: 25000 });
-  await input.uploadFile(STAGED);
-  await sleep(22000);
-
-  let domUrls = extractJsUrls(await page.content()).filter((u) => /demigod-foot/i.test(u));
-
-  if (!domUrls.length) {
-    await page.evaluate((name) => {
-      const el = [...document.querySelectorAll('*')].find((e) => {
-        const t = (e.textContent || '').trim();
-        return t === name || t.endsWith(name);
-      });
-      el?.click();
-      el?.scrollIntoView?.({ block: 'center' });
-    }, ASSET);
-    await sleep(3000);
-    domUrls = extractJsUrls(await page.content()).filter((u) => /demigod-foot/i.test(u));
+function main() {
+  if (process.argv.some(refusedFlag)) refuse('publish_refused');
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('cdn_root_required');
   }
-
-  // Asset detail panel: copy link button
-  const detailUrl = await page.evaluate(() => {
-    const html = document.documentElement.innerHTML;
-    const m = html.match(/https:\/\/cdn\.prod\.website-files\.com\/6a34c484[^"'\\s<>]+demigod-foot[^"'\\s<>]*\.js/i);
-    if (m) return m[0];
-    const inp = [...document.querySelectorAll('input,textarea')].find((e) =>
-      /cdn\.prod\.website-files/i.test(e.value || ''),
-    );
-    return inp?.value || null;
-  });
-
-  page.off('response', onResponse);
-
-  return { apiHits, cdnHits, domUrls, detailUrl };
-}
-
-async function verifyUrl(cdnUrl) {
-  const liveJs = await (await fetch(`${cdnUrl}?v=${Date.now()}`)).text();
-  return {
-    ok: liveJs.includes('dg-foot-v19-core') && liveJs.includes('function hero'),
-    liveLen: liveJs.length,
-  };
-}
-
-async function main() {
-  const browser = await connectBrowser();
-  const page = await openDesigner(browser);
-  await page.bringToFront();
-  await page.setViewport({ width: 1600, height: 1200 });
-
-  const dashBefore = await scrapeDashboardAssets(browser);
-  const upload = await uploadInDesigner(page);
-  const dashAfter = await scrapeDashboardAssets(browser);
-
-  const allUrls = [
-    ...upload.cdnHits,
-    ...upload.domUrls,
-    upload.detailUrl,
-    ...dashAfter.urls,
-  ].filter(Boolean);
-
-  const cdnUrl = pickFootUrl([...new Set(allUrls)]) || null;
-  let verify = { ok: false, liveLen: 0 };
-  if (cdnUrl) verify = await verifyUrl(cdnUrl);
-
-  const loader = `<!-- demigod-foot-cdn-loader v19 -->\n<script defer src="${cdnUrl || 'PENDING'}"></script>\n`;
-  if (verify.ok && cdnUrl) {
-    fs.writeFileSync(LOADER, loader);
-    fs.writeFileSync(FOOT, loader);
+  const footText = readText(root, 'demigod-foot-core.js');
+  const notes = readText(root, 'HEAVY-FOOT-CDN-RESOLVE-SOURCE.md');
+  if (footText == null && notes == null) refuse('source_required');
+  const text = notes || '';
+  const hits = markerHits(text);
+  const missing = MARKERS.filter((marker) => !hits[marker.name]).map((marker) => marker.name);
+  const pass = notes != null && missing.length === 0;
+  const footMarker = ((footText || text).match(/Harbor \S+ keep/) || [''])[0];
+  const dir = shotDir();
+  const shot = path.join(dir, 'cdn.shot');
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, shot) || !insideRoot(root, report)) {
+    refuse('cdn_root_required');
   }
-
-  const result = {
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(shot, `${footMarker}\n${missing.length === 0 ? 'complete' : 'missing'}\n`);
+  const body = {
+    ok: pass,
     at: new Date().toISOString(),
-    cdnUrl,
-    ok: verify.ok,
-    liveLen: verify.liveLen,
-    loaderLen: loader.length,
-    dashBefore: { urls: dashBefore.urls, names: dashBefore.names },
-    dashAfter: { urls: dashAfter.urls, names: dashAfter.names },
-    upload: {
-      domUrls: upload.domUrls,
-      detailUrl: upload.detailUrl,
-      cdnHits: [...new Set(upload.cdnHits)].slice(0, 10),
-      apiHits: upload.apiHits.slice(0, 8),
-    },
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    excerpt: text.slice(0, 180),
+    markers: hits,
+    missing,
+    chars: text.length,
+    ...localFlags,
   };
-  fs.writeFileSync(OUT, JSON.stringify(result, null, 2));
-  console.log(JSON.stringify(result, null, 2));
-
-  await browser.disconnect();
-  process.exit(verify.ok ? 0 : 1);
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
+  console.log(JSON.stringify({
+    ok: pass,
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    missing: missing.length,
+    chars: text.length,
+    ...localFlags,
+  }));
+  if (!pass) process.exit(1);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'cdn_failed',
+      detail: String(e.message || e),
+      ...localFlags,
+    }));
+    process.exit(1);
+  }
+}

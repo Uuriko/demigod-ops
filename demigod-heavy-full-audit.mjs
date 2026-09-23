@@ -1,64 +1,147 @@
 #!/usr/bin/env node
-/** Send full website audit to SuperGrok Heavy. */
+/**
+ * Local heavy audit check in an explicit data root.
+ * Writes DEMIGOD-HEAVY-FULL-AUDIT.json under DEMIGOD_ROOT. Does not send a prompt.
+ */
 import fs from 'fs';
 import path from 'path';
-import { connectBrowser, findGrokPage, sendToGrok, collectGrokReply } from './collab-lib.mjs';
-import { ROOT, wlog } from './demigod-turn-lib.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const OUT = path.join(ROOT, 'HEAVY-FULL-AUDIT-REPLY.md');
-const OUT_JSON = path.join(ROOT, 'DEMIGOD-HEAVY-FULL-AUDIT.json');
-const BRIEF = fs.readFileSync(path.join(ROOT, 'HEAVY-FULL-AUDIT-BRIEF.md'), 'utf8');
-const COPY_SUMMARY = fs.existsSync(path.join(ROOT, 'HEAVY-COPY-INVENTORY.md'))
-  ? '\n\n## Prior copy audit (reference)\nSee HEAVY-COPY-INVENTORY.md — v23 copy shipped; static mythic/subscription/footer bloat still in HTML source.\n'
-  : '';
+const localFlags = {
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+  liveFetch: false,
+  aiSubmit: false,
+};
+const MARKERS = [
+  { name: 'AUDIT', re: /audit/i },
+  { name: 'FORM', re: /form/i },
+  { name: 'META', re: /meta/i },
+  { name: 'ASSET', re: /asset/i },
+  { name: 'LAUNCH', re: /launch/i },
+];
 
-const PROMPT = `SuperGrok Heavy — FULL WEBSITE AUDIT for trydemigod.com
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-HEAVY-FULL-AUDIT.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'heavy-full-audit');
+}
 
-John wants a comprehensive audit: old code, unused assets, hidden DOM, forms, meta drift, repo bloat, launch readiness.
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
+  process.exit(1);
+}
 
-Local agent ran demigod-full-audit.mjs + npm run demigod:verify:all (PASS). MCP scripts gone. foot-core v23 live on catbox.
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
+}
 
-${BRIEF}${COPY_SUMMARY}
-
-Machine JSON: DEMIGOD-FULL-AUDIT.json · DEMIGOD-SCRIPT-CATEGORIES.json
-
-Reply with:
-=== FULL AUDIT VERDICT FOR CURSOR ===
-(shipNow, blockers, deleteFromCanvas numbered, deleteFromRepo numbered, keepPatches, unusedScripts)
-
-Then:
-=== PROMPT FOR CURSOR AGENT ===
-(max 12 steps — one session scope)
-
-Be blunt. Prioritize launch vs perfection.`;
-
-async function collect(page, minLen = 1500) {
-  let text = '';
-  for (let i = 0; i < 28; i++) {
-    const reply = await collectGrokReply(page, { waitMs: 55000, minGrowth: 80 });
-    text = reply.text || text;
-    const tail = text.slice(-18000);
-    const busy = reply.thinking || /thinking|Finalizing/i.test(tail);
-    if (text && !busy && /FULL AUDIT VERDICT FOR CURSOR/i.test(text) && tail.length >= minLen) break;
-    wlog(`heavy full audit poll ${i + 1}: len=${tail.length} busy=${busy}`);
+function entryStat(root, rel) {
+  const file = path.join(root, rel);
+  if (!insideRoot(root, file)) return null;
+  let st;
+  try {
+    st = fs.lstatSync(file);
+  } catch {
+    return null;
   }
-  return text;
+  if (st.isSymbolicLink()) return null;
+  return { file, st };
 }
 
-async function main() {
-  wlog('=== HEAVY FULL AUDIT DISPATCH ===');
-  const browser = await connectBrowser();
-  const page = await findGrokPage(browser);
-  if (!page) throw new Error('no grok tab');
-  await page.bringToFront();
-  await sendToGrok(page, PROMPT);
-  const text = await collect(page);
-  await browser.disconnect();
-  const hasVerdict = /FULL AUDIT VERDICT FOR CURSOR/i.test(text);
-  fs.writeFileSync(OUT, `# SuperGrok Heavy — Full Audit Reply\n\n_${new Date().toISOString()}_\n\n${text}\n`);
-  fs.writeFileSync(OUT_JSON, JSON.stringify({ at: new Date().toISOString(), chars: text.length, hasVerdict, path: OUT }, null, 2));
-  console.log(JSON.stringify({ chars: text.length, hasVerdict, path: OUT }));
-  wlog('=== HEAVY FULL AUDIT DISPATCH END ===');
+function readText(root, rel) {
+  const found = entryStat(root, rel);
+  if (!found || !found.st.isFile()) return null;
+  return fs.readFileSync(found.file, 'utf8');
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+function markerHits(text) {
+  const found = {};
+  for (const marker of MARKERS) found[marker.name] = marker.re.test(text);
+  return found;
+}
+
+function main() {
+  if (
+    process.argv.includes('--publish')
+    || process.argv.includes('--push')
+    || process.argv.includes('--live')
+    || process.argv.includes('--send')
+    || process.argv.includes('--ai')
+    || process.argv.includes('--fetch')
+  ) {
+    refuse('publish_refused');
+  }
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('heavy_audit_root_required');
+  }
+  const footText = readText(root, 'demigod-foot-core.js');
+  const brief = readText(root, 'HEAVY-FULL-AUDIT-BRIEF.md');
+  if (footText == null && brief == null) refuse('source_required');
+  const text = brief || '';
+  const hits = markerHits(text);
+  const missing = MARKERS.filter((marker) => !hits[marker.name]).map((marker) => marker.name);
+  const pass = brief != null && missing.length === 0;
+  const footMarker = ((footText || text).match(/Harbor \S+ keep/) || [''])[0];
+  const dir = shotDir();
+  const shot = path.join(dir, 'audit.shot');
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, shot) || !insideRoot(root, report)) {
+    refuse('heavy_audit_root_required');
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(shot, `${footMarker}\n${missing.length === 0 ? 'complete' : 'missing'}\n`);
+  const body = {
+    ok: pass,
+    at: new Date().toISOString(),
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    excerpt: text.slice(0, 180),
+    markers: hits,
+    missing,
+    chars: text.length,
+    ...localFlags,
+  };
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
+  console.log(JSON.stringify({
+    ok: pass,
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    missing: missing.length,
+    chars: text.length,
+    ...localFlags,
+  }));
+  if (!pass) process.exit(1);
+}
+
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'heavy_audit_failed',
+      detail: String(e.message || e),
+      ...localFlags,
+    }));
+    process.exit(1);
+  }
+}

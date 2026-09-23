@@ -1,19 +1,36 @@
 #!/usr/bin/env node
-/** Full laptop + Demigod dev environment audit → DEMIGOD-LAPTOP-AUDIT.json */
+/** Full laptop + Demigod dev environment audit → DEMIGOD-LAPTOP-AUDIT.json in DEMIGOD_ROOT.
+ * The command does not publish and does not fetch the live site.
+ */
 import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
-import { CDP_URL } from './cdp-config.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const ROOT = '/home/potter';
-const OUT = path.join(ROOT, 'DEMIGOD-LAPTOP-AUDIT.json');
+const localFlags = { sent: false, liveMail: false, livePublish: false };
 
-function run(cmd, args = [], opts = {}) {
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || scriptDir();
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-LAPTOP-AUDIT.json');
+}
+function cdpUrl() {
+  return process.env.CDP_URL || 'http://127.0.0.1:9223';
+}
+function liveOrigin() {
+  return process.env.DEMIGOD_LIVE || 'https://www.trydemigod.com';
+}
+
+function run(cmd, args = []) {
   const r = spawnSync(cmd, args, {
-    cwd: ROOT,
+    cwd: dataRoot(),
     encoding: 'utf8',
+    timeout: 2000,
     env: { ...process.env, PATH: process.env.PATH },
-    ...opts,
   });
   return { ok: r.status === 0, status: r.status, stdout: r.stdout?.trim() ?? '', stderr: r.stderr?.trim() ?? '' };
 }
@@ -24,21 +41,23 @@ function portUp(port) {
 }
 
 function binary(name) {
-  const r = run('bash', ['-lc', `command -v ${name} && ${name} --version 2>/dev/null | head -1`]);
+  const r = run('bash', ['-c', `command -v ${name} && ${name} --version 2>/dev/null | head -1`]);
   if (!r.ok || !r.stdout) return { present: false };
   const [bin, ...ver] = r.stdout.split('\n');
   return { present: !!bin, path: bin, version: ver.join(' ').trim() || null };
 }
 
 function readJson(file, fallback = null) {
-  try { return JSON.parse(fs.readFileSync(path.join(ROOT, file), 'utf8')); } catch (_) { return fallback; }
+  try { return JSON.parse(fs.readFileSync(path.join(dataRoot(), file), 'utf8')); } catch { return fallback; }
 }
 
-function footVersion() {
-  try {
-    const m = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8').match(/dg-foot-v(\d+)-core/);
-    return m ? `v${m[1]}` : null;
-  } catch (_) { return null; }
+function readFoot() {
+  try { return fs.readFileSync(path.join(dataRoot(), 'demigod-foot-core.js'), 'utf8'); } catch { return ''; }
+}
+
+function footVersion(foot) {
+  const m = foot.match(/dg-foot-v(\d+)-core/);
+  return m ? `v${m[1]}` : null;
 }
 
 function gitDirty() {
@@ -48,11 +67,13 @@ function gitDirty() {
 
 function rootArtifacts() {
   let n = 0;
-  for (const pat of ['DEMIGOD', 'HEAVY', 'CURSOR']) {
-    for (const f of fs.readdirSync(ROOT)) {
-      if (f.startsWith(`${pat}-`) && fs.statSync(path.join(ROOT, f)).isFile()) n++;
+  try {
+    for (const pat of ['DEMIGOD', 'HEAVY', 'CURSOR']) {
+      for (const f of fs.readdirSync(dataRoot())) {
+        if (f.startsWith(`${pat}-`) && fs.statSync(path.join(dataRoot(), f)).isFile()) n++;
+      }
     }
-  }
+  } catch { /* missing root */ }
   return n;
 }
 
@@ -63,12 +84,12 @@ function requiredFiles() {
     'demigod-verify-all.mjs', 'demigod-open-workspace.mjs', 'launch-demigod-chrome.sh',
     'agent-dev.sh', 'orca-demigod.sh', '.cursor/mcp.json', '.cursor/rules/demigod.mdc',
   ];
-  return files.map((f) => ({ file: f, ok: fs.existsSync(path.join(ROOT, f)) }));
+  return files.map((f) => ({ file: f, ok: fs.existsSync(path.join(dataRoot(), f)) }));
 }
 
 async function cdpTabs() {
   try {
-    const r = await fetch(`${CDP_URL}/json/list`);
+    const r = await fetch(`${cdpUrl()}/json/list`, { signal: AbortSignal.timeout(2000) });
     if (!r.ok) return { up: false, tabs: [] };
     const tabs = await r.json();
     const classify = (url) => {
@@ -96,7 +117,7 @@ async function cdpTabs() {
       byRole,
       urls: tabs.map((t) => ({ role: classify(t.url || ''), url: (t.url || '').slice(0, 120) })),
     };
-  } catch (_) {
+  } catch {
     return { up: false, tabs: [] };
   }
 }
@@ -109,8 +130,9 @@ function orcaWorktrees() {
 
 function buildRecommendations(audit) {
   const rec = [];
-  const deskOk = fs.existsSync(path.join(ROOT, 'DESK.json'));
-  const mobileOk = fs.existsSync(path.join(ROOT, '.orca/mobile-grok.path'));
+  const deskOk = fs.existsSync(path.join(dataRoot(), 'DEMIGOD-DESK.json'))
+    || fs.existsSync(path.join(dataRoot(), 'DESK.json'));
+  const mobileOk = fs.existsSync(path.join(dataRoot(), '.orca/mobile-grok.path'));
   if (!audit.binaries.node?.present) rec.push('Add node to agent PATH — run ~/agent-dev.sh path and use in shells');
   if (!audit.services.cdp) rec.push('Start session: ~/agent-dev.sh ready');
   if ((audit.chrome.purposefulCount ?? audit.chrome.count) > 6) {
@@ -127,27 +149,30 @@ function buildRecommendations(audit) {
   return rec;
 }
 
-async function main() {
-  const disk = run('df', ['-h', '/']);
+async function buildAudit() {
+  const root = dataRoot();
+  const foot = readFoot();
+  const disk = run('df', ['-h', root]);
   const mem = run('free', ['-h']);
   const load = run('uptime');
   const lan = run('hostname', ['-I']);
-
   const verifyLive = readJson('DEMIGOD-VERIFY-LIVE.json');
   const verifySource = readJson('DEMIGOD-VERIFY-SOURCE.json');
   const chrome = await cdpTabs();
   const orcaStatus = run('orca-ide', ['status', '--json']);
   let orcaReachable = false;
-  try { orcaReachable = orcaStatus.stdout.includes('"reachable": true'); } catch (_) { /* */ }
+  try { orcaReachable = orcaStatus.stdout.includes('"reachable": true'); } catch { /* ignore */ }
 
   const audit = {
     at: new Date().toISOString(),
+    path: reportPath(),
+    source: 'disk',
     project: 'demigod',
     system: {
       host: run('hostname').stdout,
       os: run('lsb_release', ['-ds']).stdout || run('uname', ['-sr']).stdout,
       lan: lan.stdout.split(/\s+/)[0] || null,
-      disk: disk.stdout.split('\n')[1] || null,
+      disk: disk.stdout.split('\n').slice(-1)[0] || null,
       mem: mem.stdout.split('\n').find((l) => l.startsWith('Mem:')) || null,
       load: load.stdout,
     },
@@ -163,14 +188,15 @@ async function main() {
     },
     services: {
       cdp: portUp(9223),
-      cdpUrl: CDP_URL,
+      cdpUrl: cdpUrl(),
       orcaMobile: portUp(6768),
       gameServer: portUp(8765),
     },
     demigod: {
-      live: 'https://www.trydemigod.com',
+      live: liveOrigin(),
       designer: 'https://talentlink-sf.design.webflow.com/',
-      footCore: footVersion(),
+      footCore: footVersion(foot),
+      footMarker: (foot.match(/Harbor \S+ keep/) || [''])[0],
       verifyLive,
       verifySource,
     },
@@ -178,7 +204,8 @@ async function main() {
     git: { dirtyFiles: gitDirty(), rootArtifacts: rootArtifacts() },
     orca: { reachable: orcaReachable, worktrees: orcaWorktrees() },
     files: requiredFiles(),
-    mcp: readJson('.cursor/mcp.json') || readJson(path.join(ROOT, '.cursor/mcp.json')),
+    mcp: readJson('.cursor/mcp.json'),
+    ...localFlags,
   };
 
   audit.issues = [];
@@ -190,21 +217,41 @@ async function main() {
 
   audit.recommendations = buildRecommendations(audit);
   audit.score = audit.issues.length === 0 ? 'green' : audit.issues.length <= 2 ? 'yellow' : 'red';
+  return audit;
+}
 
-  fs.writeFileSync(OUT, JSON.stringify(audit, null, 2));
+async function main() {
+  const audit = await buildAudit();
+  fs.mkdirSync(dataRoot(), { recursive: true });
+  fs.writeFileSync(reportPath(), JSON.stringify(audit, null, 2));
   console.log(JSON.stringify({
     ok: true,
+    path: audit.path,
+    source: audit.source,
     score: audit.score,
     issues: audit.issues.length,
-    out: OUT,
+    out: audit.path,
+    footMarker: audit.demigod.footMarker,
+    footCore: audit.demigod.footCore,
     cdp: audit.services.cdp,
-    verifyLive: verifyLive?.pass ?? null,
-    verifySource: verifySource?.pass ?? null,
-    chromeTabs: chrome.count ?? 0,
+    cdpUrl: audit.services.cdpUrl,
+    verifyLive: audit.demigod.verifyLive?.pass ?? null,
+    verifySource: audit.demigod.verifySource?.pass ?? null,
+    chromeTabs: audit.chrome.count ?? 0,
+    ...localFlags,
   }));
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  if (process.argv.includes('--publish')) {
+    console.error(JSON.stringify({ ok: false, error: 'publish_refused', ...localFlags }));
+    process.exit(1);
+  }
+  main().catch((e) => {
+    console.error(JSON.stringify({ ok: false, error: 'laptop_audit_failed', detail: String(e.message || e), ...localFlags }));
+    process.exit(1);
+  });
+}

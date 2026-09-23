@@ -6,21 +6,58 @@
  *
  * Safe defaults: report only. --prune closes excess CDP tabs. --kill-hung
  * only kills long-running claude --print / stuck demigod playtests (not Chrome CDP).
+ * The report is written in DEMIGOD_ROOT. The command does not publish.
  */
 import { spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { BUSY, ensureBusy, atomicWrite } from './demigod-agent-tools-lib.mjs';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
-const ROOT = path.dirname(fileURLToPath(import.meta.url));
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || scriptDir();
+}
+
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-LAPTOP-HYGIENE.json');
+}
+
+function cdpBase() {
+  return (process.env.CDP_URL || 'http://127.0.0.1:9223').replace(/\/$/, '');
+}
+
+function fail(error) {
+  console.error(JSON.stringify({
+    ok: false,
+    error,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+  process.exit(1);
+}
+
 const args = process.argv.slice(2);
 const asJson = args.includes('--json');
 const doPrune = args.includes('--prune');
 const killHung = args.includes('--kill-hung');
+if (args.includes('--publish')) fail('publish_refused');
 
 function sh(cmd) {
   return spawnSync('bash', ['-lc', cmd], { encoding: 'utf8', timeout: 20000 });
+}
+
+function diskFootVer() {
+  try {
+    const foot = fs.readFileSync(path.join(dataRoot(), 'demigod-foot-core.js'), 'utf8');
+    return (foot.match(/__dgFootVer='(\d+)'/) || [])[1] || null;
+  } catch {
+    return null;
+  }
 }
 
 function loadMem() {
@@ -62,8 +99,9 @@ function listHung() {
 }
 
 async function tabCount() {
+  const base = cdpBase();
   try {
-    const r = await fetch('http://127.0.0.1:9223/json/list', { signal: AbortSignal.timeout(3000) });
+    const r = await fetch(`${base}/json/list`, { signal: AbortSignal.timeout(3000) });
     const j = await r.json();
     const pages = (Array.isArray(j) ? j : []).filter((t) => t.type === 'page');
     const by = {};
@@ -77,21 +115,26 @@ async function tabCount() {
       else if (/webflow\.com/.test(u)) k = 'webflow';
       by[k] = (by[k] || 0) + 1;
     }
-    return { ok: true, pages: pages.length, by };
+    return { ok: true, pages: pages.length, by, cdpUrl: base };
   } catch (e) {
-    return { ok: false, error: String(e.message || e) };
+    return { ok: false, error: String(e.message || e), cdpUrl: base };
   }
 }
 
 async function main() {
-  ensureBusy();
   const report = {
     at: new Date().toISOString(),
+    path: reportPath(),
+    diskFootVer: diskFootVer(),
+    cdpUrl: cdpBase(),
     load: loadMem(),
     tabs: await tabCount(),
     hung: listHung(),
     actions: [],
     tips: [],
+    sent: false,
+    liveMail: false,
+    livePublish: false,
   };
 
   const { load, tabs, hung } = report;
@@ -112,10 +155,11 @@ async function main() {
   }
 
   if (doPrune) {
-    const p = spawnSync('node', [path.join(ROOT, 'demigod-cdp-tab-prune.mjs')], {
+    const p = spawnSync('node', [path.join(scriptDir(), 'demigod-cdp-tab-prune.mjs')], {
       encoding: 'utf8',
       timeout: 30000,
-      cwd: ROOT,
+      cwd: scriptDir(),
+      env: { ...process.env, CDP_URL: cdpBase() },
     });
     let detail = null;
     try {
@@ -142,7 +186,7 @@ async function main() {
   if (doPrune && report.tabs.ok && !(report.tabs.by['ops-dash'] > 0)) {
     try {
       await fetch(
-        `http://127.0.0.1:9223/json/new?${encodeURIComponent('http://127.0.0.1:9878/')}`,
+        `${cdpBase()}/json/new?${encodeURIComponent('http://127.0.0.1:9878/')}`,
         { method: 'PUT', signal: AbortSignal.timeout(5000) },
       );
       report.actions.push({ action: 'reopen-ops-dash', ok: true });
@@ -158,7 +202,7 @@ async function main() {
     (!tabs.ok || tabs.pages <= 12) &&
     hung.length === 0;
 
-  atomicWrite(path.join(BUSY, 'laptop-hygiene.json'), JSON.stringify(report, null, 2) + '\n');
+  atomicWrite(reportPath(), JSON.stringify(report, null, 2) + '\n');
 
   if (asJson) {
     console.log(JSON.stringify(report, null, 2));

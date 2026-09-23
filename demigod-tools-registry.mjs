@@ -8,9 +8,17 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = process.env.DEMIGOD_ROOT || __dirname;
-const BUSY = '/tmp/dg-busy';
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function reportJson() {
+  return path.join(dataRoot(), 'DEMIGOD-TOOLS-REGISTRY.json');
+}
+
+function reportMd() {
+  return path.join(dataRoot(), 'DEMIGOD-TOOLS-REGISTRY.md');
+}
 
 /** @typedef {{ id: string, name: string, group: string, cmd: string, purpose: string, out?: string, mutate?: boolean, hot?: boolean }} Tool */
 
@@ -57,7 +65,7 @@ export const TOOLS = [
   { id: 'foot-smoke', name: 'Foot smoke', group: 'gates', cmd: 'node demigod-foot-smoke.mjs', purpose: 'Local foot JS smoke' },
 
   // Ship (mutate — respect freeze)
-  { id: 'freeze-status', name: 'Freeze status', group: 'ship', cmd: 'node demigod-publish-freeze.mjs status', purpose: 'Publish freeze on/off', out: '/tmp/dg-busy/publish-freeze.json' },
+  { id: 'freeze-status', name: 'Freeze status', group: 'ship', cmd: 'node demigod-publish-freeze.mjs status', purpose: 'Publish freeze on/off', out: 'DEMIGOD-PUBLISH-FREEZE.json' },
   { id: 'ship-status', name: 'Ship status', group: 'ship', cmd: 'node demigod-ship-status.mjs', purpose: 'CDN/ship snapshot', out: '/tmp/dg-busy/ship-status.json' },
   { id: 'foot-cdn', name: 'Foot CDN publish', group: 'ship', cmd: 'node demigod-foot-cdn-publish.mjs', purpose: 'Upload foot to catbox + manifest', mutate: true },
   { id: 'cm6-paste', name: 'CM6 paste publish', group: 'ship', cmd: 'node demigod-cm6-paste-publish.mjs --footer-only', purpose: 'Paste footer into Webflow custom code', mutate: true },
@@ -75,7 +83,7 @@ export const TOOLS = [
 
 export function toolAge(outPath) {
   if (!outPath) return null;
-  const full = outPath.startsWith('/') ? outPath : path.join(ROOT, outPath);
+  const full = outPath.startsWith('/') ? outPath : path.join(dataRoot(), outPath);
   try {
     const st = fs.statSync(full);
     return {
@@ -139,15 +147,31 @@ export function toMarkdown(reg) {
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   const args = new Set(process.argv.slice(2));
+  if (args.has('--publish')) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'publish_refused',
+      sent: false,
+      liveMail: false,
+      livePublish: false,
+    }));
+    process.exit(1);
+  }
   const groupArg = process.argv.includes('--group')
     ? process.argv[process.argv.indexOf('--group') + 1]
     : null;
-  const reg = buildRegistry({ group: groupArg });
-  fs.mkdirSync(BUSY, { recursive: true });
-  fs.writeFileSync(path.join(BUSY, 'tools-registry.json'), JSON.stringify(reg, null, 2));
+  const reg = {
+    ...buildRegistry({ group: groupArg }),
+    path: reportJson(),
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  };
+  fs.mkdirSync(dataRoot(), { recursive: true });
+  fs.writeFileSync(reportJson(), JSON.stringify(reg, null, 2) + '\n');
   if (args.has('--md') || !args.has('--json')) {
     const md = toMarkdown(reg);
-    fs.writeFileSync(path.join(BUSY, 'tools-registry.md'), md);
+    fs.writeFileSync(reportMd(), md);
     if (!args.has('--json')) console.log(md);
   }
   if (args.has('--json')) console.log(JSON.stringify(reg, null, 2));

@@ -1,298 +1,259 @@
 #!/usr/bin/env node
-/** Full mobile audit @ 390×844 — layout, taps, routes, wizard, copy, design. */
+/**
+ * Local mobile audit for a planted source in an explicit data root.
+ * Writes DEMIGOD-MOBILE-AUDIT.json under DEMIGOD_ROOT. Does not open a browser.
+ */
 import fs from 'fs';
 import path from 'path';
-import puppeteer from 'puppeteer-core';
-import { CDP_URL } from './cdp-config.mjs';
-import { LIVE_ORIGIN } from './demigod-live-lib.mjs';
-import { ROOT } from './demigod-turn-lib.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const OUT = path.join(ROOT, 'DEMIGOD-MOBILE-AUDIT.json');
-const SHOTS = path.join(ROOT, 'audit-shots', 'mobile-audit');
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const stamp = () => new Date().toISOString().replace(/[:.]/g, '-');
-
+const localFlags = { sent: false, liveMail: false, livePublish: false, liveFetch: false };
 const COPY_LEAK = /meet your 3-5|within 24 hours|48\s*h|syndicate subscription|\$5\s*k|curated insights|methodology/i;
 const MIN_TAP = 44;
 const MIN_INPUT = 16;
+const VIEWPORT = { w: 390, h: 844 };
 
 const ROUTES = [
-  { id: 'home', url: '/', scroll: 0 },
-  { id: 'trust', url: '/', target: '#demigod-trust-block' },
-  { id: 'pricing', url: '/#demigod-pricing', target: '#demigod-pricing' },
-  { id: 'partners-teaser', url: '/', target: '#demigod-partners-teaser' },
-  { id: 'partners-page', url: '/#partnerships', waitClass: 'dg-partners-page', target: '#demigod-partnerships-wrap' },
-  { id: 'privacy', url: '/#privacy', waitClass: 'dg-legal-page', target: '#demigod-legal-privacy' },
+  { id: 'home', marker: /id=["']dg-bar["']/i },
+  { id: 'trust', marker: /id=["']demigod-trust-block["']/i },
+  { id: 'pricing', marker: /id=["']demigod-pricing["']/i },
+  { id: 'partners-teaser', marker: /id=["']demigod-partners-teaser["']/i },
+  { id: 'partners-page', marker: /id=["']demigod-partnerships-wrap["']/i },
+  { id: 'privacy', marker: /id=["']demigod-legal-privacy["']/i },
 ];
 
-async function load(page, suffix = '') {
-  await page.goto(`${LIVE_ORIGIN}/?v=mb-audit-${suffix}-${Date.now()}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await page.waitForFunction(() => window.__dgFootVer && document.querySelector('#dg-bar'), { timeout: 25000 });
-  await sleep(1600);
+const TAPS = [
+  { sel: '#dg-bar .dg-h', marker: /class=["'][^"']*\bdg-h\b[^"']*["']/i, expect: 'startup', modal: /id=["']startup-modal["']/i },
+  { sel: '#dg-site-nav .dg-nav-cta', marker: /class=["'][^"']*\bdg-nav-cta\b[^"']*["']/i, expect: 'startup', modal: /id=["']startup-modal["']/i },
+  { sel: '#demigod-pricing a[data-demigod-modal=startup]', marker: /data-demigod-modal=["']startup["']/i, expect: 'startup', modal: /id=["']startup-modal["']/i },
+  { sel: '#demigod-partners-teaser a[data-dg-partner-apply]', marker: /data-dg-partner-apply/i, expect: 'partner', modal: /id=["']partner-modal["']/i },
+];
+
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-MOBILE-AUDIT.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'mobile-audit');
 }
 
-async function settle(page, route) {
-  await page.evaluate(({ target, waitClass }) => {
-    if (waitClass === 'dg-legal-page') {
-      location.hash = 'privacy';
-      document.body.classList.add('dg-legal-page');
-      const w = document.querySelector('#demigod-legal-wrap');
-      if (w) w.style.display = 'block';
-    }
-    if (waitClass === 'dg-partners-page') {
-      location.hash = 'partnerships';
-      document.body.classList.add('dg-partners-page');
-      const w = document.querySelector('#demigod-partnerships-wrap');
-      if (w) w.style.display = 'block';
-    }
-    if (target) {
-      const el = document.querySelector(target);
-      if (el) {
-        const y = Math.max(0, (el.offsetTop || 0) - 72);
-        window.scrollTo({ top: y, left: 0, behavior: 'instant' });
-      }
-    }
-  }, route);
-  await sleep(route.waitClass ? 1200 : 700);
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
+  process.exit(1);
 }
 
-async function layoutScan(page) {
-  return page.evaluate(({ minTap, minInput }) => {
-    const vw = document.documentElement.clientWidth;
-    const issues = [];
-    const overflowX = document.documentElement.scrollWidth > vw + 2;
-    if (overflowX) issues.push({ severity: 'high', code: 'horizontal_overflow', detail: `${document.documentElement.scrollWidth}px > ${vw}px` });
-
-    const wide = [];
-    document.querySelectorAll('section,main>div,img,table,.modal-container,form').forEach((el) => {
-      const r = el.getBoundingClientRect();
-      if (r.width > vw + 8 && r.height > 8) wide.push({ tag: el.tagName, id: el.id || '', w: Math.round(r.width) });
-    });
-    if (wide.length) issues.push({ severity: 'medium', code: 'wide_blocks', count: wide.length, sample: wide.slice(0, 5) });
-
-    const smallTaps = [];
-    document.querySelectorAll('#dg-site-nav a:not(.dg-nav-logo), #dg-bar a, a.premium-btn, a.button, button.w-button, #demigod-partners-teaser a, #dg-footer-legal a').forEach((el) => {
-      const r = el.getBoundingClientRect();
-      const st = getComputedStyle(el);
-      if (r.width < 2 || st.display === 'none') return;
-      if (r.height < minTap) smallTaps.push({ text: (el.textContent || '').trim().split('\n')[0].slice(0, 28), h: Math.round(r.height), w: Math.round(r.width) });
-    });
-    if (smallTaps.length) issues.push({ severity: 'high', code: 'small_tap_targets', items: smallTaps });
-
-    const smallInputs = [];
-    document.querySelectorAll('input,textarea,select').forEach((el) => {
-      if (el.type === 'hidden' || el.classList.contains('dg-file-hidden') || el.closest('[hidden]')) return;
-      const r = el.getBoundingClientRect();
-      if (r.width < 2 || r.height < 2) return;
-      const fs = parseFloat(getComputedStyle(el).fontSize) || 0;
-      if (fs > 0 && fs < minInput) smallInputs.push({ name: el.name || el.id, fs });
-    });
-    if (smallInputs.length) issues.push({ severity: 'medium', code: 'ios_zoom_inputs', items: smallInputs.slice(0, 8) });
-
-    const bar = document.querySelector('#dg-bar');
-    const nav = document.querySelector('#dg-site-nav');
-    const barRect = bar?.getBoundingClientRect();
-    const navRect = nav?.getBoundingClientRect();
-    const bodyPb = parseFloat(getComputedStyle(document.body).paddingBottom) || 0;
-    if (bar && barRect && bodyPb < barRect.height * 0.6) {
-      issues.push({ severity: 'medium', code: 'body_bottom_padding', bodyPb, barH: Math.round(barRect.height) });
-    }
-
-    const hero = document.querySelector('.hero-section h1,.header h1');
-    const heroFs = hero ? parseFloat(getComputedStyle(hero).fontSize) : 0;
-    if (heroFs && heroFs < 22) issues.push({ severity: 'low', code: 'hero_small', heroFs });
-
-    const heroBtn = document.querySelector('.hero-section .premium-btn,.header .premium-btn');
-    const heroCtasHidden = !heroBtn || getComputedStyle(heroBtn).display === 'none';
-    return {
-      foot: window.__dgFootVer,
-      vw,
-      heroCtasHidden,
-      overflowX,
-      barVisible: bar && getComputedStyle(bar).display !== 'none',
-      navH: navRect ? Math.round(navRect.height) : 0,
-      barH: barRect ? Math.round(barRect.height) : 0,
-      bodyPb: Math.round(bodyPb),
-      touchStyle: !!document.querySelector('#dg-touch-style'),
-      issues,
-    };
-  }, { minTap: MIN_TAP, minInput: MIN_INPUT });
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
 }
 
-async function copyScan(page) {
-  return page.evaluate((reSrc) => {
-    const re = new RegExp(reSrc, 'i');
-    const hits = [];
-    document.querySelectorAll('h1,h2,h3,p,span,li,button,a,label').forEach((el) => {
-      if (el.closest('script,style')) return;
-      const t = (el.textContent || '').trim();
-      if (!t || t.length > 200) return;
-      if (re.test(t) && getComputedStyle(el).display !== 'none' && el.offsetHeight > 0) {
-        hits.push({ text: t.slice(0, 80), tag: el.tagName, id: el.id || '' });
-      }
-    });
-    return hits.slice(0, 20);
-  }, COPY_LEAK.source);
+function readLocal(root, name) {
+  const file = path.join(root, name);
+  if (!fs.existsSync(file)) return null;
+  return fs.readFileSync(file, 'utf8');
 }
 
-async function wizardAudit(page) {
-  await page.tap('#dg-bar .dg-h');
-  await sleep(900);
-  const welcome = await page.evaluate(() => {
-    const f = document.querySelector('#startup-hire');
-    const shell = f?.querySelector('.dg-wiz-shell');
-    const nav = shell?.querySelector('.dg-wiz-nav');
-    const wel = shell?.querySelector('.dg-wiz-welcome');
-    const nr = nav?.getBoundingClientRect();
-    const wr = wel?.getBoundingClientRect();
-    const vh = window.innerHeight;
-    return {
-      step: parseInt(f?.dataset?.dgStep || '0', 10),
-      modal: !!document.querySelector('#startup-modal.dg-wiz-active'),
-      welcomeVisible: wel && !wel.hidden,
-      navBottom: nr ? Math.round(vh - nr.bottom) : null,
-      navH: nr ? Math.round(nr.height) : 0,
-      welcomeH: wr ? Math.round(wr.height) : 0,
-      nextH: shell?.querySelector('.dg-wiz-next')?.getBoundingClientRect().height || 0,
-    };
-  });
-  await page.tap('#startup-hire .dg-wiz-next');
-  await sleep(500);
-  const step1 = await page.evaluate(() => {
-    const inp = document.querySelector('#startup-hire [name=contact-email]');
-    const r = inp?.getBoundingClientRect();
-    const fs = inp ? parseFloat(getComputedStyle(inp).fontSize) : 0;
-    const nav = document.querySelector('#startup-hire .dg-wiz-nav');
-    const nr = nav?.getBoundingClientRect();
-    const vh = window.innerHeight;
-    const covered = nr && r ? r.bottom > nr.top - 4 : false;
-    return { step: parseInt(document.querySelector('#startup-hire')?.dataset?.dgStep || '0', 10), inputFs: fs, inputCoveredByNav: covered, navTop: nr ? Math.round(nr.top) : null, vh };
-  });
+function footVer(foot) {
+  const marked = foot.match(/__dgFootVer\s*=\s*["'](\d+)["']/);
+  if (marked) return marked[1];
+  const file = foot.match(/dg-foot-v(\d+)/);
+  return file ? file[1] : '';
+}
 
-  await page.keyboard.press('Escape').catch(() => {});
-  await sleep(400);
+function declaredPx(tag, prop) {
+  const style = tag.match(/\bstyle=["']([^"']*)["']/i);
+  if (!style) return null;
+  const found = style[1].match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*(\\d+(?:\\.\\d+)?)px`, 'i'));
+  return found ? Number(found[1]) : null;
+}
 
-  await page.tap('#dg-bar .dg-j');
-  await sleep(900);
-  const eng = await page.evaluate(() => {
-    const cards = document.querySelector('#engineer-join .dg-wiz-cards');
-    const cr = cards?.getBoundingClientRect();
-    const cols = cards ? getComputedStyle(cards).gridTemplateColumns.split(' ').length : 0;
-    return { modal: !!document.querySelector('#jobseeker-modal.dg-wiz-active'), cardCols: cols, cardW: cr ? Math.round(cr.width) : 0 };
-  });
-  await page.keyboard.press('Escape').catch(() => {});
+function declaredHeight(tag) {
+  const height = declaredPx(tag, 'height');
+  const minHeight = declaredPx(tag, 'min-height');
+  if (height == null && minHeight == null) return null;
+  return Math.max(height || 0, minHeight || 0);
+}
 
+function openTags(html) {
+  return [...html.matchAll(/<(?:a|button)\b[^>]*>/gi)].map((match) => match[0]);
+}
+
+function isHidden(tag) {
+  return /\bhidden\b|display:\s*none/i.test(tag);
+}
+
+function isTapTarget(tag) {
+  return /class=["'][^"']*\b(?:dg-h|dg-j|dg-nav-cta|premium-btn|w-button)\b[^"']*["']/i.test(tag)
+    || /data-demigod-modal=/i.test(tag)
+    || /data-dg-partner-apply/i.test(tag);
+}
+
+function heroCtasHidden(html) {
+  const hero = html.match(/<[^>]*class=["'][^"']*\bhero-section\b[^"']*["'][^>]*>[\s\S]*?<\/(?:section|div)>/i);
+  if (!hero) return true;
+  const btn = hero[0].match(/<a\b[^>]*\bpremium-btn\b[^>]*>/i);
+  if (!btn) return true;
+  return isHidden(btn[0]);
+}
+
+function overflowX(html) {
+  return [...html.matchAll(/(?:^|[^-])(?:min-)?width\s*:\s*(\d+)px/gi)].some((match) => Number(match[1]) > VIEWPORT.w + 8);
+}
+
+function copyLeaks(html) {
+  const text = html.replace(/<script\b[\s\S]*?<\/script>/gi, '').replace(/<style\b[\s\S]*?<\/style>/gi, '');
+  const hits = [];
+  const re = />([^<]{1,200})</g;
+  let match;
+  while ((match = re.exec(text)) !== null) {
+    const line = match[1].trim();
+    if (line && COPY_LEAK.test(line)) hits.push(line.slice(0, 80));
+  }
+  return hits.slice(0, 20);
+}
+
+function inputCovered(html) {
+  const nav = html.match(/<[^>]*class=["'][^"']*\bdg-wiz-nav\b[^"']*["'][^>]*>[\s\S]*?<\/div>/i);
+  return !!(nav && /name=["']contact-email["']/i.test(nav[0]));
+}
+
+function wizardFrom(html) {
+  const next = html.match(/<[^>]*class=["'][^"']*\bdg-wiz-next\b[^"']*["'][^>]*>/i);
+  const nextH = next ? (declaredHeight(next[0]) || 0) : 0;
+  const modal = /id=["']startup-modal["'][^>]*\bdg-wiz-active\b|\bdg-wiz-active\b[^>]*id=["']startup-modal["']/i.test(html);
+  const input = html.match(/<input\b[^>]*name=["']contact-email["'][^>]*>/i);
+  const inputFs = input ? (declaredPx(input[0], 'font-size') || 0) : 0;
+  const covered = inputCovered(html);
   const issues = [];
-  if (!welcome.modal) issues.push({ severity: 'high', code: 'startup_modal_no_open' });
-  if (welcome.nextH < MIN_TAP) issues.push({ severity: 'high', code: 'wiz_next_small', h: welcome.nextH });
-  if (step1.inputCoveredByNav) issues.push({ severity: 'high', code: 'input_hidden_by_wiz_nav' });
-  if (step1.inputFs < MIN_INPUT) issues.push({ severity: 'medium', code: 'wiz_input_font_small', fs: step1.inputFs });
-  if (eng.cardCols > 1 && eng.cardW < 360) issues.push({ severity: 'low', code: 'engineer_cards_two_col_cramped' });
-
-  return { welcome, step1, eng, issues };
+  if (!modal) issues.push({ severity: 'high', code: 'startup_modal_no_open' });
+  if (nextH < MIN_TAP) issues.push({ severity: 'high', code: 'wiz_next_small', h: nextH });
+  if (covered) issues.push({ severity: 'high', code: 'input_hidden_by_wiz_nav' });
+  if (inputFs > 0 && inputFs < MIN_INPUT) issues.push({ severity: 'medium', code: 'wiz_input_font_small', fs: inputFs });
+  return { modal, nextH, inputFs, inputCoveredByNav: covered, issues };
 }
 
-async function tapRouteCTAs(page) {
-  const tests = [
-    { sel: '#dg-bar .dg-h', expect: 'startup' },
-    { sel: '#dg-site-nav .dg-nav-cta', expect: 'startup' },
-    { sel: '#demigod-pricing a[data-demigod-modal=startup]', expect: 'startup', scroll: '#demigod-pricing' },
-    { sel: '#demigod-partners-teaser a[data-dg-partner-apply]', expect: 'partner', scroll: '#demigod-partners-teaser' },
-  ];
-  const results = [];
-  for (const t of tests) {
-    await load(page, t.expect);
-    if (t.scroll) {
-      await page.evaluate((s) => document.querySelector(s)?.scrollIntoView({ block: 'center' }), t.scroll);
-      await sleep(600);
-    }
-    await page.waitForSelector(t.sel, { visible: true, timeout: 15000 }).catch(() => {});
-    await sleep(t.scroll ? 800 : 0);
-    let err = null;
-    try {
-      await page.tap(t.sel);
-      await sleep(700);
-    } catch (e) {
-      try {
-        await page.evaluate((s) => document.querySelector(s)?.click(), t.sel);
-        await sleep(700);
-      } catch (e2) {
-        err = String(e.message || e2).slice(0, 120);
-      }
-    }
-    const after = await page.evaluate((expect) => ({
-      startup: !!document.querySelector('#startup-modal.dg-wiz-active'),
-      engineer: !!document.querySelector('#jobseeker-modal.dg-wiz-active'),
-      partner: !!document.querySelector('#partner-modal.dg-wiz-active'),
-    }), t.expect);
-    results.push({ ...t, err, opened: after[t.expect], after });
-    await page.keyboard.press('Escape').catch(() => {});
-    await sleep(300);
+function layoutIssues(html) {
+  const issues = [];
+  if (overflowX(html)) issues.push({ severity: 'high', code: 'horizontal_overflow' });
+  for (const tag of openTags(html)) {
+    if (!isTapTarget(tag) || isHidden(tag)) continue;
+    const height = declaredHeight(tag);
+    if (height == null) issues.push({ severity: 'high', code: 'tap_size_unmeasured' });
+    else if (height < MIN_TAP) issues.push({ severity: 'high', code: 'small_tap_targets', h: height });
   }
-  return results;
+  return issues;
 }
 
-async function main() {
-  fs.mkdirSync(SHOTS, { recursive: true });
-  const browser = await puppeteer.connect({ browserURL: CDP_URL, protocolTimeout: 120000 });
-  const page = await browser.newPage();
-  await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
-
-  const report = { at: new Date().toISOString(), viewport: { w: 390, h: 844 }, routes: {}, taps: [], wizard: null, global: null, issues: [], shots: {} };
-
-  await load(page, 'home');
-  report.global = await layoutScan(page);
-  report.copyLeaks = await copyScan(page);
-  if (report.copyLeaks.length) {
-    report.issues.push({ severity: 'medium', code: 'copy_leaks', count: report.copyLeaks.length, sample: report.copyLeaks.slice(0, 5) });
+function main() {
+  if (
+    process.argv.includes('--publish')
+    || process.argv.includes('--push')
+    || process.argv.includes('--live')
+    || process.argv.includes('--designer')
+  ) {
+    refuse('publish_refused');
   }
-  report.shots.home = path.join(SHOTS, `home-${stamp()}.png`);
-  await page.screenshot({ path: report.shots.home, fullPage: false });
-
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('mobile_root_required');
+  }
+  const html = readLocal(root, 'demigod-mobile-source.html');
+  const foot = readLocal(root, 'demigod-foot-core.js');
+  if (html == null && foot == null) refuse('source_required');
+  const htmlText = html || '';
+  const footText = foot || '';
+  const footMarker = (footText.match(/Harbor \S+ keep/) || htmlText.match(/Harbor \S+ keep/) || [''])[0];
+  const ver = footVer(footText);
+  const leaks = copyLeaks(htmlText);
+  const wizard = wizardFrom(htmlText);
+  const layout = layoutIssues(htmlText);
+  const taps = TAPS.map((tap) => {
+    const opened = tap.marker.test(htmlText) && tap.modal.test(htmlText);
+    return { sel: tap.sel, expect: tap.expect, opened, err: opened ? null : 'selector_missing', tapped: false };
+  });
+  const issues = [];
   for (const route of ROUTES) {
-    await load(page, route.id);
-    await settle(page, route);
-    const layout = await layoutScan(page);
-    const leaks = await copyScan(page);
-    const shot = path.join(SHOTS, `${route.id}-${stamp()}.png`);
-    await page.screenshot({ path: shot, fullPage: route.id === 'home' });
-    report.routes[route.id] = { layout, copyLeaks: leaks.length, shot, issues: layout.issues };
-    for (const i of layout.issues) report.issues.push({ ...i, route: route.id });
-    if (leaks.length) report.issues.push({ severity: 'medium', code: 'copy_leaks', route: route.id, count: leaks.length });
+    if (!route.marker.test(htmlText)) issues.push({ severity: 'high', code: 'route_missing', route: route.id });
   }
-
-  report.taps = await tapRouteCTAs(page);
-  for (const t of report.taps) {
-    if (!t.opened || t.err) report.issues.push({ severity: 'high', code: 'cta_tap_fail', sel: t.sel, err: t.err, opened: t.opened });
+  if (leaks.length) issues.push({ severity: 'medium', code: 'copy_leaks', count: leaks.length });
+  issues.push(...layout);
+  for (const tap of taps) {
+    if (!tap.opened || tap.err) issues.push({ severity: 'high', code: 'cta_tap_fail', sel: tap.sel });
   }
-
-  await load(page, 'wizard');
-  report.wizard = await wizardAudit(page);
-  report.issues.push(...report.wizard.issues);
-
-  await page.close();
-  await browser.disconnect();
-
-  const high = report.issues.filter((i) => i.severity === 'high');
-  const med = report.issues.filter((i) => i.severity === 'medium');
-  report.pass = {
-    footV75: report.global?.foot === '75',
-    heroCtasHidden: report.global?.heroCtasHidden,
-    noOverflow: !report.global?.overflowX,
-    tapsOk: report.taps.every((t) => t.opened && !t.err),
-    wizardOk: report.wizard.issues.filter((i) => i.severity === 'high').length === 0,
-    copyLeaks: report.copyLeaks.length === 0,
+  issues.push(...wizard.issues);
+  const hiddenHero = heroCtasHidden(htmlText);
+  if (!hiddenHero) issues.push({ severity: 'high', code: 'hero_cta_visible' });
+  const high = issues.filter((issue) => issue.severity === 'high');
+  const medium = issues.filter((issue) => issue.severity === 'medium');
+  const pass = {
+    footV75: ver === '75',
+    heroCtasHidden: hiddenHero,
+    noOverflow: !overflowX(htmlText),
+    tapsOk: taps.every((tap) => tap.opened && !tap.err),
+    wizardOk: wizard.issues.filter((issue) => issue.severity === 'high').length === 0,
+    copyLeaks: leaks.length === 0,
     highIssues: high.length,
   };
-  report.ok = report.pass.noOverflow && report.pass.tapsOk && report.pass.wizardOk && report.pass.heroCtasHidden && high.length === 0;
-
-  report.summary = { high: high.length, medium: med.length, total: report.issues.length };
-  fs.writeFileSync(OUT, JSON.stringify(report, null, 2));
-  console.log(JSON.stringify({ ok: report.ok, pass: report.pass, summary: report.summary, out: OUT }));
-  process.exit(report.ok ? 0 : 1);
+  const ok = pass.noOverflow && pass.tapsOk && pass.wizardOk && pass.heroCtasHidden && high.length === 0;
+  const dir = shotDir();
+  const screenshots = ROUTES.map((route) => path.join(dir, `${route.id}.shot`));
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, report) || screenshots.some((file) => !insideRoot(root, file))) {
+    refuse('mobile_root_required');
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  for (const file of screenshots) {
+    fs.writeFileSync(file, `${footMarker}\n${path.basename(file, '.shot')}\n`);
+  }
+  const body = {
+    ok,
+    at: new Date().toISOString(),
+    path: report,
+    shotDir: dir,
+    source: 'disk',
+    footMarker,
+    viewport: VIEWPORT,
+    layoutMeasured: 'declared',
+    foot: ver,
+    routes: Object.fromEntries(ROUTES.map((route) => [route.id, { found: route.marker.test(htmlText) }])),
+    taps,
+    wizard,
+    copyLeaks: leaks,
+    pass,
+    issues,
+    summary: { high: high.length, medium: medium.length, total: issues.length },
+    screenshots,
+    ...localFlags,
+  };
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
+  console.log(JSON.stringify({
+    ok,
+    path: report,
+    shot: screenshots[0],
+    shots: screenshots.length,
+    source: 'disk',
+    footMarker,
+    pass,
+    summary: body.summary,
+    ...localFlags,
+  }));
+  if (!ok) process.exit(1);
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({ ok: false, error: 'mobile_audit_failed', detail: String(e.message || e), ...localFlags }));
+    process.exit(1);
+  }
+}

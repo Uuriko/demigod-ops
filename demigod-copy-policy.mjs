@@ -12,21 +12,39 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import {
-  BUSY,
-  ensureBusy,
-  atomicWrite,
   LIVE_DEFAULT,
   flag,
 } from './demigod-agent-tools-lib.mjs';
 
-const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
-const FOOT = path.join(ROOT, 'demigod-foot-core.js');
-const DENY = path.join(ROOT, 'demigod-copy-denylist.txt');
-const LIVE = process.env.DEMIGOD_LIVE || LIVE_DEFAULT;
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function policyPath() {
+  return path.join(dataRoot(), 'DEMIGOD-COPY-POLICY.json');
+}
+
 const args = process.argv.slice(2);
 const diskOnly = flag(args, '--disk-only');
 const wantLive = !diskOnly; // live by default
 const asJson = flag(args, '--json');
+
+function fail(error) {
+  console.error(JSON.stringify({
+    ok: false,
+    error,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+  process.exit(1);
+}
+
+if (args.includes('--publish')) fail('publish_refused');
+
+const FOOT = path.join(dataRoot(), 'demigod-foot-core.js');
+const DENY = path.join(dataRoot(), 'demigod-copy-denylist.txt');
+const LIVE = process.env.DEMIGOD_LIVE || LIVE_DEFAULT;
 
 const SPEED = /48\s*h|within\s*\d+\s*h|\bSLA\b|fastest reply|guaranteed?\s+match|instant\s+match/i;
 const VOLUME = /startups?\s+receive\s+3-5|3-5\s+highly aligned|pre-vetted candidates ready to interview/i;
@@ -128,15 +146,19 @@ if (wantLive) {
 
 const report = {
   at: new Date().toISOString(),
+  path: policyPath(),
   pass,
   live: wantLive,
   denylistCount: denylist.length,
   checks,
   summary: pass ? 'PASS — copy policy clean' : 'FAIL — copy policy leak',
+  sent: false,
+  liveMail: false,
+  livePublish: false,
 };
 
-ensureBusy();
-atomicWrite(path.join(BUSY, 'copy-policy-latest.json'), JSON.stringify(report, null, 2) + '\n');
+fs.mkdirSync(dataRoot(), { recursive: true });
+fs.writeFileSync(policyPath(), JSON.stringify(report, null, 2) + '\n');
 
 if (asJson) {
   console.log(JSON.stringify(report, null, 2));
@@ -145,7 +167,7 @@ if (asJson) {
   for (const c of checks) {
     console.log(`  ${c.ok ? '✓' : '✗'} ${c.name.padEnd(28)} ${c.detail}`);
   }
-  console.log(`wrote /tmp/dg-busy/copy-policy-latest.json`);
+  console.log(`wrote ${policyPath()}`);
 }
 
 process.exit(pass ? 0 : 1);

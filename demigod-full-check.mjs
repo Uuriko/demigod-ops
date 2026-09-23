@@ -10,14 +10,29 @@ import path from 'path';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
-const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
-const BUSY = '/tmp/dg-busy';
-const OUT = path.join(BUSY, 'full-check.json');
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-FULL-CHECK.json');
+}
+
+function fail(error) {
+  console.error(JSON.stringify({
+    ok: false,
+    error,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+  process.exit(1);
+}
 
 function run(label, cmd, timeout = 120000) {
   const t0 = Date.now();
   const r = spawnSync('bash', ['-lc', cmd], {
-    cwd: ROOT,
+    cwd: dataRoot(),
     encoding: 'utf8',
     timeout,
     env: process.env,
@@ -35,11 +50,20 @@ function run(label, cmd, timeout = 120000) {
   };
 }
 
+function diskFootVer() {
+  try {
+    const foot = fs.readFileSync(path.join(dataRoot(), 'demigod-foot-core.js'), 'utf8');
+    return (foot.match(/__dgFootVer='(\d+)'/) || [])[1] || null;
+  } catch {
+    return null;
+  }
+}
+
 function main() {
   const args = process.argv.slice(2);
+  if (args.includes('--publish')) fail('publish_refused');
   const asJson = args.includes('--json');
   const skipSmoke = args.includes('--skip-smoke');
-  fs.mkdirSync(BUSY, { recursive: true });
 
   const steps = [];
   steps.push(run('doctor', 'node demigod-doctor.mjs --json', 30000));
@@ -57,12 +81,18 @@ function main() {
   const failed = steps.filter((s) => !s.ok).map((s) => s.label);
   const report = {
     at: new Date().toISOString(),
+    path: reportPath(),
+    diskFootVer: diskFootVer(),
     pass: failed.length === 0,
     failed,
     steps: steps.map(({ label, cmd, ok, status, ms }) => ({ label, cmd, ok, status, ms })),
     details: steps,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
   };
-  fs.writeFileSync(OUT, JSON.stringify(report, null, 2));
+  fs.mkdirSync(dataRoot(), { recursive: true });
+  fs.writeFileSync(reportPath(), JSON.stringify(report, null, 2) + '\n');
 
   if (asJson) {
     console.log(JSON.stringify({ ...report, details: undefined }, null, 2));
@@ -73,7 +103,7 @@ function main() {
       if (!s.ok && s.stderr) console.log(s.stderr.slice(0, 400));
       if (!s.ok && s.stdout) console.log(s.stdout.slice(0, 400));
     }
-    console.log(`\nreport: ${OUT}`);
+    console.log(`\nreport: ${reportPath()}`);
   }
   process.exit(report.pass ? 0 : 1);
 }

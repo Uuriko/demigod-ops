@@ -16,6 +16,8 @@
  *   node demigod-foot-lock.mjs release [--owner grok] [--token …] [--force]
  *   node demigod-foot-lock.mjs check [--owner me] [--token …]
  *   node demigod-foot-lock.mjs wrap -- cmd [args...]
+ *
+ * The lock is written in DEMIGOD_ROOT. The command does not publish.
  */
 import fs from 'fs';
 import path from 'path';
@@ -23,7 +25,6 @@ import crypto from 'crypto';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import {
-  BUSY,
   sha256File,
   footVerFromJs,
   hostname,
@@ -34,21 +35,59 @@ import {
   readText,
 } from './demigod-agent-tools-lib.mjs';
 
-const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
-const FOOT = path.join(ROOT, 'demigod-foot-core.js');
-const LOCK = path.join(BUSY, 'foot-lock.txt');
-const LOCK_JSON = path.join(BUSY, 'foot-lock.json');
-const FLOCK = '/tmp/demigod-foot-core.lock';
-const META_FLOCK = '/tmp/demigod-foot-lock-meta.lock';
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || scriptDir();
+}
+
+function footPath() {
+  return path.join(dataRoot(), 'demigod-foot-core.js');
+}
+
+function lockTxt() {
+  return path.join(dataRoot(), 'DEMIGOD-FOOT-LOCK.txt');
+}
+
+function lockJson() {
+  return path.join(dataRoot(), 'DEMIGOD-FOOT-LOCK.json');
+}
+
+function tokenEnv() {
+  return path.join(dataRoot(), 'DEMIGOD-FOOT-LOCK-TOKEN.env');
+}
+
+function coreFlock() {
+  return path.join(dataRoot(), 'DEMIGOD-FOOT-CORE.flock');
+}
+
+function metaFlock() {
+  return path.join(dataRoot(), 'DEMIGOD-FOOT-LOCK.flock');
+}
+
+function fail(error) {
+  console.error(JSON.stringify({
+    ok: false,
+    error,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+  process.exit(1);
+}
 
 const args = process.argv.slice(2);
+if (args.includes('--publish')) fail('publish_refused');
 const cmd = args[0] || 'status';
 
 const TTL_MIN = 5;
 const TTL_MAX = 7200;
+const flags = { sent: false, liveMail: false, livePublish: false };
 
 function footVer() {
-  return footVerFromJs(readText(FOOT) || '') || '?';
+  return footVerFromJs(readText(footPath()) || '') || '?';
 }
 
 function parseLegacyText(raw) {
@@ -81,8 +120,8 @@ function isExpired(lock) {
 /** Read lock; clear expired files. Never free on dead pid. */
 function readLock({ clearExpired = true } = {}) {
   try {
-    if (fs.existsSync(LOCK_JSON)) {
-      const raw = fs.readFileSync(LOCK_JSON, 'utf8');
+    if (fs.existsSync(lockJson())) {
+      const raw = fs.readFileSync(lockJson(), 'utf8');
       let j;
       try {
         j = JSON.parse(raw);
@@ -102,8 +141,8 @@ function readLock({ clearExpired = true } = {}) {
     /* fall through */
   }
   try {
-    if (fs.existsSync(LOCK)) {
-      const raw = fs.readFileSync(LOCK, 'utf8');
+    if (fs.existsSync(lockTxt())) {
+      const raw = fs.readFileSync(lockTxt(), 'utf8');
       const j = parseLegacyText(raw);
       if (clearExpired && isExpired(j)) {
         clearLockFiles();
@@ -118,7 +157,7 @@ function readLock({ clearExpired = true } = {}) {
 }
 
 function clearLockFiles() {
-  for (const f of [LOCK_JSON, LOCK]) {
+  for (const f of [lockJson(), lockTxt(), tokenEnv()]) {
     try {
       fs.unlinkSync(f);
     } catch {
@@ -128,8 +167,7 @@ function clearLockFiles() {
 }
 
 function writeLock(rec) {
-  fs.mkdirSync(BUSY, { recursive: true });
-  atomicWrite(LOCK_JSON, JSON.stringify(rec, null, 2) + '\n');
+  atomicWrite(lockJson(), JSON.stringify(rec, null, 2) + '\n');
   const text = [
     `owner=${rec.owner}`,
     `pid=${rec.pid}`,
@@ -142,12 +180,9 @@ function writeLock(rec) {
     `ttlSec=${rec.ttlSec || ''}`,
     `token=${rec.token ? rec.token.slice(0, 8) + '…' : ''}`,
   ].join('\n');
-  atomicWrite(LOCK, text + '\n');
+  atomicWrite(lockTxt(), text + '\n');
   try {
-    atomicWrite(
-      path.join(BUSY, 'foot-lock-token.env'),
-      `export DG_LOCK_TOKEN=${rec.token}\nexport DG_LOCK_OWNER=${rec.owner}\n`,
-    );
+    atomicWrite(tokenEnv(), `export DG_LOCK_TOKEN=${rec.token}\nexport DG_LOCK_OWNER=${rec.owner}\n`);
   } catch {
     /* */
   }
@@ -187,9 +222,9 @@ function withMetaLockSync(fn) {
 
   const r = spawnSync(
     'flock',
-    ['-w', '20', META_FLOCK, process.execPath, ...process.argv.slice(1)],
+    ['-w', '20', metaFlock(), process.execPath, ...process.argv.slice(1)],
     {
-      cwd: ROOT,
+      cwd: scriptDir(),
       encoding: 'utf8',
       env: { ...process.env, DG_FOOT_LOCK_HELD: '1' },
       timeout: 30000,
@@ -205,13 +240,15 @@ function statusJson() {
   const lock = readLock({ clearExpired: true });
   const base = {
     locked: Boolean(lock),
-    lockPath: LOCK,
-    lockJson: LOCK_JSON,
-    flockPath: FLOCK,
-    metaFlockPath: META_FLOCK,
-    foot: FOOT,
+    lockPath: lockTxt(),
+    lockJson: lockJson(),
+    flockPath: coreFlock(),
+    metaFlockPath: metaFlock(),
+    foot: footPath(),
     footVer: footVer(),
-    currentSha: sha256File(FOOT),
+    diskFootVer: footVer(),
+    currentSha: sha256File(footPath()),
+    ...flags,
   };
   if (!lock) return { ...base, locked: false };
   const alive = lock.pid
@@ -224,7 +261,7 @@ function statusJson() {
         }
       })()
     : null;
-  const shaNow = sha256File(FOOT);
+  const shaNow = sha256File(footPath());
   // Redact full token in status output (full only in claim response + token.env)
   const safeLock = lock
     ? {
@@ -268,6 +305,7 @@ function claimBody() {
                 existing.owner === owner
                   ? 'same owner needs --token / DG_LOCK_TOKEN to refresh, or --force'
                   : 'wait for owner release, TTL expiry, or release --force if abandoned',
+              ...flags,
             },
             null,
             2,
@@ -283,6 +321,7 @@ function claimBody() {
             error: 'locked',
             lock: existing,
             hint: 'wait for owner release, wait for TTL expiry, or release --force if abandoned',
+            ...flags,
           },
           null,
           2,
@@ -303,20 +342,26 @@ function claimBody() {
     pid: process.pid,
     at: new Date().toISOString(),
     expiresAt: new Date(Date.now() + ttl * 1000).toISOString(),
-    baseSha: sha256File(FOOT),
+    baseSha: sha256File(footPath()),
     footVer: footVer(),
+    diskFootVer: footVer(),
     why,
     host: process.env.HOSTNAME || hostname(),
     ttlSec: ttl,
     token,
+    path: lockJson(),
+    ...flags,
   };
   writeLock(rec);
   console.log(
     JSON.stringify(
       {
         ok: true,
+        path: lockJson(),
+        diskFootVer: rec.diskFootVer,
         claimed: rec,
         hint: `export DG_LOCK_TOKEN=${token}  # required to refresh/release without --force`,
+        ...flags,
       },
       null,
       2,
@@ -330,7 +375,7 @@ function releaseBody() {
   const tokenIn = resolveToken();
   const existing = readLock({ clearExpired: true });
   if (!existing) {
-    console.log(JSON.stringify({ ok: true, released: false, note: 'already free' }));
+    console.log(JSON.stringify({ ok: true, released: false, note: 'already free', path: lockJson(), ...flags }));
     return;
   }
   if (!force) {
@@ -342,22 +387,24 @@ function releaseBody() {
             error: 'token_required',
             lock: { owner: existing.owner, token: existing.token.slice(0, 8) + '…' },
             hint: 'pass --token / DG_LOCK_TOKEN or release --force',
+            ...flags,
           }),
         );
         process.exit(1);
       }
     } else if (existing.owner && existing.owner !== owner) {
-      console.error(JSON.stringify({ ok: false, error: 'not_owner', lock: existing }, null, 2));
+      console.error(JSON.stringify({ ok: false, error: 'not_owner', lock: existing, ...flags }, null, 2));
       process.exit(1);
     }
   }
   clearLockFiles();
-  try {
-    fs.unlinkSync(path.join(BUSY, 'foot-lock-token.env'));
-  } catch {
-    /* */
-  }
-  console.log(JSON.stringify({ ok: true, released: true, was: { ...existing, token: existing.token ? '…' : null } }));
+  console.log(JSON.stringify({
+    ok: true,
+    released: true,
+    path: lockJson(),
+    was: { ...existing, token: existing.token ? '…' : null },
+    ...flags,
+  }));
 }
 
 function checkBody() {
@@ -406,7 +453,7 @@ function wrap() {
   const ttl = Math.min(TTL_MAX, Math.max(TTL_MIN, Number(process.env.DG_LOCK_TTL || 1800)));
   const existing = readLock({ clearExpired: true });
   if (existing && !isExpired(existing) && existing.owner && existing.owner !== owner) {
-    console.error(JSON.stringify({ ok: false, error: 'locked', lock: existing }, null, 2));
+    console.error(JSON.stringify({ ok: false, error: 'locked', lock: existing, ...flags }, null, 2));
     process.exit(1);
   }
   const rec = {
@@ -414,15 +461,18 @@ function wrap() {
     pid: process.pid,
     at: new Date().toISOString(),
     expiresAt: new Date(Date.now() + ttl * 1000).toISOString(),
-    baseSha: sha256File(FOOT),
+    baseSha: sha256File(footPath()),
     footVer: footVer(),
+    diskFootVer: footVer(),
     why: `wrap: ${rest.join(' ').slice(0, 120)}`,
     host: hostname(),
     ttlSec: ttl,
+    path: lockJson(),
+    ...flags,
   };
   writeLock(rec);
-  const r = spawnSync('flock', ['-w', '30', FLOCK, ...rest], {
-    cwd: ROOT,
+  const r = spawnSync('flock', ['-w', '30', coreFlock(), ...rest], {
+    cwd: scriptDir(),
     stdio: 'inherit',
     env: process.env,
   });

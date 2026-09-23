@@ -10,23 +10,39 @@
  *   node demigod-preflight.mjs --full     # + verify:source
  *   node demigod-preflight.mjs --quick    # skip claim-verify + ship (syntax/smoke/board/lock)
  */
-import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import {
-  BUSY,
-  ensureBusy,
   parseFirstJson,
   runNode,
   atomicWrite,
   flag,
 } from './demigod-agent-tools-lib.mjs';
 
-const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-PREFLIGHT.json');
+}
+
+const ROOT = dataRoot();
 const strict = flag(process.argv, '--strict');
 const asJson = flag(process.argv, '--json');
 const full = flag(process.argv, '--full');
 const quick = flag(process.argv, '--quick');
+
+if (flag(process.argv, '--publish')) {
+  console.error(JSON.stringify({
+    ok: false,
+    error: 'publish_refused',
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+  process.exit(1);
+}
 
 function run(label, args, opts = {}) {
   const started = Date.now();
@@ -88,6 +104,7 @@ const report = {
   pass,
   quick,
   full,
+  path: reportPath(),
   steps,
   next: pass
     ? 'preflight green — edit only under foot-lock; ship via dg-publish-foot when needed'
@@ -95,14 +112,12 @@ const report = {
         .filter((s) => !s.ok)
         .map((s) => s.label)
         .join(', ')}`,
+  sent: false,
+  liveMail: false,
+  livePublish: false,
 };
 
-try {
-  ensureBusy();
-  atomicWrite(path.join(BUSY, 'preflight-latest.json'), JSON.stringify(report, null, 2) + '\n');
-} catch {
-  /* */
-}
+atomicWrite(reportPath(), JSON.stringify(report, null, 2) + '\n');
 
 if (asJson) {
   console.log(JSON.stringify(report, null, 2));
@@ -112,8 +127,19 @@ if (asJson) {
     console.log(`  ${s.ok ? '✓' : '✗'} ${s.label.padEnd(22)} ${s.ms}ms  ${s.detail.slice(0, 80)}`);
   }
   console.log(`next  ${report.next}`);
-  console.log(`wrote /tmp/dg-busy/preflight-latest.json`);
+  console.log(`wrote ${reportPath()}`);
 }
+
+console.log(JSON.stringify({
+  ok: pass,
+  pass,
+  path: reportPath(),
+  quick,
+  full,
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+}));
 
 if (strict && !pass) process.exit(1);
 process.exit(pass ? 0 : 1);

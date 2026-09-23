@@ -9,8 +9,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 
-const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
-const BUSY = '/tmp/dg-busy';
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function checklistPath() {
+  return path.join(dataRoot(), 'DEMIGOD-SHIP-CHECKLIST.json');
+}
 
 function readJson(p) {
   try {
@@ -37,24 +42,25 @@ function ageSec(file) {
 }
 
 export function buildShipChecklist() {
-  const freeze = readJson(path.join(BUSY, 'publish-freeze.json')) || {};
-  const man = readJson(path.join(ROOT, 'DEMIGOD-FOOT-CDN.json')) || {};
-  const verify = readJson(path.join(ROOT, 'DEMIGOD-VERIFY-SOURCE.json'));
-  const boardH = readJson(path.join(ROOT, 'DEMIGOD-BOARD-HONESTY.json'));
-  const board = readJson(path.join(ROOT, 'DEMIGOD-BOARD.json'));
-  const smoke = readJson(path.join(BUSY, 'agent-smoke.json'));
-  const lock = readJson(path.join(BUSY, 'foot-lock.json'));
-  const core = path.join(ROOT, 'demigod-foot-core.js');
+  const root = dataRoot();
+  const freeze = readJson(path.join(root, 'DEMIGOD-PUBLISH-FREEZE.json')) || {};
+  const man = readJson(path.join(root, 'DEMIGOD-FOOT-CDN.json')) || {};
+  const verify = readJson(path.join(root, 'DEMIGOD-VERIFY-SOURCE.json'));
+  const boardH = readJson(path.join(root, 'DEMIGOD-BOARD-HONESTY.json'));
+  const board = readJson(path.join(root, 'DEMIGOD-BOARD.json'));
+  const smoke = readJson(path.join(root, 'DEMIGOD-AGENT-SMOKE.json'));
+  const lock = readJson(path.join(root, 'DEMIGOD-FOOT-LOCK.json'));
+  const core = path.join(root, 'demigod-foot-core.js');
   const diskSha = sha(core);
   const manSha = man.sha256 || null;
   const footM = ageSec(core);
-  const verM = ageSec(path.join(ROOT, 'DEMIGOD-VERIFY-SOURCE.json'));
+  const verM = ageSec(path.join(root, 'DEMIGOD-VERIFY-SOURCE.json'));
   const verifyFresh = verM != null && footM != null ? verM <= footM + 5 || (verify?.pass && verM < 7200) : false;
   // better: verify mtime >= foot mtime - 2s
   let verifyVsFoot = false;
   try {
     const fm = fs.statSync(core).mtimeMs;
-    const vm = fs.statSync(path.join(ROOT, 'DEMIGOD-VERIFY-SOURCE.json')).mtimeMs;
+    const vm = fs.statSync(path.join(root, 'DEMIGOD-VERIFY-SOURCE.json')).mtimeMs;
     verifyVsFoot = vm + 2000 >= fm;
   } catch {
     verifyVsFoot = false;
@@ -118,19 +124,19 @@ export function buildShipChecklist() {
     },
     {
       id: 'board-audit',
-      ok: fs.existsSync(path.join(ROOT, 'DEMIGOD-BOARD-AUDIT.jsonl')),
+      ok: fs.existsSync(path.join(root, 'DEMIGOD-BOARD-AUDIT.jsonl')),
       title: 'board audit log present',
-      detail: fs.existsSync(path.join(ROOT, 'DEMIGOD-BOARD-AUDIT.jsonl')) ? 'DEMIGOD-BOARD-AUDIT.jsonl' : 'missing',
+      detail: fs.existsSync(path.join(root, 'DEMIGOD-BOARD-AUDIT.jsonl')) ? 'DEMIGOD-BOARD-AUDIT.jsonl' : 'missing',
       block: false,
-      warn: !fs.existsSync(path.join(ROOT, 'DEMIGOD-BOARD-AUDIT.jsonl')),
+      warn: !fs.existsSync(path.join(root, 'DEMIGOD-BOARD-AUDIT.jsonl')),
     },
     {
       id: 'pairs-ledger',
-      ok: fs.existsSync(path.join(ROOT, 'demigod-pairs-lib.mjs')),
+      ok: fs.existsSync(path.join(root, 'demigod-pairs-lib.mjs')),
       title: 'pair ledger module',
       detail: (() => {
         try {
-          const p = readJson(path.join(ROOT, 'DEMIGOD-PAIRS.json'));
+          const p = readJson(path.join(root, 'DEMIGOD-PAIRS.json'));
           return `${Object.keys(p?.pairs || {}).length} pairs`;
         } catch {
           return 'module ok';
@@ -148,9 +154,14 @@ export function buildShipChecklist() {
     at: new Date().toISOString(),
     ready,
     freezeOn,
+    verifyAt: verify?.at ?? null,
+    path: checklistPath(),
     blockers: blockers.map((b) => b.id),
     warnings: warnings.map((w) => w.id),
     items,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
     nextCmd: freezeOn
       ? 'node demigod-publish-freeze.mjs status  # freeze ON — do not ship'
       : ready
@@ -161,9 +172,19 @@ export function buildShipChecklist() {
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
+  if (process.argv.includes('--publish')) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'publish_refused',
+      sent: false,
+      liveMail: false,
+      livePublish: false,
+    }));
+    process.exit(1);
+  }
   const c = buildShipChecklist();
-  fs.mkdirSync(BUSY, { recursive: true });
-  fs.writeFileSync(path.join(BUSY, 'ship-checklist.json'), JSON.stringify(c, null, 2));
+  fs.mkdirSync(dataRoot(), { recursive: true });
+  fs.writeFileSync(checklistPath(), JSON.stringify(c, null, 2) + '\n');
   if (process.argv.includes('--json')) {
     console.log(JSON.stringify(c, null, 2));
   } else {

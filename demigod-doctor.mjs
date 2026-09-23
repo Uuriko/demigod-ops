@@ -8,25 +8,38 @@ import path from 'path';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
-const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
-const BUSY = '/tmp/dg-busy';
-const CDP = process.env.CDP_URL || 'http://127.0.0.1:9223';
-const DASH = process.env.DEMIGOD_DASH || 'http://127.0.0.1:9878';
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function doctorPath() {
+  return path.join(dataRoot(), 'DEMIGOD-DOCTOR.json');
+}
+
+function fail(error) {
+  console.error(JSON.stringify({
+    ok: false,
+    error,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+  process.exit(1);
+}
 
 function check(name, ok, detail = '') {
   return { name, ok: Boolean(ok), detail: String(detail).slice(0, 200) };
 }
 
 async function main() {
+  if (process.argv.includes('--publish')) fail('publish_refused');
+  const ROOT = dataRoot();
+  const CDP = process.env.CDP_URL || 'http://127.0.0.1:9223';
+  const DASH = process.env.DEMIGOD_DASH || 'http://127.0.0.1:9878';
   const checks = [];
   checks.push(check('node', true, process.version));
   checks.push(check('cwd', fs.existsSync(path.join(ROOT, 'demigod-foot-core.js')), ROOT));
-  checks.push(check('busy dir', true, BUSY));
-  try {
-    fs.mkdirSync(BUSY, { recursive: true });
-  } catch (e) {
-    checks.push(check('busy writable', false, e.message));
-  }
+  checks.push(check('data root', fs.existsSync(ROOT), ROOT));
   // keys present not values
   const openaiFile = path.join(process.env.HOME || '', '.config/demigod/openai.env');
   checks.push(
@@ -151,7 +164,7 @@ async function main() {
 
   const freeze = (() => {
     try {
-      return JSON.parse(fs.readFileSync(path.join(BUSY, 'publish-freeze.json'), 'utf8'));
+      return JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-PUBLISH-FREEZE.json'), 'utf8'));
     } catch {
       return { on: false };
     }
@@ -159,13 +172,22 @@ async function main() {
   checks.push(check('freeze readable', true, freeze.on ? `ON ${freeze.why || ''}` : 'OFF'));
 
   const pass = checks.every((c) => c.ok);
-  const out = { at: new Date().toISOString(), pass, checks };
-  fs.mkdirSync(BUSY, { recursive: true });
-  fs.writeFileSync(path.join(BUSY, 'doctor.json'), JSON.stringify(out, null, 2));
+  const out = {
+    at: new Date().toISOString(),
+    path: doctorPath(),
+    pass,
+    checks,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  };
+  fs.mkdirSync(ROOT, { recursive: true });
+  fs.writeFileSync(doctorPath(), JSON.stringify(out, null, 2) + '\n');
   if (process.argv.includes('--json')) console.log(JSON.stringify(out, null, 2));
   else {
     console.log(`demigod-doctor ${pass ? 'PASS' : 'ISSUES'}`);
     for (const c of checks) console.log(`  ${c.ok ? '✓' : '✗'} ${c.name}${c.detail ? ' — ' + c.detail : ''}`);
+    console.log(`wrote ${doctorPath()}`);
   }
   process.exit(pass ? 0 : 1);
 }

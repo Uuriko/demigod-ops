@@ -12,10 +12,12 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const outreach = [
-  path.join(__dirname, 'demigod-outreach'),
-  '/home/potter/demigod-outreach',
-].find((d) => fs.existsSync(d));
+function outreachDir() {
+  const root = process.env.DEMIGOD_ROOT || __dirname;
+  return path.join(root, 'demigod-outreach');
+}
+const outreach = outreachDir();
+fs.mkdirSync(outreach, { recursive: true });
 const logPath = path.join(outreach, 'dm-send-log.txt');
 const readyDir = path.join(outreach, 'ready-emails');
 const trackerPath = path.join(outreach, 'DM-BATCH-TRACKER.md');
@@ -44,83 +46,32 @@ function alreadyConfirmed(existing, handle) {
     .split(/\n/)
     .map((l) => l.trim())
     .filter((l) => l && !l.startsWith('#') && !l.startsWith('//'))
-    .some((l) => /SENT-CONFIRMED/i.test(l) && l.includes(handle));
+    .some((l) => {
+      if (!/SENT-CONFIRMED/i.test(l)) return false;
+      return l.split('|').map((part) => part.trim()).includes(handle);
+    });
 }
 
-/** Patch tracker table: | Name | Company | Real? | Sent date | ... */
-function updateTracker(name, handle, day, channel) {
+/** Patch the tracker row for this company. A handle fragment does not select another company. */
+function updateTracker(company, day) {
   if (!fs.existsSync(trackerPath)) return { ok: false, reason: 'no tracker' };
-  let t = fs.readFileSync(trackerPath, 'utf8');
-  const lines = t.split('\n');
-  let hit = false;
-  const nameKey = (name || '').toLowerCase();
-  const handleKey = (handle || '').toLowerCase();
-  const out = lines.map((line) => {
-    if (!line.startsWith('|') || line.includes('------') || line.includes('Sent date')) return line;
-    const cells = line.split('|').map((c) => c.trim());
-    // | Name | Company | Real? | Sent date | Channel | Reply | Next step |
-    if (cells.length < 6) return line;
-    const rowName = (cells[1] || '').toLowerCase();
-    const rowChannel = (cells[5] || '').toLowerCase();
-    const match =
-      (nameKey && rowName === nameKey) ||
-      (handleKey && rowChannel.includes(handleKey.replace(/^@/, '')));
-    if (!match) return line;
-    hit = true;
-    cells[4] = day; // Sent date
-    if (cells[5] && !cells[5].includes(handle)) {
-      // keep existing channel text
-    }
-    cells[7] = cells[7] === 'send' || cells[7] === 'send honest DM' || !cells[7]
-      ? 'await reply'
-      : cells[7];
-    return '| ' + cells.slice(1, -1).join(' | ') + (line.endsWith('|') ? ' |' : '');
+  const companyKey = String(company || '').trim().toLowerCase();
+  if (!companyKey) return { ok: false, reason: 'company_required' };
+  const lines = fs.readFileSync(trackerPath, 'utf8').split('\n');
+  const hits = [];
+  lines.forEach((line, index) => {
+    if (!line.startsWith('|') || line.includes('------') || line.includes('Sent date')) return;
+    const parts = line.split('|');
+    if (parts.length < 6) return;
+    if ((parts[2] || '').trim().toLowerCase() === companyKey) hits.push(index);
   });
-  // Simpler reliable replace: find line containing name and replace 4th data column
-  if (!hit && nameKey) {
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (!line.startsWith('|')) continue;
-      const parts = line.split('|');
-      if (parts.length < 6) continue;
-      if ((parts[1] || '').trim().toLowerCase() !== nameKey) continue;
-      parts[4] = ` ${day} `;
-      if ((parts[7] || '').trim().match(/send/i)) parts[7] = ' await reply ';
-      lines[i] = parts.join('|');
-      hit = true;
-      break;
-    }
-    if (hit) {
-      fs.writeFileSync(trackerPath, lines.join('\n'));
-      return { ok: true, path: trackerPath };
-    }
-  } else if (hit) {
-    // re-do with parts approach for cleanliness
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (!line.startsWith('|')) continue;
-      const parts = line.split('|');
-      if (parts.length < 6) continue;
-      const rowName = (parts[1] || '').trim().toLowerCase();
-      const rowCh = (parts[5] || '').toLowerCase();
-      if (nameKey && rowName === nameKey) {
-        parts[4] = ` ${day} `;
-        if ((parts[7] || '').trim().match(/^send/i) || !(parts[7] || '').trim()) {
-          parts[7] = ' await reply ';
-        }
-        lines[i] = parts.join('|');
-        fs.writeFileSync(trackerPath, lines.join('\n'));
-        return { ok: true, path: trackerPath };
-      }
-      if (handleKey && rowCh.includes(handleKey.replace(/^@/, ''))) {
-        parts[4] = ` ${day} `;
-        lines[i] = parts.join('|');
-        fs.writeFileSync(trackerPath, lines.join('\n'));
-        return { ok: true, path: trackerPath };
-      }
-    }
-  }
-  return { ok: false, reason: 'name not in tracker table' };
+  if (hits.length === 0) return { ok: false, reason: 'company not in tracker table' };
+  if (hits.length > 1) return { ok: false, reason: 'ambiguous_company' };
+  const parts = lines[hits[0]].split('|');
+  parts[4] = ` ${day} `;
+  lines[hits[0]] = parts.join('|');
+  fs.writeFileSync(trackerPath, lines.join('\n'));
+  return { ok: true, path: trackerPath, company };
 }
 
 const args = parseArgs(process.argv.slice(2));
@@ -178,7 +129,7 @@ const line = `SENT-CONFIRMED | ${day} | ${args.handle} | ${args.company} | ${arg
 const existing = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
 if (alreadyConfirmed(existing, args.handle)) {
   console.log('Already logged:', args.handle);
-  const tr = updateTracker(resolvedName, args.handle, day, args.channel);
+  const tr = updateTracker(args.company, day);
   if (tr.ok) console.log('Tracker refreshed:', tr.path);
   process.exit(0);
 }
@@ -186,23 +137,17 @@ fs.appendFileSync(logPath, `\n${line}\n`);
 console.log('Appended:', line);
 console.log('Log:', logPath);
 
-const tr = updateTracker(resolvedName, args.handle, day, args.channel);
+const tr = updateTracker(args.company, day);
 if (tr.ok) console.log('Tracker updated:', tr.path);
 else console.log('Tracker note:', tr.reason);
 
-// Sync ROOT copy if separate
-try {
-  const homeLog = '/home/potter/demigod-outreach/dm-send-log.txt';
-  if (logPath !== homeLog && fs.existsSync(path.dirname(homeLog))) {
-    fs.appendFileSync(homeLog, `\n${line}\n`);
-  }
-  const homeTrack = '/home/potter/demigod-outreach/DM-BATCH-TRACKER.md';
-  if (tr.ok && trackerPath !== homeTrack && fs.existsSync(trackerPath)) {
-    fs.copyFileSync(trackerPath, homeTrack);
-  }
-} catch {
-  /* ignore */
-}
-
-console.log('Next: node demigod-pilot-logger.mjs --report');
-console.log('     node demigod-gtm-status.mjs');
+console.log(JSON.stringify({
+  ok: true,
+  handle: args.handle,
+  company: args.company,
+  log: logPath,
+  tracker: tr.ok ? tr.path : null,
+  trackerReason: tr.ok ? null : tr.reason,
+  sent: false,
+  liveMail: false,
+}));

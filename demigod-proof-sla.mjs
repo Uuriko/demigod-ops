@@ -1,38 +1,68 @@
 #!/usr/bin/env node
 /**
- * demigod-proof-sla.mjs
- * Monitors 48h pilot SLA. Exit 1 if any overdue (for cron alerting).
- * Uses same Slack webhook as sla-pager if available.
+ * Record open pilot SLA breaches for one data root.
+ * An overdue pilot stays in that report. This command does not post to Slack.
+ *
+ * Usage:
+ *   node demigod-proof-sla.mjs
+ *   node demigod-proof-sla.mjs --json
  */
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 import { loadBoard } from './demigod-submissions-lib.mjs';
 
-const board = loadBoard();
-const pilots = board.pilots || [];
-const now = Date.now();
-
 const ACTIVE = new Set(['new', 'briefed', 'matched', 'intros-sent']);
-const open = pilots.filter(p => ACTIVE.has(p.status) && p.slaDue);
-const overdue = open.filter(p => new Date(p.slaDue).getTime() < now);
-const dueSoon = open.filter(p => {
-  const diff = new Date(p.slaDue).getTime() - now;
-  return diff > 0 && diff < 24 * 3600 * 1000;
-});
 
-console.log(`SLA: ${open.length} open, ${overdue.length} OVERDUE, ${dueSoon.length} due <24h`);
-overdue.forEach(p => console.log('  BREACH:', p.email, p.status, 'was due', p.slaDue));
-dueSoon.forEach(p => console.log('  due soon:', p.email, p.status, 'due', p.slaDue));
-
-const webhook = process.env.SLACK_WEBHOOK_URL || process.env.DEMIGOD_SLACK_WEBHOOK;
-if (overdue.length && webhook) {
-  // fire and forget
-  fetch(webhook, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: `🚨 Pilot SLA breach: ${overdue.map(p => p.email).join(', ')} — 48h/$100-back clock expired` })
-  }).catch(() => {});
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 }
 
-console.log('npm run demigod:verify:all');
-console.log('Pre-services: SLAs are simulated until real Twilio + alerting wired.');
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-SLA-PROOF.json');
+}
 
-process.exit(overdue.length ? 1 : 0);
+function pilotRow(pilot) {
+  return {
+    id: pilot.id || '',
+    email: pilot.email || '',
+    status: pilot.status || '',
+    slaDue: pilot.slaDue || '',
+  };
+}
+
+function buildReport(now = Date.now()) {
+  const board = loadBoard();
+  const pilots = Array.isArray(board.pilots) ? board.pilots : [];
+  const open = pilots.filter((pilot) => ACTIVE.has(pilot.status) && pilot.slaDue);
+  const overdue = open.filter((pilot) => new Date(pilot.slaDue).getTime() < now);
+  const dueSoon = open.filter((pilot) => {
+    const diff = new Date(pilot.slaDue).getTime() - now;
+    return diff > 0 && diff < 24 * 3600 * 1000;
+  });
+  return {
+    at: new Date(now).toISOString(),
+    ok: overdue.length === 0,
+    open: open.length,
+    overdue: overdue.length,
+    dueSoon: dueSoon.length,
+    overduePilots: overdue.map(pilotRow),
+    dueSoonPilots: dueSoon.map(pilotRow),
+    report: reportPath(),
+    sent: false,
+    liveMail: false,
+    liveSlack: false,
+  };
+}
+
+function run() {
+  const report = buildReport();
+  fs.mkdirSync(dataRoot(), { recursive: true });
+  atomicWrite(report.report, JSON.stringify(report, null, 2) + '\n');
+  console.log(JSON.stringify(report));
+  return report.ok ? 0 : 1;
+}
+
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) process.exit(run());

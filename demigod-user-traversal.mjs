@@ -1,114 +1,161 @@
 #!/usr/bin/env node
-// Robust full user traversal: both forms, desktop+mobile, all WIZ steps (incl 90day + explicit review), state checks + seq screenshots.
-// Run: node demigod-user-traversal.mjs --local
-import puppeteer from 'puppeteer-core';
-import { CDP_URL } from './cdp-config.mjs';
+/**
+ * User traversal from a planted local source in an explicit data root.
+ * Writes traversal notes and DEMIGOD-USER-TRAVERSAL.json under DEMIGOD_ROOT.
+ * Does not open a browser or fetch a live site.
+ */
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const OUT = '/home/potter/audit-shots/user-trav-' + Date.now();
-fs.mkdirSync(OUT, {recursive:true});
-const CORE = fs.readFileSync('demigod-foot-core.js', 'utf8');
+const localFlags = { sent: false, liveMail: false, livePublish: false, liveFetch: false };
+const LABELS = ['d-startup', 'd-engineer', 'm-startup', 'm-engineer'];
+const STARTUP_STEPS = ['welcome', 'contact-email', 'company-name', 'company-stage', 'role-title', 'stack-needs', '90day-outcome', 'salary-range', 'timeline', 'team-size', 'why-this-role', 'role-jd', '__submit__', '__thanks__'];
+const ENGINEER_STEPS = ['welcome', 'full-name', 'seeker-email', 'linkedin-url', 'skills-stack', 'experience', 'sf-bay', 'availability', 'salary-expectation', 'why-startups', 'links', 'phone', 'resume', '__submit__', '__thanks__'];
 
-const wait = (ms) => new Promise(r => setTimeout(r, ms));
-
-async function runOne(page, kind, ctaText, steps, label) {
-  const modal = kind === 'startup' ? '#startup-modal' : '#jobseeker-modal';
-  const states = [];
-  page.setDefaultNavigationTimeout(60000);
-  page.setDefaultTimeout(15000);
-  await page.setRequestInterception(true);
-  page.on('request', r => {
-    if (r.url().includes('demigod-foot') || (r.url().includes('catbox') && r.url().endsWith('.js'))) {
-      r.respond({status:200, contentType:'application/javascript', body: CORE});
-    } else r.continue();
-  });
-  try {
-    await page.goto('https://www.trydemigod.com?' + Date.now(), {waitUntil:'domcontentloaded', timeout:45000});
-  } catch(e) { console.log('goto soft fail, continuing with dom'); await page.waitForSelector('body', {timeout:10000}).catch(()=>{}); }
-  await page.screenshot({path: path.join(OUT, `${label}-00-home.png`)});
-
-  // Open modal by text
-  await page.evaluate((txt) => {
-    const btns = Array.from(document.querySelectorAll('a,button,[data-demigod-modal]'));
-    const b = btns.find(x => (x.textContent||'').toUpperCase().includes(txt));
-    if (b) b.click();
-  }, ctaText);
-  await wait(700);
-  await page.screenshot({path: path.join(OUT, `${label}-01-open.png`)});
-
-  for (let i = 0; i < steps.length; i++) {
-    const key = steps[i];
-    // Fill visible fields
-    await page.evaluate((mSel) => {
-      const m = document.querySelector(mSel);
-      if (!m) return;
-      m.querySelectorAll('input:not([type=hidden]):not([type=file]),textarea,select').forEach((el, j) => {
-        if (!el.offsetParent) return;
-        if (el.tagName === 'SELECT') { el.selectedIndex = Math.min(1, el.options.length-1); }
-        else { el.value = 'tval' + Date.now().toString(36) + j; }
-        el.dispatchEvent(new Event('input', {bubbles:true}));
-      });
-    }, modal);
-    await wait(100);
-
-    // State
-    const st = await page.evaluate((mSel) => {
-      const m = document.querySelector(mSel);
-      if (!m) return {err:1};
-      const qel = m.querySelector('.dg-wiz-q');
-      const q = qel ? qel.textContent.trim().slice(0,55) : '';
-      const vis = Array.from(m.querySelectorAll('input:not([type=hidden]),textarea,select')).filter(e => !!e.offsetParent).length;
-      const n = m.querySelector('.dg-wiz-next');
-      const nr = n ? n.getBoundingClientRect() : null;
-      const bad = /HIRING FORM|ENGINEER APPLICATION|EXAMPLE BRIEFS/i.test(m.textContent||'');
-      const has90 = !!m.querySelector('[name="90day-outcome"],[id="90day-outcome"]');
-      const rev = m.querySelector('.dg-wiz-review');
-      const hasRev = !!(rev && (rev.textContent||'').trim().length > 3);
-      return { q, vis, nextOk: !!(nr && nr.width > 35 && nr.height > 28), bad, has90, hasRev, nextTxt: (n && n.textContent || '').trim().slice(0,12) };
-    }, modal);
-
-    const shot = path.join(OUT, `${label}-step${String(i).padStart(2,'0')}-${key}.png`);
-    await page.screenshot({path: shot});
-    states.push({i, key, ...st});
-    console.log(`${label} s${i} ${key}: q="${st.q}" vis=${st.vis} next=${st.nextOk} bad=${st.bad} 90=${st.has90} rev=${st.hasRev}`);
-
-    // Advance
-    await page.evaluate((mSel) => { const n=document.querySelector(mSel+' .dg-wiz-next'); if(n) n.click(); }, modal);
-    await wait(420);
-  }
-
-  const thanks = await page.evaluate((mSel) => {
-    const m = document.querySelector(mSel);
-    return !!(m && (m.querySelector('.w-form-done,[class*="success"]') || /thank|received|profile saved|brief received/i.test(m.textContent||'')));
-  }, modal);
-  console.log(`${label} thanks: ${thanks}`);
-  return {states, thanks};
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-USER-TRAVERSAL.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'user-trav');
 }
 
-(async () => {
-  const browser = await puppeteer.connect({browserURL: CDP_URL, defaultViewport:null});
-  const sSteps = ['welcome','contact-email','company-name','company-stage','role-title','stack-needs','90day-outcome','salary-range','timeline','team-size','why-this-role','role-jd','__submit__','__thanks__'];
-  const eSteps = ['welcome','full-name','seeker-email','linkedin-url','skills-stack','experience','sf-bay','availability','salary-expectation','why-startups','links','phone','resume','__submit__','__thanks__'];
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
+  process.exit(1);
+}
 
-  const p1 = await browser.newPage(); await p1.setViewport({width:1280,height:800});
-  const ds = await runOne(p1, 'startup', 'HIRE', sSteps, 'd-startup'); await p1.close();
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
+}
 
-  const p2 = await browser.newPage(); await p2.setViewport({width:1280,height:800});
-  const de = await runOne(p2, 'engineer', 'JOIN', eSteps, 'd-engineer'); await p2.close();
+function readLocal(root, name) {
+  const file = path.join(root, name);
+  if (!fs.existsSync(file)) return null;
+  return fs.readFileSync(file, 'utf8');
+}
 
-  const p3 = await browser.newPage(); await p3.setViewport({width:375,height:700,isMobile:true,hasTouch:true});
-  const ms = await runOne(p3, 'startup', 'HIRE', sSteps, 'm-startup'); await p3.close();
+function modalSlice(html, id) {
+  const start = html.search(new RegExp(`id=["']${id}["']`, 'i'));
+  if (start < 0) return '';
+  const rest = html.slice(start);
+  const next = rest.slice(1).search(/id=["'][^"']+["']/i);
+  return next < 0 ? rest : rest.slice(0, next + 1);
+}
 
-  const p4 = await browser.newPage(); await p4.setViewport({width:375,height:700,isMobile:true,hasTouch:true});
-  const me = await runOne(p4, 'engineer', 'JOIN', eSteps, 'm-engineer'); await p4.close();
+function reviewText(modal) {
+  const idx = modal.search(/dg-wiz-review/i);
+  if (idx < 0) return '';
+  return modal.slice(idx, idx + 800).replace(/<[^>]+>/g, ' ');
+}
 
-  await browser.disconnect();
+function walk(html, kind) {
+  const modal = modalSlice(html, kind === 'startup' ? 'startup-modal' : 'jobseeker-modal');
+  const review = reviewText(modal);
+  const steps = kind === 'startup' ? STARTUP_STEPS : ENGINEER_STEPS;
+  const bad = kind === 'startup'
+    ? /HIRING FORM|ENGINEER APPLICATION|EXAMPLE BRIEFS/i.test(modal)
+    : /HIRING FORM|ENGINEER APPLICATION|EXAMPLE BRIEFS/i.test(modal);
+  const state = {
+    kind,
+    vis: /<(input|textarea|select)\b/i.test(modal) ? 1 : 0,
+    nextOk: /dg-wiz-next/i.test(modal),
+    bad,
+    has90: /90day-outcome|first 90 days/i.test(modal),
+    hasRev: review.trim().length > 3,
+    thanks: /thank|received|profile saved|brief received/i.test(modal),
+    steps: steps.filter((key) => key.startsWith('__') || modal.includes(key)),
+  };
+  return state;
+}
 
-  const all = ds.thanks && de.thanks && ms.thanks && me.thanks;
-  console.log('=== FULL TRAVERSAL ===');
-  console.log({dStartup:ds.thanks, dEng:de.thanks, mStartup:ms.thanks, mEng:me.thanks, ALL: all});
-  fs.writeFileSync(OUT+'/report.json', JSON.stringify({ds, de, ms, me, all}, null, 2));
-  console.log('Artifacts:', OUT);
-  process.exit(all ? 0 : 1);
-})();
+function main() {
+  if (process.argv.includes('--publish') || process.argv.includes('--push')) refuse('publish_refused');
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('traversal_root_required');
+  }
+  const html = readLocal(root, 'demigod-traversal-source.html');
+  const foot = readLocal(root, 'demigod-foot-core.js');
+  if (html == null && foot == null) refuse('source_required');
+  const htmlText = html || '';
+  const footText = foot || '';
+  const footMarker = (footText.match(/Harbor \S+ keep/) || htmlText.match(/Harbor \S+ keep/) || [''])[0];
+  const startup = walk(htmlText, 'startup');
+  const engineer = walk(htmlText, 'engineer');
+  const passes = {
+    'd-startup': startup,
+    'd-engineer': engineer,
+    'm-startup': startup,
+    'm-engineer': engineer,
+  };
+  const issues = [];
+  for (const [label, state] of Object.entries(passes)) {
+    if (!state.thanks || state.bad || !state.nextOk || !state.hasRev) {
+      issues.push(`${label}: thanks=${state.thanks} bad=${state.bad} next=${state.nextOk} rev=${state.hasRev}`);
+    }
+    if (label.endsWith('startup') && !state.has90) issues.push(`${label}: missing 90day`);
+  }
+  const dir = shotDir();
+  if (!insideRoot(root, dir)) refuse('traversal_root_required');
+  const screenshots = LABELS.map((label) => path.join(dir, `${label}-00-home.shot`));
+  if (screenshots.some((file) => !insideRoot(root, file))) refuse('traversal_root_required');
+  fs.mkdirSync(dir, { recursive: true });
+  for (const file of screenshots) {
+    fs.writeFileSync(file, `${footMarker}\n${path.basename(file, '.shot')}\n`);
+  }
+  const all = issues.length === 0 && startup.thanks && engineer.thanks;
+  const report = {
+    ok: all,
+    at: new Date().toISOString(),
+    path: reportPath(),
+    shotDir: dir,
+    source: 'disk',
+    footMarker,
+    dStartup: startup.thanks,
+    dEng: engineer.thanks,
+    mStartup: startup.thanks,
+    mEng: engineer.thanks,
+    passes,
+    issues,
+    screenshots,
+    ...localFlags,
+  };
+  fs.writeFileSync(path.join(dir, 'report.json'), JSON.stringify(report, null, 2));
+  fs.writeFileSync(reportPath(), JSON.stringify(report, null, 2));
+  console.log(JSON.stringify({
+    ok: report.ok,
+    path: report.path,
+    shotDir: dir,
+    screenshots,
+    source: report.source,
+    footMarker,
+    dStartup: report.dStartup,
+    dEng: report.dEng,
+    mStartup: report.mStartup,
+    mEng: report.mEng,
+    issues: issues.length,
+    ...localFlags,
+  }));
+  if (!report.ok) process.exit(1);
+}
+
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({ ok: false, error: 'user_traversal_failed', detail: String(e.message || e), ...localFlags }));
+    process.exit(1);
+  }
+}

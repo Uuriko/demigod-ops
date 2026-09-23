@@ -1,160 +1,147 @@
 #!/usr/bin/env node
-/** SuperGrok Heavy: highest leverage next actions — creative + blunt. */
+/**
+ * Local leverage check in an explicit data root.
+ * Writes DEMIGOD-LEVERAGE-NEXT.json under DEMIGOD_ROOT. Does not spawn a child or send a prompt.
+ */
 import fs from 'fs';
 import path from 'path';
-import { spawnSync } from 'child_process';
-import { connectBrowser, sendToGrok, collectGrokReply, sleep } from './collab-lib.mjs';
-import { ROOT, wlog } from './demigod-turn-lib.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const OUT = path.join(ROOT, 'HEAVY-LEVERAGE-NEXT.md');
-const OUT_JSON = path.join(ROOT, 'DEMIGOD-LEVERAGE-NEXT.json');
-const OUT_PROMPT = path.join(ROOT, 'DEMIGOD-LEVERAGE-IMPLEMENT-PROMPT.md');
-const SENT = path.join(ROOT, 'HEAVY-LEVERAGE-NEXT-SENT.txt');
+const localFlags = {
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+  liveFetch: false,
+  aiSubmit: false,
+};
+const MARKERS = [
+  { name: 'LEVERAGE', re: /leverage/i },
+  { name: 'NEXT', re: /next/i },
+  { name: 'DEMAND', re: /demand/i },
+  { name: 'PILOT', re: /pilot/i },
+  { name: 'PROOF', re: /proof/i },
+];
 
-spawnSync('node', ['demigod-leverage-status.mjs'], { cwd: ROOT, encoding: 'utf8' });
-
-const STATUS = JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-LEVERAGE-STATUS.json'), 'utf8'));
-
-const AGENT_OPINION = `
-Local agent opinion (for Heavy to challenge/refine):
-- Site is "done enough" — v41, forms e2e, legal placeholders, trust block. More website work is low leverage.
-- Partnership Option C is correct strategically but PREMATURE to implement before one proof loop (brief → match → hire or strong intro).
-- Real bottleneck is likely DEMAND (startup briefs) not supply, not tech. Solo founder's time on matching + warm outreach beats programs.
-- Highest leverage: (1) white-glove pilot with 1-3 warm founders, (2) <2h hello@ SLA + alerts, (3) one ally not a program, (4) Atlas/invoicing before first hire, (5) board JSON reflecting real pipeline.
-- Creative wedge: "fastest human reply in SF startup hiring" — not platform, not marketplace.
-- Existing scripts: demigod-submissions-webhook.mjs, demigod-webhook-setup.mjs, demigod-board-publish.mjs — may be underused.
-`;
-
-const PROMPT = `SuperGrok Heavy — HIGHEST LEVERAGE / LOWEST HANGING FRUIT for Demigod (June 2026)
-
-John wants your strategic opinion + a minimal implementation plan. Challenge the local agent opinion below. Be creative, blunt, numbered. NOT a partnership program essay — what moves the needle THIS WEEK toward first placement or undeniable proof (3 strong intros).
-
-## LIVE STATUS
-${JSON.stringify(STATUS, null, 2)}
-
-## LOCAL AGENT OPINION (challenge this)
-${AGENT_OPINION}
-
-## CONTEXT
-- Demigod: 10% on hire, SF startups, human-matched, hello@trydemigod.com, solo founder John Potter
-- Competitors: Fonzi (ledger), Jack & Jill (Friends 20%), Paraform (marketplace) — John should NOT copy marketplace
-- Option C partnership plan exists but agent says defer until proof loop
-- Eat the Sounds game is separate project — ignore
-
-Research if useful: solo placement startup GTM, Fonzi/Jack&Jill early stage motion, YC Work at a Startup, founder-led recruiting wedge.
-
----
-
-## DELIVERABLE FORMAT
-
-=== STATUS ACK ===
-(2 sentences: true bottleneck + single highest-leverage bet for next 7 days)
-
-=== PART A: BOTTLENECK DIAGNOSIS ===
-Rank likely constraints: demand (briefs) | supply (candidates) | ops (response speed) | trust (no proof) | legal (no entity)
-Pick ONE primary bottleneck with evidence reasoning. Secondary bottleneck.
-
-=== PART B: TOP 7 ACTIONS (THIS WEEK ONLY) ===
-Table: Rank | Action | Hours | Leverage 1-10 | Owner (John|agent|both) | Done when
-
-Include mix of: GTM (DMs/outreach), ops (webhook/SLA), site (minimal copy), business (Atlas). NO action >4 hours solo John time.
-
-=== PART C: CREATIVE BETS (3 unconventional ideas) ===
-Things John probably hasn't tried — specific, SF-relevant, low cost. Not generic "post on LinkedIn."
-
-=== PART D: EXPLICIT ANTI-PRIORITIES (10 items) ===
-What John should NOT touch this week (partnership pages, Heavy loops, canvas, etc.)
-
-=== PART E: ONE WHITE-GLOVE PILOT PLAYBOOK ===
-Step-by-step for ONE founder pilot: who to pick, exact DM script, what to deliver in 48h, how to ask permission for site quote, fallback if no hire.
-
-=== PART F: AUTOMATION — 3 CUSTOM NPM SCRIPTS ===
-Propose exactly 3 new scripts John's agent should build (names like demigod-*.mjs). For each:
-- Purpose
-- Inputs/outputs
-- When to run
-- Why higher leverage than more Webflow edits
-
-Use existing: demigod-submissions-webhook.mjs, demigod-board-publish.mjs, demigod-webhook-setup.mjs
-
-=== PART G: PARTNERSHIP OPTION C — WHEN? ===
-Yes/no: implement Portfolio Desk kit this week? If no, what trigger? If yes, minimal scope only.
-
-=== PART H: CURSOR AGENT PROMPT (ONE SMALL BUILD) ===
-Write copy-paste prompt for local agent to implement THE single highest-leverage technical task from Part B (max 1-2 files, demigod-* only, include verify commands). Format:
-
---- BEGIN CURSOR AGENT PROMPT ---
-...
---- END CURSOR AGENT PROMPT ---
-
-=== PART I: 7-DAY SCORECARD ===
-5 metrics John checks daily + pass/fail thresholds
-
-=== PART J: ONE SENTENCE TO JOHN ===
-Motivational but not cheesy — what to do tomorrow morning.
-
-Rules: min 7000 chars, blunt, no Eat the Sounds, website changes only if Part B justifies.`;
-
-async function collectReply(page) {
-  let text = '';
-  for (let i = 0; i < 36; i++) {
-    await sleep(i < 3 ? 12000 : 15000);
-    await collectGrokReply(page, { waitMs: 10000, minGrowth: 200 });
-    const body = await page.evaluate(() => document.body?.innerText || '');
-    const idx = body.lastIndexOf('=== STATUS ACK ===');
-    const chunk = idx >= 0 ? body.slice(idx) : body.slice(-32000);
-    text = chunk.length > text.length ? chunk : text;
-    const complete = /=== PART J: ONE SENTENCE/i.test(text) && text.length > 6500;
-    wlog(`heavy leverage poll ${i + 1}: len=${text.length} complete=${complete}`);
-    if (complete) break;
-  }
-  return text;
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-LEVERAGE-NEXT.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'leverage-next');
 }
 
-function extractPrompt(text) {
-  const m = text.match(/--- BEGIN CURSOR AGENT PROMPT ---([\s\S]*?)--- END CURSOR AGENT PROMPT ---/i);
-  return m ? m[1].trim() : '';
-}
-
-async function main() {
-  wlog('=== HEAVY LEVERAGE NEXT START ===');
-  const browser = await connectBrowser();
-  const page = (await browser.pages()).find((p) => /grok\.com/i.test(p.url()));
-  if (!page) throw new Error('open grok.com SuperGrok Heavy tab');
-
-  await page.bringToFront();
-  await page.evaluate(() => {
-    [...document.querySelectorAll('button,a')].find((b) =>
-      /new chat/i.test((b.textContent || b.getAttribute('aria-label') || '').trim()),
-    )?.click();
-  });
-  await sleep(2500);
-
-  await sendToGrok(page, PROMPT);
-  fs.writeFileSync(SENT, `${new Date().toISOString()}\n\n${PROMPT}`);
-
-  const text = await collectReply(page);
-  await browser.disconnect();
-
-  const cursorPrompt = extractPrompt(text);
-  const ok = text.length > 6500 && /=== PART B:/i.test(text);
-
-  fs.writeFileSync(
-    OUT,
-    `# SuperGrok Heavy — Highest Leverage Next\n\n_Date: ${new Date().toISOString()}_\n_Chars: ${text.length}_\n\n${text}\n`,
-  );
-  if (cursorPrompt) {
-    fs.writeFileSync(OUT_PROMPT, `# Demigod Leverage — Cursor Implement Prompt\n\n${cursorPrompt}\n`);
-  }
-
-  const out = { at: new Date().toISOString(), chars: text.length, ok, paths: { plan: OUT, prompt: OUT_PROMPT } };
-  fs.writeFileSync(OUT_JSON, JSON.stringify(out, null, 2));
-  console.log(JSON.stringify(out, null, 2));
-  wlog('=== HEAVY LEVERAGE NEXT END ===');
-  process.exit(ok ? 0 : 1);
-}
-
-main().catch((e) => {
-  console.error(e);
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
   process.exit(1);
-});
+}
+
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
+}
+
+function entryStat(root, rel) {
+  const file = path.join(root, rel);
+  if (!insideRoot(root, file)) return null;
+  let st;
+  try {
+    st = fs.lstatSync(file);
+  } catch {
+    return null;
+  }
+  if (st.isSymbolicLink()) return null;
+  return { file, st };
+}
+
+function readText(root, rel) {
+  const found = entryStat(root, rel);
+  if (!found || !found.st.isFile()) return null;
+  return fs.readFileSync(found.file, 'utf8');
+}
+
+function markerHits(text) {
+  const found = {};
+  for (const marker of MARKERS) found[marker.name] = marker.re.test(text);
+  return found;
+}
+
+function main() {
+  if (
+    process.argv.includes('--publish')
+    || process.argv.includes('--push')
+    || process.argv.includes('--live')
+    || process.argv.includes('--send')
+    || process.argv.includes('--ai')
+    || process.argv.includes('--fetch')
+  ) {
+    refuse('publish_refused');
+  }
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('leverage_root_required');
+  }
+  const footText = readText(root, 'demigod-foot-core.js');
+  const notes = readText(root, 'HEAVY-LEVERAGE-NEXT-SOURCE.md');
+  if (footText == null && notes == null) refuse('source_required');
+  const text = notes || '';
+  const hits = markerHits(text);
+  const missing = MARKERS.filter((marker) => !hits[marker.name]).map((marker) => marker.name);
+  const pass = notes != null && missing.length === 0;
+  const footMarker = ((footText || text).match(/Harbor \S+ keep/) || [''])[0];
+  const dir = shotDir();
+  const shot = path.join(dir, 'next.shot');
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, shot) || !insideRoot(root, report)) {
+    refuse('leverage_root_required');
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(shot, `${footMarker}\n${missing.length === 0 ? 'complete' : 'missing'}\n`);
+  const body = {
+    ok: pass,
+    at: new Date().toISOString(),
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    excerpt: text.slice(0, 180),
+    markers: hits,
+    missing,
+    chars: text.length,
+    ...localFlags,
+  };
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
+  console.log(JSON.stringify({
+    ok: pass,
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    missing: missing.length,
+    chars: text.length,
+    ...localFlags,
+  }));
+  if (!pass) process.exit(1);
+}
+
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'leverage_failed',
+      detail: String(e.message || e),
+      ...localFlags,
+    }));
+    process.exit(1);
+  }
+}

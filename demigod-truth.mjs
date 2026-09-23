@@ -15,8 +15,18 @@ import crypto from 'crypto';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
-const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
-const BUSY = '/tmp/dg-busy';
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function truthJsonPath() {
+  return path.join(dataRoot(), 'DEMIGOD-TRUTH.json');
+}
+
+function truthMdPath() {
+  return path.join(dataRoot(), 'DEMIGOD-TRUTH.md');
+}
+
 const LIVE = process.env.DEMIGOD_LIVE || 'https://www.trydemigod.com';
 const asJson = process.argv.includes('--json') || !process.argv.includes('--md');
 const asMd = process.argv.includes('--md');
@@ -49,7 +59,7 @@ function readText(file, max = 200_000) {
 
 function runNode(args, timeout = 30000) {
   const r = spawnSync('node', args, {
-    cwd: ROOT,
+    cwd: dataRoot(),
     encoding: 'utf8',
     timeout,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -61,11 +71,22 @@ function runNode(args, timeout = 30000) {
 }
 
 async function main() {
-  const footPath = path.join(ROOT, 'demigod-foot-core.js');
-  const manPath = path.join(ROOT, 'DEMIGOD-FOOT-CDN.json');
-  const boardPath = path.join(ROOT, 'DEMIGOD-BOARD.json');
-  const footerPath = path.join(ROOT, 'demigod-footer-lite.html');
-  const verifyPath = path.join(ROOT, 'DEMIGOD-VERIFY-SOURCE.json');
+  if (process.argv.includes('--publish')) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'publish_refused',
+      sent: false,
+      liveMail: false,
+      livePublish: false,
+    }));
+    process.exit(1);
+  }
+
+  const footPath = path.join(dataRoot(), 'demigod-foot-core.js');
+  const manPath = path.join(dataRoot(), 'DEMIGOD-FOOT-CDN.json');
+  const boardPath = path.join(dataRoot(), 'DEMIGOD-BOARD.json');
+  const footerPath = path.join(dataRoot(), 'demigod-footer-lite.html');
+  const verifyPath = path.join(dataRoot(), 'DEMIGOD-VERIFY-SOURCE.json');
 
   const footJs = readText(footPath) || '';
   const diskSha = sha256(footPath);
@@ -106,11 +127,9 @@ async function main() {
       lockOwner = j?.lock?.owner || null;
       lockExpires = j?.lock?.expiresAt || null;
     } catch {
-      const lock = readJson(path.join(BUSY, 'foot-lock.json'));
-      const lockExpired = lock?.expiresAt && Date.parse(lock.expiresAt) < Date.now();
-      lockHeld = Boolean(lock && !lockExpired);
-      lockOwner = lockHeld ? lock.owner : null;
-      lockExpires = lockHeld ? lock.expiresAt : null;
+      lockHeld = false;
+      lockOwner = null;
+      lockExpires = null;
     }
   }
 
@@ -244,10 +263,14 @@ async function main() {
       expiresAt: lockHeld ? lockExpires : null,
     },
     tools: {
-      preflight: readJson(path.join(BUSY, 'preflight-latest.json'))?.pass ?? null,
-      shipStage: readJson(path.join(BUSY, 'ship-status.json'))?.stage ?? null,
-      selftest: readJson(path.join(BUSY, 'tools-selftest.json'))?.pass ?? null,
+      preflight: readJson(path.join(dataRoot(), 'DEMIGOD-PREFLIGHT.json'))?.pass ?? null,
+      shipStage: readJson(path.join(dataRoot(), 'DEMIGOD-SHIP-STATUS.json'))?.stage ?? null,
+      selftest: readJson(path.join(dataRoot(), 'DEMIGOD-TOOLS-SELFTEST.json'))?.pass ?? null,
     },
+    path: truthJsonPath(),
+    sent: false,
+    liveMail: false,
+    livePublish: false,
   };
 
   // claims agents must not make without these
@@ -258,8 +281,8 @@ async function main() {
     can_edit_foot: !lockHeld || lockOwner === me,
   };
 
-  fs.mkdirSync(BUSY, { recursive: true });
-  fs.writeFileSync(path.join(BUSY, 'truth.json'), JSON.stringify(facts, null, 2) + '\n');
+  fs.mkdirSync(dataRoot(), { recursive: true });
+  fs.writeFileSync(truthJsonPath(), JSON.stringify(facts, null, 2) + '\n');
 
   const md = [
     `# Demigod TRUTH ${facts.at}`,
@@ -273,7 +296,7 @@ async function main() {
     `- verify:source: ${facts.gates.verifySourcePass}`,
     `- claims.live==disk: ${facts.claims['live==disk']}`,
   ].join('\n');
-  fs.writeFileSync(path.join(BUSY, 'truth.md'), md + '\n');
+  fs.writeFileSync(truthMdPath(), md + '\n');
 
   if (asMd && !process.argv.includes('--json')) {
     console.log(md);
@@ -283,7 +306,7 @@ async function main() {
     console.log(md);
     if (process.argv.includes('--json')) console.log(JSON.stringify(facts, null, 2));
   }
-  console.error(`wrote ${path.join(BUSY, 'truth.json')} ${path.join(BUSY, 'truth.md')}`);
+  console.error(`wrote ${truthJsonPath()} ${truthMdPath()}`);
 
   if (strict && !facts.match.fullyShipped) process.exit(1);
   process.exit(0);

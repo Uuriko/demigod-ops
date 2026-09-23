@@ -33,7 +33,9 @@ export const MOTLEY_HOME_IA_CSS = `
 .method-head,.walk-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:36px;gap:24px}
 .method-h{font-family:'Instrument Serif',Georgia,serif;font-size:42px;line-height:1.06;letter-spacing:-.015em;margin:0;font-weight:400;color:#E4DED2}
 .walk-h{font-family:'Instrument Serif',Georgia,serif;font-size:42px;line-height:1.06;letter-spacing:-.015em;margin:0;font-weight:400;color:#23211D}
-.method-label,.walk-label{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:rgba(228,222,210,.42);white-space:nowrap}
+.method-label,.walk-label{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;white-space:nowrap}
+.method-label{color:rgba(228,222,210,.42)}
+.walk-label{color:#8a8378}
 .method-grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
 .method-card{display:flex;flex-direction:column;gap:10px;padding:0 34px 0 0}
 .method-card + .method-card{padding:0 0 0 34px;border-left:1px solid rgba(228,222,210,.16)}
@@ -67,7 +69,8 @@ export const MOTLEY_HOME_IA_CSS = `
   .triad-head,.uses-head,.faq-head,.method-head,.walk-head{flex-direction:column;gap:12px}
   .triad-grid,.uses-grid,.ia-foot,.method-grid,.walk-beats{grid-template-columns:1fr 1fr}
   .method-card,.walk-beat{padding:22px 0 0;border-left:0}
-  .method-card + .method-card,.walk-beat + .walk-beat{border-left:0;border-top:1px solid rgba(228,222,210,.16);padding:22px 0 0}
+  .method-card + .method-card{border-left:0;border-top:1px solid rgba(228,222,210,.16);padding:22px 0 0}
+  .walk-beat + .walk-beat{border-left:0;border-top:1px solid rgba(35,33,29,.14);padding:22px 0 0}
   .triad-card{padding:22px 0 0;border-left:0}
   .triad-card + .triad-card{border-left:0;border-top:1px solid rgba(35,33,29,.14);padding-top:22px}
   .triad-card:first-child{padding-top:0}

@@ -87,6 +87,19 @@ function id() {
   return `pilot_${Date.now().toString(36)}_${crypto.randomBytes(2).toString('hex')}`;
 }
 
+function findPilot(data, pid) {
+  if (!pid) return null;
+  const exact = data.pilots.find((p) => p.id === pid);
+  if (exact) return exact;
+  const hits = data.pilots.filter((p) => p.id.startsWith(pid));
+  if (hits.length === 1) return hits[0];
+  if (hits.length > 1) {
+    console.error(JSON.stringify({ ok: false, error: 'ambiguous_id', matches: hits.map((h) => h.id) }));
+    process.exit(1);
+  }
+  return null;
+}
+
 function boardHonestyOk() {
   try {
     const board = JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-BOARD.json'), 'utf8'));
@@ -192,7 +205,7 @@ if (cmd === 'set') {
     process.exit(2);
   }
   const data = load();
-  const pilot = data.pilots.find((p) => p.id === pid || p.id.startsWith(pid));
+  const pilot = findPilot(data, pid);
   if (!pilot) {
     console.error(JSON.stringify({ ok: false, error: 'not_found' }));
     process.exit(1);
@@ -220,7 +233,7 @@ if (cmd === 'set') {
 if (cmd === 'show' || cmd === 'checklist') {
   const pid = args[1];
   const data = load();
-  const pilot = data.pilots.find((p) => p.id === pid || (pid && p.id.startsWith(pid)));
+  const pilot = findPilot(data, pid);
   if (!pilot) {
     console.error(JSON.stringify({ ok: false, error: 'not_found' }));
     process.exit(1);

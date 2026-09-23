@@ -1,20 +1,35 @@
 #!/usr/bin/env node
-/** Demigod project status for agents + SuperGrok Heavy. */
+/**
+ * Demigod project status for one data root.
+ * Local audit files stay in that root. This command does not fetch the live site or publish.
+ */
 import fs from 'fs';
 import path from 'path';
-import { ROOT } from './demigod-turn-lib.mjs';
+import { fileURLToPath } from 'url';
 
-const OUT_JSON = path.join(ROOT, 'DEMIGOD-STATUS-REPORT.json');
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-STATUS-REPORT.json');
+}
 
 function readJson(file, fallback = null) {
-  try { return JSON.parse(fs.readFileSync(path.join(ROOT, file), 'utf8')); } catch (_) { return fallback; }
+  try {
+    return JSON.parse(fs.readFileSync(path.join(dataRoot(), file), 'utf8'));
+  } catch {
+    return fallback;
+  }
 }
 
 function footVersion() {
   try {
-    const m = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8').match(/dg-foot-v(\d+)-core/);
+    const m = fs.readFileSync(path.join(dataRoot(), 'demigod-foot-core.js'), 'utf8').match(/dg-foot-v(\d+)-core/);
     return m ? `v${m[1]}` : null;
-  } catch (_) { return null; }
+  } catch {
+    return null;
+  }
 }
 
 export function buildStatusReport() {
@@ -54,19 +69,38 @@ export function buildStatusReport() {
       'Publish Webflow after foot-core / head changes',
       'Incognito form smoke test → hello@trydemigod.com',
     ],
+    sent: false,
+    liveMail: false,
+    livePublish: false,
   };
 
-  fs.writeFileSync(OUT_JSON, JSON.stringify(report, null, 2));
+  fs.writeFileSync(reportPath(), JSON.stringify(report, null, 2) + '\n');
   return report;
 }
 
+function fail(error) {
+  console.error(JSON.stringify({
+    ok: false,
+    error,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+  process.exit(1);
+}
+
 if (process.argv[1]?.endsWith('demigod-status-report.mjs')) {
+  if (process.argv.includes('--publish')) fail('publish_refused');
   const report = buildStatusReport();
   console.log(JSON.stringify({
     ok: true,
-    path: OUT_JSON,
+    path: reportPath(),
     verifyLive: report.live.verifyLivePass,
     verifySource: report.source.verifySourcePass,
     footCore: report.source.footCore,
+    failed: report.source.failed,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
   }));
 }

@@ -1,125 +1,183 @@
 #!/usr/bin/env node
-/** Audit Demigod Webflow designer/preview via CDP — extract issues for Heavy + apply loop. */
+/**
+ * Local designer audit for a planted source in an explicit data root.
+ * Writes DEMIGOD-WEBFLOW-AUDIT.json under DEMIGOD_ROOT. Does not open a designer.
+ */
 import fs from 'fs';
 import path from 'path';
-import puppeteer from 'puppeteer-core';
-import { CDP_URL } from './cdp-config.mjs';
-import { loadDemigodState, saveDemigodState } from './demigod-turn-lib.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const SHOTS = '/home/potter/audit-shots/webflow';
-const OUT_MD = '/home/potter/HEAVY-DEMIGOD-AUDIT.md';
-const OUT_JSON = '/home/potter/HEAVY-DEMIGOD-AUDIT.json';
+const localFlags = {
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+  liveFetch: false,
+  designerOpen: false,
+};
 
-fs.mkdirSync(SHOTS, { recursive: true });
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-WEBFLOW-AUDIT.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'webflow');
+}
 
-const browser = await puppeteer.connect({ browserURL: CDP_URL, protocolTimeout: 120000 });
-const pages = await browser.pages();
-const designer = pages.find((p) => p.url().includes('talentlink-sf.design.webflow.com'));
-if (!designer) throw new Error('open Webflow Demigod designer in CDP Chrome first');
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, pass: false, error, ...localFlags }));
+  process.exit(1);
+}
 
-await designer.bringToFront();
-await designer.setViewport({ width: 1440, height: 900 });
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
+}
 
-const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-const shotPath = path.join(SHOTS, `audit-${stamp}.png`);
-await designer.screenshot({ path: shotPath, fullPage: false });
+function readLocal(root, name) {
+  const file = path.join(root, name);
+  if (!fs.existsSync(file)) return null;
+  return fs.readFileSync(file, 'utf8');
+}
 
-const data = await designer.evaluate(() => {
-  const iframes = [...document.querySelectorAll('iframe')].filter((f) => {
-    try { return f.contentDocument?.body?.innerText?.includes('FORGE'); } catch (_) { return false; }
-  });
-  const main = iframes.find((f) => !f.src?.includes('empty.html')) || iframes[0];
-  const doc = main?.contentDocument;
-  const text = doc?.body?.innerText || '';
-  const html = doc?.body?.innerHTML || '';
-  const allText = iframes.map((f) => {
-    try { return f.contentDocument?.body?.innerText || ''; } catch (_) { return ''; }
-  }).join('\n');
-  const allHtml = iframes.map((f) => {
-    try { return f.contentDocument?.body?.innerHTML || ''; } catch (_) { return ''; }
-  }).join('\n');
-
-  const forms = [...(doc?.querySelectorAll('form') || [])].map((f) => ({
-    name: f.getAttribute('name') || f.id || 'form',
-    fields: [...f.querySelectorAll('input,textarea,select')].map((el) => el.getAttribute('placeholder') || el.name || el.type).filter(Boolean),
-  }));
-
+function signalsFrom(html) {
   return {
-    url: location.href,
-    textLen: text.length,
-    textSample: text.slice(0, 6000),
-    issues: {
-      postJob: /POST A JOB/i.test(text),
-      hireTalent: /HIRE TALENT/i.test(text),
-      talentLink: /TalentLink/i.test(text),
-      helloEmail: /hello@trydemigod/i.test(text),
-      oldEmail: /contact@talentlinksf/i.test(text),
-      footer2026: /2026 Demigod/i.test(text),
-      footer2025: /2025 TalentLink/i.test(text),
-      summonModal: /#startup-modal/i.test(allHtml) || /startup-hire|startup-form/i.test(allHtml),
-      joinModal: /#jobseeker-modal/i.test(allHtml) || /engineer-join|jobseeker-form/i.test(allHtml),
-      pantheonCount: (text.match(/THE PANTHEON OF AGENTS/g) || []).length,
-      findTalent: (text.match(/FIND TALENT/g) || []).length,
-      getJob: (text.match(/GET JOB/g) || []).length,
-      startupAnchor: /#startup-modal/i.test(html),
-      jobseekerAnchor: /#jobseeker-modal/i.test(html),
-      genericEmailForm: /BUSINESS EMAIL/i.test(text),
-    },
-    forms,
-    aiBusy: !!document.querySelector('button')?.textContent?.includes('Stop response'),
+    postJob: /POST A JOB/i.test(html),
+    hireTalent: /HIRE TALENT/i.test(html),
+    talentLink: /TalentLink/i.test(html),
+    helloEmail: /hello@/i.test(html),
+    oldEmail: /contact@talentlinksf/i.test(html),
+    footer2026: /2026 Demigod/i.test(html),
+    footer2025: /2025 TalentLink/i.test(html),
+    summonModal: /#startup-modal/i.test(html) || /startup-hire|startup-form/i.test(html),
+    joinModal: /#jobseeker-modal/i.test(html) || /engineer-join|jobseeker-form/i.test(html),
+    pantheonCount: (html.match(/THE PANTHEON OF AGENTS/g) || []).length,
+    findTalent: (html.match(/FIND TALENT/g) || []).length,
+    getJob: (html.match(/GET JOB/g) || []).length,
+    startupAnchor: /#startup-modal/i.test(html),
+    jobseekerAnchor: /#jobseeker-modal/i.test(html),
+    genericEmailForm: /BUSINESS EMAIL/i.test(html),
   };
-});
+}
 
-const issues = [];
-if (data.issues.postJob) issues.push('Nav still says POST A JOB — should be HIRE TALENT → #startup-modal');
-if (data.issues.talentLink || data.issues.footer2025) issues.push('TalentLink SF branding remains in footer');
-if (data.issues.oldEmail) issues.push('contact@talentlinksf.com not updated to hello@trydemigod.com');
-if (!data.issues.hireTalent) issues.push('Missing HIRE TALENT nav CTA');
-if (!data.issues.helloEmail) issues.push('Missing hello@trydemigod.com');
-if (!data.issues.footer2026) issues.push('Footer not © 2026 Demigod');
-if (data.issues.pantheonCount > 1) issues.push(`Duplicate Pantheon sections (${data.issues.pantheonCount}x)`);
-if (data.issues.genericEmailForm) issues.push('Legacy single-field BUSINESS EMAIL form still on page');
-if (!data.issues.summonModal || !data.issues.joinModal) issues.push('Missing dual application modals');
-if (!data.issues.startupAnchor || !data.issues.jobseekerAnchor) issues.push('CTAs not wired to modal anchors');
+function issuesFrom(signals) {
+  const issues = [];
+  if (signals.postJob) issues.push('post_job');
+  if (signals.talentLink || signals.footer2025) issues.push('old_brand');
+  if (signals.oldEmail) issues.push('old_contact');
+  if (!signals.hireTalent) issues.push('hire_missing');
+  if (!signals.helloEmail) issues.push('contact_missing');
+  if (!signals.footer2026) issues.push('footer_missing');
+  if (signals.pantheonCount > 1) issues.push('pantheon_duplicate');
+  if (signals.genericEmailForm) issues.push('legacy_email_form');
+  if (!signals.summonModal || !signals.joinModal) issues.push('modals_missing');
+  if (!signals.startupAnchor || !signals.jobseekerAnchor) issues.push('anchors_missing');
+  return issues;
+}
 
-const md = `# Demigod Webflow Audit
+function formsFrom(html) {
+  const forms = [];
+  const re = /<form\b[^>]*>[\s\S]*?<\/form>/gi;
+  let match;
+  while ((match = re.exec(html)) !== null) {
+    const block = match[0];
+    const open = block.match(/^<form\b[^>]*>/i);
+    const named = open && open[0].match(/\bname=["']([^"']+)["']/i);
+    const fields = [];
+    const fieldRe = /<(?:input|textarea|select)\b[^>]*>/gi;
+    let field;
+    while ((field = fieldRe.exec(block)) !== null) {
+      const label = field[0].match(/\b(?:name|placeholder)=["']([^"']+)["']/i);
+      if (label) fields.push(label[1]);
+    }
+    forms.push({ name: named ? named[1] : 'form', fields });
+  }
+  return forms;
+}
 
-_Date: ${new Date().toISOString()}_
-_Screenshot: ${shotPath}_
+function main() {
+  if (
+    process.argv.includes('--publish')
+    || process.argv.includes('--push')
+    || process.argv.includes('--designer')
+    || process.argv.includes('--submit')
+  ) {
+    refuse('publish_refused');
+  }
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('webflow_root_required');
+  }
+  const html = readLocal(root, 'demigod-webflow-source.html');
+  const foot = readLocal(root, 'demigod-foot-core.js');
+  if (html == null && foot == null) refuse('source_required');
+  const htmlText = html || '';
+  const footText = foot || '';
+  const footMarker = (footText.match(/Harbor \S+ keep/) || htmlText.match(/Harbor \S+ keep/) || [''])[0];
+  const signals = signalsFrom(htmlText);
+  const issues = issuesFrom(signals);
+  const forms = formsFrom(htmlText);
+  const pass = issues.length === 0;
+  const dir = shotDir();
+  const shot = path.join(dir, 'audit-canvas.shot');
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, shot) || !insideRoot(root, report)) {
+    refuse('webflow_root_required');
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(shot, `${footMarker}\naudit-canvas\n`);
+  const body = {
+    ok: pass,
+    pass,
+    at: new Date().toISOString(),
+    path: report,
+    shotDir: dir,
+    source: 'disk',
+    footMarker,
+    signals,
+    issues,
+    forms,
+    screenshots: [shot],
+    aiBusy: false,
+    ...localFlags,
+  };
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
+  console.log(JSON.stringify({
+    ok: pass,
+    pass,
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    issues: issues.length,
+    hire: signals.hireTalent,
+    join: signals.joinModal,
+    forms: forms.length,
+    designerOpen: false,
+    ...localFlags,
+  }));
+  if (!pass) process.exit(1);
+}
 
-## Issues (${issues.length})
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
 
-${issues.map((i, n) => `${n + 1}. ${i}`).join('\n') || '_No issues detected_'}
-
-## Signals
-
-\`\`\`json
-${JSON.stringify(data.issues, null, 2)}
-\`\`\`
-
-## Forms on page
-
-${data.forms.map((f) => `- **${f.name}**: ${f.fields.slice(0, 8).join(', ')}${f.fields.length > 8 ? '…' : ''}`).join('\n') || '_none_'}
-
-## Page text sample
-
-${data.textSample.slice(0, 3500)}
-`;
-
-fs.writeFileSync(OUT_MD, md);
-const { issues: signals, ...rest } = data;
-fs.writeFileSync(OUT_JSON, JSON.stringify({
-  ...rest,
-  signals,
-  issues,
-  shotPath,
-  at: new Date().toISOString(),
-}, null, 2));
-
-const state = loadDemigodState();
-state.lastAuditIssues = issues.length;
-state.lastAudit = new Date().toISOString();
-saveDemigodState(state);
-
-console.log(JSON.stringify({ issues: issues.length, shotPath, aiBusy: data.aiBusy, lastAuditIssues: state.lastAuditIssues }));
-await browser.disconnect();
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({
+      ok: false,
+      pass: false,
+      error: 'webflow_audit_failed',
+      detail: String(e.message || e),
+      ...localFlags,
+    }));
+    process.exit(1);
+  }
+}

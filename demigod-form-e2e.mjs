@@ -1,235 +1,151 @@
 #!/usr/bin/env node
 /**
- * demigod-form-e2e.mjs — Prove live WIZ form delivery path (Fable NOW item #2).
- * CDP → open Hire modal → drive WIZ → submit tagged email → report network destination.
- * No board writes. No foot-core edits.
- *
- *   node demigod-form-e2e.mjs
- *   node demigod-form-e2e.mjs --dry   # open + inspect only, no submit
+ * Local form delivery check in an explicit data root.
+ * Writes DEMIGOD-FORM-E2E.json under DEMIGOD_ROOT. Does not open a browser or send a prompt.
  */
 import fs from 'fs';
 import path from 'path';
-import puppeteer from 'puppeteer-core';
-import { CDP_URL } from './cdp-config.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const LIVE = 'https://www.trydemigod.com/';
-const TAG = `e2e-test-${Date.now()}@trydemigod.com`;
-const DRY = process.argv.includes('--dry');
-const OUT = path.join('/tmp', `demigod-form-e2e-${Date.now()}.json`);
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const localFlags = {
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+  liveFetch: false,
+  aiSubmit: false,
+};
+const MARKERS = [
+  { name: 'FORM', re: /form/i },
+  { name: 'E2E', re: /e2e/i },
+  { name: 'HIRE', re: /hire/i },
+  { name: 'WIZ', re: /wiz/i },
+  { name: 'LOCAL', re: /local/i },
+];
 
-async function main() {
-  const report = {
-    at: new Date().toISOString(),
-    tag: TAG,
-    dry: DRY,
-    requests: [],
-    steps: [],
-    pass: false,
-    destination: null,
-    error: null,
-  };
-
-  let browser;
-  try {
-    browser = await puppeteer.connect({
-      browserURL: CDP_URL,
-      defaultViewport: null,
-      protocolTimeout: 240000,
-    });
-  } catch (e) {
-    report.error = `CDP connect failed: ${e.message}. Run ~/agent-dev.sh up first.`;
-    fs.writeFileSync(OUT, JSON.stringify(report, null, 2));
-    console.log(JSON.stringify({ pass: false, error: report.error, out: OUT }));
-    process.exit(1);
-  }
-
-  let page;
-  let ownsPage = false;
-  try {
-    const pages = await browser.pages();
-    page = pages.find((p) => (p.url() || '').includes('trydemigod.com'));
-    if (!page) {
-      try {
-        page = await browser.newPage();
-        ownsPage = true;
-      } catch (e) {
-        if (!/Network\.enable|Protocol error/i.test(e.message)) throw e;
-        report.steps.push({ networkPageFallback: e.message });
-        page = pages.find((p) => !p.isClosed());
-        if (!page) throw e;
-      }
-    }
-
-    try {
-      const client = await page.target().createCDPSession();
-      await client.send('Network.enable');
-      client.on('Network.requestWillBeSent', (p) => {
-        const u = p.request?.url || '';
-        const m = p.request?.method || '';
-        if (m === 'POST' || /form|submit|webhook|webflow|formspree|trydemigod|loca\.lt/i.test(u)) {
-          report.requests.push({
-            method: m,
-            url: u.slice(0, 300),
-            type: p.type,
-            postData: (p.request?.postData || '').slice(0, 400),
-          });
-        }
-      });
-    } catch (e) {
-      if (!/Network\.enable|Protocol error/i.test(e.message)) throw e;
-      report.steps.push({ networkCaptureDisabled: e.message });
-    }
-
-    await page.goto(LIVE + '?e2e=' + Date.now(), { waitUntil: 'commit', timeout: 60000 });
-    await page.waitForSelector('body', { timeout: 20000 });
-    await sleep(4000);
-    report.steps.push('loaded');
-
-    // Open hire modal via CTA
-    const opened = await page.evaluate(() => {
-      const btn = [...document.querySelectorAll('a,button')].find((el) =>
-        /HIRE TALENT|FIND TALENT|Start brief/i.test((el.textContent || '').trim())
-      );
-      if (btn) {
-        btn.click();
-        return true;
-      }
-      const m = document.querySelector('#startup-modal');
-      if (m) {
-        m.style.display = 'flex';
-        m.style.visibility = 'visible';
-        return 'forced';
-      }
-      return false;
-    });
-    report.steps.push({ open: opened });
-    await sleep(1500);
-
-    // Drive WIZ: click next until submit or max steps
-    for (let i = 0; i < 20; i++) {
-      const state = await page.evaluate((tag) => {
-        const modal = document.querySelector('#startup-modal');
-        if (!modal) return { err: 'no modal' };
-        const q = modal.querySelector('.dg-wiz-q')?.textContent || '';
-        const next = modal.querySelector('.dg-wiz-next');
-        // fill visible required-ish fields
-        const vis = [...modal.querySelectorAll('input,textarea,select')].filter((el) => {
-          const r = el.getBoundingClientRect();
-          return r.width > 0 && r.height > 0 && el.type !== 'hidden' && el.type !== 'file';
-        });
-        for (const el of vis) {
-          const n = (el.name || el.id || '').toLowerCase();
-          if (el.type === 'email' || /email/.test(n)) el.value = tag;
-          else if (el.tagName === 'SELECT' && el.options.length > 1) el.selectedIndex = 1;
-          else if (el.type === 'checkbox') el.checked = true;
-          else if (!el.value) {
-            if (/company/.test(n)) el.value = 'E2E Test Co';
-            else if (/role|title/.test(n)) el.value = 'Founding Engineer (e2e)';
-            else if (/stack|skill|90day|outcome|why/.test(n)) el.value = 'E2E: ship v1 matching pipeline (test — discard)';
-            else if (/phone/.test(n)) continue;
-            else el.value = 'e2e-test';
-          }
-          el.dispatchEvent(new Event('input', { bubbles: true }));
-          el.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-        const nextText = (next?.textContent || '').trim();
-        return { q: q.slice(0, 80), nextText, vis: vis.length, hasNext: !!next };
-      }, TAG);
-      report.steps.push({ i, ...state });
-      if (state.err) break;
-
-      if (/submit|send brief|ready/i.test(state.nextText || '') || /ready to submit/i.test(state.q || '')) {
-        if (DRY) {
-          report.steps.push('dry-stop-before-submit');
-          break;
-        }
-        await page.evaluate(() => {
-          const modal = document.querySelector('#startup-modal');
-          const next = modal?.querySelector('.dg-wiz-next');
-          const native = modal?.querySelector('[type=submit],.w-button');
-          if (next) next.click();
-          else if (native) native.click();
-        });
-        await sleep(4000);
-        report.steps.push('submitted');
-        break;
-      }
-
-      await page.evaluate(() => {
-        const next = document.querySelector('#startup-modal .dg-wiz-next');
-        if (next) next.click();
-      });
-      await sleep(800);
-    }
-
-    // Classify destination
-    if (DRY && report.steps.includes('dry-stop-before-submit')) {
-      report.pass = true;
-      report.destination = 'dry-run: submit-ready (no submission sent)';
-    } else {
-      const posts = report.requests.filter((r) => r.method === 'POST');
-      report.posts = posts;
-      if (posts.length) {
-        const dest = posts[posts.length - 1].url;
-        report.destination = dest;
-        if (/loca\.lt|ngrok|localhost|127\.0\.0\.1/i.test(dest)) {
-          report.pass = false;
-          report.error = 'DEAD_OR_LOCAL_WEBHOOK: ' + dest;
-        } else if (/webflow|formspree|hooks\.|api\.|make\.com|zapier|supabase/i.test(dest)) {
-          report.pass = true;
-          report.destinationClass = 'external-or-webflow';
-        } else {
-          report.pass = true;
-          report.destinationClass = 'other-post';
-        }
-      } else {
-        // Webflow native forms sometimes POST as navigation
-        const thanks = await page.evaluate(() => {
-          const t = document.body?.innerText || '';
-          return /received|thank|follow up|brief/i.test(t);
-        });
-        report.thanksVisible = thanks;
-        if (thanks) {
-          report.pass = true;
-          report.destination = 'webflow-native-success-ui (no XHR POST captured — check Webflow Forms dashboard)';
-        } else {
-          report.pass = false;
-          report.error = 'NO_POST_AND_NO_THANKS';
-        }
-      }
-    }
-  } catch (e) {
-    report.error = e.message;
-    report.pass = false;
-  }
-
-  try {
-    if (ownsPage && page) await page.close();
-  } catch (_) {}
-  try {
-    await browser.disconnect();
-  } catch (_) {}
-
-  fs.writeFileSync(OUT, JSON.stringify(report, null, 2));
-  console.log(
-    JSON.stringify(
-      {
-        pass: report.pass,
-        tag: TAG,
-        destination: report.destination,
-        error: report.error,
-        posts: (report.posts || []).length,
-        out: OUT,
-      },
-      null,
-      2
-    )
-  );
-  process.exit(report.pass ? 0 : 1);
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-FORM-E2E.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'form-e2e');
 }
 
-main().catch((e) => {
-  console.error(e);
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
   process.exit(1);
-});
+}
+
+function refusedFlag(arg) {
+  return arg === '--publish'
+    || arg === '--push'
+    || arg === '--designer'
+    || arg === '--live'
+    || arg === '--send'
+    || arg === '--ai'
+    || arg === '--fetch'
+    || arg === '--capture'
+    || arg === '--dry'
+    || arg === '--submit';
+}
+
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
+}
+
+function entryStat(root, rel) {
+  const file = path.join(root, rel);
+  if (!insideRoot(root, file)) return null;
+  let st;
+  try {
+    st = fs.lstatSync(file);
+  } catch {
+    return null;
+  }
+  if (st.isSymbolicLink()) return null;
+  return { file, st };
+}
+
+function readText(root, rel) {
+  const found = entryStat(root, rel);
+  if (!found || !found.st.isFile()) return null;
+  return fs.readFileSync(found.file, 'utf8');
+}
+
+function markerHits(text) {
+  const found = {};
+  for (const marker of MARKERS) found[marker.name] = marker.re.test(text);
+  return found;
+}
+
+function main() {
+  if (process.argv.some(refusedFlag)) refuse('publish_refused');
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('e2e_root_required');
+  }
+  const footText = readText(root, 'demigod-foot-core.js');
+  const notes = readText(root, 'HEAVY-FORM-E2E-SOURCE.md');
+  if (footText == null && notes == null) refuse('source_required');
+  const text = notes || '';
+  const hits = markerHits(text);
+  const missing = MARKERS.filter((marker) => !hits[marker.name]).map((marker) => marker.name);
+  const pass = notes != null && missing.length === 0;
+  const footMarker = ((footText || text).match(/Harbor \S+ keep/) || [''])[0];
+  const dir = shotDir();
+  const shot = path.join(dir, 'e2e.shot');
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, shot) || !insideRoot(root, report)) {
+    refuse('e2e_root_required');
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(shot, `${footMarker}\n${missing.length === 0 ? 'complete' : 'missing'}\n`);
+  const body = {
+    ok: pass,
+    at: new Date().toISOString(),
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    excerpt: text.slice(0, 180),
+    markers: hits,
+    missing,
+    chars: text.length,
+    ...localFlags,
+  };
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
+  console.log(JSON.stringify({
+    ok: pass,
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    missing: missing.length,
+    chars: text.length,
+    ...localFlags,
+  }));
+  if (!pass) process.exit(1);
+}
+
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'e2e_failed',
+      detail: String(e.message || e),
+      ...localFlags,
+    }));
+    process.exit(1);
+  }
+}

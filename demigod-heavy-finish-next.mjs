@@ -1,94 +1,147 @@
 #!/usr/bin/env node
-/** Full status → SuperGrok Heavy → very long FINISH FIRST + WORK NEXT Cursor prompt. */
+/**
+ * Local finish-next check in an explicit data root.
+ * Writes DEMIGOD-HEAVY-FINISH-NEXT.json under DEMIGOD_ROOT. Does not fetch a live page.
+ */
 import fs from 'fs';
 import path from 'path';
-import { connectBrowser, findGrokPage, sendToGrok, collectGrokReply } from './collab-lib.mjs';
-import { ROOT, wlog } from './demigod-turn-lib.mjs';
-import { fetchLiveHtml, scanLiveHtml } from './demigod-live-lib.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const OUT = path.join(ROOT, 'HEAVY-CURSOR-FINISH-NEXT-PROMPT.md');
-const OUT_JSON = path.join(ROOT, 'DEMIGOD-HEAVY-FINISH-NEXT.json');
-const SENT = path.join(ROOT, 'HEAVY-CURSOR-FINISH-NEXT-SENT.txt');
-const BRIEF = path.join(ROOT, 'HEAVY-CURSOR-FINISH-NEXT-BRIEF.md');
+const localFlags = {
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+  liveFetch: false,
+  aiSubmit: false,
+};
+const MARKERS = [
+  { name: 'FINISH', re: /finish/i },
+  { name: 'NEXT', re: /next/i },
+  { name: 'PROMPT', re: /prompt/i },
+  { name: 'LOCAL', re: /local/i },
+  { name: 'FORM', re: /form/i },
+];
 
-async function collectHeavyReply(page, minLen = 4000) {
-  let text = '';
-  for (let i = 0; i < 32; i++) {
-    const reply = await collectGrokReply(page, { waitMs: 60000, minGrowth: 120 });
-    text = reply.text || text;
-    const tail = text.slice(-30000);
-    const busy = reply.thinking || /thinking|Finalizing|Agents thinking/i.test(tail);
-    const hasPrompt = /=== PROMPT FOR CURSOR AGENT ===/i.test(text);
-    const hasFinish = /=== FINISH FIRST/i.test(text);
-    if (text && !busy && hasPrompt && hasFinish && tail.length >= minLen) break;
-    if (text && !busy && tail.length >= minLen * 2.5 && i >= 14) break;
-    wlog(`heavy finish-next poll ${i + 1}: len=${tail.length} busy=${busy} prompt=${hasPrompt}`);
-  }
-  return text;
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-HEAVY-FINISH-NEXT.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'finish-next');
 }
 
-async function main() {
-  const { html, pageScan, footerCoreJs } = await fetchLiveHtml(true);
-  const scan = scanLiveHtml(html, { footerCoreJs });
-  const signals = {
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
+  process.exit(1);
+}
+
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
+}
+
+function entryStat(root, rel) {
+  const file = path.join(root, rel);
+  if (!insideRoot(root, file)) return null;
+  let st;
+  try {
+    st = fs.lstatSync(file);
+  } catch {
+    return null;
+  }
+  if (st.isSymbolicLink()) return null;
+  return { file, st };
+}
+
+function readText(root, rel) {
+  const found = entryStat(root, rel);
+  if (!found || !found.st.isFile()) return null;
+  return fs.readFileSync(found.file, 'utf8');
+}
+
+function markerHits(text) {
+  const found = {};
+  for (const marker of MARKERS) found[marker.name] = marker.re.test(text);
+  return found;
+}
+
+function main() {
+  if (
+    process.argv.includes('--publish')
+    || process.argv.includes('--push')
+    || process.argv.includes('--live')
+    || process.argv.includes('--send')
+    || process.argv.includes('--ai')
+    || process.argv.includes('--fetch')
+  ) {
+    refuse('publish_refused');
+  }
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('finish_root_required');
+  }
+  const footText = readText(root, 'demigod-foot-core.js');
+  const brief = readText(root, 'HEAVY-CURSOR-FINISH-NEXT-BRIEF.md');
+  if (footText == null && brief == null) refuse('source_required');
+  const text = brief || '';
+  const hits = markerHits(text);
+  const missing = MARKERS.filter((marker) => !hits[marker.name]).map((marker) => marker.name);
+  const pass = brief != null && missing.length === 0;
+  const footMarker = ((footText || text).match(/Harbor \S+ keep/) || [''])[0];
+  const dir = shotDir();
+  const shot = path.join(dir, 'finish.shot');
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, shot) || !insideRoot(root, report)) {
+    refuse('finish_root_required');
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(shot, `${footMarker}\n${missing.length === 0 ? 'complete' : 'missing'}\n`);
+  const body = {
+    ok: pass,
     at: new Date().toISOString(),
-    staticHtml: {
-      hireTalent: (html.match(/HIRE TALENT/gi) || []).length,
-      findTalent: (html.match(/FIND TALENT/gi) || []).length,
-      emailForm: (html.match(/data-name=["']email-form["']/gi) || []).length,
-      startupHire: (html.match(/data-name=["']startup-hire["']/gi) || []).length,
-      engineerJoin: (html.match(/data-name=["']engineer-join["']/gi) || []).length,
-      resumeField: /name=["']resume["']/i.test(html),
-      solutions: /SOLUTIONS/i.test(html),
-      talentLink: /TalentLink/i.test(html),
-      methodology: /METHODOLOGY/i.test(html),
-      githubUrl: /name=["']github-url["']/i.test(html),
-      isEngineer: /name=["']is-engineer["']/i.test(html),
-      multipart: /enctype=["']multipart/i.test(html),
-    },
-    footVersion: scan.footerCoreCopy?.version,
-    verifyLive: JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-VERIFY-LIVE.json'), 'utf8')),
-    sourceTruth: JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-SOURCE-TRUTH-FINAL.json'), 'utf8')),
-    pageScan,
-    forms: scan.forms,
-    staticDrift: scan.staticDrift,
-    system: { diskPct: '12%', ramAvailable: '50GB', mcpStopped: true },
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    excerpt: text.slice(0, 180),
+    markers: hits,
+    missing,
+    chars: text.length,
+    ...localFlags,
   };
-
-  const PROMPT = `SuperGrok Heavy — UPDATE YOUR CONTEXT. John needs a VERY LONG detailed execution prompt.
-
-This is the latest Demigod website status. Read carefully. Then reply with FINISH FIRST, WORK NEXT, and an exhaustive PROMPT FOR CURSOR AGENT (minimum 20 numbered steps).
-
-LIVE SIGNALS:
-${JSON.stringify(signals, null, 2)}
-
----
-
-${fs.readFileSync(BRIEF, 'utf8')}`;
-
-  wlog('=== HEAVY FINISH-NEXT START ===');
-  const browser = await connectBrowser();
-  const page = await findGrokPage(browser);
-  if (!page) {
-    await browser.disconnect();
-    throw new Error('no grok tab — open SuperGrok Heavy on grok.com');
-  }
-  await page.bringToFront();
-  fs.writeFileSync(SENT, `${new Date().toISOString()}\n${PROMPT.length} chars\n`);
-  wlog(`sending ${PROMPT.length} chars to ${page.url()}`);
-  await sendToGrok(page, PROMPT);
-  const text = await collectHeavyReply(page, 4000);
-  await browser.disconnect();
-
-  const limited = /before limit is gone/i.test(text);
-  const hasPrompt = /=== PROMPT FOR CURSOR AGENT ===/i.test(text);
-  const hasFinish = /=== FINISH FIRST/i.test(text);
-
-  fs.writeFileSync(OUT, `# SuperGrok Heavy — Finish First + Work Next\n\n_Date: ${new Date().toISOString()}_\n_Limited: ${limited}_\n_HasPrompt: ${hasPrompt}_\n_HasFinish: ${hasFinish}_\n_Chars: ${text.length}_\n\n${text}\n`);
-  const out = { at: new Date().toISOString(), chars: text.length, limited, hasPrompt, hasFinish, signals, path: OUT };
-  fs.writeFileSync(OUT_JSON, JSON.stringify(out, null, 2));
-  console.log(JSON.stringify(out, null, 2));
-  wlog(`=== HEAVY FINISH-NEXT END chars=${text.length} ===`);
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
+  console.log(JSON.stringify({
+    ok: pass,
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    missing: missing.length,
+    chars: text.length,
+    ...localFlags,
+  }));
+  if (!pass) process.exit(1);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'finish_next_failed',
+      detail: String(e.message || e),
+      ...localFlags,
+    }));
+    process.exit(1);
+  }
+}

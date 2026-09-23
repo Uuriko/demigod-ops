@@ -1,91 +1,149 @@
 #!/usr/bin/env node
-/** Canvas bloat delete only — no Tally, no mythic inject. */
+/**
+ * Local canvas simplify check in an explicit data root.
+ * Writes DEMIGOD-CANVAS-SIMPLIFY.json under DEMIGOD_ROOT. Does not open a browser or send a prompt.
+ */
 import fs from 'fs';
 import path from 'path';
-import { connectBrowser } from './collab-lib.mjs';
-import {
-  ROOT,
-  wlog,
-  sleep,
-  prepareWebflowDesigner,
-  captureDemigodScreenshots,
-  WEBFLOW_DESIGNER_URL,
-} from './demigod-turn-lib.mjs';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const OUT = path.join(ROOT, 'DEMIGOD-CANVAS-SIMPLIFY.json');
+const localFlags = {
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+  liveFetch: false,
+  aiSubmit: false,
+};
+const MARKERS = [
+  { name: 'CANVAS', re: /canvas/i },
+  { name: 'SIMPLIFY', re: /simplify/i },
+  { name: 'METHODOLOGY', re: /methodology/i },
+  { name: 'NAV', re: /nav/i },
+  { name: 'LOCAL', re: /local/i },
+];
 
-async function patchCanvas(page) {
-  return page.evaluate(() => {
-    let doc = null;
-    for (const iframe of document.querySelectorAll('iframe')) {
-      try {
-        const d = iframe.contentDocument;
-        if (d && iframe.clientWidth >= 500) { doc = d; break; }
-      } catch (_) { /* ignore */ }
-    }
-    if (!doc) return { ok: false, reason: 'no canvas iframe' };
-
-    const changes = [];
-    const removeIf = (re, label) => {
-      for (const el of [...doc.querySelectorAll('section,div,article')]) {
-        const t = (el.textContent || '').trim();
-        if (!re.test(t) || t.length < 40 || t.length > 12000) continue;
-        if (el.closest('#startup-modal,#jobseeker-modal')) continue;
-        el.remove();
-        changes.push(`del:${label}`);
-      }
-    };
-
-    removeIf(/THE METHODOLOGY|METHODOLOGY\s*0?1/i, 'methodology');
-    removeIf(/CURATED INSIGHTS/i, 'curated');
-    removeIf(/HIRING MADE SIMPLE|FREQUENTLY ASKED/i, 'faq');
-    removeIf(/GET IN TOUCH|415-555|101 Web Lane/i, 'fake-contact');
-    removeIf(/ATHENA[\s\S]{0,300}HEPHAESTUS|THE PANTHEON OF AGENTS/i, 'pantheon');
-    removeIf(/SYNDICATE SUBSCRIPTION|\$5,?000|\$5K\/MO/i, 'old-pricing');
-
-    for (const a of [...doc.querySelectorAll('nav a,.w-nav a')]) {
-      const t = (a.textContent || '').trim();
-      if (/^(SOLUTIONS|ABOUT|BLOG|SUPPORT)$/i.test(t)) {
-        (a.closest('li,.w-dropdown,div') || a).remove();
-        changes.push(`nav-rm:${t}`);
-      }
-    }
-
-    return { ok: changes.length > 0, changes: [...new Set(changes)] };
-  });
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || '';
+}
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-CANVAS-SIMPLIFY.json');
+}
+function shotDir() {
+  return path.join(dataRoot(), 'audit-shots', 'canvas-simplify');
 }
 
-async function savePublish(page) {
-  await page.keyboard.down('Control');
-  await page.keyboard.press('s');
-  await page.keyboard.up('Control');
-  await sleep(800);
-  await page.evaluate(() => {
-    [...document.querySelectorAll('button')].find((b) => /^publish$/i.test((b.textContent || '').trim()))?.click();
-  });
-  await sleep(2500);
-  await page.evaluate(() => {
-    [...document.querySelectorAll('button')].find((b) => /publish to selected|publish site/i.test(b.textContent || ''))?.click();
-  });
-  await sleep(12000);
+function refuse(error) {
+  console.error(JSON.stringify({ ok: false, error, ...localFlags }));
+  process.exit(1);
 }
 
-async function main() {
-  wlog('=== CANVAS SIMPLIFY START ===');
-  const browser = await connectBrowser();
-  const { page } = await prepareWebflowDesigner(browser, { url: WEBFLOW_DESIGNER_URL });
-  await page.evaluate(() => {
-    [...document.querySelectorAll('button')].find((b) => (b.textContent || '').trim() === 'Demigod')?.click();
-  });
-  await sleep(800);
-  const patch = await patchCanvas(page);
-  wlog(`canvas: ${JSON.stringify(patch)}`);
-  await captureDemigodScreenshots('canvas-simplify');
-  if (patch.ok) await savePublish(page);
-  await browser.disconnect();
-  fs.writeFileSync(OUT, JSON.stringify({ at: new Date().toISOString(), patch, published: patch.ok }, null, 2));
-  console.log(JSON.stringify({ ok: patch.ok, changes: patch.changes, out: OUT }));
-  wlog('=== CANVAS SIMPLIFY END ===');
+function insideRoot(root, file) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(file);
+  return resolved === base || resolved.startsWith(base + path.sep);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+function entryStat(root, rel) {
+  const file = path.join(root, rel);
+  if (!insideRoot(root, file)) return null;
+  let st;
+  try {
+    st = fs.lstatSync(file);
+  } catch {
+    return null;
+  }
+  if (st.isSymbolicLink()) return null;
+  return { file, st };
+}
+
+function readText(root, rel) {
+  const found = entryStat(root, rel);
+  if (!found || !found.st.isFile()) return null;
+  return fs.readFileSync(found.file, 'utf8');
+}
+
+function markerHits(text) {
+  const found = {};
+  for (const marker of MARKERS) found[marker.name] = marker.re.test(text);
+  return found;
+}
+
+function main() {
+  if (
+    process.argv.includes('--publish')
+    || process.argv.includes('--push')
+    || process.argv.includes('--designer')
+    || process.argv.includes('--live')
+    || process.argv.includes('--send')
+    || process.argv.includes('--ai')
+    || process.argv.includes('--fetch')
+    || process.argv.includes('--capture')
+  ) {
+    refuse('publish_refused');
+  }
+  const root = dataRoot();
+  if (!root || path.resolve(root) === '/home/potter' || path.resolve(root) === path.resolve(scriptDir())) {
+    refuse('canvas_root_required');
+  }
+  const footText = readText(root, 'demigod-foot-core.js');
+  const notes = readText(root, 'HEAVY-CANVAS-SIMPLIFY-SOURCE.md');
+  if (footText == null && notes == null) refuse('source_required');
+  const text = notes || '';
+  const hits = markerHits(text);
+  const missing = MARKERS.filter((marker) => !hits[marker.name]).map((marker) => marker.name);
+  const pass = notes != null && missing.length === 0;
+  const footMarker = ((footText || text).match(/Harbor \S+ keep/) || [''])[0];
+  const dir = shotDir();
+  const shot = path.join(dir, 'simplify.shot');
+  const report = reportPath();
+  if (!insideRoot(root, dir) || !insideRoot(root, shot) || !insideRoot(root, report)) {
+    refuse('canvas_root_required');
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(shot, `${footMarker}\n${missing.length === 0 ? 'complete' : 'missing'}\n`);
+  const body = {
+    ok: pass,
+    at: new Date().toISOString(),
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    excerpt: text.slice(0, 180),
+    markers: hits,
+    missing,
+    chars: text.length,
+    ...localFlags,
+  };
+  fs.writeFileSync(report, JSON.stringify(body, null, 2));
+  console.log(JSON.stringify({
+    ok: pass,
+    path: report,
+    shot,
+    source: 'disk',
+    footMarker,
+    missing: missing.length,
+    chars: text.length,
+    ...localFlags,
+  }));
+  if (!pass) process.exit(1);
+}
+
+const isMain =
+  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMain) {
+  try {
+    main();
+  } catch (e) {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'canvas_failed',
+      detail: String(e.message || e),
+      ...localFlags,
+    }));
+    process.exit(1);
+  }
+}

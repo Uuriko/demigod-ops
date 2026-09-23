@@ -1,127 +1,134 @@
 #!/usr/bin/env node
-/** Log real intros/placements → proof ledger + tweet template. No fake entries without --force. */
+/**
+ * Record a named intro proof in that data root.
+ * Does not publish, send mail, or post the local draft.
+ *
+ * Usage: node demigod-proof-logger.mjs --intro "Harbor East intro" --detail "2 interviews booked"
+ */
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { spawnSync } from 'child_process';
-import { ROOT } from './demigod-turn-lib.mjs';
-import { loadBoard, saveBoard, BOARD_PATH } from './demigod-submissions-lib.mjs';
+import { fileURLToPath } from 'url';
 
-const PROOF_LOG = path.join(ROOT, 'DEMIGOD-PROOF-LOG.json');
-const EMBED = path.join(ROOT, 'DEMIGOD-PROOF-EMBED.json');
-const ASSETS = path.join(ROOT, 'demigod-outreach', 'proof-assets');
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function proofLogPath() {
+  return path.join(dataRoot(), 'DEMIGOD-PROOF-LOG.json');
+}
+
+function embedPath() {
+  return path.join(dataRoot(), 'DEMIGOD-PROOF-EMBED.json');
+}
+
+function assetsDir() {
+  return path.join(dataRoot(), 'demigod-outreach', 'proof-assets');
+}
+
+function fail(error) {
+  console.error(JSON.stringify({
+    ok: false,
+    error,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+    posted: false,
+  }));
+  process.exit(1);
+}
 
 function parseArgs(argv) {
-  const out = { intro: '', detail: '', type: 'strong_intro', force: false, publish: false };
+  const out = { intro: '', detail: '', type: 'strong_intro', force: false, publish: false, proof: '' };
   for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (a === '--intro' && argv[i + 1]) { out.intro = argv[++i]; continue; }
-    if (a === '--detail' && argv[i + 1]) { out.detail = argv[++i]; continue; }
-    if (a === '--type' && argv[i + 1]) { out.type = argv[++i]; continue; }
-    if (a === '--proof' && argv[i + 1]) { out.proof = path.resolve(argv[++i]); continue; }
-    if (a === '--force') out.force = true;
-    if (a === '--publish') out.publish = true;
+    const arg = argv[i];
+    if (arg === '--intro' && argv[i + 1]) out.intro = argv[++i];
+    else if (arg.startsWith('--intro=')) out.intro = arg.slice(8);
+    else if (arg === '--detail' && argv[i + 1]) out.detail = argv[++i];
+    else if (arg.startsWith('--detail=')) out.detail = arg.slice(9);
+    else if (arg === '--type' && argv[i + 1]) out.type = argv[++i];
+    else if (arg.startsWith('--type=')) out.type = arg.slice(7);
+    else if (arg === '--proof' && argv[i + 1]) out.proof = argv[++i];
+    else if (arg.startsWith('--proof=')) out.proof = arg.slice(8);
+    else if (arg === '--force') out.force = true;
+    else if (arg === '--publish') out.publish = true;
   }
   return out;
 }
 
 function loadLog() {
   try {
-    return JSON.parse(fs.readFileSync(PROOF_LOG, 'utf8'));
+    const parsed = JSON.parse(fs.readFileSync(proofLogPath(), 'utf8'));
+    return Array.isArray(parsed.entries) ? parsed : { entries: [] };
   } catch {
     return { entries: [] };
   }
 }
 
 function tweetTemplate(entry) {
-  const lines = [
+  return [
     `SF startup hiring update — ${entry.intro}`,
     entry.detail ? entry.detail : 'Human-matched intro, no marketplace spam.',
     '',
     'Human-matched SF startup talent → trydemigod.com',
     '10% on hire only · hello@trydemigod.com',
-  ];
-  return lines.join('\n');
-}
-
-function toMatchRow(entry) {
-  return [entry.intro, entry.detail || (entry.type === 'placement' ? 'Placed' : 'Strong intro')];
+    '',
+  ].join('\n');
 }
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
-  if (!args.intro?.trim()) {
-    console.error(JSON.stringify({
-      ok: false,
-      usage: 'npm run demigod:log:proof -- --intro "Backend eng → Seed AI co" --detail "2 interviews booked in 47min" [--proof screenshot.png] [--publish]',
-    }));
-    process.exit(1);
-  }
-
-  if (!args.force && /dummy|fake|test|shadow|placeholder/i.test(`${args.intro} ${args.detail}`)) {
-    console.error(JSON.stringify({
-      ok: false,
-      error: 'Refusing fake-looking entry. Log real intros only, or pass --force if intentional.',
-    }));
-    process.exit(1);
-  }
+  if (args.publish) fail('publish_refused');
+  const intro = String(args.intro || '').trim();
+  if (!intro) fail('intro_required');
+  const detail = String(args.detail || '').trim();
+  if (!args.force && /dummy|fake|test|shadow|placeholder/i.test(`${intro} ${detail}`)) fail('intro_refused');
 
   const id = `proof-${crypto.randomBytes(4).toString('hex')}`;
   const entry = {
     id,
     at: new Date().toISOString(),
-    type: args.type,
-    intro: args.intro.trim(),
-    detail: (args.detail || '').trim(),
+    type: args.type || 'strong_intro',
+    intro,
+    detail,
     proofFile: null,
   };
 
-  fs.mkdirSync(ASSETS, { recursive: true });
+  fs.mkdirSync(assetsDir(), { recursive: true });
   if (args.proof && fs.existsSync(args.proof)) {
     const ext = path.extname(args.proof) || '.png';
-    const dest = path.join(ASSETS, `${id}${ext}`);
+    const dest = path.join(assetsDir(), `${id}${ext}`);
     fs.copyFileSync(args.proof, dest);
-    entry.proofFile = path.relative(ROOT, dest);
+    entry.proofFile = path.relative(dataRoot(), dest);
   }
 
   const log = loadLog();
   log.entries = (log.entries || []).slice(-99);
   log.entries.push(entry);
-  fs.writeFileSync(PROOF_LOG, JSON.stringify(log, null, 2));
-
-  const embed = {
+  fs.writeFileSync(proofLogPath(), JSON.stringify(log, null, 2) + '\n');
+  fs.writeFileSync(embedPath(), JSON.stringify({
     at: entry.at,
-    matchRows: log.entries.slice(-3).map(toMatchRow),
+    matchRows: log.entries.slice(-3).map((row) => [row.intro, row.detail || row.type]),
     count: log.entries.length,
-  };
-  fs.writeFileSync(EMBED, JSON.stringify(embed, null, 2));
-
-  const tweet = tweetTemplate(entry);
-  const tweetPath = path.join(ASSETS, `${id}-tweet.txt`);
-  fs.writeFileSync(tweetPath, tweet);
-
-  let boardNote = null;
-  if (args.publish) {
-    const board = loadBoard();
-    board.proofs = board.proofs || [];
-    board.proofs.unshift({ id, intro: entry.intro, detail: entry.detail, at: entry.at });
-    board.proofs = board.proofs.slice(0, 6);
-    saveBoard(board, { reason: 'proof-logger', actor: process.env.USER || 'proof-logger' });
-    const pub = spawnSync('node', ['demigod-board-publish.mjs'], { cwd: ROOT, encoding: 'utf8', timeout: 90_000 });
-    boardNote = pub.status === 0 ? 'board_published' : `board_publish_failed:${pub.status}`;
-  }
+    posted: false,
+  }, null, 2) + '\n');
+  const tweetPath = path.join(assetsDir(), `${id}-tweet.txt`);
+  fs.writeFileSync(tweetPath, tweetTemplate(entry));
 
   console.log(JSON.stringify({
     ok: true,
     id,
-    entry,
-    proofLog: path.relative(ROOT, PROOF_LOG),
-    embed: path.relative(ROOT, EMBED),
-    tweetFile: path.relative(ROOT, tweetPath),
-    tweetPreview: tweet.split('\n').slice(0, 3).join(' · '),
-    boardNote,
-    next: 'Copy tweet from proof-assets/*-tweet.txt when ready to post',
-  }, null, 2));
+    intro,
+    detail,
+    count: log.entries.length,
+    path: proofLogPath(),
+    tweetFile: tweetPath,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+    posted: false,
+  }));
 }
 
-main();
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) main();

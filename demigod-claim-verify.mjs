@@ -18,15 +18,29 @@ import {
   sha256File,
   parseFirstJson,
   runNode,
-  ensureBusy,
   flag,
   opt,
 } from './demigod-agent-tools-lib.mjs';
 
-const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || scriptDir();
+}
+
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-CLAIM-VERIFY.json');
+}
+
+function ledgerPath() {
+  return path.join(dataRoot(), 'docs', 'receipts', 'CLAIM-VERIFY-LOG.jsonl');
+}
+
+const ROOT = dataRoot();
 const FOOT = path.join(ROOT, 'demigod-foot-core.js');
 const LIVE = process.env.DEMIGOD_LIVE || 'https://www.trydemigod.com';
-const LEDGER = path.join(ROOT, 'docs', 'receipts', 'CLAIM-VERIFY-LOG.jsonl');
 
 const args = process.argv.slice(2);
 const checks = [];
@@ -97,6 +111,18 @@ function wantsBoard(claim) {
 }
 
 async function main() {
+  if (flag(args, '--publish')) {
+    console.error(JSON.stringify({
+      ok: false,
+      pass: false,
+      error: 'publish_refused',
+      sent: false,
+      liveMail: false,
+      livePublish: false,
+    }));
+    process.exit(1);
+  }
+
   const claim = claimText();
   const specific = hasSpecificClaim(claim);
 
@@ -239,16 +265,16 @@ async function main() {
     pass,
     checks,
     summary: pass ? 'PASS — claim re-checked' : 'FAIL — do not certify fixed',
+    path: reportPath(),
+    sent: false,
+    liveMail: false,
+    livePublish: false,
   };
 
-  try {
-    fs.mkdirSync(path.dirname(LEDGER), { recursive: true });
-    fs.appendFileSync(LEDGER, JSON.stringify(result) + '\n');
-    ensureBusy();
-    fs.writeFileSync(path.join(BUSY, 'claim-verify-latest.json'), JSON.stringify(result, null, 2));
-  } catch {
-    /* */
-  }
+  fs.mkdirSync(path.dirname(ledgerPath()), { recursive: true });
+  fs.appendFileSync(ledgerPath(), JSON.stringify(result) + '\n');
+  fs.mkdirSync(dataRoot(), { recursive: true });
+  fs.writeFileSync(reportPath(), JSON.stringify(result, null, 2) + '\n');
 
   console.log(JSON.stringify(result, null, 2));
   process.exit(pass ? 0 : 1);

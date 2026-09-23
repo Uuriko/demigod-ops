@@ -6,7 +6,7 @@
  * Usage:
  *   node demigod-reply-check.mjs              # write report from last gmail dump if present
  *   node demigod-reply-check.mjs --stdin      # parse JSON threads from stdin (agent paste)
- *   node demigod-reply-check.mjs --scan-local # scan demigod-ops + dm-send-log only
+ *   node demigod-reply-check.mjs --scan-local # count the data-root dm-send-log only
  *
  * Agent path (preferred): use Gmail MCP gmail__search then pipe or save JSON, e.g.
  *   gmail__search query: '(to:jjohnpotter@gmail.com OR to:hello@trydemigod.com) (subject:form OR demigod OR brief) newer_than:14d'
@@ -16,17 +16,21 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const OUTREACH = [
-  path.join(__dirname, 'demigod-outreach'),
-  '/home/potter/demigod-outreach',
-].find((d) => fs.existsSync(d));
-const OPS = [
-  path.join(__dirname, 'demigod-ops'),
-  '/home/potter/demigod-ops',
-].find((d) => fs.existsSync(d));
-const REPORT = '/tmp/demigod-reply-check-latest.md';
-const JSON_OUT = '/tmp/demigod-reply-check-latest.json';
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function sendLogPath() {
+  return path.join(dataRoot(), 'demigod-outreach', 'dm-send-log.txt');
+}
+
+function reportMdPath() {
+  return path.join(dataRoot(), 'DEMIGOD-REPLY-CHECK.md');
+}
+
+function reportJsonPath() {
+  return path.join(dataRoot(), 'DEMIGOD-REPLY-CHECK.json');
+}
 
 const TEST_RE =
   /founder@test\.co|alex@test\.com|Acme Labs|Alex Chen|noreply@x\.ai|Test is ready/i;
@@ -88,22 +92,29 @@ function classify(m) {
   return 'human-inbound';
 }
 
-function localNotes() {
-  const notes = [];
-  const sendLog = path.join(OUTREACH, 'dm-send-log.txt');
-  if (fs.existsSync(sendLog)) {
-    const lines = fs
-      .readFileSync(sendLog, 'utf8')
-      .split(/\n/)
-      .map((l) => l.trim())
-      .filter((l) => l && !l.startsWith('#'));
-    const confirmed = lines.filter((l) => /SENT-CONFIRMED/i.test(l));
-    notes.push(`dm-send-log SENT-CONFIRMED: ${confirmed.length}`);
+function confirmedRows() {
+  const sendLog = sendLogPath();
+  if (!fs.existsSync(sendLog)) return [];
+  return fs
+    .readFileSync(sendLog, 'utf8')
+    .split(/\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#') && /SENT-CONFIRMED/i.test(line))
+    .map((line) => {
+      const parts = line.split('|').map((part) => part.trim());
+      return { company: parts[3] || '', handle: parts[2] || '', line };
+    });
+}
+
+function localNotes(confirmed) {
+  const notes = [`dm-send-log SENT-CONFIRMED: ${confirmed.length}`];
+  for (const row of confirmed) {
+    if (row.company) notes.push(`confirmed company: ${row.company}`);
   }
-  const pilot = path.join(OPS || '', 'PILOT-LOG.md');
+  const pilot = path.join(dataRoot(), 'PILOT-LOG.md');
   if (fs.existsSync(pilot)) {
-    const t = fs.readFileSync(pilot, 'utf8');
-    notes.push(`PILOT-LOG has active pipeline: ${/waiting first brief|P0/i.test(t)}`);
+    const text = fs.readFileSync(pilot, 'utf8');
+    notes.push(`PILOT-LOG has active pipeline: ${/waiting first brief|P0/i.test(text)}`);
   }
   return notes;
 }
@@ -120,12 +131,13 @@ function main() {
 
   const human = by['human-inbound'] || [];
   const realForms = by['webflow-form'] || [];
+  const confirmed = confirmedRows();
   const lines = [];
   lines.push('# Demigod reply-check report');
   lines.push(`**at:** ${new Date().toISOString()}`);
   lines.push('');
   lines.push('## Local');
-  for (const n of localNotes()) lines.push(`- ${n}`);
+  for (const n of localNotes(confirmed)) lines.push(`- ${n}`);
   lines.push('');
   lines.push('## Gmail scan');
   if (!payload) {
@@ -169,25 +181,28 @@ function main() {
   lines.push('4. Ignore Acme Labs / Alex Chen / noreply@x.ai test noise');
 
   const md = lines.join('\n') + '\n';
-  fs.writeFileSync(REPORT, md);
-  fs.writeFileSync(
-    JSON_OUT,
-    JSON.stringify(
-      {
-        at: new Date().toISOString(),
-        scanned: msgs.length,
-        human: human.length,
-        realForms: realForms.length,
-        test: (by.test?.length || 0) + (by['test-form']?.length || 0),
-        humanSamples: human.slice(0, 5),
-        report: REPORT,
-      },
-      null,
-      2
-    )
-  );
+  const reportMd = reportMdPath();
+  const reportJson = reportJsonPath();
+  fs.mkdirSync(dataRoot(), { recursive: true });
+  const summary = {
+    ok: true,
+    at: new Date().toISOString(),
+    scanned: msgs.length,
+    human: human.length,
+    realForms: realForms.length,
+    confirmed: confirmed.length,
+    companies: confirmed.map((row) => row.company).filter(Boolean),
+    humanSamples: human.slice(0, 5),
+    report: reportMd,
+    sent: false,
+    liveMail: false,
+  };
+  fs.writeFileSync(reportMd, md);
+  fs.writeFileSync(reportJson, JSON.stringify(summary, null, 2) + '\n');
   console.log(md);
-  console.log('→', REPORT);
+  console.log(JSON.stringify(summary));
+  return summary;
 }
 
-main();
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) main();

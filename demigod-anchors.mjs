@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
  * dg-anchors — verify search/replace anchors exist uniquely before apply.
+ * A named plan is read from the data root. The report stays there.
+ * This command does not apply the plan, publish, or send mail.
  *
  * Usage:
  *   node demigod-anchors.mjs plan.json
@@ -10,10 +12,27 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { flag, opt, parseFirstJson, readJson } from './demigod-agent-tools-lib.mjs';
+import { atomicWrite, flag, opt, readJson } from './demigod-agent-tools-lib.mjs';
 
-const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
-const args = process.argv.slice(2);
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+}
+
+function reportPath() {
+  return path.join(dataRoot(), 'DEMIGOD-ANCHORS.json');
+}
+
+function fail(error, extra = {}) {
+  console.error(JSON.stringify({
+    ok: false,
+    error,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+    ...extra,
+  }));
+  process.exit(1);
+}
 
 function countOccurrences(hay, needle) {
   if (!needle) return 0;
@@ -29,7 +48,7 @@ function countOccurrences(hay, needle) {
 }
 
 function checkOne(fileRel, old, expect = 1) {
-  const full = path.isAbsolute(fileRel) ? fileRel : path.join(ROOT, fileRel);
+  const full = path.isAbsolute(fileRel) ? fileRel : path.join(dataRoot(), fileRel);
   const exists = fs.existsSync(full);
   if (!exists) {
     return { ok: false, file: fileRel, error: 'missing_file', count: 0, expect };
@@ -47,18 +66,37 @@ function checkOne(fileRel, old, expect = 1) {
 }
 
 function loadPlan(p) {
-  const full = path.isAbsolute(p) ? p : path.join(process.cwd(), p);
-  const j = readJson(full);
-  if (!j) {
-    // try as JSON text path under outbox
-    const alt = path.join('/tmp/dg-busy/outbox', path.basename(p));
-    return readJson(alt);
-  }
-  return j;
+  const full = path.isAbsolute(p) ? p : path.join(dataRoot(), p);
+  return readJson(full);
 }
+
+function readRuns() {
+  try {
+    const saved = JSON.parse(fs.readFileSync(reportPath(), 'utf8'));
+    return Array.isArray(saved.runs) ? saved.runs : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRun(entry) {
+  const runs = [...readRuns(), entry];
+  atomicWrite(reportPath(), JSON.stringify({
+    ok: true,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+    runs,
+  }, null, 2) + '\n');
+  return runs.length;
+}
+
+const args = process.argv.slice(2);
+if (args.includes('--publish')) fail('publish_refused');
 
 const results = [];
 let pass = true;
+let planPath = null;
 
 if (flag(args, '--file') || opt(args, '--file')) {
   const file = opt(args, '--file');
@@ -72,34 +110,51 @@ if (flag(args, '--file') || opt(args, '--file')) {
   results.push(r);
   if (!r.ok) pass = false;
 } else {
-  const planPath = args.find((a) => !a.startsWith('--'));
+  planPath = args.find((a) => !a.startsWith('--'));
   if (!planPath) {
     console.error('usage: demigod-anchors.mjs plan.json | --file X --old "…"');
     process.exit(2);
   }
   const plan = loadPlan(planPath);
-  if (!plan) {
-    console.error(JSON.stringify({ ok: false, error: 'plan_not_found', path: planPath }));
-    process.exit(1);
-  }
+  if (!plan) fail('plan_not_found', { path: planPath });
   const reps = plan.replacements || plan.replaces || [];
-  if (!reps.length) {
-    console.error(JSON.stringify({ ok: false, error: 'no_replacements', path: planPath }));
-    process.exit(1);
-  }
+  if (!reps.length) fail('no_replacements', { path: planPath });
   for (const rep of reps) {
     const r = checkOne(rep.file, rep.old ?? rep.from, Number(rep.count ?? rep.expect ?? 1) || 1);
     results.push(r);
     if (!r.ok) pass = false;
   }
+  const count = saveRun({
+    at: new Date().toISOString(),
+    plan: planPath,
+    pass,
+    checks: results,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  });
+  console.log(JSON.stringify({
+    ok: pass,
+    pass,
+    plan: planPath,
+    count,
+    path: reportPath(),
+    checks: results,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+  process.exit(pass ? 0 : 1);
 }
 
-const report = {
-  at: new Date().toISOString(),
+console.log(JSON.stringify({
+  ok: pass,
   pass,
+  at: new Date().toISOString(),
   checks: results,
   summary: pass ? 'PASS — all anchors unique' : 'FAIL — fix anchors before apply',
-};
-
-console.log(JSON.stringify(report, null, 2));
+  sent: false,
+  liveMail: false,
+  livePublish: false,
+}));
 process.exit(pass ? 0 : 1);

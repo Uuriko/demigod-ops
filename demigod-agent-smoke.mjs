@@ -3,24 +3,75 @@
  * demigod-agent-smoke.mjs — one-shot live proof for agents
  *
  * Checks: body display, h1 rect, foot version, dual CTAs, WIZ open field count, reopen head count.
- * Writes /tmp/dg-busy/agent-smoke.json + .md
+ * Writes DEMIGOD-AGENT-SMOKE.json + .md in DEMIGOD_ROOT. The command does not publish.
  * Exit 0 only if core pass (body+h1+foot present); wiz quality is reported separately.
  */
 import fs from 'fs';
 import path from 'path';
-import WebSocket from 'ws';
+import { fileURLToPath } from 'url';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
-const CDP = process.env.CDP_URL || 'http://127.0.0.1:9223';
-const LIVE = process.env.DEMIGOD_LIVE || 'https://www.trydemigod.com';
-const BUSY = '/tmp/dg-busy';
+function scriptDir() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+
+function dataRoot() {
+  return process.env.DEMIGOD_ROOT || scriptDir();
+}
+
+function jsonPath() {
+  return path.join(dataRoot(), 'DEMIGOD-AGENT-SMOKE.json');
+}
+
+function mdPath() {
+  return path.join(dataRoot(), 'DEMIGOD-AGENT-SMOKE.md');
+}
+
+function cdpBase() {
+  return (process.env.CDP_URL || 'http://127.0.0.1:9223').replace(/\/$/, '');
+}
+
+function liveBase() {
+  return process.env.DEMIGOD_LIVE || 'https://www.trydemigod.com';
+}
+
+function fail(error) {
+  console.error(JSON.stringify({
+    ok: false,
+    error,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  }));
+  process.exit(1);
+}
+
+if (process.argv.slice(2).includes('--publish')) fail('publish_refused');
+
+function diskFootVer() {
+  try {
+    const foot = fs.readFileSync(path.join(dataRoot(), 'demigod-foot-core.js'), 'utf8');
+    return (foot.match(/__dgFootVer='(\d+)'/) || [])[1] || null;
+  } catch {
+    return null;
+  }
+}
+
+async function loadWs() {
+  const mod = await import('ws');
+  return mod.default || mod.WebSocket || mod;
+}
 
 async function getTab() {
-  const tabs = await (await fetch(`${CDP}/json/list`)).json();
+  const cdp = cdpBase();
+  const live = liveBase();
+  const tabs = await (await fetch(`${cdp}/json/list`, { signal: AbortSignal.timeout(3000) })).json();
   let t = tabs.find(
     (x) => (x.url || '').includes('trydemigod.com') && !(x.url || '').includes('design'),
   );
   if (t) return t;
-  const ver = await (await fetch(`${CDP}/json/version`)).json();
+  const ver = await (await fetch(`${cdp}/json/version`, { signal: AbortSignal.timeout(3000) })).json();
+  const WebSocket = await loadWs();
   const bws = new WebSocket(ver.webSocketDebuggerUrl);
   await new Promise((r, j) => {
     bws.once('open', r);
@@ -39,15 +90,16 @@ async function getTab() {
       bws.send(JSON.stringify({ id: i, method, params }));
       setTimeout(() => reject(new Error(method)), 15000);
     });
-  const created = await send('Target.createTarget', { url: `${LIVE}/?smoke=${Date.now()}` });
+  const created = await send('Target.createTarget', { url: `${live}/?smoke=${Date.now()}` });
   await new Promise((r) => setTimeout(r, 2500));
-  const tabs2 = await (await fetch(`${CDP}/json/list`)).json();
+  const tabs2 = await (await fetch(`${cdp}/json/list`, { signal: AbortSignal.timeout(3000) })).json();
   t = tabs2.find((x) => x.id === created.targetId) || tabs2.find((x) => (x.url || '').includes('trydemigod'));
   bws.close();
   return t;
 }
 
-function connect(wsUrl) {
+async function connect(wsUrl) {
+  const WebSocket = await loadWs();
   const ws = new WebSocket(wsUrl);
   let id = 1;
   const pending = new Map();
@@ -73,15 +125,28 @@ function connect(wsUrl) {
 }
 
 async function main() {
-  const at = new Date().toISOString();
-  let out = { at, pass: false, corePass: false, wizPass: null, error: null };
+  const out = {
+    at: new Date().toISOString(),
+    path: jsonPath(),
+    mdPath: mdPath(),
+    diskFootVer: diskFootVer(),
+    cdpUrl: cdpBase(),
+    liveUrl: liveBase(),
+    pass: false,
+    corePass: false,
+    wizPass: null,
+    error: null,
+    sent: false,
+    liveMail: false,
+    livePublish: false,
+  };
 
   try {
     const tab = await getTab();
     if (!tab?.webSocketDebuggerUrl) throw new Error('no CDP live tab');
-    const { ws, send } = connect(tab.webSocketDebuggerUrl);
+    const { ws, send } = await connect(tab.webSocketDebuggerUrl);
     await send('Runtime.enable');
-    await send('Page.navigate', { url: `${LIVE}/?smoke=${Date.now()}` });
+    await send('Page.navigate', { url: `${liveBase()}/?smoke=${Date.now()}` });
     await new Promise((r) => setTimeout(r, 4000));
 
     const homeR = await send('Runtime.evaluate', {
@@ -165,8 +230,7 @@ async function main() {
       Array.isArray(reopenHeads) &&
       reopenHeads.every((n) => n === 1);
 
-    out = {
-      at,
+    Object.assign(out, {
       corePass,
       wizPass,
       pass: corePass && wizPass,
@@ -181,22 +245,22 @@ async function main() {
         wizVisibleFields: wiz.nVis,
         reopenHeads,
       },
-    };
+    });
   } catch (e) {
     out.error = String(e.message || e);
     out.pass = false;
     out.corePass = false;
   }
 
-  fs.mkdirSync(BUSY, { recursive: true });
-  fs.writeFileSync(path.join(BUSY, 'agent-smoke.json'), JSON.stringify(out, null, 2));
+  atomicWrite(jsonPath(), JSON.stringify(out, null, 2) + '\n');
   const md = [
     `# Agent smoke ${out.at}`,
     `pass: ${out.pass} core: ${out.corePass} wiz: ${out.wizPass} cta: ${out.ctaOk}`,
+    `diskFootVer: ${out.diskFootVer}`,
     out.summary ? JSON.stringify(out.summary) : '',
     out.error ? `error: ${out.error}` : '',
   ].join('\n');
-  fs.writeFileSync(path.join(BUSY, 'agent-smoke.md'), md + '\n');
+  atomicWrite(mdPath(), md + '\n');
   console.log(JSON.stringify(out, null, 2));
   process.exit(out.corePass ? 0 : 1);
 }

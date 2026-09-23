@@ -12,8 +12,10 @@ import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { readJson, opt, flag } from './demigod-agent-tools-lib.mjs';
 
-const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+const OPS = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = process.env.DEMIGOD_ROOT || OPS;
 const INBOX = path.join(ROOT, 'DEMIGOD-SUBMISSIONS-INBOX.json');
+const PILOT_OS = path.join(OPS, 'demigod-pilot-os.mjs');
 const args = process.argv.slice(2);
 
 const inbox = readJson(INBOX) || { items: [] };
@@ -23,10 +25,25 @@ function isStartup(it) {
   return /startup/i.test(it.form || '');
 }
 
+function findSubmission(id) {
+  const exact = items.find((row) => row && row.id === id);
+  if (exact) return { item: exact };
+  const hits = items.filter((row) => row && String(row.id).startsWith(id));
+  if (hits.length === 1) return { item: hits[0] };
+  if (hits.length > 1) return { error: 'ambiguous_id', matches: hits.map((row) => row.id) };
+  return { error: 'not_found' };
+}
+
 let item = null;
 const id = opt(args, '--id');
-if (id) item = items.find((i) => i.id === id || String(i.id).startsWith(id));
-else if (flag(args, '--latest-startup')) {
+if (id) {
+  const found = findSubmission(id);
+  if (found.error) {
+    console.error(JSON.stringify({ ok: false, error: found.error, matches: found.matches || [], hint: '--id or --latest-startup' }));
+    process.exit(1);
+  }
+  item = found.item;
+} else if (flag(args, '--latest-startup')) {
   item = items
     .filter(isStartup)
     .sort((a, b) => String(b.at).localeCompare(String(a.at)))[0];
@@ -34,6 +51,10 @@ else if (flag(args, '--latest-startup')) {
 
 if (!item) {
   console.error(JSON.stringify({ ok: false, error: 'not_found', hint: '--id or --latest-startup' }));
+  process.exit(1);
+}
+if (!isStartup(item)) {
+  console.error(JSON.stringify({ ok: false, error: 'startup_submission_required', id: item.id }));
   process.exit(1);
 }
 
@@ -45,9 +66,9 @@ const outcome =
 const contact = raw['contact-email'] || raw.contactEmail || '';
 
 const r = spawnSync(
-  'node',
+  process.execPath,
   [
-    'demigod-pilot-os.mjs',
+    PILOT_OS,
     'add',
     '--company',
     String(company),
@@ -62,7 +83,7 @@ const r = spawnSync(
     '--note',
     `from submission ${item.id} at ${item.at}`,
   ],
-  { cwd: ROOT, encoding: 'utf8' },
+  { cwd: OPS, env: { ...process.env, DEMIGOD_ROOT: ROOT }, encoding: 'utf8' },
 );
 
 const out = (r.stdout || '') + (r.stderr || '');
