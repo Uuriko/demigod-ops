@@ -1,11 +1,11 @@
 /**
  * DIE operator desk — hosted read-only Worker for app.trydemigod.com.
  * Access JWT *shape* gate on app routes. Public GET/HEAD /healthz only.
- * H3: named OpenAI · Account Director + 20 public weekly movers.
+ * H3.2: named OpenAI · Account Director + 26 public company identities.
  * No people-data. Mutations off. Header: x-demigod-die: hosted-read-only
  */
 const PUBLIC_HOST = "app.trydemigod.com";
-const RELEASE = "hosted-read-only-h3";
+const RELEASE = "hosted-read-only-h3.2";
 const NAMED = Object.freeze({
   roleId: "named:wd:Q21708200",
   title: "Account Director, Digital Native",
@@ -55,6 +55,13 @@ export const PUBLIC_MOVERS = Object.freeze([
   { companyId: "yc:spherecast", companyName: "Spherecast", domain: "spherecast.ai" },
   { companyId: "wd:Q138845452", companyName: "Hex", domain: "hex.tech" },
   { companyId: "yc:haladir", companyName: "Haladir", domain: "haladir.com" },
+  // Preserve the six additional public identities already served by h3.1.
+  { companyId: "hn:mythic.ai", companyName: "Mythic", domain: "mythic.ai" },
+  { companyId: "hn:fonoa.com", companyName: "Fonoa", domain: "fonoa.com" },
+  { companyId: "hn:standardbots.com", companyName: "Standard Bots", domain: "standardbots.com" },
+  { companyId: "hn:modal.com", companyName: "Modal", domain: "modal.com" },
+  { companyId: "hn:mercury.com", companyName: "Mercury", domain: "mercury.com" },
+  { companyId: "hn:psiquantum.com", companyName: "PsiQuantum", domain: "psiquantum.com" },
 ].map((m) => Object.freeze({
   ...m,
   website: `https://${m.domain}/`,

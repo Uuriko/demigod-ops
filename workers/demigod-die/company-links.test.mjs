@@ -35,3 +35,29 @@ test('unknown and malformed company ids stay 404; known companies retain access 
   assert.equal((await call(href, {headers:{}})).status, 403);
   assert.equal((await call(href, {method:'POST'})).status, 405);
 });
+
+// These identities were already present on live h3.1. A release from the
+// older mirror must not silently remove them while fixing their links.
+test('preserves all six h3.1 additions with working raw and encoded identity routes', async () => {
+  const additions = [
+    ['mythic.ai', 'Mythic'], ['fonoa.com', 'Fonoa'],
+    ['standardbots.com', 'Standard Bots'], ['modal.com', 'Modal'],
+    ['mercury.com', 'Mercury'], ['psiquantum.com', 'PsiQuantum'],
+  ];
+  for (const [domain, name] of additions) {
+    const id = `hn:${domain}`;
+    const company = companyList().rows.find(row => row.id === id);
+    assert.ok(company, `${id} remains listed`);
+    assert.equal(company.name, name);
+    assert.equal(company.domain, domain);
+    for (const segment of [id, encodeURIComponent(id)]) {
+      const page = await call(`/companies/${segment}`);
+      assert.equal(page.status, 200);
+      assert.ok((await page.text()).includes(name));
+      const api = await call(`/api/v1/companies/${segment}`);
+      assert.equal(api.status, 200);
+      assert.equal((await api.json()).identity.id, id);
+      assert.equal((await call(`/companies/${segment}`, {method:'HEAD'})).status, 200);
+    }
+  }
+});
