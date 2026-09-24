@@ -4,8 +4,9 @@
   "account_id": "5a919d6c1785d47e15e10c24450a8ff7",
   "workers_dev": false,
   "routes": [
-    { "pattern": "www.trydemigod.com/*", "zone_name": "trydemigod.com" }
+    { "pattern": "www.trydemigod.com/*", "zone_name": "trydemigod.com" },
+    { "pattern": "trydemigod.com/.well-known/grok-bot.json", "zone_name": "trydemigod.com" }
   ],
   "main": "demigod-html-worker.js",
-  "compatibility_date": "2026-09-10"
+  "compatibility_date": "2026-09-11"
 }
