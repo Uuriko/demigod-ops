@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { atomicWrite, withFileLock } from './demigod-agent-tools-lib.mjs';
-import { attachAttribution } from './demigod-referral-ledger.mjs';
+import { attachAttribution, recordOwedForSubmission } from './demigod-referral-ledger.mjs';
 
 const ROOT = '/home/potter';
 export const BOARD_PATH = path.join(ROOT, 'DEMIGOD-BOARD.json');
@@ -413,6 +413,7 @@ export function ingestSubmission(body = {}, opts = {}) {
   attachAttribution(record, data);
   inbox.items = [record, ...(inbox.items || [])].slice(0, 200);
   saveInbox(inbox);
+  const owed = recordOwedForSubmission(record);
 
   let featured = null;
   if (autoFeature) {
@@ -431,7 +432,7 @@ export function ingestSubmission(body = {}, opts = {}) {
     }
   }
 
-  return { inbox, board, record, featured };
+  return { inbox, board, record, featured, owed };
 }
 
 function formNameOf(source = {}, fallback = '') {

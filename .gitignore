@@ -44,6 +44,7 @@ DEMIGOD-*
 !DEMIGOD-REVIEW-BASELINE.json
 !demigod-portability.test.mjs
 !demigod-referral-ledger.mjs
+!demigod-submission-owed.test.mjs
 !demigod-referral-onboarding.test.mjs
 !demigod-referral-payout.test.mjs
 !demigod-referral-retention.test.mjs

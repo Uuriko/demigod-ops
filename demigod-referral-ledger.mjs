@@ -281,6 +281,37 @@ export function portionForSubmission(submission, { pairId, baseSalaryCents } = {
   };
 }
 
+/** Owed estimate for one ingested submission. Writes the local ledger. Never charges. */
+export function recordOwedForSubmission(submission = {}) {
+  if (!submission?.attribution?.attached || !submission.id) return null;
+  const baseSalaryCents = baseCents(submission.raw || {});
+  if (!baseSalaryCents) return null;
+  const row = portionForSubmission(submission, {
+    pairId: `submission:${submission.id}`,
+    baseSalaryCents,
+  });
+  if (!row) return null;
+  const now = new Date().toISOString();
+  const stamped = {
+    ...row,
+    at: now,
+    payable: false,
+    livePayment: false,
+    paymentProvider: null,
+  };
+  const store = loadReferralLedger();
+  const estimates = new Map((store.estimates || []).map((item) => [item.id, item]));
+  estimates.set(stamped.id, stamped);
+  atomicWrite(ledgerFile(), `${JSON.stringify({
+    at: now,
+    portions: store.portions || [],
+    estimates: [...estimates.values()],
+    paymentCalls: 0,
+    livePayout: false,
+  }, null, 2)}\n`);
+  return stamped;
+}
+
 export function loadReferralLedger() {
   const store = readJson(ledgerFile(), null);
   if (!store || !Array.isArray(store.portions)) {
@@ -303,9 +334,12 @@ export function recordPortionsForMatch(pair = {}) {
   const store = loadReferralLedger();
   const byId = new Map((store.portions || []).map((row) => [row.id, row]));
   for (const row of fresh) byId.set(row.id, row);
+  const taken = new Set(fresh.map((row) => row.submissionId));
+  const estimates = (store.estimates || []).filter((row) => !taken.has(row.submissionId));
   const next = {
     at: now,
     portions: [...byId.values()],
+    estimates,
     paymentCalls: 0,
     livePayout: false,
   };
