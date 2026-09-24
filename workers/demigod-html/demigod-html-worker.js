@@ -3328,8 +3328,8 @@ async function motleyHonestyEdge(request, url) {
   const path = normalizeMotleyPath(url.pathname);
   const face = MOTLEY_HONESTY_FACES[path];
   if (face) {
-    const body = await loadCdnText(face.file);
-    if (body == null)
+    const body = await loadCdnText(face.file).catch(() => null);
+    if (body == null || !body.trim())
       return null;
     return new Response(request.method === "HEAD" ? null : body, {
       status: 200,

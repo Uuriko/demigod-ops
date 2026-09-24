@@ -11,7 +11,7 @@ Live baseline SHA-256:
 (349,569 bytes).
 
 Candidate Worker source SHA-256:
-`273c90d1b1e39b0e098ae3741ff8a210eb37eea17222918adfa9473bade37562`.
+`a4f1fcf947436a090207ad3831eb0d45504aa9e1fca723e8de6157435600ccc3`.
 Unchanged master home-IA module SHA-256:
 `e4ed910670eb344891bc1effdf04f00f2fb060f13d6aed7160b79f382aff4b3d`.
 These are source hashes, not claims about a future Wrangler bundle hash.
@@ -42,13 +42,13 @@ by the deployment owner. This source reconciliation does not provision them.
    and ATS destinations are unchanged. The old PR's unrelated `/startups` HTML
    rewrite is not included.
 3. Preserve master's static same-host honesty documents as a fallback when CDN
-   returns unavailable, after preferring the existing live CDN faces. This does
+   returns unavailable, times out, throws, or returns an empty body, after preferring the existing live CDN faces. This does
    not replace working live content. The old mirror's parked-compute404 and
    redirect-only Room discovery assumptions were superseded by live routes.
 
 ## Evidence and fresh-live guard
 
-214 deterministic HTML/IA/company tests pass; their CDN calls use local fixtures.
+215 deterministic HTML/IA/company tests pass; their CDN calls use local fixtures.
 Source contract passes. The private-capture comparison exercises 46 paths with
 GET and HEAD: 91 responses retain identical status, headers and body; only GET /
 changes for the reviewed source-only home-IA improvements. Separate tests cover

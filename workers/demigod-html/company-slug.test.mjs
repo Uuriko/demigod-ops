@@ -7,6 +7,22 @@ const map = {generatedAt:'2026-09-24T00:00:00Z', companies:[
   {id:'yc:stripe',name:'Stripe',website:'https://stripe.com',openRoles:1},
   {id:'yc:atlas-one',name:'Atlas'}, {id:'yc:atlas-two',name:'Atlas'},
 ]};
+test('same-host discovery falls back when CDN throws or returns an empty success', async t => {
+  const original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  for (const response of ['timeout', '', '   ', 'unavailable']) {
+    globalThis.fetch = async () => {
+      if (response === 'timeout') throw new Error('upstream timeout');
+      return new Response(response, {status: response === 'unavailable' ? 503 : 200});
+    };
+    for (const method of ['GET', 'HEAD']) {
+      const r = await worker.fetch(new Request('https://www.trydemigod.com/.well-known/ai-plugin.json', {method}), {});
+      assert.equal(r.status, 200, response);
+      if (method === 'HEAD') assert.equal(await r.text(), '');
+      else assert.equal((await r.json()).name, 'Demigod');
+    }
+  }
+});
 test('names and case variants resolve only unique catalog identities', () => {
   for (const value of ['OpenAI','openai','open-ai','WD:q21708200'])
     assert.equal(resolveMapCompany(map,value)?.id,'wd:Q21708200');
