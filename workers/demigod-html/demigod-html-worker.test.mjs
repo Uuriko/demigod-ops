@@ -28,6 +28,20 @@ import workerModule, {
   roomDiscoveryDoc,
 } from "./demigod-html-worker.js";
 
+// Deterministic CDN fixture; these source tests never contact production.
+// Existing tests that replace fetch restore this fixture afterward.
+globalThis.fetch = async input => {
+  const url = String(input?.url || input);
+  for (const path of ['/humans.txt','/contribute','/.well-known/ai-plugin.json']) {
+    const file = path.split('/').at(-1);
+    if (url.endsWith('/' + file)) {
+      const doc = leftoverHonestyDoc(path);
+      return new Response(doc.body, {headers:{'content-type':doc.type}});
+    }
+  }
+  return new Response('fixture unavailable', {status:404});
+};
+
 const root = new URL("./", import.meta.url);
 const workerSrc = await readFile(new URL("./demigod-html-worker.js", root), "utf8");
 const iaSrc = await readFile(new URL("./demigod-home-ia.js", root), "utf8");
@@ -56,7 +70,7 @@ describe("demigod-html wrangler + integrity", () => {
     assert.match(workerSrc, /function roomDiscoveryDoc/);
     assert.match(workerSrc, /\/room\/llms\.txt/);
     assert.match(workerSrc, /\/room\/\.well-known\/agent\.json/);
-    assert.match(workerSrc, /project-room-staging\.getdasha\.workers\.dev/);
+    assert.match(workerSrc, /room\.trydemigod\.com/);
     assert.match(workerSrc, /Agents sit as Members/);
     assert.match(workerSrc, /getdasha\.com\/compute/);
     assert.doesNotMatch(workerSrc, /shared space to talk/i);
@@ -266,18 +280,18 @@ describe("demigod-html fetch home-motley", () => {
     const html = await res.text();
     assert.equal(res.status, 200);
     assert.match(html, /Project Room/);
-    assert.match(html, /project-room-staging\.getdasha\.workers\.dev/);
+    assert.match(html, /room\.trydemigod\.com/);
     assert.match(html, /Work Items/);
     assert.match(html, /next actions/);
     assert.match(html, /receipts/);
     assert.match(html, /Agents sit as Members/);
-    assert.match(html, /getdasha\.com\/compute/);
+    assert.match(html, /trydemigod\.com\/compute/);
     assert.match(html, /run factory/);
     assert.match(html, /Open Project Room/);
     assert.match(html, />Join</);
     assert.match(html, /Connect an agent/);
     assert.match(html, /id="connect"/);
-    assert.match(html, /href="https:\/\/project-room-staging\.getdasha\.workers\.dev#join\/"/);
+    assert.match(html, /href="https:\/\/room\.trydemigod\.com#join\/"/);
     assert.match(html, /href="#connect"/);
     assert.match(html, /href="\/room\/llms\.txt"/);
     assert.match(html, /href="\/room\/llms\.txt#join"/);
@@ -289,7 +303,7 @@ describe("demigod-html fetch home-motley", () => {
     assert.doesNotMatch(html, /shared space to talk/i);
     assert.doesNotMatch(html, /Workers AI|Ollama|prompt/i);
     assert.doesNotMatch(html, /hamburger/i);
-    const opens = html.match(/href="https:\/\/project-room-staging\.getdasha\.workers\.dev"/g) || [];
+    const opens = html.match(/href="https:\/\/room\.trydemigod\.com"/g) || [];
     assert.equal(opens.length, 1);
   });
 
@@ -404,7 +418,7 @@ describe("leftover openings + pricing conversion CTAs", () => {
     assert.equal(leftoverRedirectPath("/motley/"), "/");
     assert.equal(leftoverRedirectPath("/Motley"), "/");
     assert.equal(leftoverRedirectPath("/compute"), "");
-    assert.equal(leftoverRedirectPath("/directory"), "");
+    assert.equal(leftoverRedirectPath("/directory"), "/companies");
   });
 
   it("GET /motley leftover-redirects to hire-home /", async () => {
@@ -441,7 +455,7 @@ describe("leftover openings + pricing conversion CTAs", () => {
     assert.equal(leftoverRedirectPath("/Founder"), "/");
     assert.equal(leftoverRedirectPath("/founders"), "/");
     assert.equal(leftoverRedirectPath("/compute"), "");
-    assert.equal(leftoverRedirectPath("/directory"), "");
+    assert.equal(leftoverRedirectPath("/directory"), "/companies");
   });
 
   it("GET /founder leftover-redirects to hire-home /", async () => {
@@ -520,7 +534,7 @@ describe("leftover openings + pricing conversion CTAs", () => {
       assert.equal(leftoverRedirectPath("/intro"), "/");
       assert.equal(leftoverRedirectPath("/match"), "/");
       assert.equal(leftoverRedirectPath("/compute"), "");
-      assert.equal(leftoverRedirectPath("/directory"), "");
+      assert.equal(leftoverRedirectPath("/directory"), "/companies");
       assert.equal(leftoverRedirectPath("/product"), "");
       assert.equal(leftoverRedirectPath("/factory"), "");
       assert.equal(leftoverRedirectPath("/wiz"), "");
@@ -562,7 +576,7 @@ describe("leftover openings + pricing conversion CTAs", () => {
     assert.equal(leftoverRedirectPath("/Signup"), "/app/login");
     assert.equal(leftoverRedirectPath("/login"), "/app/login");
     assert.equal(leftoverRedirectPath("/compute"), "");
-    assert.equal(leftoverRedirectPath("/directory"), "");
+    assert.equal(leftoverRedirectPath("/directory"), "/companies");
   });
 
   it("GET /signup leftover-redirects to /app/login", async () => {
@@ -602,7 +616,7 @@ describe("leftover openings + pricing conversion CTAs", () => {
       assert.equal(leftoverRedirectPath(`${path}/`), "/room");
       assert.equal(leftoverRedirectPath(titled), "/room");
       assert.equal(leftoverRedirectPath("/compute"), "");
-      assert.equal(leftoverRedirectPath("/directory"), "");
+      assert.equal(leftoverRedirectPath("/directory"), "/companies");
       assert.equal(leftoverRedirectPath("/product"), "");
       assert.equal(leftoverRedirectPath("/factory"), "");
       assert.equal(leftoverRedirectPath("/wiz"), "");
@@ -635,9 +649,6 @@ describe("leftover openings + pricing conversion CTAs", () => {
     ["/skill.md", "/room/llms.txt"],
     ["/agents.md", "/room/llms.txt"],
     ["/claude.md", "/room/llms.txt"],
-    ["/room/skill.md", "/room/llms.txt"],
-    ["/room/agents.md", "/room/llms.txt"],
-    ["/room/claude.md", "/room/llms.txt"],
     ["/mcp", "/room/.well-known/agent.json"],
     ["/api", "/room"],
     ["/docs", "/room"],
@@ -651,7 +662,7 @@ describe("leftover openings + pricing conversion CTAs", () => {
       assert.equal(leftoverRedirectPath(`${path}/`), dest);
       assert.equal(leftoverRedirectPath(titled), dest);
       assert.equal(leftoverRedirectPath("/compute"), "");
-      assert.equal(leftoverRedirectPath("/directory"), "");
+      assert.equal(leftoverRedirectPath("/directory"), "/companies");
       assert.equal(leftoverRedirectPath("/studio"), "");
       assert.equal(leftoverRedirectPath("/product"), "");
       assert.equal(leftoverRedirectPath("/factory"), "");
@@ -711,27 +722,23 @@ describe("leftover openings + pricing conversion CTAs", () => {
     assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
   });
 
-  it("GET /room/AGENTS.md leftover-redirects to /room/llms.txt", async () => {
+  it("GET /room/AGENTS.md serves the live discovery packet", async () => {
     const res = await workerModule.fetch(new Request("https://www.trydemigod.com/room/AGENTS.md"), {});
-    assert.equal(res.status, 308);
-    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/room/llms.txt");
-    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+    assert.equal(res.status, 200);
+    assert.match(await res.text(), /^# Project Room/);
   });
 
-  it("GET /room/CLAUDE.md leftover-redirects to /room/llms.txt", async () => {
+  it("GET /room/CLAUDE.md serves the live discovery packet", async () => {
     const res = await workerModule.fetch(new Request("https://www.trydemigod.com/room/CLAUDE.md"), {});
-    assert.equal(res.status, 308);
-    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/room/llms.txt");
-    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+    assert.equal(res.status, 200);
+    assert.match(await res.text(), /^# Project Room/);
   });
 
-  it("GET /room/Skill.Md leftover-redirects to /room/llms.txt", async () => {
+  it("GET /room/Skill.Md serves the live discovery packet", async () => {
     const res = await workerModule.fetch(new Request("https://www.trydemigod.com/room/Skill.Md"), {});
-    assert.equal(res.status, 308);
-    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/room/llms.txt");
-    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
+    assert.equal(res.status, 200);
+    assert.match(await res.text(), /^# Project Room/);
   });
-
   it("GET /Mcp leftover-redirects to room agent.json", async () => {
     const res = await workerModule.fetch(new Request("https://www.trydemigod.com/Mcp"), {});
     assert.equal(res.status, 308);
@@ -776,7 +783,7 @@ describe("leftover openings + pricing conversion CTAs", () => {
       assert.equal(leftoverRedirectPath("/signup"), "/app/login");
       assert.equal(leftoverRedirectPath("/login"), "/app/login");
       assert.equal(leftoverRedirectPath("/compute"), "");
-      assert.equal(leftoverRedirectPath("/directory"), "");
+      assert.equal(leftoverRedirectPath("/directory"), "/companies");
     });
 
     it(`GET ${path} leftover-redirects to /app/login`, async () => {
@@ -903,7 +910,7 @@ describe("leftover openings + pricing conversion CTAs", () => {
       assert.equal(leftoverRedirectPath("/jobs"), "/");
       assert.equal(leftoverRedirectPath("/careers"), "/");
       assert.equal(leftoverRedirectPath("/compute"), "");
-      assert.equal(leftoverRedirectPath("/directory"), "");
+      assert.equal(leftoverRedirectPath("/directory"), "/companies");
       assert.equal(leftoverRedirectPath("/studio"), "");
       assert.equal(leftoverRedirectPath("/product"), "");
       assert.equal(leftoverRedirectPath("/factory"), "");
@@ -946,8 +953,6 @@ describe("leftover openings + pricing conversion CTAs", () => {
 
   it("keeps parked leftovers, placements, and people-data paths 404", async () => {
     for (const path of [
-      "/directory",
-      "/compute",
       "/studio",
       "/product",
       "/factory",
@@ -972,7 +977,7 @@ describe("leftover openings + pricing conversion CTAs", () => {
     assert.equal(leftoverRedirectPath("/learn"), "");
     assert.equal(leftoverRedirectPath("/graph"), "");
     assert.equal(leftoverRedirectPath("/dasha"), "");
-    assert.equal(leftoverRedirectPath("/directory"), "");
+    assert.equal(leftoverRedirectPath("/directory"), "/companies");
     assert.equal(leftoverRedirectPath("/wiz"), "");
     assert.equal(leftoverRedirectPath("/product"), "");
     assert.equal(leftoverRedirectPath("/products"), "");
@@ -1053,15 +1058,15 @@ describe("Room agent discovery /room/llms.txt + /room/.well-known/agent.json", (
     assert.equal(roomDiscoveryDoc("/room"), null);
     assert.equal(roomDiscoveryDoc("/room/"), null);
     assert.equal(roomDiscoveryDoc("/llms.txt"), null);
-    assert.equal(roomDiscoveryDoc("/room/llms-full.txt"), null);
+    assert.equal(roomDiscoveryDoc("/room/llms-full.txt")?.body, llms?.body);
     assert.equal(roomDiscoveryDoc("/.well-known/agent.json"), null);
-    assert.equal(roomDiscoveryDoc("/room/skill.md"), null);
-    assert.equal(roomDiscoveryDoc("/room/agents.md"), null);
-    assert.equal(roomDiscoveryDoc("/room/claude.md"), null);
+    assert.equal(roomDiscoveryDoc("/room/skill.md")?.body, llms?.body);
+    assert.equal(roomDiscoveryDoc("/room/agents.md")?.body, llms?.body);
+    assert.equal(roomDiscoveryDoc("/room/claude.md")?.body, llms?.body);
     assert.equal(leftoverRedirectPath("/room/llms.txt"), "");
-    assert.equal(leftoverRedirectPath("/room/skill.md"), "/room/llms.txt");
-    assert.equal(leftoverRedirectPath("/room/agents.md"), "/room/llms.txt");
-    assert.equal(leftoverRedirectPath("/directory"), "");
+    assert.equal(leftoverRedirectPath("/room/skill.md"), "");
+    assert.equal(leftoverRedirectPath("/room/agents.md"), "");
+    assert.equal(leftoverRedirectPath("/directory"), "/companies");
     assert.equal(leftoverRedirectPath("/compute"), "");
     assert.equal(leftoverRedirectPath("/wiz"), "");
   });
@@ -1134,7 +1139,7 @@ describe("Room agent discovery /room/llms.txt + /room/.well-known/agent.json", (
     assert.match(roomHtml, /Connect an agent/);
     assert.doesNotMatch(roomHtml, /^# Project Room/);
 
-    for (const path of ["/directory", "/compute", "/wiz"]) {
+    for (const path of ["/wiz"]) {
       const res = await workerModule.fetch(new Request(`https://www.trydemigod.com${path}`), {});
       assert.equal(res.status, 404, path);
       assert.equal(res.headers.get("x-demigod-edge"), "not-found", path);
@@ -1222,11 +1227,8 @@ describe("leftover Motley honesty — humans.txt + ai-plugin.json", () => {
     assert.doesNotMatch(body, /"name"\s*:\s*"Dasha Compute"/);
   });
 
-  it("GET /ai-plugin.json leftover-redirects same-host to /.well-known/ai-plugin.json", async () => {
+  it("GET /ai-plugin.json serves the live same-host discovery face", async () => {
     const res = await workerModule.fetch(new Request("https://www.trydemigod.com/ai-plugin.json"), {});
-    assert.equal(res.status, 308);
-    assert.equal(res.headers.get("location"), "https://www.trydemigod.com/.well-known/ai-plugin.json");
-    assert.equal(res.headers.get("x-demigod-edge"), "leftover-redirect");
-    assert.doesNotMatch(String(res.headers.get("location") || ""), /getdasha/i);
-  });
-});
+    assert.equal(res.status, 200);
+    assert.equal((await res.json()).name, "Demigod");
+  });});
