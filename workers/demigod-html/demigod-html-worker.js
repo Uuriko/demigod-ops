@@ -1,25 +1,5 @@
-/**
- * demigod-html — www.trydemigod.com Motley edge.
- * Snapshot of live Worker (2026-09-10) + Motley home IA splice.
- * Leftover honesty (humans.txt / ai-plugin) is same-host; pin
- * LEFTOVER_MOTLEY_PIN. Do not wrangler deploy from this PR
- * (Instinct/Potter lane — cherry-pick onto live laptop source).
- */
-import {
-  applyMotleyHomeIa,
-  motleyHomeIaMarkdown,
-} from "./demigod-home-ia.js";
-
-var __defProp = Object.defineProperty;
-var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
-
-// demigod-html-worker.js
-var __defProp2 = Object.defineProperty;
-var __name2 = /* @__PURE__ */ __name((target, value) => __defProp2(target, "name", { value, configurable: true }), "__name");
-var __defProp22 = Object.defineProperty;
-var __name22 = /* @__PURE__ */ __name2((target, value) => __defProp22(target, "name", { value, configurable: true }), "__name");
-var __defProp222 = Object.defineProperty;
-var __name222 = /* @__PURE__ */ __name22((target, value) => __defProp222(target, "name", { value, configurable: true }), "__name");
+/** Reconciled from the reviewed live 2026-09-24 Worker; see LIVE-RECONCILIATION.md. */
+import { applyMotleyHomeIa, motleyHomeIaMarkdown } from "./demigod-home-ia.js";
 var HOME_DESCRIPTION = "You\u2019re deciding who\u2019s in the boat. A person picks, then knocks once.";
 var OG_IMAGE = "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@a1a851ac48e9/art/frege-hero.jpg";
 function demigodHomeHtml(map) {
@@ -325,10 +305,6 @@ h1{margin:0;font-family:'Instrument Serif',Georgia,serif;font-size:76px;font-wei
 </body>
 </html>`;
 }
-__name(demigodHomeHtml, "demigodHomeHtml");
-__name2(demigodHomeHtml, "demigodHomeHtml");
-__name22(demigodHomeHtml, "demigodHomeHtml");
-__name222(demigodHomeHtml, "demigodHomeHtml");
 function demigodContactHtml() {
   return `<!doctype html>
 <html lang="en">
@@ -388,10 +364,6 @@ p{max-width:460px;font-size:16px;line-height:1.8;color:rgba(228,222,210,.68)}
 </body>
 </html>`;
 }
-__name(demigodContactHtml, "demigodContactHtml");
-__name2(demigodContactHtml, "demigodContactHtml");
-__name22(demigodContactHtml, "demigodContactHtml");
-__name222(demigodContactHtml, "demigodContactHtml");
 function demigodLegalHtml() {
   return `<!doctype html>
 <html lang="en">
@@ -451,10 +423,6 @@ p{max-width:540px;font-size:16px;line-height:1.8;color:rgba(228,222,210,.68)}
 </body>
 </html>`;
 }
-__name(demigodLegalHtml, "demigodLegalHtml");
-__name2(demigodLegalHtml, "demigodLegalHtml");
-__name22(demigodLegalHtml, "demigodLegalHtml");
-__name222(demigodLegalHtml, "demigodLegalHtml");
 function demigodCompHtml() {
   return `<!doctype html>
 <html lang="en">
@@ -541,8 +509,6 @@ li{margin:6px 0}
 </body>
 </html>`;
 }
-__name(demigodCompHtml, "demigodCompHtml");
-__name2(demigodCompHtml, "demigodCompHtml");
 var LLMS_TXT = `# Demigod
 
 > SF Bay Area recruiting desk. Seed and Series A. First engineering seats.
@@ -617,7 +583,8 @@ https://www.trydemigod.com/contact
 - Privacy: https://www.trydemigod.com/legal
 `;
 function demigodHomeMarkdown() {
-  return `${demigodHomeMarkdownRaw()}\n${motleyHomeIaMarkdown()}`;
+  return `${demigodHomeMarkdownRaw()}
+${motleyHomeIaMarkdown()}`;
 }
 function demigodHomeMarkdownRaw() {
   return `# Demigod
@@ -654,10 +621,6 @@ Role, the actual work. Comp, the real range. Location, SF Bay. Reviewed by a per
 - [Join the network](https://www.trydemigod.com/?wiz=engineer)
 `;
 }
-__name(demigodHomeMarkdown, "demigodHomeMarkdown");
-__name2(demigodHomeMarkdown, "demigodHomeMarkdown");
-__name22(demigodHomeMarkdown, "demigodHomeMarkdown");
-__name222(demigodHomeMarkdown, "demigodHomeMarkdown");
 function demigodContactMarkdown() {
   return `# Contact \xB7 Demigod
 
@@ -671,10 +634,6 @@ A person reads it. Names move after mutual yes.
 - [Home](https://www.trydemigod.com/)
 `;
 }
-__name(demigodContactMarkdown, "demigodContactMarkdown");
-__name2(demigodContactMarkdown, "demigodContactMarkdown");
-__name22(demigodContactMarkdown, "demigodContactMarkdown");
-__name222(demigodContactMarkdown, "demigodContactMarkdown");
 var FEED_SCHEMA = "demigod-bounties-feed/v1";
 var FEED_NOTE = "Declared USDC. We don't hold it. Unused bounty rail \u2014 not the 10% on-hire fee. Demigod listings only \u2014 not extraSeed/dasha-desk.";
 var FEED_PAGE = "https://www.trydemigod.com/bounties";
@@ -698,6 +657,30 @@ var LIVE_MAP_GENERATED_AT = "2026-08-21T18:44:45.305Z";
 var LIVE_MAP_PIN = "a1a851ac48e9c6bf09e17a4a2decbd75004b4f61";
 var STALE_ROLES_GENERATED_AT = "2026-08-06T14:33:36.175Z";
 var CDN_JSON_TTL = 300;
+var HONESTY_CDN_PIN = "2a08e55";
+var MOTLEY_HONESTY_FACES = {
+  "/humans.txt": { file: "humans.txt", contentType: "text/plain; charset=utf-8", edge: "humans" },
+  "/contribute": { file: "contribute.txt", contentType: "text/plain; charset=utf-8", edge: "contribute" },
+  "/.well-known/ai-plugin.json": { file: ".well-known/ai-plugin.json", contentType: "application/json; charset=utf-8", edge: "ai-plugin" },
+  "/ai-plugin.json": { file: ".well-known/ai-plugin.json", contentType: "application/json; charset=utf-8", edge: "ai-plugin" },
+  "/leftover-motley.json": { file: "leftover-motley.json", contentType: "application/json; charset=utf-8", edge: "leftover-motley" },
+  // demigod-site-cdn#26 — FIRST_PARTY talent opt-in (OPT_IN_LIVE=0; no invent rows)
+  "/opt-in": { file: "opt-in/public/opt-in.html", contentType: "text/html; charset=utf-8", edge: "opt-in" },
+  "/api/opt-in/healthz": { file: "opt-in/healthz.json", contentType: "application/json; charset=utf-8", edge: "opt-in-healthz" }
+};
+var MOTLEY_SAME_HOST = {
+  "/.well-known/mcp.json": "/room/.well-known/agent.json",
+  "/mcp.json": "/room/.well-known/agent.json",
+  "/openapi": "/compute",
+  "/openapi.json": "/compute",
+  "/openapi.yaml": "/compute",
+  "/compute/openapi.json": "/compute",
+  "/compute/openapi.yaml": "/compute",
+  "/compute/mcp.json": "/compute",
+  "/compute/skill.md": "/room/llms.txt",
+  "/agents.json": "/llms.txt",
+  "/ask": "/compute"
+};
 var PAGE_CSS = `
 :root{
   --ink:#0B120F;
@@ -794,119 +777,55 @@ function escapeHtml(value) {
     "'": "&#39;"
   })[char]);
 }
-__name(escapeHtml, "escapeHtml");
-__name2(escapeHtml, "escapeHtml");
-__name22(escapeHtml, "escapeHtml");
-__name222(escapeHtml, "escapeHtml");
 function ensureHtmlLang(html) {
   return String(html || "").replace(/<html\b([^>]*)>/i, (tag, attrs) => /\blang\s*=/i.test(attrs) ? tag : `<html lang="en"${attrs}>`);
 }
-__name(ensureHtmlLang, "ensureHtmlLang");
-__name2(ensureHtmlLang, "ensureHtmlLang");
-__name22(ensureHtmlLang, "ensureHtmlLang");
-__name222(ensureHtmlLang, "ensureHtmlLang");
 function applyHtmlSecurity(headers) {
   for (const [name, value] of Object.entries(HTML_SECURITY))
     headers.set(name, value);
   return headers;
 }
-__name(applyHtmlSecurity, "applyHtmlSecurity");
-__name2(applyHtmlSecurity, "applyHtmlSecurity");
-__name22(applyHtmlSecurity, "applyHtmlSecurity");
-__name222(applyHtmlSecurity, "applyHtmlSecurity");
 function isProductHost(host) {
   const h = String(host || "").toLowerCase();
   return h === "www.trydemigod.com" || h === "trydemigod.com";
 }
-__name(isProductHost, "isProductHost");
-__name2(isProductHost, "isProductHost");
-__name22(isProductHost, "isProductHost");
-__name222(isProductHost, "isProductHost");
 function isBountiesPath(pathname) {
   return pathname === "/bounties" || pathname === "/bounties/";
 }
-__name(isBountiesPath, "isBountiesPath");
-__name2(isBountiesPath, "isBountiesPath");
-__name22(isBountiesPath, "isBountiesPath");
-__name222(isBountiesPath, "isBountiesPath");
 function isBountiesJsonPath(pathname) {
   return pathname === "/bounties.json" || pathname === "/bounties.json/";
 }
-__name(isBountiesJsonPath, "isBountiesJsonPath");
-__name2(isBountiesJsonPath, "isBountiesJsonPath");
-__name22(isBountiesJsonPath, "isBountiesJsonPath");
-__name222(isBountiesJsonPath, "isBountiesJsonPath");
 function isCompaniesPath(pathname) {
   return pathname === "/companies" || pathname === "/companies/";
 }
-__name(isCompaniesPath, "isCompaniesPath");
-__name2(isCompaniesPath, "isCompaniesPath");
-__name22(isCompaniesPath, "isCompaniesPath");
-__name222(isCompaniesPath, "isCompaniesPath");
 function isCompanyPath(pathname) {
   const path = String(pathname || "").replace(/\/+$/, "");
   return path.startsWith("/c/") && path.length > 3;
 }
-__name(isCompanyPath, "isCompanyPath");
-__name2(isCompanyPath, "isCompanyPath");
-__name22(isCompanyPath, "isCompanyPath");
-__name222(isCompanyPath, "isCompanyPath");
 function isWeeklyPath(pathname) {
   return pathname === "/weekly" || pathname === "/weekly/";
 }
-__name(isWeeklyPath, "isWeeklyPath");
-__name2(isWeeklyPath, "isWeeklyPath");
-__name22(isWeeklyPath, "isWeeklyPath");
-__name222(isWeeklyPath, "isWeeklyPath");
 function isPacketsPath(pathname) {
   return pathname === "/packets" || pathname === "/packets/";
 }
-__name(isPacketsPath, "isPacketsPath");
-__name2(isPacketsPath, "isPacketsPath");
-__name22(isPacketsPath, "isPacketsPath");
-__name222(isPacketsPath, "isPacketsPath");
 function isJournalPath(pathname) {
   return pathname === "/journal" || pathname === "/journal/";
 }
-__name(isJournalPath, "isJournalPath");
-__name2(isJournalPath, "isJournalPath");
-__name22(isJournalPath, "isJournalPath");
-__name222(isJournalPath, "isJournalPath");
 function isPeersPath(pathname) {
   return pathname === "/peers" || pathname === "/peers/";
 }
-__name(isPeersPath, "isPeersPath");
-__name2(isPeersPath, "isPeersPath");
-__name22(isPeersPath, "isPeersPath");
-__name222(isPeersPath, "isPeersPath");
 function isMemoPath(pathname) {
   return pathname === "/memo" || pathname === "/memo/";
 }
-__name(isMemoPath, "isMemoPath");
-__name2(isMemoPath, "isMemoPath");
-__name22(isMemoPath, "isMemoPath");
-__name222(isMemoPath, "isMemoPath");
 function isTicketPath(pathname) {
   return pathname === "/ticket" || pathname === "/ticket/";
 }
-__name(isTicketPath, "isTicketPath");
-__name2(isTicketPath, "isTicketPath");
-__name22(isTicketPath, "isTicketPath");
-__name222(isTicketPath, "isTicketPath");
 function isBriefPath(pathname) {
   return pathname === "/brief" || pathname === "/brief/";
 }
-__name(isBriefPath, "isBriefPath");
-__name2(isBriefPath, "isBriefPath");
-__name22(isBriefPath, "isBriefPath");
-__name222(isBriefPath, "isBriefPath");
 function isJoinPath(pathname) {
   return pathname === "/join" || pathname === "/join/";
 }
-__name(isJoinPath, "isJoinPath");
-__name2(isJoinPath, "isJoinPath");
-__name22(isJoinPath, "isJoinPath");
-__name222(isJoinPath, "isJoinPath");
 function companyIdFromPath(pathname) {
   const path = String(pathname || "").replace(/\/+$/, "");
   if (!path.startsWith("/c/") || path.length <= 3)
@@ -918,41 +837,21 @@ function companyIdFromPath(pathname) {
     return raw;
   }
 }
-__name(companyIdFromPath, "companyIdFromPath");
-__name2(companyIdFromPath, "companyIdFromPath");
-__name22(companyIdFromPath, "companyIdFromPath");
-__name222(companyIdFromPath, "companyIdFromPath");
 function honestPayTo(value) {
   return typeof value === "string" ? value.trim() : "";
 }
-__name(honestPayTo, "honestPayTo");
-__name2(honestPayTo, "honestPayTo");
-__name22(honestPayTo, "honestPayTo");
-__name222(honestPayTo, "honestPayTo");
 function rewriteCdnPin(html) {
   return String(html || "").replaceAll(CDN_PIN_FROM, CDN_PIN_TO).replaceAll(CDN_FOOT_SRI_FROM, CDN_FOOT_SRI_TO).replaceAll("foot v1106", "foot v1107").replaceAll("Human-reviewed matching", "Better candidates");
 }
-__name(rewriteCdnPin, "rewriteCdnPin");
-__name2(rewriteCdnPin, "rewriteCdnPin");
-__name22(rewriteCdnPin, "rewriteCdnPin");
-__name222(rewriteCdnPin, "rewriteCdnPin");
 function rewriteStaleSnapshotDates(html) {
   return String(html || "").replaceAll('data-generated-at="2026-08-02"', `data-generated-at="${LIVE_MAP_DATE}"`).replaceAll("2026-08-02 snapshot", `${LIVE_MAP_DATE} snapshot`).replaceAll("observed 2026-08-02", `observed ${LIVE_MAP_DATE}`).replaceAll(`"generatedAt":"${STALE_ROLES_GENERATED_AT}"`, `"generatedAt":"${LIVE_MAP_GENERATED_AT}"`);
 }
-__name(rewriteStaleSnapshotDates, "rewriteStaleSnapshotDates");
-__name2(rewriteStaleSnapshotDates, "rewriteStaleSnapshotDates");
-__name22(rewriteStaleSnapshotDates, "rewriteStaleSnapshotDates");
-__name222(rewriteStaleSnapshotDates, "rewriteStaleSnapshotDates");
 function stripGoldAccent(html) {
   return String(html || "").replace(
     /<span\b(?=[^>]*\bclass=["'][^"']*\btitle-accent-gold\b)[^>]*>[\s\S]*?<\/span>/gi,
     ""
   );
 }
-__name(stripGoldAccent, "stripGoldAccent");
-__name2(stripGoldAccent, "stripGoldAccent");
-__name22(stripGoldAccent, "stripGoldAccent");
-__name222(stripGoldAccent, "stripGoldAccent");
 var LEFTOVER_SHELLS = {
   "/look": "/contact",
   "/looks": "/contact",
@@ -962,7 +861,9 @@ var LEFTOVER_SHELLS = {
   "/sample": "/",
   "/events": "/",
   "/startups": "/companies",
+  "/directory": "/companies",
   "/packet": "/packets",
+  "/bounty": "/bounties",
   "/map": "/companies",
   "/login": "/app/login",
   "/signup": "/app/login",
@@ -1030,6 +931,7 @@ var LEFTOVER_SHELLS = {
   "/compare": "/pricing",
   "/status": "/",
   "/security": "/",
+  "/security.txt": "/.well-known/security.txt",
   "/notes": "/",
   "/partnership": "/",
   "/partnerships": "/",
@@ -1038,6 +940,7 @@ var LEFTOVER_SHELLS = {
   "/private": "/",
   "/tryouts": "/",
   "/terms": "/legal",
+  "/tos": "/legal",
   "/cookies": "/",
   "/desk": "/",
   "/motley": "/",
@@ -1046,9 +949,6 @@ var LEFTOVER_SHELLS = {
   "/skill.md": "/room/llms.txt",
   "/agents.md": "/room/llms.txt",
   "/claude.md": "/room/llms.txt",
-  "/room/skill.md": "/room/llms.txt",
-  "/room/agents.md": "/room/llms.txt",
-  "/room/claude.md": "/room/llms.txt",
   "/mcp": "/room/.well-known/agent.json",
   "/api": "/room",
   "/docs": "/room",
@@ -1059,15 +959,1223 @@ var LEFTOVER_SHELLS = {
   "/data": "/",
   "/404": "/",
   "/proof": "/",
-  "/.well-known/mcp.json": "/room/.well-known/agent.json",
+  "/gpu": "/compute",
+  "/gpu/": "/compute",
+  "/gpus": "/compute",
+  "/gpus/": "/compute",
+  "/compute/gpus": "/compute",
+  "/compute/gpus/": "/compute",
+  "/mac": "/compute",
+  "/mac/": "/compute",
+  "/compute/mac": "/compute",
+  "/compute/mac/": "/compute",
+  "/provide": "/compute",
+  "/provide/": "/compute",
+  "/host": "/compute",
+  "/host/": "/compute",
+  "/inference": "/compute",
+  "/macs": "/compute",
+  "/macs/": "/compute",
+  "/Compute": "/compute",
+  "/Room": "/room",
+  "/compute/mcp": "https://www.getdasha.com/compute/mcp.json",
   "/mcp.json": "/room/.well-known/agent.json",
-  "/openapi": "/compute",
-  "/openapi.json": "/compute",
-  "/openapi.yaml": "/compute",
+  "/compute/mcp.json": "/compute",
+  "/compute/docs": "https://www.getdasha.com/compute/docs",
+  "/compute/api/docs": "https://www.getdasha.com/compute/docs",
+  "/compute/api/doc": "https://www.getdasha.com/compute/docs",
+  "/compute/openapi": "https://www.getdasha.com/compute/openapi",
   "/compute/openapi.json": "/compute",
   "/compute/openapi.yaml": "/compute",
-  "/compute/mcp.json": "/compute",
-  "/compute/skill.md": "/room/llms.txt"
+  "/skill.json": "https://www.getdasha.com/compute/skill.md",
+  "/skill.json/": "https://www.getdasha.com/compute/skill.md",
+  "/compute/skill.md": "/room/llms.txt",
+  "/compute/skill": "https://www.getdasha.com/compute/skill.md",
+  "/compute/skills/dasha-compute/SKILL.md": "https://www.getdasha.com/compute/skills/dasha-compute/SKILL.md",
+  "/compute/skills/dasha-compute": "https://www.getdasha.com/compute/skills/dasha-compute/SKILL.md",
+  "/keys.json": "https://www.getdasha.com/keys.json",
+  "/factory.json": "https://www.getdasha.com/factory.json",
+  "/factory.json/": "https://www.getdasha.com/factory.json",
+  "/api/keys.json": "https://www.getdasha.com/keys.json",
+  "/api/keys.json/": "https://www.getdasha.com/keys.json",
+  "/compute/api/keys.json": "https://www.getdasha.com/keys.json",
+  "/compute/api/keys.json/": "https://www.getdasha.com/keys.json",
+  "/compute/api/proof.md": "https://www.getdasha.com/compute/proof.md",
+  "/compute/api/proof.md/": "https://www.getdasha.com/compute/proof.md",
+  "/compute/api/proof.json": "https://www.getdasha.com/compute/proof.json",
+  "/compute/api/proof.json/": "https://www.getdasha.com/compute/proof.json",
+  "/compute/api/listings": "https://www.getdasha.com/listings",
+  "/compute/api/listings/": "https://www.getdasha.com/listings",
+  "/compute/api/price": "https://www.getdasha.com/price",
+  "/compute/api/price/": "https://www.getdasha.com/price",
+  "/compute/api/verify.json": "https://www.getdasha.com/verify.json",
+  "/compute/api/verify.json/": "https://www.getdasha.com/verify.json",
+  "/compute/api/benchmarks.json": "https://www.getdasha.com/benchmarks",
+  "/compute/api/benchmarks.json/": "https://www.getdasha.com/benchmarks",
+  "/compute/api/llms.txt": "https://www.getdasha.com/compute/llms.txt",
+  "/compute/api/llms.txt/": "https://www.getdasha.com/compute/llms.txt",
+  "/compute/api/llms-full.txt": "https://www.getdasha.com/llms-full.txt",
+  "/compute/api/llms-full.txt/": "https://www.getdasha.com/llms-full.txt",
+  "/compute/api/ai.txt": "https://www.getdasha.com/ai.txt",
+  "/compute/api/ai.txt/": "https://www.getdasha.com/ai.txt",
+  "/compute/api/agents.txt": "https://www.getdasha.com/compute/agents.txt",
+  "/compute/api/agents.txt/": "https://www.getdasha.com/compute/agents.txt",
+  "/compute/api/agents.json": "https://www.getdasha.com/agents.json",
+  "/compute/api/agents.json/": "https://www.getdasha.com/agents.json",
+  "/compute/api/openapi.json": "https://www.getdasha.com/compute/openapi.json",
+  "/compute/api/openapi.json/": "https://www.getdasha.com/compute/openapi.json",
+  "/compute/api/skill.md": "https://www.getdasha.com/compute/skill.md",
+  "/compute/api/skill.md/": "https://www.getdasha.com/compute/skill.md",
+  "/compute/api/mcp.json": "https://www.getdasha.com/compute/mcp.json",
+  "/compute/api/mcp.json/": "https://www.getdasha.com/compute/mcp.json",
+  "/compute/api/ocm": "https://www.getdasha.com/compute/ocm",
+  "/compute/api/ocm/": "https://www.getdasha.com/compute/ocm",
+  "/compute/api/heads": "https://www.getdasha.com/heads",
+  "/compute/api/heads/": "https://www.getdasha.com/heads",
+  "/compute/api/benchmarks": "https://www.getdasha.com/benchmarks",
+  "/compute/api/benchmarks/": "https://www.getdasha.com/benchmarks",
+  "/api/llms.txt": "https://www.getdasha.com/llms.txt",
+  "/api/llms.txt/": "https://www.getdasha.com/llms.txt",
+  "/api/llms-full.txt": "https://www.getdasha.com/llms-full.txt",
+  "/api/llms-full.txt/": "https://www.getdasha.com/llms-full.txt",
+  "/api/ai.txt": "https://www.getdasha.com/ai.txt",
+  "/api/ai.txt/": "https://www.getdasha.com/ai.txt",
+  "/api/agents.txt": "https://www.getdasha.com/agents.txt",
+  "/api/agents.txt/": "https://www.getdasha.com/agents.txt",
+  "/api/agents.json": "https://www.getdasha.com/agents.json",
+  "/api/agents.json/": "https://www.getdasha.com/agents.json",
+  "/api/proof.md": "https://www.getdasha.com/compute/proof.md",
+  "/api/proof.md/": "https://www.getdasha.com/compute/proof.md",
+  "/api/mcp.json": "https://www.getdasha.com/compute/mcp.json",
+  "/api/mcp.json/": "https://www.getdasha.com/compute/mcp.json",
+  "/api/skill.md": "https://www.getdasha.com/compute/skill.md",
+  "/api/skill.md/": "https://www.getdasha.com/compute/skill.md",
+  "/api/agents.md": "https://www.getdasha.com/compute/skill.md",
+  "/api/agents.md/": "https://www.getdasha.com/compute/skill.md",
+  "/api/agent.md": "https://www.getdasha.com/compute/skill.md",
+  "/api/agent.md/": "https://www.getdasha.com/compute/skill.md",
+  "/api/skill": "https://www.getdasha.com/compute/skill.md",
+  "/api/skill/": "https://www.getdasha.com/compute/skill.md",
+  "/api/openapi.yaml": "https://www.getdasha.com/compute/openapi.yaml",
+  "/api/openapi.yaml/": "https://www.getdasha.com/compute/openapi.yaml",
+  "/api/openapi.yml": "https://www.getdasha.com/compute/openapi.yaml",
+  "/api/openapi.yml/": "https://www.getdasha.com/compute/openapi.yaml",
+  "/compute/api/openapi.yaml": "https://www.getdasha.com/compute/openapi.yaml",
+  "/compute/api/openapi.yaml/": "https://www.getdasha.com/compute/openapi.yaml",
+  "/compute/api/openapi.yml": "https://www.getdasha.com/compute/openapi.yaml",
+  "/compute/api/openapi.yml/": "https://www.getdasha.com/compute/openapi.yaml",
+  "/api/openapi.json": "https://www.getdasha.com/compute/openapi.json",
+  "/api/openapi.json/": "https://www.getdasha.com/compute/openapi.json",
+  "/api/proof.json": "https://www.getdasha.com/compute/proof.json",
+  "/api/proof.json/": "https://www.getdasha.com/compute/proof.json",
+  "/api/faucet/tape": "https://www.getdasha.com/faucet/tape",
+  "/api/faucet/tape/": "https://www.getdasha.com/faucet/tape",
+  "/api/faucet/me": "https://www.getdasha.com/faucet/me",
+  "/api/faucet/me/": "https://www.getdasha.com/faucet/me",
+  "/api/digest.json": "https://www.getdasha.com/digest.json",
+  "/api/digest.json/": "https://www.getdasha.com/digest.json",
+  "/api/agent.json": "https://www.getdasha.com/compute/agent.json",
+  "/api/agent.json/": "https://www.getdasha.com/compute/agent.json",
+  "/api/bounty": "https://www.getdasha.com/bounties",
+  "/api/bounty/": "https://www.getdasha.com/bounties",
+  "/api/robots": "https://www.getdasha.com/robots.txt",
+  "/api/robots/": "https://www.getdasha.com/robots.txt",
+  "/api/sitemap": "https://www.getdasha.com/sitemap.xml",
+  "/api/sitemap/": "https://www.getdasha.com/sitemap.xml",
+  "/api/security": "https://www.getdasha.com/.well-known/security.txt",
+  "/api/security/": "https://www.getdasha.com/.well-known/security.txt",
+  "/api/heads.json": "https://www.getdasha.com/heads",
+  "/api/heads.json/": "https://www.getdasha.com/heads",
+  "/api/price.json": "https://www.getdasha.com/price",
+  "/api/price.json/": "https://www.getdasha.com/price",
+  "/api/skill.json": "https://www.getdasha.com/compute/skill.md",
+  "/api/skill.json/": "https://www.getdasha.com/compute/skill.md",
+  "/api/proof": "https://www.getdasha.com/compute/proof",
+  "/api/proof/": "https://www.getdasha.com/compute/proof",
+  "/api/mcp": "https://www.getdasha.com/compute/mcp.json",
+  "/api/mcp/": "https://www.getdasha.com/compute/mcp.json",
+  "/api/ocm": "https://www.getdasha.com/compute/ocm",
+  "/api/ocm/": "https://www.getdasha.com/compute/ocm",
+  "/api/price": "https://www.getdasha.com/price",
+  "/api/price/": "https://www.getdasha.com/price",
+  "/api/verify.json": "https://www.getdasha.com/verify.json",
+  "/api/verify.json/": "https://www.getdasha.com/verify.json",
+  "/api/factory.json": "https://www.getdasha.com/compute/api/factory",
+  "/api/factory.json/": "https://www.getdasha.com/compute/api/factory",
+  "/api/network.json": "https://www.getdasha.com/compute/api/network",
+  "/api/network.json/": "https://www.getdasha.com/compute/api/network",
+  "/api/healthz.json": "https://www.getdasha.com/compute/api/healthz",
+  "/api/healthz.json/": "https://www.getdasha.com/compute/api/healthz",
+  "/api/readyz.json": "https://www.getdasha.com/compute/api/readyz",
+  "/api/readyz.json/": "https://www.getdasha.com/compute/api/readyz",
+  "/api/pricing.json": "https://www.getdasha.com/compute/api/pricing",
+  "/api/pricing.json/": "https://www.getdasha.com/compute/api/pricing",
+  "/api/metrics.json": "https://www.getdasha.com/compute/api/metrics",
+  "/api/metrics.json/": "https://www.getdasha.com/compute/api/metrics",
+  "/api/sponsors.json": "https://www.getdasha.com/compute/api/sponsors",
+  "/api/sponsors.json/": "https://www.getdasha.com/compute/api/sponsors",
+  "/api/chain.json": "https://www.getdasha.com/compute/api/chain",
+  "/api/chain.json/": "https://www.getdasha.com/compute/api/chain",
+  "/api/status.json": "https://www.getdasha.com/compute/api/status",
+  "/api/status.json/": "https://www.getdasha.com/compute/api/status",
+  "/api/ocm.json": "https://www.getdasha.com/compute/ocm",
+  "/api/ocm.json/": "https://www.getdasha.com/compute/ocm",
+  "/api/contribute.json": "https://www.getdasha.com/contribute",
+  "/api/contribute.json/": "https://www.getdasha.com/contribute",
+  "/api/guest-keys.json": "https://www.getdasha.com/compute/api/guest-keys",
+  "/api/guest-keys.json/": "https://www.getdasha.com/compute/api/guest-keys",
+  "/api/v1/models.json": "https://www.getdasha.com/compute/api/v1/models",
+  "/api/v1/models.json/": "https://www.getdasha.com/compute/api/v1/models",
+  "/api/v1/network.json": "https://www.getdasha.com/compute/api/v1/network",
+  "/api/v1/network.json/": "https://www.getdasha.com/compute/api/v1/network",
+  "/api/jobs.json": "https://www.getdasha.com/compute/api/jobs",
+  "/api/jobs.json/": "https://www.getdasha.com/compute/api/jobs",
+  "/api/receipts.json": "https://www.getdasha.com/compute/api/receipts",
+  "/api/receipts.json/": "https://www.getdasha.com/compute/api/receipts",
+  "/api/health.json": "https://www.getdasha.com/compute/api/healthz",
+  "/api/health.json/": "https://www.getdasha.com/compute/api/healthz",
+  "/api/ready.json": "https://www.getdasha.com/compute/api/readyz",
+  "/api/ready.json/": "https://www.getdasha.com/compute/api/readyz",
+  "/api/credits.json": "https://www.getdasha.com/compute/api/credits",
+  "/api/credits.json/": "https://www.getdasha.com/compute/api/credits",
+  // gate 2026-09-13 ~09:24pt — compute honesty + Motley apex leftovers
+  "/api/models.json": "https://www.getdasha.com/compute/api/v1/models",
+  "/api/models.json/": "https://www.getdasha.com/compute/api/v1/models",
+  "/api/chat.json": "https://www.getdasha.com/compute/api/v1/chat/completions",
+  "/api/chat.json/": "https://www.getdasha.com/compute/api/v1/chat/completions",
+  "/api/completions.json": "https://www.getdasha.com/compute/api/v1/chat/completions",
+  "/api/completions.json/": "https://www.getdasha.com/compute/api/v1/chat/completions",
+  "/api/balance.json": "https://www.getdasha.com/compute/api/credits",
+  "/api/balance.json/": "https://www.getdasha.com/compute/api/credits",
+  "/api/openai.json": "https://www.getdasha.com/compute/openapi.json",
+  "/api/openai.json/": "https://www.getdasha.com/compute/openapi.json",
+  // SKIP /api/swagger.json on dasha (already → /compute/api); demigod apex still 404 — honesty → openapi.json
+  "/api/swagger.json": "https://www.getdasha.com/compute/openapi.json",
+  "/api/swagger.json/": "https://www.getdasha.com/compute/openapi.json",
+  "/api/llms.json": "https://www.getdasha.com/llms.txt",
+  "/api/llms.json/": "https://www.getdasha.com/llms.txt",
+  "/api/bag.json": "https://www.getdasha.com/bag",
+  "/api/bag.json/": "https://www.getdasha.com/bag",
+  "/api/crew.json": "https://www.getdasha.com/crew",
+  "/api/crew.json/": "https://www.getdasha.com/crew",
+  "/api/chess.json": "https://www.getdasha.com/chess",
+  "/api/chess.json/": "https://www.getdasha.com/chess",
+  "/api/contribute.md": "https://www.getdasha.com/contribute",
+  "/api/contribute.md/": "https://www.getdasha.com/contribute",
+  "/api/benchmarks": "https://www.getdasha.com/benchmarks",
+  "/api/benchmarks/": "https://www.getdasha.com/benchmarks",
+  // api-benchmarks-json-apex-growth-door-demigod:2026-09-16 — apex /api/benchmarks.json(+/) leftover 404 → getdasha /benchmarks 200 (via= preserved; peer of nested /compute/api/benchmarks.json + /api/benchmarks; Title-case via toLowerCase; do NOT wait for dasha #227; leave honesty /api/v1|/api/models|/api/providers|/api/v1/status; leave bare /benchmarks.json unmapped until face proven)
+  "/api/benchmarks.json": "https://www.getdasha.com/benchmarks",
+  "/api/benchmarks.json/": "https://www.getdasha.com/benchmarks",
+  "/api/faucet/status": "https://www.getdasha.com/faucet/status",
+  "/api/faucet/status/": "https://www.getdasha.com/faucet/status",
+  "/api/lobby.json": "https://www.getdasha.com/lobby.json",
+  "/api/lobby.json/": "https://www.getdasha.com/lobby.json",
+  "/api/listings.json": "https://www.getdasha.com/listings.json",
+  "/api/listings.json/": "https://www.getdasha.com/listings.json",
+  "/api/llms": "https://www.getdasha.com/llms.txt",
+  "/api/llms/": "https://www.getdasha.com/llms.txt",
+  "/api/llms-full": "https://www.getdasha.com/llms-full.txt",
+  "/api/llms-full/": "https://www.getdasha.com/llms-full.txt",
+  "/api/ai": "https://www.getdasha.com/ai.txt",
+  "/api/ai/": "https://www.getdasha.com/ai.txt",
+  "/api/agents": "https://www.getdasha.com/agents.txt",
+  "/api/agents/": "https://www.getdasha.com/agents.txt",
+  "/api/bag": "https://www.getdasha.com/bag",
+  "/api/bag/": "https://www.getdasha.com/bag",
+  "/api/contribute": "https://www.getdasha.com/contribute",
+  "/api/contribute/": "https://www.getdasha.com/contribute",
+  "/api/listings": "https://www.getdasha.com/listings",
+  "/api/listings/": "https://www.getdasha.com/listings",
+  "/api/crew": "https://www.getdasha.com/crew",
+  "/api/crew/": "https://www.getdasha.com/crew",
+  "/api/chess": "https://www.getdasha.com/chess",
+  "/api/chess/": "https://www.getdasha.com/chess",
+  "/api/digest": "https://www.getdasha.com/digest",
+  "/api/digest/": "https://www.getdasha.com/digest",
+  "/api/bounties": "https://www.getdasha.com/bounties",
+  "/api/bounties/": "https://www.getdasha.com/bounties",
+  "/api/which": "https://www.getdasha.com/which",
+  "/api/which/": "https://www.getdasha.com/which",
+  "/api/simp": "https://www.getdasha.com/simp",
+  "/api/simp/": "https://www.getdasha.com/simp",
+  "/api/faucet": "https://www.getdasha.com/faucet",
+  "/api/faucet/": "https://www.getdasha.com/faucet",
+  "/api/forum": "https://www.getdasha.com/lobby",
+  "/api/forum/": "https://www.getdasha.com/lobby",
+  "/api/lobby": "https://www.getdasha.com/lobby",
+  "/api/lobby/": "https://www.getdasha.com/lobby",
+  // bare compute Motley peers 2026-09-16 — agents crawl demigod /compute/{swagger.json,agents.md}
+  "/compute/swagger.json": "https://www.getdasha.com/compute/swagger.json",
+  "/compute/swagger.json/": "https://www.getdasha.com/compute/swagger.json",
+  "/compute/agents.md": "https://www.getdasha.com/compute/agents.md",
+  "/compute/agents.md/": "https://www.getdasha.com/compute/agents.md",
+  "/compute/api/agents.md": "https://www.getdasha.com/compute/skill.md",
+  "/compute/api/agents.md/": "https://www.getdasha.com/compute/skill.md",
+  "/compute/api/agent.md": "https://www.getdasha.com/compute/skill.md",
+  "/compute/api/agent.md/": "https://www.getdasha.com/compute/skill.md",
+  "/compute/api/swagger.json": "https://www.getdasha.com/compute/swagger.json",
+  "/compute/api/swagger.json/": "https://www.getdasha.com/compute/swagger.json",
+  "/compute/api/faucet": "https://www.getdasha.com/faucet",
+  "/compute/api/faucet/": "https://www.getdasha.com/faucet",
+  "/compute/api/lobby": "https://www.getdasha.com/lobby",
+  "/compute/api/lobby/": "https://www.getdasha.com/lobby",
+  "/compute/api/bag": "https://www.getdasha.com/bag",
+  "/compute/api/bag/": "https://www.getdasha.com/bag",
+  "/compute/api/crew": "https://www.getdasha.com/crew",
+  "/compute/api/crew/": "https://www.getdasha.com/crew",
+  "/compute/api/which": "https://www.getdasha.com/which",
+  "/compute/api/which/": "https://www.getdasha.com/which",
+  "/compute/api/simp": "https://www.getdasha.com/simp",
+  "/compute/api/simp/": "https://www.getdasha.com/simp",
+  "/compute/api/forum": "https://www.getdasha.com/lobby",
+  "/compute/api/forum/": "https://www.getdasha.com/lobby",
+  "/compute/api/robots.txt": "https://www.getdasha.com/robots.txt",
+  "/compute/api/robots.txt/": "https://www.getdasha.com/robots.txt",
+  "/compute/api/sitemap.xml": "https://www.getdasha.com/sitemap.xml",
+  "/compute/api/sitemap.xml/": "https://www.getdasha.com/sitemap.xml",
+  "/compute/api/security.txt": "https://www.getdasha.com/security.txt",
+  "/compute/api/security.txt/": "https://www.getdasha.com/security.txt",
+  "/compute/api/digest.json": "https://www.getdasha.com/digest.json",
+  "/compute/api/digest.json/": "https://www.getdasha.com/digest.json",
+  "/compute/api/robots": "https://www.getdasha.com/robots.txt",
+  "/compute/api/robots/": "https://www.getdasha.com/robots.txt",
+  "/compute/api/sitemap": "https://www.getdasha.com/sitemap.xml",
+  "/compute/api/sitemap/": "https://www.getdasha.com/sitemap.xml",
+  "/compute/api/security": "https://www.getdasha.com/.well-known/security.txt",
+  "/compute/api/security/": "https://www.getdasha.com/.well-known/security.txt",
+  "/compute/api/digest": "https://www.getdasha.com/digest.json",
+  "/compute/api/digest/": "https://www.getdasha.com/digest.json",
+  "/api/robots.txt": "https://www.getdasha.com/robots.txt",
+  "/api/robots.txt/": "https://www.getdasha.com/robots.txt",
+  "/api/sitemap.xml": "https://www.getdasha.com/sitemap.xml",
+  "/api/sitemap.xml/": "https://www.getdasha.com/sitemap.xml",
+  "/api/security.txt": "https://www.getdasha.com/.well-known/security.txt",
+  "/api/security.txt/": "https://www.getdasha.com/.well-known/security.txt",
+  "/compute/api/healthz": "https://www.getdasha.com/compute/api/healthz",
+  "/compute/api/healthz/": "https://www.getdasha.com/compute/api/healthz",
+  "/compute/api/health": "https://www.getdasha.com/compute/api/health",
+  "/compute/api/health/": "https://www.getdasha.com/compute/api/health",
+  "/compute/api/readyz": "https://www.getdasha.com/compute/api/readyz",
+  "/compute/api/readyz/": "https://www.getdasha.com/compute/api/readyz",
+  "/compute/ready": "https://www.getdasha.com/compute/api/readyz",
+  "/compute/ready/": "https://www.getdasha.com/compute/api/readyz",
+  "/api/readyz": "https://www.getdasha.com/compute/api/readyz",
+  "/api/readyz/": "https://www.getdasha.com/compute/api/readyz",
+  "/api/ready": "https://www.getdasha.com/compute/api/readyz",
+  "/api/ready/": "https://www.getdasha.com/compute/api/readyz",
+  "/api/healthz": "https://www.getdasha.com/compute/api/healthz",
+  "/api/healthz/": "https://www.getdasha.com/compute/api/healthz",
+  "/api/health": "https://www.getdasha.com/compute/api/healthz",
+  "/api/health/": "https://www.getdasha.com/compute/api/healthz",
+  "/api/pricing": "https://www.getdasha.com/compute/api/pricing",
+  "/api/pricing/": "https://www.getdasha.com/compute/api/pricing",
+  "/api/metrics": "https://www.getdasha.com/compute/api/metrics",
+  "/api/metrics/": "https://www.getdasha.com/compute/api/metrics",
+  "/api/network": "https://www.getdasha.com/compute/api/network",
+  "/api/network/": "https://www.getdasha.com/compute/api/network",
+  "/api/factory": "https://www.getdasha.com/compute/api/factory",
+  "/api/factory/": "https://www.getdasha.com/compute/api/factory",
+  "/api/status": "https://www.getdasha.com/compute/api/status",
+  "/api/status/": "https://www.getdasha.com/compute/api/status",
+  "/api/sponsors": "https://www.getdasha.com/compute/api/sponsors",
+  "/api/sponsors/": "https://www.getdasha.com/compute/api/sponsors",
+  "/api/chain": "https://www.getdasha.com/compute/api/chain",
+  "/api/chain/": "https://www.getdasha.com/compute/api/chain",
+  "/api/verify": "https://www.getdasha.com/compute/api/verify",
+  "/api/verify/": "https://www.getdasha.com/compute/api/verify",
+  "/api/v1/models": "https://www.getdasha.com/compute/api/v1/models",
+  "/api/v1/models/": "https://www.getdasha.com/compute/api/v1/models",
+  "/api/heads": "https://www.getdasha.com/heads",
+  "/api/heads/": "https://www.getdasha.com/heads",
+  "/api/guest-keys": "https://www.getdasha.com/compute/api/guest-keys",
+  "/api/guest-keys/": "https://www.getdasha.com/compute/api/guest-keys",
+  "/api/v1/network": "https://www.getdasha.com/compute/api/v1/network",
+  "/api/v1/network/": "https://www.getdasha.com/compute/api/v1/network",
+  "/api/v1/chat/completions": "https://www.getdasha.com/compute/api/v1/chat/completions",
+  "/api/v1/chat/completions/": "https://www.getdasha.com/compute/api/v1/chat/completions",
+  "/compute/api/pricing": "https://www.getdasha.com/compute/api/pricing",
+  "/compute/api/pricing/": "https://www.getdasha.com/compute/api/pricing",
+  "/compute/api/network": "https://www.getdasha.com/compute/api/network",
+  "/compute/api/network/": "https://www.getdasha.com/compute/api/network",
+  "/compute/api/v1": "https://www.getdasha.com/compute/api/v1",
+  "/compute/api/v1/": "https://www.getdasha.com/compute/api/v1",
+  "/compute/api/status": "https://www.getdasha.com/compute/api/status",
+  "/compute/api/status/": "https://www.getdasha.com/compute/api/status",
+  "/compute/api/v1/models": "https://www.getdasha.com/compute/api/v1/models",
+  "/compute/api/v1/models/": "https://www.getdasha.com/compute/api/v1/models",
+  "/compute/api/guest-keys": "https://www.getdasha.com/compute/api/guest-keys",
+  "/compute/api/guest-keys/": "https://www.getdasha.com/compute/api/guest-keys",
+  "/compute/api/metrics": "https://www.getdasha.com/compute/api/metrics",
+  "/compute/api/metrics/": "https://www.getdasha.com/compute/api/metrics",
+  "/compute/api/v1/network": "https://www.getdasha.com/compute/api/v1/network",
+  "/compute/api/v1/network/": "https://www.getdasha.com/compute/api/v1/network",
+  "/compute/api/v1/chat/completions": "https://www.getdasha.com/compute/api/v1/chat/completions",
+  "/compute/api/v1/chat/completions/": "https://www.getdasha.com/compute/api/v1/chat/completions",
+  "/compute/api/factory": "https://www.getdasha.com/compute/api/factory",
+  "/compute/api/factory/": "https://www.getdasha.com/compute/api/factory",
+  // solo-offline-2026-09-17-1252 — nested factory.json peer of /api/factory.json
+  "/compute/api/factory.json": "https://www.getdasha.com/compute/api/factory",
+  "/compute/api/factory.json/": "https://www.getdasha.com/compute/api/factory",
+  "/compute/api/sponsors": "https://www.getdasha.com/compute/api/sponsors",
+  "/compute/api/sponsors/": "https://www.getdasha.com/compute/api/sponsors",
+  "/compute/api/chain": "https://www.getdasha.com/compute/api/chain",
+  "/compute/api/chain/": "https://www.getdasha.com/compute/api/chain",
+  "/compute/api/verify": "https://www.getdasha.com/compute/api/verify",
+  "/compute/api/verify/": "https://www.getdasha.com/compute/api/verify",
+  "/compute/agent.json": "https://www.getdasha.com/compute/agent.json",
+  "/agents.json": "/llms.txt",
+  "/ask": "/compute",
+  "/ask/": "/compute",
+  "/agents.txt": "https://www.getdasha.com/agents.txt",
+  "/agents": "https://www.getdasha.com/agents.txt",
+  "/benchmarks": "https://www.getdasha.com/benchmarks",
+  "/heads": "https://www.getdasha.com/heads",
+  "/heads/": "https://www.getdasha.com/heads",
+  "/verify": "https://www.getdasha.com/verify",
+  "/verify/": "https://www.getdasha.com/verify",
+  "/which": "https://www.getdasha.com/which",
+  "/which/": "https://www.getdasha.com/which",
+  "/bag": "https://www.getdasha.com/bag",
+  "/bag/": "https://www.getdasha.com/bag",
+  "/listings": "https://www.getdasha.com/listings",
+  "/listings/": "https://www.getdasha.com/listings",
+  "/listings.json": "https://www.getdasha.com/listings.json",
+  "/listings.json/": "https://www.getdasha.com/listings.json",
+  "/contribute": "/contribute",
+  "/contribute/": "/contribute",
+  "/crew": "https://www.getdasha.com/crew",
+  "/crew/": "https://www.getdasha.com/crew",
+  "/how-to-buy": "https://www.getdasha.com/how-to-buy",
+  "/how-to-buy/": "https://www.getdasha.com/how-to-buy",
+  "/simp": "https://www.getdasha.com/simp",
+  "/simp/": "https://www.getdasha.com/simp",
+  "/faucet": "https://www.getdasha.com/faucet",
+  "/faucet/": "https://www.getdasha.com/faucet",
+  "/digest": "https://www.getdasha.com/digest",
+  "/digest/": "https://www.getdasha.com/digest",
+  "/digest.json": "https://www.getdasha.com/digest.json",
+  "/digest.json/": "https://www.getdasha.com/digest.json",
+  "/lobby": "https://www.getdasha.com/lobby",
+  "/lobby/": "https://www.getdasha.com/lobby",
+  "/chess": "https://www.getdasha.com/chess",
+  "/chess/": "https://www.getdasha.com/chess",
+  "/faucet/status": "https://www.getdasha.com/faucet/status",
+  "/faucet/status/": "https://www.getdasha.com/faucet/status",
+  "/lobby.json": "https://www.getdasha.com/lobby.json",
+  "/lobby.json/": "https://www.getdasha.com/lobby.json",
+  "/verify.json": "https://www.getdasha.com/verify.json",
+  "/verify.json/": "https://www.getdasha.com/verify.json",
+  "/price": "https://www.getdasha.com/price",
+  "/price/": "https://www.getdasha.com/price",
+  "/forum": "https://www.getdasha.com/lobby",
+  "/forum/": "https://www.getdasha.com/lobby",
+  "/ocm": "https://www.getdasha.com/compute/ocm",
+  "/ocm/": "https://www.getdasha.com/compute/ocm",
+  "/compute/llms.txt": "https://www.getdasha.com/compute/llms.txt",
+  "/compute/llms": "https://www.getdasha.com/compute/llms.txt",
+  "/compute/llms-full.txt": "https://www.getdasha.com/compute/llms-full.txt",
+  "/compute/api": "https://www.getdasha.com/compute/api",
+  "/dasha-compute-open-alpha.tar.gz": "https://www.getdasha.com/dasha-compute-open-alpha.tar.gz",
+  "/compute/proof.md": "https://www.getdasha.com/compute/proof.md",
+  "/compute/proof.json": "https://www.getdasha.com/compute/proof.json",
+  "/compute/doctor.txt": "/compute",
+  "/compute/doctor.txt/": "/compute",
+  "/compute/self-test": "/compute",
+  "/compute/self-test/": "/compute",
+  "/compute/plugin": "/compute",
+  "/compute/plugin/": "/compute",
+  "/compute/plug-in": "/compute",
+  "/compute/plug-in/": "/compute",
+  "/compute/host": "/compute",
+  "/compute/host/": "/compute",
+  "/compute/provide": "/compute",
+  "/compute/provide/": "/compute",
+  "/compute/inference": "/compute",
+  "/compute/inference/": "/compute",
+  "/hosting": "/compute",
+  "/hosting/": "/compute",
+  "/providers": "/compute",
+  "/providers/": "/compute",
+  "/fleet": "/compute",
+  "/fleet/": "/compute",
+  "/waitlist": "/compute",
+  "/waitlist/": "/compute",
+  "/doctor.txt": "/compute",
+  "/doctor.txt/": "/compute",
+  "/self-test": "/compute",
+  "/self-test/": "/compute",
+  "/plugin": "/compute",
+  "/plugin/": "/compute",
+  "/plug-in": "/compute",
+  "/plug-in/": "/compute",
+  "/invent": "/compute",
+  "/invent/": "/compute",
+  "/compute/gpu": "/compute",
+  "/compute/gpu/": "/compute",
+  "/compute/fleet": "/compute",
+  "/compute/fleet/": "/compute",
+  "/compute/providers": "/compute",
+  "/compute/providers/": "/compute",
+  "/compute/hosting": "/compute",
+  "/compute/hosting/": "/compute",
+  "/compute/waitlist": "/compute",
+  "/compute/waitlist/": "/compute",
+  "/doctor": "/compute",
+  "/doctor/": "/compute",
+  "/readyz": "/compute",
+  "/readyz/": "/compute",
+  "/ml": "/compute",
+  "/ml/": "/compute",
+  "/mlx": "/compute",
+  "/mlx/": "/compute",
+  "/apple-silicon": "/compute",
+  "/apple-silicon/": "/compute",
+  "/silicon": "/compute",
+  "/silicon/": "/compute",
+  "/metal": "/compute",
+  "/metal/": "/compute",
+  "/cuda": "/compute",
+  "/cuda/": "/compute",
+  "/a100": "/compute",
+  "/a100/": "/compute",
+  "/compute/ml": "/compute",
+  "/compute/ml/": "/compute",
+  "/compute/mlx": "/compute",
+  "/compute/mlx/": "/compute",
+  "/compute/apple-silicon": "/compute",
+  "/compute/apple-silicon/": "/compute",
+  "/compute/silicon": "/compute",
+  "/compute/silicon/": "/compute",
+  "/compute/metal": "/compute",
+  "/compute/metal/": "/compute",
+  "/compute/cuda": "/compute",
+  "/compute/cuda/": "/compute",
+  "/compute/a100": "/compute",
+  "/compute/a100/": "/compute",
+  "/compute/doctor": "/compute",
+  "/compute/doctor/": "/compute",
+  "/compute/readyz": "/compute",
+  "/compute/readyz/": "/compute",
+  "/compute/proof": "https://www.getdasha.com/compute/proof",
+  "/compute/proof/": "https://www.getdasha.com/compute/proof",
+  "/compute/pricing": "https://www.getdasha.com/compute/pricing",
+  "/compute/pricing/": "https://www.getdasha.com/compute/pricing",
+  "/compute/kit.json": "https://www.getdasha.com/compute/kit.json",
+  "/compute/kit.json/": "https://www.getdasha.com/compute/kit.json",
+  "/compute/skill/provide.md": "https://www.getdasha.com/compute/skill/provide.md",
+  "/compute/skill/provide.md/": "https://www.getdasha.com/compute/skill/provide.md",
+  "/compute/skill/use.md": "https://www.getdasha.com/compute/skill/use.md",
+  "/compute/skill/use.md/": "https://www.getdasha.com/compute/skill/use.md",
+  "/compute/skill/ocm-host.md": "https://www.getdasha.com/compute/skill/ocm-host.md",
+  "/compute/skill/ocm-host.md/": "https://www.getdasha.com/compute/skill/ocm-host.md",
+  "/compute/.well-known/agent.json": "https://www.getdasha.com/compute/.well-known/agent.json",
+  "/compute/.well-known/agent.json/": "https://www.getdasha.com/compute/.well-known/agent.json",
+  "/compute/.well-known/mcp.json": "https://www.getdasha.com/compute/.well-known/mcp.json",
+  "/compute/.well-known/mcp.json/": "https://www.getdasha.com/compute/.well-known/mcp.json",
+  "/compute/ocm": "https://www.getdasha.com/compute/ocm",
+  "/compute/ocm/": "https://www.getdasha.com/compute/ocm",
+  "/compute/ocm/healthz": "https://www.getdasha.com/compute/ocm/healthz",
+  "/compute/ocm/healthz/": "https://www.getdasha.com/compute/ocm/healthz",
+  "/compute/ocm/status": "https://www.getdasha.com/compute/ocm/status",
+  "/compute/ocm/status/": "https://www.getdasha.com/compute/ocm/status",
+  "/compute/ocm/v1/models": "https://www.getdasha.com/compute/ocm/v1/models",
+  "/compute/ocm/v1/models/": "https://www.getdasha.com/compute/ocm/v1/models",
+  "/compute/ocm/v1/network": "https://www.getdasha.com/compute/ocm/v1/network",
+  "/compute/ocm/v1/network/": "https://www.getdasha.com/compute/ocm/v1/network",
+  "/.well-known/mcp.json": "/room/.well-known/agent.json",
+  "/.well-known/mcp.json/": "/room/.well-known/agent.json",
+  // ai-plugin-leftover-2026-09-17 — OpenAI plugin manifest miss → live getdasha mcp.json face (via= preserved)
+  "/.well-known/ai-plugin.json": "/.well-known/ai-plugin.json",
+  "/.well-known/ai-plugin.json/": "/.well-known/ai-plugin.json",
+  // motley-leftover-llms-agents-humans-2026-09-17 — bare nested peers of dasha Motley ship
+  "/compute/api/llms": "https://www.getdasha.com/compute/llms.txt",
+  "/compute/api/llms/": "https://www.getdasha.com/compute/llms.txt",
+  "/compute/api/agents": "https://www.getdasha.com/compute/agents.txt",
+  "/compute/api/agents/": "https://www.getdasha.com/compute/agents.txt",
+  // humans quiet face — dasha ships /humans.txt→/contribute; peer same dest
+  "/humans.txt": "/humans.txt",
+  "/humans.txt/": "/humans.txt",
+  // demigod-site-cdn#26 opt-in — Motley honesty owns; never leftover→getdasha
+  "/opt-in": "/opt-in",
+  "/opt-in/": "/opt-in",
+  "/api/opt-in/healthz": "/api/opt-in/healthz",
+  "/api/opt-in/healthz/": "/api/opt-in/healthz",
+  "/api/opt-in": "/api/opt-in",
+  "/api/opt-in/": "/api/opt-in",
+  // solo-offline-2026-09-17-1355 — extensionless Motley peers of dasha 0e4ee15b batch (via=)
+  "/compute/api/ai": "https://www.getdasha.com/ai.txt",
+  "/compute/api/ai/": "https://www.getdasha.com/ai.txt",
+  "/compute/api/skill": "https://www.getdasha.com/compute/skill.md",
+  "/compute/api/skill/": "https://www.getdasha.com/compute/skill.md",
+  "/compute/api/mcp": "https://www.getdasha.com/compute/mcp.json",
+  "/compute/api/mcp/": "https://www.getdasha.com/compute/mcp.json",
+  "/compute/api/openapi": "https://www.getdasha.com/compute/openapi.json",
+  "/compute/api/openapi/": "https://www.getdasha.com/compute/openapi.json",
+  "/compute/api/contribute": "https://www.getdasha.com/contribute",
+  "/compute/api/contribute/": "https://www.getdasha.com/contribute",
+  "/compute/api/proof": "https://www.getdasha.com/compute/proof.md",
+  "/compute/api/proof/": "https://www.getdasha.com/compute/proof.md",
+  "/compute/agents": "https://www.getdasha.com/compute/agents.txt",
+  "/compute/agents/": "https://www.getdasha.com/compute/agents.txt",
+  "/api/how-to-buy": "https://www.getdasha.com/how-to-buy",
+  "/api/how-to-buy/": "https://www.getdasha.com/how-to-buy",
+  "/api/privacy": "https://www.getdasha.com/privacy",
+  "/api/privacy/": "https://www.getdasha.com/privacy",
+  "/api/humans.txt": "https://www.getdasha.com/contribute",
+  "/api/humans.txt/": "https://www.getdasha.com/contribute",
+  "/api/humans": "https://www.getdasha.com/contribute",
+  "/api/humans/": "https://www.getdasha.com/contribute",
+  "/compute/api/humans.txt": "https://www.getdasha.com/contribute",
+  "/compute/api/humans.txt/": "https://www.getdasha.com/contribute",
+  "/compute/api/humans": "https://www.getdasha.com/humans.txt",
+  "/compute/api/humans/": "https://www.getdasha.com/humans.txt",
+  // motley-nested-hits-2026-09-17-1352 — peer of dasha Motley nested HIT batch (via= preserved)
+  "/api/aiplugin.json": "https://www.getdasha.com/.well-known/mcp.json",
+  "/api/aiplugin.json/": "https://www.getdasha.com/.well-known/mcp.json",
+  "/compute/contribute.md": "https://www.getdasha.com/contribute",
+  "/compute/contribute.md/": "https://www.getdasha.com/contribute",
+  "/compute/api/listings.json": "https://www.getdasha.com/listings.json",
+  "/compute/api/listings.json/": "https://www.getdasha.com/listings.json",
+  "/compute/api/price.json": "https://www.getdasha.com/price",
+  "/compute/api/price.json/": "https://www.getdasha.com/price",
+  "/compute/api/lobby.json": "https://www.getdasha.com/lobby.json",
+  "/compute/api/lobby.json/": "https://www.getdasha.com/lobby.json",
+  "/compute/api/heads.json": "https://www.getdasha.com/heads",
+  "/compute/api/heads.json/": "https://www.getdasha.com/heads",
+  "/compute/api/chess": "https://www.getdasha.com/chess",
+  "/compute/api/chess/": "https://www.getdasha.com/chess",
+  "/compute/api/chess.json": "https://www.getdasha.com/chess",
+  "/compute/api/chess.json/": "https://www.getdasha.com/chess",
+  "/compute/api/bounties": "https://www.getdasha.com/bounties",
+  "/compute/api/bounties/": "https://www.getdasha.com/bounties",
+  "/compute/api/agent.json": "https://www.getdasha.com/compute/agent.json",
+  "/compute/api/agent.json/": "https://www.getdasha.com/compute/agent.json",
+  "/compute/agents.txt": "https://www.getdasha.com/compute/agents.txt",
+  "/compute/agents.txt/": "https://www.getdasha.com/compute/agents.txt",
+  "/compute/agents.json": "https://www.getdasha.com/compute/agents.json",
+  "/compute/agents.json/": "https://www.getdasha.com/compute/agents.json",
+  "/open": "/compute",
+  "/open/": "/compute",
+  "/build": "/compute",
+  "/build/": "/compute",
+  "/compute/open": "/compute",
+  "/compute/open/": "/compute",
+  "/compute/build": "/compute",
+  "/compute/build/": "/compute",
+  // Provide/setup leftover invent (2026-09-12) — soft-doctor peers still 404 on live
+  "/setup": "/compute",
+  "/setup/": "/compute",
+  "/enroll": "/compute",
+  "/enroll/": "/compute",
+  "/install": "/compute",
+  "/install/": "/compute",
+  "/bootstrap": "/compute",
+  "/bootstrap/": "/compute",
+  "/onboarding": "/compute",
+  "/onboarding/": "/compute",
+  "/guide": "/compute",
+  "/guide/": "/compute",
+  "/download": "/compute",
+  "/download/": "/compute",
+  "/compute/setup": "/compute",
+  "/compute/setup/": "/compute",
+  "/compute/enroll": "/compute",
+  "/compute/enroll/": "/compute",
+  "/compute/install": "/compute",
+  "/compute/install/": "/compute",
+  "/compute/bootstrap": "/compute",
+  "/compute/bootstrap/": "/compute",
+  "/compute/onboarding": "/compute",
+  "/compute/onboarding/": "/compute",
+  "/compute/guide": "/compute",
+  "/compute/guide/": "/compute",
+  "/compute/download": "/compute",
+  "/compute/download/": "/compute",
+  "/compute/macs": "/compute",
+  "/compute/macs/": "/compute",
+  // Fleet/docs-start/provide invent (2026-09-12) — hunt CSV remaining compute discovery 404s
+  "/nodes": "/compute",
+  "/nodes/": "/compute",
+  "/worker": "/compute",
+  "/worker/": "/compute",
+  "/workers": "/compute",
+  "/workers/": "/compute",
+  "/cluster": "/compute",
+  "/cluster/": "/compute",
+  "/pool": "/compute",
+  "/pool/": "/compute",
+  "/machines": "/compute",
+  "/machines/": "/compute",
+  "/getting-started": "/compute",
+  "/getting-started/": "/compute",
+  "/get-started": "/compute",
+  "/get-started/": "/compute",
+  "/quickstart": "/compute",
+  "/quickstart/": "/compute",
+  "/onboard": "/compute",
+  "/onboard/": "/compute",
+  "/providing": "/compute",
+  "/providing/": "/compute",
+  "/capacity": "/compute",
+  "/capacity/": "/compute",
+  "/hosted": "/compute",
+  "/hosted/": "/compute",
+  "/infer": "/compute",
+  "/infer/": "/compute",
+  "/llm": "/compute",
+  "/llm/": "/compute",
+  "/llms": "/compute",
+  "/llms/": "/compute",
+  "/compute/nodes": "/compute",
+  "/compute/nodes/": "/compute",
+  "/compute/worker": "/compute",
+  "/compute/worker/": "/compute",
+  "/compute/workers": "/compute",
+  "/compute/workers/": "/compute",
+  "/compute/cluster": "/compute",
+  "/compute/cluster/": "/compute",
+  "/compute/pool": "/compute",
+  "/compute/pool/": "/compute",
+  "/compute/machines": "/compute",
+  "/compute/machines/": "/compute",
+  "/compute/hosted": "/compute",
+  "/compute/hosted/": "/compute",
+  "/compute/infer": "/compute",
+  "/compute/infer/": "/compute",
+  "/compute/llm": "/compute",
+  "/compute/llm/": "/compute",
+  // API/docs + GPU brand + provider invent (2026-09-12) — hunt CSV remaining compute discovery 404s
+  "/swagger": "/compute",
+  "/swagger/": "/compute",
+  "/base_url": "/compute",
+  "/base_url/": "/compute",
+  "/base-url": "/compute",
+  "/base-url/": "/compute",
+  "/baseurl": "/compute",
+  "/baseurl/": "/compute",
+  "/endpoint": "/compute",
+  "/endpoint/": "/compute",
+  "/endpoints": "/compute",
+  "/endpoints/": "/compute",
+  "/gateway": "/compute",
+  "/gateway/": "/compute",
+  "/sdk": "/compute",
+  "/sdk/": "/compute",
+  "/compute/base_url": "/compute",
+  "/compute/base_url/": "/compute",
+  "/compute/endpoint": "/compute",
+  "/compute/endpoint/": "/compute",
+  "/compute/gateway": "/compute",
+  "/compute/gateway/": "/compute",
+  "/compute/sdk": "/compute",
+  "/compute/sdk/": "/compute",
+  "/macos": "/compute",
+  "/macos/": "/compute",
+  "/apple": "/compute",
+  "/apple/": "/compute",
+  "/m1": "/compute",
+  "/m1/": "/compute",
+  "/m2": "/compute",
+  "/m2/": "/compute",
+  "/m3": "/compute",
+  "/m3/": "/compute",
+  "/m4": "/compute",
+  "/m4/": "/compute",
+  "/local": "/compute",
+  "/local/": "/compute",
+  "/edge": "/compute",
+  "/edge/": "/compute",
+  "/compute/m1": "/compute",
+  "/compute/m1/": "/compute",
+  "/compute/m2": "/compute",
+  "/compute/m2/": "/compute",
+  "/compute/m3": "/compute",
+  "/compute/m3/": "/compute",
+  "/compute/m4": "/compute",
+  "/compute/m4/": "/compute",
+  "/compute/local": "/compute",
+  "/compute/local/": "/compute",
+  "/compute/edge": "/compute",
+  "/compute/edge/": "/compute",
+  "/offer": "/compute",
+  "/offer/": "/compute",
+  "/offers": "/compute",
+  "/offers/": "/compute",
+  "/rent": "/compute",
+  "/rent/": "/compute",
+  "/ollama": "/compute",
+  "/ollama/": "/compute",
+  "/mixture": "/compute",
+  "/mixture/": "/compute",
+  "/oss": "/compute",
+  "/oss/": "/compute",
+  "/compute/ollama": "/compute",
+  "/compute/ollama/": "/compute",
+  "/compute/mixture": "/compute",
+  "/compute/mixture/": "/compute",
+  // API/docs + GPU brand + provider invent batch2 (2026-09-12) — hunt CSV + synonym peers
+  "/cli": "/compute",
+  "/cli/": "/compute",
+  "/compute/cli": "/compute",
+  "/compute/cli/": "/compute",
+  "/openapi": "/compute",
+  "/openapi/": "/compute",
+  "/api-docs": "/compute",
+  "/api-docs/": "/compute",
+  "/apidocs": "/compute",
+  "/apidocs/": "/compute",
+  "/redoc": "/compute",
+  "/redoc/": "/compute",
+  "/example": "/compute",
+  "/example/": "/compute",
+  "/examples": "/compute",
+  "/examples/": "/compute",
+  "/nvidia": "/compute",
+  "/nvidia/": "/compute",
+  "/h100": "/compute",
+  "/h100/": "/compute",
+  "/h200": "/compute",
+  "/h200/": "/compute",
+  "/b200": "/compute",
+  "/b200/": "/compute",
+  "/rocm": "/compute",
+  "/rocm/": "/compute",
+  "/tpu": "/compute",
+  "/tpu/": "/compute",
+  "/compute/h100": "/compute",
+  "/compute/h100/": "/compute",
+  "/qwen": "/compute",
+  "/qwen/": "/compute",
+  "/llama": "/compute",
+  "/llama/": "/compute",
+  "/gpt": "/compute",
+  "/gpt/": "/compute",
+  "/astra": "/compute",
+  "/astra/": "/compute",
+  "/flash": "/compute",
+  "/flash/": "/compute",
+  "/compute/qwen": "/compute",
+  "/compute/qwen/": "/compute",
+  "/compute/llama": "/compute",
+  "/compute/llama/": "/compute",
+  "/compute/astra": "/compute",
+  "/compute/astra/": "/compute",
+  "/compute/flash": "/compute",
+  "/compute/flash/": "/compute",
+  "/vllm": "/compute",
+  "/vllm/": "/compute",
+  "/lmstudio": "/compute",
+  "/lmstudio/": "/compute",
+  "/prefer": "/compute",
+  "/prefer/": "/compute",
+  "/preference": "/compute",
+  "/preference/": "/compute",
+  "/preferences": "/compute",
+  "/preferences/": "/compute",
+  "/compute/prefer": "/compute",
+  "/compute/prefer/": "/compute",
+  // API/docs + GPU brand + provider invent batch3 (2026-09-12) — more synonym peers → /compute
+  "/graphql": "/compute",
+  "/graphql/": "/compute",
+  "/grpc": "/compute",
+  "/grpc/": "/compute",
+  "/rest": "/compute",
+  "/rest/": "/compute",
+  "/client": "/compute",
+  "/client/": "/compute",
+  "/clients": "/compute",
+  "/clients/": "/compute",
+  "/schema": "/compute",
+  "/schema/": "/compute",
+  "/spec": "/compute",
+  "/spec/": "/compute",
+  "/specs": "/compute",
+  "/specs/": "/compute",
+  "/postman": "/compute",
+  "/postman/": "/compute",
+  "/bindings": "/compute",
+  "/bindings/": "/compute",
+  "/compute/graphql": "/compute",
+  "/compute/graphql/": "/compute",
+  "/compute/client": "/compute",
+  "/compute/client/": "/compute",
+  "/compute/schema": "/compute",
+  "/compute/schema/": "/compute",
+  "/rtx": "/compute",
+  "/rtx/": "/compute",
+  "/4090": "/compute",
+  "/4090/": "/compute",
+  "/5090": "/compute",
+  "/5090/": "/compute",
+  "/a6000": "/compute",
+  "/a6000/": "/compute",
+  "/l40": "/compute",
+  "/l40/": "/compute",
+  "/l40s": "/compute",
+  "/l40s/": "/compute",
+  "/blackwell": "/compute",
+  "/blackwell/": "/compute",
+  "/hopper": "/compute",
+  "/hopper/": "/compute",
+  "/mi300": "/compute",
+  "/mi300/": "/compute",
+  "/amd": "/compute",
+  "/amd/": "/compute",
+  "/compute/rtx": "/compute",
+  "/compute/rtx/": "/compute",
+  "/compute/4090": "/compute",
+  "/compute/4090/": "/compute",
+  "/compute/blackwell": "/compute",
+  "/compute/blackwell/": "/compute",
+  "/sglang": "/compute",
+  "/sglang/": "/compute",
+  "/tgi": "/compute",
+  "/tgi/": "/compute",
+  "/triton": "/compute",
+  "/triton/": "/compute",
+  "/tensorrt": "/compute",
+  "/tensorrt/": "/compute",
+  "/huggingface": "/compute",
+  "/huggingface/": "/compute",
+  "/hf": "/compute",
+  "/hf/": "/compute",
+  "/runpod": "/compute",
+  "/runpod/": "/compute",
+  "/groq": "/compute",
+  "/groq/": "/compute",
+  "/together": "/compute",
+  "/together/": "/compute",
+  "/fireworks": "/compute",
+  "/fireworks/": "/compute",
+  "/compute/sglang": "/compute",
+  "/compute/sglang/": "/compute",
+  "/compute/huggingface": "/compute",
+  "/compute/huggingface/": "/compute",
+  "/compute/groq": "/compute",
+  "/compute/groq/": "/compute",
+  // API/docs + GPU brand + provider invent batch4 (2026-09-12) — more synonym peers → /compute
+  "/rpc": "/compute",
+  "/rpc/": "/compute",
+  "/jsonrpc": "/compute",
+  "/jsonrpc/": "/compute",
+  "/json-rpc": "/compute",
+  "/json-rpc/": "/compute",
+  "/protobuf": "/compute",
+  "/protobuf/": "/compute",
+  "/proto": "/compute",
+  "/proto/": "/compute",
+  "/grpc-web": "/compute",
+  "/grpc-web/": "/compute",
+  "/openapi.json": "/compute",
+  "/openapi.yaml": "/compute",
+  "/sse": "/compute",
+  "/sse/": "/compute",
+  "/streaming": "/compute",
+  "/streaming/": "/compute",
+  "/compute/rpc": "/compute",
+  "/compute/rpc/": "/compute",
+  "/compute/protobuf": "/compute",
+  "/compute/protobuf/": "/compute",
+  "/a10": "/compute",
+  "/a10/": "/compute",
+  "/a40": "/compute",
+  "/a40/": "/compute",
+  "/l4": "/compute",
+  "/l4/": "/compute",
+  "/v100": "/compute",
+  "/v100/": "/compute",
+  "/t4": "/compute",
+  "/t4/": "/compute",
+  "/gh200": "/compute",
+  "/gh200/": "/compute",
+  "/gb200": "/compute",
+  "/gb200/": "/compute",
+  "/mi300x": "/compute",
+  "/mi300x/": "/compute",
+  "/instinct": "/compute",
+  "/instinct/": "/compute",
+  "/compute/a10": "/compute",
+  "/compute/a10/": "/compute",
+  "/compute/gh200": "/compute",
+  "/compute/gh200/": "/compute",
+  "/compute/mi300x": "/compute",
+  "/compute/mi300x/": "/compute",
+  "/modal": "/compute",
+  "/modal/": "/compute",
+  "/replicate": "/compute",
+  "/replicate/": "/compute",
+  "/vast": "/compute",
+  "/vast/": "/compute",
+  "/vastai": "/compute",
+  "/vastai/": "/compute",
+  "/paperspace": "/compute",
+  "/paperspace/": "/compute",
+  "/coreweave": "/compute",
+  "/coreweave/": "/compute",
+  "/deepspeed": "/compute",
+  "/deepspeed/": "/compute",
+  "/gguf": "/compute",
+  "/gguf/": "/compute",
+  "/llamacpp": "/compute",
+  "/llamacpp/": "/compute",
+  "/accelerator": "/compute",
+  "/accelerator/": "/compute",
+  "/provision": "/compute",
+  "/provision/": "/compute",
+  "/provisioning": "/compute",
+  "/provisioning/": "/compute",
+  "/runtime": "/compute",
+  "/runtime/": "/compute",
+  "/serving": "/compute",
+  "/serving/": "/compute",
+  "/mac-mini": "/compute",
+  "/mac-mini/": "/compute",
+  "/mac-studio": "/compute",
+  "/mac-studio/": "/compute",
+  "/compute/modal": "/compute",
+  "/compute/modal/": "/compute",
+  "/compute/replicate": "/compute",
+  "/compute/replicate/": "/compute",
+  "/compute/gguf": "/compute",
+  "/compute/gguf/": "/compute",
+  "/compute/provision": "/compute",
+  "/compute/provision/": "/compute",
+  // Hunt leftover invent batch5 (2026-09-12) — STILL-404 hunt stems only (no synonym peers) → /compute
+  "/benchmark": "/compute",
+  "/benchmark/": "/compute",
+  "/compute/benchmark": "/compute",
+  "/compute/benchmark/": "/compute",
+  "/compute/faq": "/compute",
+  "/compute/faq/": "/compute",
+  "/compute/help": "/compute",
+  "/compute/help/": "/compute",
+  "/support": "/compute",
+  "/support/": "/compute",
+  "/compute/join": "/compute",
+  "/compute/join/": "/compute",
+  "/run": "/compute",
+  "/run/": "/compute",
+  "/compute/run": "/compute",
+  "/compute/run/": "/compute",
+  "/compute/start": "/compute",
+  "/compute/start/": "/compute",
+  "/use": "/compute",
+  "/use/": "/compute",
+  "/compute/use": "/compute",
+  "/compute/use/": "/compute",
+  "/uptime": "/compute",
+  "/uptime/": "/compute",
+  "/compute/uptime": "/compute",
+  "/compute/uptime/": "/compute",
+  "/ping": "/compute",
+  "/ping/": "/compute",
+  "/version": "/compute",
+  "/version/": "/compute",
+  "/compute/status": "/compute",
+  "/compute/status/": "/compute",
+  "/sponsor": "/compute",
+  "/sponsor/": "/compute",
+  "/compute/sponsor": "/compute",
+  "/compute/sponsor/": "/compute",
+  "/console": "/compute",
+  "/console/": "/compute",
+  "/compute/console": "/compute",
+  "/compute/console/": "/compute",
+  "/demo": "/compute",
+  "/demo/": "/compute",
+  "/compute/demo": "/compute",
+  "/compute/demo/": "/compute",
+  "/try": "/compute",
+  "/try/": "/compute",
+  "/compute/try": "/compute",
+  "/compute/try/": "/compute",
+  "/playground": "/compute",
+  "/playground/": "/compute",
+  "/sandbox": "/compute",
+  "/sandbox/": "/compute",
+  "/dancer": "/compute",
+  "/dancer/": "/compute",
+  "/compute/dancer": "/compute",
+  "/compute/dancer/": "/compute",
+  "/night": "/compute",
+  "/night/": "/compute",
+  "/compute/night": "/compute",
+  "/compute/night/": "/compute",
+  // Hunt leftover invent batch6 (2026-09-12) — STILL-404 hunt stems only (no synonym peers) → /compute
+  // Payment/crypto discovery + compute/register (NOT billing/keys; those stay 404 forever)
+  "/wallet": "/compute",
+  "/wallet/": "/compute",
+  "/compute/wallet": "/compute",
+  "/compute/wallet/": "/compute",
+  "/credits": "/compute",
+  "/credits/": "/compute",
+  "/credit": "/compute",
+  "/credit/": "/compute",
+  "/compute/credits": "/compute",
+  "/compute/credits/": "/compute",
+  "/usdc": "/compute",
+  "/usdc/": "/compute",
+  "/compute/usdc": "/compute",
+  "/compute/usdc/": "/compute",
+  "/token": "/compute",
+  "/token/": "/compute",
+  "/compute/token": "/compute",
+  "/compute/token/": "/compute",
+  "/balance": "/compute",
+  "/balance/": "/compute",
+  "/compute/balance": "/compute",
+  "/compute/balance/": "/compute",
+  "/invoice": "/compute",
+  "/invoice/": "/compute",
+  "/invoices": "/compute",
+  "/invoices/": "/compute",
+  "/refill": "/compute",
+  "/refill/": "/compute",
+  "/topup": "/compute",
+  "/topup/": "/compute",
+  "/top-up": "/compute",
+  "/top-up/": "/compute",
+  "/settle": "/compute",
+  "/settle/": "/compute",
+  "/settlement": "/compute",
+  "/settlement/": "/compute",
+  "/phantom": "/compute",
+  "/phantom/": "/compute",
+  "/solana": "/compute",
+  "/solana/": "/compute",
+  "/compute/register": "/compute",
+  "/compute/register/": "/compute",
+  // agent-synonyms-leftovers-2026-09-17 — title-case peers normalize via leftoverRedirectPath.
+  "/contribute.md": "https://www.getdasha.com/contribute",
+  "/contribute.md/": "https://www.getdasha.com/contribute",
+  "/crew.json": "https://www.getdasha.com/crew",
+  "/crew.json/": "https://www.getdasha.com/crew",
+  "/bag.json": "https://www.getdasha.com/bag",
+  "/bag.json/": "https://www.getdasha.com/bag",
+  // invent-hunt leftovers 2026-09-17 — /api/peers + /peers.json → demigod /peers face (200)
+  "/api/peers": "/peers",
+  "/api/peers/": "/peers",
+  "/peers.json": "/peers",
+  "/peers.json/": "/peers",
+  // solo-offline-2026-09-17-1252 — bare proof.md peer of compute/proof.md face
+  "/proof.md": "https://www.getdasha.com/compute/proof.md",
+  "/proof.md/": "https://www.getdasha.com/compute/proof.md",
+  // keep-swarm Motley json synonyms 2026-09-17-1450 — peer of dasha Motley leftover ship
+  "/api/simp.json": "https://www.getdasha.com/simp",
+  "/api/simp.json/": "https://www.getdasha.com/simp",
+  "/api/which.json": "https://www.getdasha.com/which",
+  "/api/which.json/": "https://www.getdasha.com/which",
+  "/api/faucet.json": "https://www.getdasha.com/faucet",
+  "/api/faucet.json/": "https://www.getdasha.com/faucet",
+  "/api/forum.json": "https://www.getdasha.com/lobby",
+  "/api/forum.json/": "https://www.getdasha.com/lobby",
+  "/api/bounty.json": "https://www.getdasha.com/bounties",
+  "/api/bounty.json/": "https://www.getdasha.com/bounties",
+  "/api/bounties.json": "https://www.getdasha.com/bounties",
+  "/api/bounties.json/": "https://www.getdasha.com/bounties",
+  "/heads.json": "https://www.getdasha.com/heads",
+  "/heads.json/": "https://www.getdasha.com/heads",
+  "/price.json": "https://www.getdasha.com/price",
+  "/price.json/": "https://www.getdasha.com/price",
+  "/proof.json": "https://www.getdasha.com/compute/proof.json",
+  "/proof.json/": "https://www.getdasha.com/compute/proof.json",
+  "/ai-plugin.json": "/.well-known/ai-plugin.json",
+  "/ai-plugin.json/": "/.well-known/ai-plugin.json",
+  "/compute/factory.json": "https://www.getdasha.com/compute/api/factory",
+  "/compute/factory.json/": "https://www.getdasha.com/compute/api/factory",
+  "/compute/api/metrics.json": "https://www.getdasha.com/compute/api/metrics",
+  "/compute/api/metrics.json/": "https://www.getdasha.com/compute/api/metrics",
+  "/compute/api/sponsors.json": "https://www.getdasha.com/compute/api/sponsors",
+  "/compute/api/sponsors.json/": "https://www.getdasha.com/compute/api/sponsors",
+  "/compute/api/guest-keys.json": "https://www.getdasha.com/compute/api/guest-keys",
+  "/compute/api/guest-keys.json/": "https://www.getdasha.com/compute/api/guest-keys",
+  "/compute/api/status.json": "https://www.getdasha.com/compute/api/status",
+  "/compute/api/status.json/": "https://www.getdasha.com/compute/api/status",
+  "/compute/api/skill.json": "https://www.getdasha.com/compute/skill.md",
+  "/compute/api/skill.json/": "https://www.getdasha.com/compute/skill.md",
+  "/compute/api/ai.json": "https://www.getdasha.com/ai.txt",
+  "/compute/api/ai.json/": "https://www.getdasha.com/ai.txt",
+  "/compute/api/bounties.json": "https://www.getdasha.com/bounties",
+  "/compute/api/bounties.json/": "https://www.getdasha.com/bounties",
+  "/compute/api/bounty.json": "https://www.getdasha.com/bounties",
+  "/compute/api/bounty.json/": "https://www.getdasha.com/bounties",
+  // solo-offline-2026-09-17-1453 — Motley nested peers still 404 on live demigod (Keep-swarm owns dasha)
+  "/compute/api/how-to-buy": "https://www.getdasha.com/how-to-buy",
+  "/compute/api/how-to-buy/": "https://www.getdasha.com/how-to-buy",
+  "/compute/api/privacy": "https://www.getdasha.com/privacy",
+  "/compute/api/privacy/": "https://www.getdasha.com/privacy",
+  "/api/ai.json": "https://www.getdasha.com/ai.txt",
+  "/api/ai.json/": "https://www.getdasha.com/ai.txt",
+  "/ai.json": "https://www.getdasha.com/ai.txt",
+  "/ai.json/": "https://www.getdasha.com/ai.txt",
+  "/compute/api/aiplugin.json": "https://www.getdasha.com/.well-known/mcp.json",
+  "/compute/api/aiplugin.json/": "https://www.getdasha.com/.well-known/mcp.json",
+  "/compute/api/security.json": "https://www.getdasha.com/.well-known/security.txt",
+  "/compute/api/security.json/": "https://www.getdasha.com/.well-known/security.txt",
+  "/api/security.json": "https://www.getdasha.com/.well-known/security.txt",
+  "/api/security.json/": "https://www.getdasha.com/.well-known/security.txt",
+  "/compute/api/network.json": "https://www.getdasha.com/compute/api/network",
+  "/compute/api/network.json/": "https://www.getdasha.com/compute/api/network",
+  "/compute/api/pricing.json": "https://www.getdasha.com/compute/api/pricing",
+  "/compute/api/pricing.json/": "https://www.getdasha.com/compute/api/pricing",
+  "/compute/api/receipts.json": "https://www.getdasha.com/compute/api/receipts",
+  "/compute/api/receipts.json/": "https://www.getdasha.com/compute/api/receipts",
+  "/compute/api/chain.json": "https://www.getdasha.com/compute/api/chain",
+  "/compute/api/chain.json/": "https://www.getdasha.com/compute/api/chain",
+  // solo-offline-2026-09-17-1550 — Motley .json peers still 404 (faces live on getdasha; Keep-swarm owns dasha)
+  "/api/ai-plugin.json": "https://www.getdasha.com/.well-known/mcp.json",
+  "/api/ai-plugin.json/": "https://www.getdasha.com/.well-known/mcp.json",
+  "/api/how-to-buy.json": "https://www.getdasha.com/how-to-buy",
+  "/api/how-to-buy.json/": "https://www.getdasha.com/how-to-buy",
+  "/api/privacy.json": "https://www.getdasha.com/privacy",
+  "/api/privacy.json/": "https://www.getdasha.com/privacy",
+  "/api/humans.json": "https://www.getdasha.com/humans.txt",
+  "/api/humans.json/": "https://www.getdasha.com/humans.txt",
+  "/compute/api/contribute.json": "https://www.getdasha.com/contribute",
+  "/compute/api/contribute.json/": "https://www.getdasha.com/contribute",
+  "/compute/api/humans.json": "https://www.getdasha.com/humans.txt",
+  "/compute/api/humans.json/": "https://www.getdasha.com/humans.txt",
+  "/compute/api/how-to-buy.json": "https://www.getdasha.com/how-to-buy",
+  "/compute/api/how-to-buy.json/": "https://www.getdasha.com/how-to-buy",
+  "/compute/api/privacy.json": "https://www.getdasha.com/privacy",
+  "/compute/api/privacy.json/": "https://www.getdasha.com/privacy",
+  // solo-offline-2026-09-17-1650 — bare Motley peers still 404 (faces live on getdasha; Keep-swarm owns dasha; leave /factory /muse /doctor.md /kits invent)
+  "/ai": "https://www.getdasha.com/ai.txt",
+  "/ai/": "https://www.getdasha.com/ai.txt",
+  "/howto": "https://www.getdasha.com/how-to-buy",
+  "/howto/": "https://www.getdasha.com/how-to-buy",
+  "/how-to": "https://www.getdasha.com/how-to-buy",
+  "/how-to/": "https://www.getdasha.com/how-to-buy",
+  "/developers": "https://www.getdasha.com/compute/api",
+  "/developers/": "https://www.getdasha.com/compute/api",
+  // solo-offline-2026-09-17-1651 — nested Motley peer of /api/llms.json (face /llms.txt 200; both hosts 404; Keep-swarm owns dasha nested)
+  "/compute/api/llms.json": "https://www.getdasha.com/llms.txt",
+  "/compute/api/llms.json/": "https://www.getdasha.com/llms.txt",
+  // solo-offline-2026-09-17-1750 — Motley hyphen/bare peers still 404 on live (parent mid-wake trio already live; faces 200; Keep-swarm owns dasha; leave /kits /factory /muse /doctor.md /api/v1*)
+  "/compute/api/ai-plugin.json": "https://www.getdasha.com/.well-known/mcp.json",
+  "/compute/api/ai-plugin.json/": "https://www.getdasha.com/.well-known/mcp.json",
+  "/contribute.json": "https://www.getdasha.com/contribute",
+  "/contribute.json/": "https://www.getdasha.com/contribute",
+  "/compute/humans.json": "https://www.getdasha.com/humans.txt",
+  "/compute/humans.json/": "https://www.getdasha.com/humans.txt",
+  "/compute/humans.txt": "https://www.getdasha.com/contribute",
+  "/compute/humans.txt/": "https://www.getdasha.com/contribute",
+  // keep-swarm-2026-09-17-1748 — Motley restore peers (faces 200 on getdasha; leave /factory /muse /doctor.md /kits invent /api/v1)
+  "/compute/api/crew.json": "https://www.getdasha.com/crew",
+  "/compute/api/crew.json/": "https://www.getdasha.com/crew",
+  "/compute/api/bag.json": "https://www.getdasha.com/bag",
+  "/compute/api/bag.json/": "https://www.getdasha.com/bag",
+  "/compute/humans": "https://www.getdasha.com/humans.txt",
+  "/compute/humans/": "https://www.getdasha.com/humans.txt",
+  "/api/howto": "https://www.getdasha.com/how-to-buy",
+  "/api/howto/": "https://www.getdasha.com/how-to-buy",
+  "/compute/howto": "https://www.getdasha.com/how-to-buy",
+  "/compute/howto/": "https://www.getdasha.com/how-to-buy",
+  "/api/how-to": "https://www.getdasha.com/how-to-buy",
+  "/api/how-to/": "https://www.getdasha.com/how-to-buy",
+  "/compute/how-to": "https://www.getdasha.com/how-to-buy",
+  "/compute/how-to/": "https://www.getdasha.com/how-to-buy"
 };
 var LEFTOVER_PEOPLE = [
   "Jordan Avery",
@@ -1086,17 +2194,34 @@ var LEFTOVER_PEOPLE = [
 ];
 function leftoverRedirectPath(pathname) {
   const path = String(pathname || "").replace(/\/+$/, "") || "/";
-  return LEFTOVER_SHELLS[path] || LEFTOVER_SHELLS[path.toLowerCase()] || "";
+  if (MOTLEY_HONESTY_FACES[path] || MOTLEY_SAME_HOST[path])
+    return MOTLEY_SAME_HOST[path] || "";
+  const exact = LEFTOVER_SHELLS[path] || LEFTOVER_SHELLS[path.toLowerCase()] || "";
+  if (exact) {
+    if (/^https:\/\/(?:www\.)?getdasha\.com\b/i.test(exact) && (path === "/humans.txt" || path === "/contribute" || path === "/opt-in" || path === "/api/opt-in" || path === "/api/opt-in/healthz" || path === "/ai-plugin.json" || path === "/.well-known/ai-plugin.json" || path === "/.well-known/mcp.json" || path === "/mcp.json" || path === "/openapi" || path === "/openapi.json" || path === "/openapi.yaml" || path === "/agents.json" || path === "/ask"))
+      return MOTLEY_SAME_HOST[path] || "";
+    if (exact === path || exact === path + "/")
+      return "";
+    return exact;
+  }
+  if (/^\/heads\/archive\/\d{4}-\d{2}-\d{2}\.json$/i.test(path)) {
+    return `https://www.getdasha.com${path}`;
+  }
+  return "";
 }
-__name(leftoverRedirectPath, "leftoverRedirectPath");
-__name2(leftoverRedirectPath, "leftoverRedirectPath");
-__name22(leftoverRedirectPath, "leftoverRedirectPath");
-__name222(leftoverRedirectPath, "leftoverRedirectPath");
 function leftoverRedirect(url) {
   const dest = leftoverRedirectPath(url.pathname);
-  const location = leftoverSameHostLocation(dest);
-  if (!location)
+  if (!dest)
     return null;
+  let location;
+  if (/^https:\/\//i.test(dest)) {
+    const out = new URL(dest);
+    if (url.searchParams.has("via"))
+      out.searchParams.set("via", sanitizeComputeVia(url.searchParams.get("via")));
+    location = out.href;
+  } else {
+    location = `https://www.trydemigod.com${dest}`;
+  }
   return new Response(null, {
     status: 308,
     headers: {
@@ -1106,10 +2231,6 @@ function leftoverRedirect(url) {
     }
   });
 }
-__name(leftoverRedirect, "leftoverRedirect");
-__name2(leftoverRedirect, "leftoverRedirect");
-__name22(leftoverRedirect, "leftoverRedirect");
-__name222(leftoverRedirect, "leftoverRedirect");
 // CDN leftover-motley.json @ Uuriko/demigod-site-cdn#24. Live Worker does
 // not fetch this file today; these faces are the same bytes. Pin so laptop
 // can wire loadCdnJson("leftover-motley.json") later without guessing SHA.
@@ -1211,10 +2332,6 @@ function leftoverSameHostLocation(dest) {
     return "";
   return `https://www.trydemigod.com${raw}`;
 }
-__name(leftoverSameHostLocation, "leftoverSameHostLocation");
-__name2(leftoverSameHostLocation, "leftoverSameHostLocation");
-__name22(leftoverSameHostLocation, "leftoverSameHostLocation");
-__name222(leftoverSameHostLocation, "leftoverSameHostLocation");
 function leftoverHonestyDoc(pathname) {
   const path = String(pathname || "").replace(/\/+$/, "") || "/";
   const alias = LEFTOVER_HONESTY_ALIASES[path] || LEFTOVER_HONESTY_ALIASES[path.toLowerCase()] || "";
@@ -1224,10 +2341,6 @@ function leftoverHonestyDoc(pathname) {
     return null;
   return alias ? { kind: "alias", dest: alias, ...face } : { kind: "face", dest: key, ...face };
 }
-__name(leftoverHonestyDoc, "leftoverHonestyDoc");
-__name2(leftoverHonestyDoc, "leftoverHonestyDoc");
-__name22(leftoverHonestyDoc, "leftoverHonestyDoc");
-__name222(leftoverHonestyDoc, "leftoverHonestyDoc");
 function leftoverHonesty(url, method) {
   const doc = leftoverHonestyDoc(url.pathname);
   if (!doc)
@@ -1248,18 +2361,10 @@ function leftoverHonesty(url, method) {
   const { headers } = textResponse(doc.body, doc.edge, doc.type);
   return new Response(method === "HEAD" ? null : doc.body, { status: 200, headers });
 }
-__name(leftoverHonesty, "leftoverHonesty");
-__name2(leftoverHonesty, "leftoverHonesty");
-__name22(leftoverHonesty, "leftoverHonesty");
-__name222(leftoverHonesty, "leftoverHonesty");
 function isFounderAppPath(pathname) {
   const p = String(pathname || "");
   return p === "/app" || p === "/app/" || p.startsWith("/app/");
 }
-__name(isFounderAppPath, "isFounderAppPath");
-__name2(isFounderAppPath, "isFounderAppPath");
-__name22(isFounderAppPath, "isFounderAppPath");
-__name222(isFounderAppPath, "isFounderAppPath");
 async function briefJoinRedirect(url) {
   let dest = "";
   if (isBriefPath(url.pathname)) {
@@ -1279,83 +2384,39 @@ async function briefJoinRedirect(url) {
     }
   });
 }
-__name(briefJoinRedirect, "briefJoinRedirect");
-__name2(briefJoinRedirect, "briefJoinRedirect");
-__name22(briefJoinRedirect, "briefJoinRedirect");
-__name222(briefJoinRedirect, "briefJoinRedirect");
 function isHomePath(pathname) {
   return pathname === "/" || pathname === "";
 }
-__name(isHomePath, "isHomePath");
-__name2(isHomePath, "isHomePath");
-__name22(isHomePath, "isHomePath");
-__name222(isHomePath, "isHomePath");
 function isHirePath(pathname) {
   return pathname === "/hire" || pathname === "/hire/";
 }
-__name(isHirePath, "isHirePath");
-__name2(isHirePath, "isHirePath");
-__name22(isHirePath, "isHirePath");
-__name222(isHirePath, "isHirePath");
 function isContactPath(pathname) {
   return pathname === "/contact" || pathname === "/contact/";
 }
-__name(isContactPath, "isContactPath");
-__name2(isContactPath, "isContactPath");
-__name22(isContactPath, "isContactPath");
-__name222(isContactPath, "isContactPath");
 function isLegalPath(pathname) {
   return pathname === "/legal" || pathname === "/legal/";
 }
-__name(isLegalPath, "isLegalPath");
-__name2(isLegalPath, "isLegalPath");
 function isCompPath(pathname) {
   return pathname === "/comp/founding-engineer-sf" || pathname === "/comp/founding-engineer-sf/";
 }
-__name(isCompPath, "isCompPath");
-__name2(isCompPath, "isCompPath");
-__name22(isLegalPath, "isLegalPath");
-__name222(isLegalPath, "isLegalPath");
 function isEventsPath(pathname) {
   return pathname === "/events" || pathname === "/events/";
 }
-__name(isEventsPath, "isEventsPath");
-__name2(isEventsPath, "isEventsPath");
-__name22(isEventsPath, "isEventsPath");
-__name222(isEventsPath, "isEventsPath");
 function isSitemapPath(pathname) {
   return pathname === "/sitemap.xml" || pathname === "/sitemap.xml/";
 }
-__name(isSitemapPath, "isSitemapPath");
-__name2(isSitemapPath, "isSitemapPath");
-__name22(isSitemapPath, "isSitemapPath");
-__name222(isSitemapPath, "isSitemapPath");
 function isLlmsPath(pathname) {
   return pathname === "/llms.txt" || pathname === "/llms.txt/";
 }
-__name(isLlmsPath, "isLlmsPath");
-__name2(isLlmsPath, "isLlmsPath");
-__name22(isLlmsPath, "isLlmsPath");
-__name222(isLlmsPath, "isLlmsPath");
 function isRobotsPath(pathname) {
   return pathname === "/robots.txt" || pathname === "/robots.txt/";
 }
-__name(isRobotsPath, "isRobotsPath");
-__name2(isRobotsPath, "isRobotsPath");
-__name22(isRobotsPath, "isRobotsPath");
-__name222(isRobotsPath, "isRobotsPath");
 function isLlmsFullPath(pathname) {
   return pathname === "/llms-full.txt" || pathname === "/llms-full.txt/";
 }
-__name(isLlmsFullPath, "isLlmsFullPath");
-__name2(isLlmsFullPath, "isLlmsFullPath");
-__name22(isLlmsFullPath, "isLlmsFullPath");
-__name222(isLlmsFullPath, "isLlmsFullPath");
 function isAiTxtPath(pathname) {
   return pathname === "/ai.txt" || pathname === "/ai.txt/";
 }
-__name(isAiTxtPath, "isAiTxtPath");
-__name2(isAiTxtPath, "isAiTxtPath");
 var SIWG_ICON = `<svg class="siwg-icon" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#000"/><path d="M6 32V22.5C6 14.5 10.6 9 16 9s10 5.5 10 13.5V32z" fill="#fff"/><rect x="10" y="15.8" width="3.4" height="6" rx="1.7" fill="#000" transform="rotate(-16 11.7 18.8)"/><rect x="18.6" y="15.8" width="3.4" height="6" rx="1.7" fill="#000" transform="rotate(16 20.3 18.8)"/></svg>`;
 var GROK_BOT_DOC = {
   compatible: true,
@@ -1373,50 +2434,26 @@ function siwgButtonHtml(href) {
   const dest = escapeHtml(href || "/grok");
   return `<a class="siwg" href="${dest}">${SIWG_ICON}<span>Sign in with Grok Bot</span></a>`;
 }
-__name(siwgButtonHtml, "siwgButtonHtml");
-__name2(siwgButtonHtml, "siwgButtonHtml");
-__name22(siwgButtonHtml, "siwgButtonHtml");
-__name222(siwgButtonHtml, "siwgButtonHtml");
 function isGrokPath(pathname) {
   return pathname === "/grok" || pathname === "/grok/";
 }
-__name(isGrokPath, "isGrokPath");
-__name2(isGrokPath, "isGrokPath");
-__name22(isGrokPath, "isGrokPath");
-__name222(isGrokPath, "isGrokPath");
 function isGrokWellKnownPath(pathname) {
   return pathname === "/.well-known/grok-bot.json" || pathname === "/.well-known/grok-bot.json/";
 }
-__name(isGrokWellKnownPath, "isGrokWellKnownPath");
-__name2(isGrokWellKnownPath, "isGrokWellKnownPath");
-__name22(isGrokWellKnownPath, "isGrokWellKnownPath");
-__name222(isGrokWellKnownPath, "isGrokWellKnownPath");
 function isGrokAuthPath(pathname) {
   const p = String(pathname || "").replace(/\/+$/, "") || "/";
   return p === "/auth/grok/start" || p === "/auth/grok/status" || p === "/auth/grok/verify";
 }
-__name(isGrokAuthPath, "isGrokAuthPath");
-__name2(isGrokAuthPath, "isGrokAuthPath");
-__name22(isGrokAuthPath, "isGrokAuthPath");
-__name222(isGrokAuthPath, "isGrokAuthPath");
 function grokStore() {
   if (!globalThis.__dgGrokPair)
     globalThis.__dgGrokPair = { codes: /* @__PURE__ */ new Map(), starts: /* @__PURE__ */ new Map(), verifies: /* @__PURE__ */ new Map() };
   return globalThis.__dgGrokPair;
 }
-__name(grokStore, "grokStore");
-__name2(grokStore, "grokStore");
-__name22(grokStore, "grokStore");
-__name222(grokStore, "grokStore");
 function pruneGrok(store, now) {
   for (const [code, row] of store.codes)
     if (!row || row.exp <= now)
       store.codes.delete(code);
 }
-__name(pruneGrok, "pruneGrok");
-__name2(pruneGrok, "pruneGrok");
-__name22(pruneGrok, "pruneGrok");
-__name222(pruneGrok, "pruneGrok");
 function grokClientIp(request) {
   const cf = String(request.headers.get("CF-Connecting-IP") || "").trim();
   if (cf)
@@ -1427,10 +2464,6 @@ function grokClientIp(request) {
   const real = String(request.headers.get("X-Real-IP") || "").trim();
   return real || "local";
 }
-__name(grokClientIp, "grokClientIp");
-__name2(grokClientIp, "grokClientIp");
-__name22(grokClientIp, "grokClientIp");
-__name222(grokClientIp, "grokClientIp");
 function grokRateOk(bucket, ip, limit, windowMs, now) {
   const prev = (bucket.get(ip) || []).filter((t) => now - t < windowMs);
   if (prev.length >= limit) {
@@ -1441,10 +2474,6 @@ function grokRateOk(bucket, ip, limit, windowMs, now) {
   bucket.set(ip, prev);
   return true;
 }
-__name(grokRateOk, "grokRateOk");
-__name2(grokRateOk, "grokRateOk");
-__name22(grokRateOk, "grokRateOk");
-__name222(grokRateOk, "grokRateOk");
 function grokRandomCode() {
   const bytes = crypto.getRandomValues(new Uint8Array(6));
   let out = "";
@@ -1452,10 +2481,6 @@ function grokRandomCode() {
     out += GROK_CODE_ALPH[b % GROK_CODE_ALPH.length];
   return out;
 }
-__name(grokRandomCode, "grokRandomCode");
-__name2(grokRandomCode, "grokRandomCode");
-__name22(grokRandomCode, "grokRandomCode");
-__name222(grokRandomCode, "grokRandomCode");
 function grokRandomToken() {
   const bytes = crypto.getRandomValues(new Uint8Array(16));
   let out = "";
@@ -1463,10 +2488,6 @@ function grokRandomToken() {
     out += b.toString(16).padStart(2, "0");
   return out;
 }
-__name(grokRandomToken, "grokRandomToken");
-__name2(grokRandomToken, "grokRandomToken");
-__name22(grokRandomToken, "grokRandomToken");
-__name222(grokRandomToken, "grokRandomToken");
 function grokReadCookie(request, name) {
   const raw = String(request.headers.get("Cookie") || "");
   for (const part of raw.split(/;\s*/)) {
@@ -1483,47 +2504,27 @@ function grokReadCookie(request, name) {
   }
   return "";
 }
-__name(grokReadCookie, "grokReadCookie");
-__name2(grokReadCookie, "grokReadCookie");
-__name22(grokReadCookie, "grokReadCookie");
-__name222(grokReadCookie, "grokReadCookie");
 function grokB64url(bytes) {
   let bin = "";
   for (const b of bytes)
     bin += String.fromCharCode(b);
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
-__name(grokB64url, "grokB64url");
-__name2(grokB64url, "grokB64url");
-__name22(grokB64url, "grokB64url");
-__name222(grokB64url, "grokB64url");
 function grokSecret(env) {
   const fromEnv = env && (env.SESSION_SECRET || env.GROK_SIGNING_SECRET || env.HMAC_SECRET || env.DEMIGOD_SECRET);
   if (typeof fromEnv === "string" && fromEnv.trim())
     return fromEnv.trim();
   return `${HOME_DESCRIPTION}|${OG_IMAGE}|demigod-grok`;
 }
-__name(grokSecret, "grokSecret");
-__name2(grokSecret, "grokSecret");
-__name22(grokSecret, "grokSecret");
-__name222(grokSecret, "grokSecret");
 async function grokHmac(secret, text) {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(text));
   return grokB64url(new Uint8Array(sig));
 }
-__name(grokHmac, "grokHmac");
-__name2(grokHmac, "grokHmac");
-__name22(grokHmac, "grokHmac");
-__name222(grokHmac, "grokHmac");
 function sanitizeGrokName(value) {
   const raw = String(value || "").replace(/[^\w .'-]/g, "").trim();
   return raw.slice(0, 64);
 }
-__name(sanitizeGrokName, "sanitizeGrokName");
-__name2(sanitizeGrokName, "sanitizeGrokName");
-__name22(sanitizeGrokName, "sanitizeGrokName");
-__name222(sanitizeGrokName, "sanitizeGrokName");
 function grokCorsHeaders(headers) {
   headers.set("Access-Control-Allow-Origin", "*");
   headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -1531,10 +2532,6 @@ function grokCorsHeaders(headers) {
   headers.set("Access-Control-Max-Age", "86400");
   return headers;
 }
-__name(grokCorsHeaders, "grokCorsHeaders");
-__name2(grokCorsHeaders, "grokCorsHeaders");
-__name22(grokCorsHeaders, "grokCorsHeaders");
-__name222(grokCorsHeaders, "grokCorsHeaders");
 function grokJson(body, status, extra = {}) {
   const headers = applyHtmlSecurity(new Headers());
   headers.set("Content-Type", "application/json; charset=utf-8");
@@ -1546,10 +2543,6 @@ function grokJson(body, status, extra = {}) {
       headers.append("Set-Cookie", cookie);
   return new Response(JSON.stringify(body), { status, headers });
 }
-__name(grokJson, "grokJson");
-__name2(grokJson, "grokJson");
-__name22(grokJson, "grokJson");
-__name222(grokJson, "grokJson");
 function grokCookie(name, value, opts = {}) {
   const parts = [`${name}=${encodeURIComponent(value)}`, `Path=${opts.path || "/"}`, "SameSite=Lax"];
   if (opts.httpOnly)
@@ -1560,10 +2553,6 @@ function grokCookie(name, value, opts = {}) {
     parts.push(`Max-Age=${opts.maxAge}`);
   return parts.join("; ");
 }
-__name(grokCookie, "grokCookie");
-__name2(grokCookie, "grokCookie");
-__name22(grokCookie, "grokCookie");
-__name222(grokCookie, "grokCookie");
 async function grokSessionCookies(env, displayName) {
   const who = sanitizeGrokName(displayName) || "Grok Bot";
   const exp = Date.now() + 7 * 24 * 60 * 60 * 1e3;
@@ -1575,10 +2564,6 @@ async function grokSessionCookies(env, displayName) {
     grokCookie("dg_grok_who", who, { httpOnly: false, path: "/grok", maxAge: 7 * 24 * 60 * 60 })
   ];
 }
-__name(grokSessionCookies, "grokSessionCookies");
-__name2(grokSessionCookies, "grokSessionCookies");
-__name22(grokSessionCookies, "grokSessionCookies");
-__name222(grokSessionCookies, "grokSessionCookies");
 async function grokAuth(request, url, env) {
   const path = String(url.pathname || "").replace(/\/+$/, "") || "/";
   if (request.method === "OPTIONS") {
@@ -1651,10 +2636,6 @@ async function grokAuth(request, url, env) {
   }
   return grokJson({ error: "not_found" }, 404);
 }
-__name(grokAuth, "grokAuth");
-__name2(grokAuth, "grokAuth");
-__name22(grokAuth, "grokAuth");
-__name222(grokAuth, "grokAuth");
 function demigodGrokHtml() {
   const inner = motleyChrome(`<h1>Sign in with Grok Bot.</h1><p class="lede">Demigod is Grok Bot compatible.</p>${siwgButtonHtml("#siwg-pair")}<div id="siwg-pair" class="siwg-pair"></div><script>(function(){var box=document.getElementById("siwg-pair");if(!box)return;if(/(?:^|; )dg_grok_who=/.test(document.cookie)){box.textContent="Signed in.";return}function paint(code){box.replaceChildren();var c=document.createElement("p");c.className="siwg-code";c.textContent=code;var h=document.createElement("p");h.className="muted";h.textContent="sign me into trydemigod.com with "+code;box.appendChild(c);box.appendChild(h)}fetch("/auth/grok/start",{method:"POST",credentials:"same-origin"}).then(function(r){return r.json()}).then(function(data){if(!data||!data.code){box.textContent="Try again.";return}paint(data.code);var n=0;var t=setInterval(function(){n+=1;if(n>90){clearInterval(t);return}fetch("/auth/grok/status?code="+encodeURIComponent(data.code),{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(j){if(!j||j.status!=="ok")return;clearInterval(t);box.textContent=j.displayName?"Signed in as "+j.displayName+".":"Signed in."}).catch(function(){})},2000)}).catch(function(){box.textContent="Try again."})})();<\/script>`);
   return demigodPage("Sign in with Grok Bot \xB7 Demigod", inner, {
@@ -1662,10 +2643,6 @@ function demigodGrokHtml() {
     description: "Demigod is Grok Bot compatible."
   });
 }
-__name(demigodGrokHtml, "demigodGrokHtml");
-__name2(demigodGrokHtml, "demigodGrokHtml");
-__name22(demigodGrokHtml, "demigodGrokHtml");
-__name222(demigodGrokHtml, "demigodGrokHtml");
 async function grokEdge(request, url, env) {
   if (isGrokWellKnownPath(url.pathname)) {
     if (request.method === "OPTIONS") {
@@ -1694,20 +2671,10 @@ async function grokEdge(request, url, env) {
   }
   return null;
 }
-__name(grokEdge, "grokEdge");
-__name2(grokEdge, "grokEdge");
-__name22(grokEdge, "grokEdge");
-__name222(grokEdge, "grokEdge");
-__name22(isAiTxtPath, "isAiTxtPath");
-__name222(isAiTxtPath, "isAiTxtPath");
 function wantsMarkdown(request) {
   const accept = String(request.headers.get("Accept") || "");
   return accept.includes("text/markdown") && !accept.includes("text/html");
 }
-__name(wantsMarkdown, "wantsMarkdown");
-__name2(wantsMarkdown, "wantsMarkdown");
-__name22(wantsMarkdown, "wantsMarkdown");
-__name222(wantsMarkdown, "wantsMarkdown");
 function textResponse(body, edge, type = "text/plain; charset=utf-8", extra = {}) {
   const headers = applyHtmlSecurity(new Headers());
   headers.set("Content-Type", type);
@@ -1717,17 +2684,9 @@ function textResponse(body, edge, type = "text/plain; charset=utf-8", extra = {}
     headers.set(k, v);
   return { body, headers };
 }
-__name(textResponse, "textResponse");
-__name2(textResponse, "textResponse");
-__name22(textResponse, "textResponse");
-__name222(textResponse, "textResponse");
 function demigodNotFoundHtml() {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,follow"><title>Not found \xB7 Demigod</title><link rel="canonical" href="https://www.trydemigod.com/"><meta name="description" content="That room is not on the desk."></head><body><p>Not found.</p><p><a href="/">Demigod</a> \xB7 <a href="/contact">Contact</a></p></body></html>`;
 }
-__name(demigodNotFoundHtml, "demigodNotFoundHtml");
-__name2(demigodNotFoundHtml, "demigodNotFoundHtml");
-__name22(demigodNotFoundHtml, "demigodNotFoundHtml");
-__name222(demigodNotFoundHtml, "demigodNotFoundHtml");
 function stripNearestSection(html, needle) {
   const page = String(html || "");
   const at = page.toLowerCase().indexOf(String(needle).toLowerCase());
@@ -1741,10 +2700,6 @@ function stripNearestSection(html, needle) {
     return page;
   return page.slice(0, start) + page.slice(end + "</section>".length);
 }
-__name(stripNearestSection, "stripNearestSection");
-__name2(stripNearestSection, "stripNearestSection");
-__name22(stripNearestSection, "stripNearestSection");
-__name222(stripNearestSection, "stripNearestSection");
 function stripDivBlock(html, startNeedle) {
   const page = String(html || "");
   const start = page.indexOf(startNeedle);
@@ -1767,10 +2722,6 @@ function stripDivBlock(html, startNeedle) {
   }
   return page.slice(0, start) + page.slice(i);
 }
-__name(stripDivBlock, "stripDivBlock");
-__name2(stripDivBlock, "stripDivBlock");
-__name22(stripDivBlock, "stripDivBlock");
-__name222(stripDivBlock, "stripDivBlock");
 function stripLeftoverTemplate(html) {
   let page = String(html || "");
   page = page.replace(/<li\b[^>]*>[\s\S]*?\+1\s*\(555\)\s*000-0000[\s\S]*?<\/li>/gi, "");
@@ -1816,17 +2767,9 @@ function stripLeftoverTemplate(html) {
   page = page.replace(/Tech-matched SF startup talent/gi, "Better candidates");
   return page;
 }
-__name(stripLeftoverTemplate, "stripLeftoverTemplate");
-__name2(stripLeftoverTemplate, "stripLeftoverTemplate");
-__name22(stripLeftoverTemplate, "stripLeftoverTemplate");
-__name222(stripLeftoverTemplate, "stripLeftoverTemplate");
 function conversionCtaLabel(inner) {
   return String(inner || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
-__name(conversionCtaLabel, "conversionCtaLabel");
-__name2(conversionCtaLabel, "conversionCtaLabel");
-__name22(conversionCtaLabel, "conversionCtaLabel");
-__name222(conversionCtaLabel, "conversionCtaLabel");
 function rewriteDeadConversionCtas(html) {
   return String(html || "").replace(
     /<a\b([^>]*\bhref=["']#["'][^>]*)>((?:(?!<a\b)[\s\S])*?)<\/a>/gi,
@@ -1846,10 +2789,6 @@ function rewriteDeadConversionCtas(html) {
     }
   );
 }
-__name(rewriteDeadConversionCtas, "rewriteDeadConversionCtas");
-__name2(rewriteDeadConversionCtas, "rewriteDeadConversionCtas");
-__name22(rewriteDeadConversionCtas, "rewriteDeadConversionCtas");
-__name222(rewriteDeadConversionCtas, "rewriteDeadConversionCtas");
 function shieldHomeFirstPaint(html) {
   return String(html || "").replace(/<html\b([^>]*)>/i, (tag, attrs) => {
     if (/\bclass=["'][^"']*\bdg-route-boot\b/.test(attrs))
@@ -1860,10 +2799,6 @@ function shieldHomeFirstPaint(html) {
     return `<html class="dg-route-boot"${attrs}>`;
   });
 }
-__name(shieldHomeFirstPaint, "shieldHomeFirstPaint");
-__name2(shieldHomeFirstPaint, "shieldHomeFirstPaint");
-__name22(shieldHomeFirstPaint, "shieldHomeFirstPaint");
-__name222(shieldHomeFirstPaint, "shieldHomeFirstPaint");
 function wizardKind(url) {
   const w = String(url?.searchParams?.get("wiz") || url?.searchParams?.get("hire") || url?.searchParams?.get("modal") || "").toLowerCase();
   if (/^(startup|founder|hire|brief|company)$/.test(w))
@@ -1872,10 +2807,6 @@ function wizardKind(url) {
     return "engineer";
   return "";
 }
-__name(wizardKind, "wizardKind");
-__name2(wizardKind, "wizardKind");
-__name22(wizardKind, "wizardKind");
-__name222(wizardKind, "wizardKind");
 function stripLeftoverSeo(html) {
   const honest = "10% of first-year base after a verified start. Stripe-hosted invoice to the hiring company. Talent pays nothing.";
   let page = String(html || "");
@@ -1886,10 +2817,6 @@ function stripLeftoverSeo(html) {
   page = page.replace(/10% of first-year base salary only when a hire starts/g, "10% of first-year base after a verified start");
   return page;
 }
-__name(stripLeftoverSeo, "stripLeftoverSeo");
-__name2(stripLeftoverSeo, "stripLeftoverSeo");
-__name22(stripLeftoverSeo, "stripLeftoverSeo");
-__name222(stripLeftoverSeo, "stripLeftoverSeo");
 function escapeJs(value) {
   return JSON.stringify(String(value ?? "")).replace(/[<>&\u2028\u2029]/g, (ch) => ({
     "<": "\\u003c",
@@ -1899,30 +2826,18 @@ function escapeJs(value) {
     "\u2029": "\\u2029"
   })[ch]);
 }
-__name(escapeJs, "escapeJs");
-__name2(escapeJs, "escapeJs");
-__name22(escapeJs, "escapeJs");
-__name222(escapeJs, "escapeJs");
 function sanitizeBriefCompanyId(raw) {
   const s = String(raw || "").trim();
   if (!s || s.length > 64)
     return "";
   return /^[A-Za-z0-9][A-Za-z0-9:._-]{0,63}$/.test(s) ? s : "";
 }
-__name(sanitizeBriefCompanyId, "sanitizeBriefCompanyId");
-__name2(sanitizeBriefCompanyId, "sanitizeBriefCompanyId");
-__name22(sanitizeBriefCompanyId, "sanitizeBriefCompanyId");
-__name222(sanitizeBriefCompanyId, "sanitizeBriefCompanyId");
 function sanitizeBriefCompanyName(raw) {
   const s = String(raw || "").trim();
   if (!s || s.length > 80)
     return "";
   return /^[A-Za-z0-9 .,&'+()/-]{1,80}$/.test(s) ? s : "";
 }
-__name(sanitizeBriefCompanyName, "sanitizeBriefCompanyName");
-__name2(sanitizeBriefCompanyName, "sanitizeBriefCompanyName");
-__name22(sanitizeBriefCompanyName, "sanitizeBriefCompanyName");
-__name222(sanitizeBriefCompanyName, "sanitizeBriefCompanyName");
 function sanitizeBriefRole(raw) {
   const s = String(raw || "").trim();
   if (!s || s.length > 120)
@@ -1931,10 +2846,6 @@ function sanitizeBriefRole(raw) {
     return "";
   return s;
 }
-__name(sanitizeBriefRole, "sanitizeBriefRole");
-__name2(sanitizeBriefRole, "sanitizeBriefRole");
-__name22(sanitizeBriefRole, "sanitizeBriefRole");
-__name222(sanitizeBriefRole, "sanitizeBriefRole");
 function briefCompanyFromUrl(url) {
   const id = sanitizeBriefCompanyId(url?.searchParams?.get("company"));
   const name = sanitizeBriefCompanyName(url?.searchParams?.get("name"));
@@ -1943,10 +2854,6 @@ function briefCompanyFromUrl(url) {
     return null;
   return { id, name, role };
 }
-__name(briefCompanyFromUrl, "briefCompanyFromUrl");
-__name2(briefCompanyFromUrl, "briefCompanyFromUrl");
-__name22(briefCompanyFromUrl, "briefCompanyFromUrl");
-__name222(briefCompanyFromUrl, "briefCompanyFromUrl");
 async function resolveStartupBrief(url) {
   const brief = briefCompanyFromUrl(url);
   if (!brief)
@@ -1963,10 +2870,6 @@ async function resolveStartupBrief(url) {
   const role = brief.role;
   return { ...brief, name, role };
 }
-__name(resolveStartupBrief, "resolveStartupBrief");
-__name2(resolveStartupBrief, "resolveStartupBrief");
-__name22(resolveStartupBrief, "resolveStartupBrief");
-__name222(resolveStartupBrief, "resolveStartupBrief");
 function applyBriefCompanyQuery(dest, url) {
   const brief = briefCompanyFromUrl(url);
   if (!brief)
@@ -1979,10 +2882,6 @@ function applyBriefCompanyQuery(dest, url) {
     dest.searchParams.set("role", brief.role);
   return dest;
 }
-__name(applyBriefCompanyQuery, "applyBriefCompanyQuery");
-__name2(applyBriefCompanyQuery, "applyBriefCompanyQuery");
-__name22(applyBriefCompanyQuery, "applyBriefCompanyQuery");
-__name222(applyBriefCompanyQuery, "applyBriefCompanyQuery");
 function namedBriefHref(map, url) {
   const q = url ? briefCompanyFromUrl(url) : null;
   const lockedId = q?.id || "";
@@ -2007,10 +2906,6 @@ function namedBriefHref(map, url) {
     return "/?wiz=startup";
   return `/?${usp.toString()}`;
 }
-__name(namedBriefHref, "namedBriefHref");
-__name2(namedBriefHref, "namedBriefHref");
-__name22(namedBriefHref, "namedBriefHref");
-__name222(namedBriefHref, "namedBriefHref");
 function paintHireMotley(html, brief) {
   let page = String(html || "");
   page = stripLeftoverSeo(page);
@@ -2059,10 +2954,6 @@ function paintHireMotley(html, brief) {
   }
   return page;
 }
-__name(paintHireMotley, "paintHireMotley");
-__name2(paintHireMotley, "paintHireMotley");
-__name22(paintHireMotley, "paintHireMotley");
-__name222(paintHireMotley, "paintHireMotley");
 function hideDeadEventsList(html) {
   let page = String(html || "");
   const note = '<p id="dg-events-static">No events listed this week.</p>';
@@ -2075,10 +2966,6 @@ function hideDeadEventsList(html) {
   }
   return page;
 }
-__name(hideDeadEventsList, "hideDeadEventsList");
-__name2(hideDeadEventsList, "hideDeadEventsList");
-__name22(hideDeadEventsList, "hideDeadEventsList");
-__name222(hideDeadEventsList, "hideDeadEventsList");
 var SITEMAP_KEEP = /* @__PURE__ */ new Set(["/", "/contact", "/companies", "/weekly", "/packets", "/journal", "/peers", "/memo", "/ticket", "/legal", "/grok", "/comp/founding-engineer-sf", "/hardware", "/hardware/directory", "/hardware/signals", "/hardware/guides/prototyping", "/hardware/guides/certification", "/hardware/guides/contract-manufacturers", "/hardware/guides/community", "/hardware/guides/fundraising"]);
 function rewriteSitemap(xml) {
   const seen = /* @__PURE__ */ new Set();
@@ -2114,10 +3001,6 @@ ${kept.join("\n")}
 </urlset>
 `;
 }
-__name(rewriteSitemap, "rewriteSitemap");
-__name2(rewriteSitemap, "rewriteSitemap");
-__name22(rewriteSitemap, "rewriteSitemap");
-__name222(rewriteSitemap, "rewriteSitemap");
 var ROBOTS_TXT = `User-agent: Amazonbot
 Allow: /
 
@@ -2161,19 +3044,11 @@ function normalizeBountiesFeed(raw) {
     listings
   };
 }
-__name(normalizeBountiesFeed, "normalizeBountiesFeed");
-__name2(normalizeBountiesFeed, "normalizeBountiesFeed");
-__name22(normalizeBountiesFeed, "normalizeBountiesFeed");
-__name222(normalizeBountiesFeed, "normalizeBountiesFeed");
 function listingTitle(row) {
   const name = typeof row?.name === "string" ? row.name.trim() : "";
   const title = typeof row?.title === "string" ? row.title.trim() : "";
   return name || title;
 }
-__name(listingTitle, "listingTitle");
-__name2(listingTitle, "listingTitle");
-__name22(listingTitle, "listingTitle");
-__name222(listingTitle, "listingTitle");
 function bountyItemHref(value) {
   const raw = typeof value === "string" ? value.trim() : "";
   if (!raw)
@@ -2185,10 +3060,6 @@ function bountyItemHref(value) {
     return "";
   }
 }
-__name(bountyItemHref, "bountyItemHref");
-__name2(bountyItemHref, "bountyItemHref");
-__name22(bountyItemHref, "bountyItemHref");
-__name222(bountyItemHref, "bountyItemHref");
 function bountiesBoardHtml(feed) {
   const data = normalizeBountiesFeed(feed);
   const rows = data.listings.length ? `<ul>${data.listings.map((row) => {
@@ -2204,10 +3075,6 @@ function bountiesBoardHtml(feed) {
   }).join("")}</ul>` : "<p>No bounties listed</p>";
   return `<section id="demigod-bounties" aria-label="Bounties"><style>#demigod-bounties{box-sizing:border-box;margin:0;padding:1.25rem;background:#03140d;color:#f3f0e7;font:16px/1.45 system-ui,sans-serif}#demigod-bounties a{color:#10c674}#demigod-bounties .amt{color:#bdc9bf}#demigod-bounties ul{list-style:none;margin:0;padding:0}#demigod-bounties li{border-top:1px solid rgba(189,201,191,.28);padding:.75rem 0}#demigod-bounties li:first-child{border-top:0}</style>${rows}</section>`;
 }
-__name(bountiesBoardHtml, "bountiesBoardHtml");
-__name2(bountiesBoardHtml, "bountiesBoardHtml");
-__name22(bountiesBoardHtml, "bountiesBoardHtml");
-__name222(bountiesBoardHtml, "bountiesBoardHtml");
 function injectBountiesBoard(html, feed) {
   const page = String(html || "");
   const board = bountiesBoardHtml(feed);
@@ -2222,10 +3089,6 @@ function injectBountiesBoard(html, feed) {
   const close = page.search(/<\/(?:body|html)>/i);
   return close >= 0 ? page.slice(0, close) + board + page.slice(close) : page + board;
 }
-__name(injectBountiesBoard, "injectBountiesBoard");
-__name2(injectBountiesBoard, "injectBountiesBoard");
-__name22(injectBountiesBoard, "injectBountiesBoard");
-__name222(injectBountiesBoard, "injectBountiesBoard");
 async function readBountiesSource(url) {
   const res = await fetch(url, {
     method: "GET",
@@ -2241,10 +3104,6 @@ async function readBountiesSource(url) {
     return null;
   return normalizeBountiesFeed(raw);
 }
-__name(readBountiesSource, "readBountiesSource");
-__name2(readBountiesSource, "readBountiesSource");
-__name22(readBountiesSource, "readBountiesSource");
-__name222(readBountiesSource, "readBountiesSource");
 async function loadBountiesFeed() {
   for (const src of FEED_SOURCES) {
     try {
@@ -2256,10 +3115,6 @@ async function loadBountiesFeed() {
   }
   return normalizeBountiesFeed(PINNED_BOUNTIES_FEED);
 }
-__name(loadBountiesFeed, "loadBountiesFeed");
-__name2(loadBountiesFeed, "loadBountiesFeed");
-__name22(loadBountiesFeed, "loadBountiesFeed");
-__name222(loadBountiesFeed, "loadBountiesFeed");
 function bountiesCorsHeaders(headers) {
   headers.set("Access-Control-Allow-Origin", "*");
   headers.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
@@ -2267,10 +3122,6 @@ function bountiesCorsHeaders(headers) {
   headers.set("Access-Control-Max-Age", "86400");
   return headers;
 }
-__name(bountiesCorsHeaders, "bountiesCorsHeaders");
-__name2(bountiesCorsHeaders, "bountiesCorsHeaders");
-__name22(bountiesCorsHeaders, "bountiesCorsHeaders");
-__name222(bountiesCorsHeaders, "bountiesCorsHeaders");
 async function bountiesJsonEdge(request, url) {
   if (!isBountiesJsonPath(url.pathname))
     return null;
@@ -2295,18 +3146,10 @@ async function bountiesJsonEdge(request, url) {
   bountiesCorsHeaders(headers);
   return new Response(request.method === "HEAD" ? null : JSON.stringify(feed), { status: 200, headers });
 }
-__name(bountiesJsonEdge, "bountiesJsonEdge");
-__name2(bountiesJsonEdge, "bountiesJsonEdge");
-__name22(bountiesJsonEdge, "bountiesJsonEdge");
-__name222(bountiesJsonEdge, "bountiesJsonEdge");
 function cdnJsonUrl(file) {
   const pin = file === "sf-startup-map.json" || file === "roles-feed.json" ? LIVE_MAP_PIN : CDN_PIN_TO;
   return `https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@${pin}/${file}`;
 }
-__name(cdnJsonUrl, "cdnJsonUrl");
-__name2(cdnJsonUrl, "cdnJsonUrl");
-__name22(cdnJsonUrl, "cdnJsonUrl");
-__name222(cdnJsonUrl, "cdnJsonUrl");
 async function loadCdnJson(file) {
   const res = await fetch(cdnJsonUrl(file), {
     method: "GET",
@@ -2319,10 +3162,199 @@ async function loadCdnJson(file) {
   const raw = await res.json().catch(() => null);
   return raw && typeof raw === "object" ? raw : null;
 }
-__name(loadCdnJson, "loadCdnJson");
-__name2(loadCdnJson, "loadCdnJson");
-__name22(loadCdnJson, "loadCdnJson");
-__name222(loadCdnJson, "loadCdnJson");
+function normalizeMotleyPath(pathname) {
+  const p = String(pathname || "");
+  if (p.length > 1 && /\/+$/.test(p))
+    return p.replace(/\/+$/, "") || "/";
+  return p;
+}
+function cdnHonestyUrl(file) {
+  return `https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@${HONESTY_CDN_PIN}/${file}`;
+}
+async function loadCdnText(file) {
+  const res = await fetch(cdnHonestyUrl(file), {
+    method: "GET",
+    cf: { cacheTtl: CDN_JSON_TTL, cacheEverything: true },
+    signal: AbortSignal.timeout(8e3)
+  });
+  if (!res.ok)
+    return null;
+  const text = await res.text().catch(() => null);
+  return typeof text === "string" ? text : null;
+}
+var OPT_IN_FORBIDDEN_PEOPLE_KEYS = Object.freeze([
+  "linkedInUrl",
+  "linkedinUrl",
+  "linkedin",
+  "linkedin_url",
+  "apolloId",
+  "peopleEnrichment",
+  "fullName",
+  "firstName",
+  "lastName",
+  "scrapeSource",
+  "brokerSource"
+]);
+var OPT_IN_ALLOWED_BODY_KEYS = Object.freeze([
+  "rolesInterested",
+  "workAuthUS",
+  "locationPref",
+  "cheapTalkExpectations",
+  "contactHandleType",
+  "contactHandleValue",
+  "consentVersion",
+  "consent"
+]);
+function validateOptInBody(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return { ok: false, error: "body must be a JSON object" };
+  }
+  const keys = Object.keys(body);
+  const forbidden = keys.filter((k) => OPT_IN_FORBIDDEN_PEOPLE_KEYS.includes(k));
+  if (forbidden.length) {
+    return {
+      ok: false,
+      error: `refused people-scrape fields: ${forbidden.join(", ")} (company-free talent fields only)`
+    };
+  }
+  const unknown = keys.filter((k) => !OPT_IN_ALLOWED_BODY_KEYS.includes(k));
+  if (unknown.length) {
+    return { ok: false, error: `unknown fields: ${unknown.join(", ")}` };
+  }
+  const required = [
+    "rolesInterested",
+    "workAuthUS",
+    "locationPref",
+    "cheapTalkExpectations",
+    "contactHandleType",
+    "contactHandleValue",
+    "consentVersion"
+  ];
+  const missing = required.filter(
+    (k) => body[k] === void 0 || body[k] === null || body[k] === ""
+  );
+  if (missing.length) {
+    return { ok: false, error: `missing: ${missing.join(", ")}` };
+  }
+  if (!Array.isArray(body.rolesInterested) || !body.rolesInterested.length) {
+    return { ok: false, error: "rolesInterested must be non-empty array" };
+  }
+  if (body.rolesInterested.some((r) => typeof r !== "string" || !r.trim())) {
+    return { ok: false, error: "rolesInterested items must be non-empty strings" };
+  }
+  if (typeof body.workAuthUS !== "boolean") {
+    return { ok: false, error: "workAuthUS must be boolean" };
+  }
+  if (!["email", "x", "telegram"].includes(body.contactHandleType)) {
+    return { ok: false, error: "contactHandleType must be email|x|telegram" };
+  }
+  if (typeof body.contactHandleValue !== "string" || !body.contactHandleValue.trim()) {
+    return { ok: false, error: "contactHandleValue required" };
+  }
+  if (typeof body.consentVersion !== "string" || !body.consentVersion.trim()) {
+    return { ok: false, error: "consentVersion required" };
+  }
+  if (body.consent === false) {
+    return { ok: false, error: "consent must be accepted" };
+  }
+  return { ok: true };
+}
+function optInJson(data, status, edge) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Demigod-Edge": edge || "opt-in-api"
+    }
+  });
+}
+function isOptInApiPath(pathname) {
+  const path = normalizeMotleyPath(pathname);
+  return path === "/api/opt-in";
+}
+async function optInApiEdge(request, url, env = {}) {
+  if (!isOptInApiPath(url.pathname))
+    return null;
+  if (request.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "https://www.trydemigod.com",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "content-type",
+        "Access-Control-Max-Age": "86400",
+        "X-Demigod-Edge": "opt-in-api"
+      }
+    });
+  }
+  if (request.method !== "POST") {
+    return optInJson({ ok: false, error: "method not allowed" }, 405, "opt-in-api");
+  }
+  const live = String(env && env.OPT_IN_LIVE || "") === "1";
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return optInJson({ ok: false, error: "invalid JSON" }, 400, "opt-in-api");
+  }
+  const v = validateOptInBody(body);
+  if (!v.ok)
+    return optInJson({ ok: false, error: v.error }, 400, "opt-in-api");
+  if (!live) {
+    return optInJson(
+      {
+        ok: false,
+        error: "OPT_IN_LIVE!=1 \u2014 stub refuses persist; FIRST_PARTY stays empty",
+        wouldPersist: false,
+        live: false
+      },
+      503,
+      "opt-in-api"
+    );
+  }
+  return optInJson(
+    {
+      ok: false,
+      error: "OPT_IN_LIVE persist not wired on demigod-html \u2014 FIRST_PARTY stays empty",
+      wouldPersist: false,
+      live: true
+    },
+    503,
+    "opt-in-api"
+  );
+}
+async function motleyHonestyEdge(request, url) {
+  const path = normalizeMotleyPath(url.pathname);
+  const face = MOTLEY_HONESTY_FACES[path];
+  if (face) {
+    const body = await loadCdnText(face.file).catch(() => null);
+    if (body == null || !body.trim())
+      return null;
+    return new Response(request.method === "HEAD" ? null : body, {
+      status: 200,
+      headers: {
+        "Content-Type": face.contentType,
+        "Cache-Control": `public, max-age=${CDN_JSON_TTL}`,
+        "X-Demigod-Edge": face.edge
+      }
+    });
+  }
+  const destPath = MOTLEY_SAME_HOST[path];
+  if (!destPath)
+    return null;
+  const out = new URL(destPath, "https://www.trydemigod.com");
+  if (url.searchParams.has("via"))
+    out.searchParams.set("via", sanitizeComputeVia(url.searchParams.get("via")));
+  return new Response(null, {
+    status: 308,
+    headers: {
+      Location: out.href,
+      "Cache-Control": "public, max-age=3600",
+      "X-Demigod-Edge": "leftover-redirect"
+    }
+  });
+}
 function demigodPage(title, body, meta = {}) {
   const desc = typeof meta.description === "string" ? meta.description : "";
   const url = typeof meta.url === "string" && meta.url ? meta.url : "";
@@ -2333,43 +3365,39 @@ function demigodPage(title, body, meta = {}) {
   const fonts = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=IM+Fell+English&family=Hanken+Grotesk:wght@300;400;500&family=JetBrains+Mono:wght@400&display=swap">`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0B120F"><title>${escapeHtml(title)}</title>${canon}${descTag}${og}${ld}${fonts}<style>${PAGE_CSS}</style></head><body>${body}</body></html>`;
 }
-__name(demigodPage, "demigodPage");
-__name2(demigodPage, "demigodPage");
-__name22(demigodPage, "demigodPage");
-__name222(demigodPage, "demigodPage");
 function motleyChrome(inner, opts = {}) {
   const rooms = '<a href="/weekly">Weekly</a> \xB7 <a href="/packets">Packets</a> \xB7 <a href="/journal">Journal</a> \xB7 <a href="/peers">Peers</a> \xB7 <a href="/memo">Memo</a> \xB7 <a href="/ticket">Ticket</a> \xB7 <a href="/contact">Contact</a>';
   const nav = opts.packet ? `<a href="/companies">Companies</a> \xB7 ${rooms}` : rooms;
   const mastHref = opts.mastHref === "/weekly" ? "/weekly" : "/companies";
   return `<div class="grain grain-dark" aria-hidden="true"></div><div class="wrap"><header class="mast"><a href="${mastHref}">SF BAY AREA</a><a class="word" href="/">Demigod</a><span>EST. 2025</span></header><nav class="quiet">${nav}</nav>${inner}</div>`;
 }
-__name(motleyChrome, "motleyChrome");
-__name2(motleyChrome, "motleyChrome");
-__name22(motleyChrome, "motleyChrome");
-__name222(motleyChrome, "motleyChrome");
 function factsFooter(asOf) {
   const when = asOf ? `Snapshot as of ${escapeHtml(asOf)}. ` : "";
   return `<footer class="foot"><p class="honesty">${when}Public company facts. Not matching inventory. Not a recommendation.</p><p class="honesty"><a href="/room">Project Room</a> \xB7 <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a></p></footer>`;
 }
-__name(factsFooter, "factsFooter");
-__name2(factsFooter, "factsFooter");
-__name22(factsFooter, "factsFooter");
-__name222(factsFooter, "factsFooter");
 function mapRows(map) {
   return Array.isArray(map?.companies) ? map.companies.filter((row) => row && typeof row === "object") : [];
 }
-__name(mapRows, "mapRows");
-__name2(mapRows, "mapRows");
-__name22(mapRows, "mapRows");
-__name222(mapRows, "mapRows");
 function findMapCompany(map, id) {
   const want = String(id || "");
   return want ? mapRows(map).find((row) => row.id === want) || null : null;
 }
-__name(findMapCompany, "findMapCompany");
-__name2(findMapCompany, "findMapCompany");
-__name22(findMapCompany, "findMapCompany");
-__name222(findMapCompany, "findMapCompany");
+// PR43: preserve exact IDs; only redirect an unambiguous public name/slug.
+export function resolveMapCompany(map, token) {
+  const exact = findMapCompany(map, token);
+  if (exact) return exact;
+  const want = String(token || '').trim().toLowerCase();
+  if (!want || want.includes('/') || want.includes('\\')) return null;
+  const rows = mapRows(map);
+  const ids = rows.filter(row => String(row.id || '').toLowerCase() === want);
+  if (ids.length) return ids.length === 1 ? ids[0] : null;
+  const slug = value => String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const compact = slug(want);
+  if (!compact) return null;
+  const names = rows.filter(row => slug(row.name) === compact);
+  return names.length === 1 ? names[0] : null;
+}
+
 function snapshotDay(map) {
   const coverage = typeof map?.coverage?.openRolesAt === "string" ? map.coverage.openRolesAt.trim() : "";
   if (/^\d{4}-\d{2}-\d{2}$/.test(coverage))
@@ -2386,38 +3414,22 @@ function snapshotDay(map) {
   const day = raw.slice(0, 10);
   return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : raw;
 }
-__name(snapshotDay, "snapshotDay");
-__name2(snapshotDay, "snapshotDay");
-__name22(snapshotDay, "snapshotDay");
-__name222(snapshotDay, "snapshotDay");
 function openRoleCount(company) {
   const n = Number(company?.openRoles);
   return Number.isFinite(n) ? n : null;
 }
-__name(openRoleCount, "openRoleCount");
-__name2(openRoleCount, "openRoleCount");
-__name22(openRoleCount, "openRoleCount");
-__name222(openRoleCount, "openRoleCount");
 function isHiringCompany(company) {
   const flag = String(company?.hiring || "").toLowerCase();
   if (flag === "yes" || flag === "true" || flag === "1")
     return true;
   return openRoleCount(company) > 0;
 }
-__name(isHiringCompany, "isHiringCompany");
-__name2(isHiringCompany, "isHiringCompany");
-__name22(isHiringCompany, "isHiringCompany");
-__name222(isHiringCompany, "isHiringCompany");
 function roleMixKeys(company) {
   const mix = company?.roleMix;
   if (!mix || typeof mix !== "object" || Array.isArray(mix))
     return [];
   return Object.keys(mix).filter(Boolean);
 }
-__name(roleMixKeys, "roleMixKeys");
-__name2(roleMixKeys, "roleMixKeys");
-__name22(roleMixKeys, "roleMixKeys");
-__name222(roleMixKeys, "roleMixKeys");
 function httpUrl(value) {
   const raw = typeof value === "string" ? value.trim() : "";
   if (!raw)
@@ -2429,18 +3441,10 @@ function httpUrl(value) {
     return "";
   }
 }
-__name(httpUrl, "httpUrl");
-__name2(httpUrl, "httpUrl");
-__name22(httpUrl, "httpUrl");
-__name222(httpUrl, "httpUrl");
 function httpsHref(value) {
   const href = httpUrl(value);
   return href.startsWith("https:") ? href : "";
 }
-__name(httpsHref, "httpsHref");
-__name2(httpsHref, "httpsHref");
-__name22(httpsHref, "httpsHref");
-__name222(httpsHref, "httpsHref");
 function websiteDomain(value) {
   const href = httpUrl(value);
   if (!href)
@@ -2451,18 +3455,10 @@ function websiteDomain(value) {
     return "";
   }
 }
-__name(websiteDomain, "websiteDomain");
-__name2(websiteDomain, "websiteDomain");
-__name22(websiteDomain, "websiteDomain");
-__name222(websiteDomain, "websiteDomain");
 function companyHref(id) {
   const raw = String(id || "");
   return `/c/${/^[A-Za-z0-9:._-]+$/.test(raw) ? raw : encodeURIComponent(raw)}`;
 }
-__name(companyHref, "companyHref");
-__name2(companyHref, "companyHref");
-__name22(companyHref, "companyHref");
-__name222(companyHref, "companyHref");
 function ticketCompanyHref(id) {
   const raw = String(id || "").trim();
   if (!raw)
@@ -2470,10 +3466,6 @@ function ticketCompanyHref(id) {
   const safe = /^[A-Za-z0-9:._-]+$/.test(raw) ? raw : encodeURIComponent(raw);
   return `/ticket?company=${safe}`;
 }
-__name(ticketCompanyHref, "ticketCompanyHref");
-__name2(ticketCompanyHref, "ticketCompanyHref");
-__name22(ticketCompanyHref, "ticketCompanyHref");
-__name222(ticketCompanyHref, "ticketCompanyHref");
 function startupBriefHref(company) {
   const usp = new URLSearchParams({ wiz: "startup" });
   const id = String(company?.id || "").trim();
@@ -2484,34 +3476,22 @@ function startupBriefHref(company) {
     usp.set("name", name);
   return `/?${usp.toString()}`;
 }
-__name(startupBriefHref, "startupBriefHref");
-__name2(startupBriefHref, "startupBriefHref");
-__name22(startupBriefHref, "startupBriefHref");
-__name222(startupBriefHref, "startupBriefHref");
 function linkedText(href, label) {
   const text = escapeHtml(label);
   return href ? `<a href="${escapeHtml(href)}">${text}</a>` : text;
 }
-__name(linkedText, "linkedText");
-__name2(linkedText, "linkedText");
-__name22(linkedText, "linkedText");
-__name222(linkedText, "linkedText");
 function namedCompanies(map) {
   return mapRows(map).filter((row) => String(row.name || row.id || "").trim());
 }
-__name(namedCompanies, "namedCompanies");
-__name2(namedCompanies, "namedCompanies");
-__name22(namedCompanies, "namedCompanies");
-__name222(namedCompanies, "namedCompanies");
 function queryObject(query) {
   if (!query) {
     return { q: "", mix: "", stage: "", src: "", ats: "", sort: "", hiring: "" };
   }
   const get = typeof query.get === "function" ? (key) => query.get(key) : (key) => query[key];
-  const raw = /* @__PURE__ */ __name222((key) => {
+  const raw = ((key) => {
     const value = get(key);
     return value == null ? "" : String(value).trim();
-  }, "raw");
+  });
   return {
     q: raw("q"),
     mix: raw("mix"),
@@ -2522,18 +3502,10 @@ function queryObject(query) {
     hiring: raw("hiring")
   };
 }
-__name(queryObject, "queryObject");
-__name2(queryObject, "queryObject");
-__name22(queryObject, "queryObject");
-__name222(queryObject, "queryObject");
 function hiringOnly(query) {
   const value = String(query?.hiring || "").toLowerCase();
   return value === "1" || value === "true" || value === "yes";
 }
-__name(hiringOnly, "hiringOnly");
-__name2(hiringOnly, "hiringOnly");
-__name22(hiringOnly, "hiringOnly");
-__name222(hiringOnly, "hiringOnly");
 function sourceKey(row) {
   const license = String(row?.sourceLicense || "").trim();
   if (license === "YC-public")
@@ -2558,10 +3530,6 @@ function sourceKey(row) {
     return "wd";
   return "";
 }
-__name(sourceKey, "sourceKey");
-__name2(sourceKey, "sourceKey");
-__name22(sourceKey, "sourceKey");
-__name222(sourceKey, "sourceKey");
 function companyMatches(row, query) {
   if (hiringOnly(query) && !(openRoleCount(row) > 0))
     return false;
@@ -2582,10 +3550,6 @@ function companyMatches(row, query) {
   }
   return true;
 }
-__name(companyMatches, "companyMatches");
-__name2(companyMatches, "companyMatches");
-__name22(companyMatches, "companyMatches");
-__name222(companyMatches, "companyMatches");
 function sortCompanies(rows, sort) {
   const copy = rows.slice();
   if (sort === "name") {
@@ -2593,10 +3557,6 @@ function sortCompanies(rows, sort) {
   }
   return copy.sort((a, b) => (openRoleCount(b) || 0) - (openRoleCount(a) || 0) || String(a.name || "").localeCompare(String(b.name || ""), "en", { sensitivity: "base" }));
 }
-__name(sortCompanies, "sortCompanies");
-__name2(sortCompanies, "sortCompanies");
-__name22(sortCompanies, "sortCompanies");
-__name222(sortCompanies, "sortCompanies");
 function companiesHref(query, patch) {
   const next = { ...query, ...patch };
   const usp = new URLSearchParams();
@@ -2607,17 +3567,9 @@ function companiesHref(query, patch) {
   const qs = usp.toString();
   return qs ? `/companies?${escapeHtml(qs)}` : "/companies";
 }
-__name(companiesHref, "companiesHref");
-__name2(companiesHref, "companiesHref");
-__name22(companiesHref, "companiesHref");
-__name222(companiesHref, "companiesHref");
 function filtLink(href, label, on) {
   return `<a href="${href}"${on ? ' class="on" aria-current="page"' : ""}>${escapeHtml(label)}</a>`;
 }
-__name(filtLink, "filtLink");
-__name2(filtLink, "filtLink");
-__name22(filtLink, "filtLink");
-__name222(filtLink, "filtLink");
 function rolesForCompany(company, feed) {
   const name = company?.name;
   if (typeof name !== "string" || !name)
@@ -2625,10 +3577,6 @@ function rolesForCompany(company, feed) {
   const roles = Array.isArray(feed?.roles) ? feed.roles : [];
   return roles.filter((role) => role && typeof role === "object" && role.company === name);
 }
-__name(rolesForCompany, "rolesForCompany");
-__name2(rolesForCompany, "rolesForCompany");
-__name22(rolesForCompany, "rolesForCompany");
-__name222(rolesForCompany, "rolesForCompany");
 function companyPeers(map, company, cap = 8, skip = null) {
   const families = new Set(roleMixKeys(company));
   if (!families.size)
@@ -2660,10 +3608,6 @@ function companyPeers(map, company, cap = 8, skip = null) {
   peers.sort((a, b) => b.shared - a.shared || b.sameStage - a.sameStage || a.openDelta - b.openDelta || a.name.localeCompare(b.name, "en", { sensitivity: "base" }));
   return peers.slice(0, cap);
 }
-__name(companyPeers, "companyPeers");
-__name2(companyPeers, "companyPeers");
-__name22(companyPeers, "companyPeers");
-__name222(companyPeers, "companyPeers");
 function companyUnknowns(company) {
   const unknown = [];
   if (!httpUrl(company.website))
@@ -2676,10 +3620,6 @@ function companyUnknowns(company) {
     unknown.push("no observed openings");
   return unknown;
 }
-__name(companyUnknowns, "companyUnknowns");
-__name2(companyUnknowns, "companyUnknowns");
-__name22(companyUnknowns, "companyUnknowns");
-__name222(companyUnknowns, "companyUnknowns");
 function companiesIndexHtml(map, query) {
   const asOf = snapshotDay(map);
   const q = queryObject(query);
@@ -2730,10 +3670,6 @@ ${atses.length ? `<div class="filt">${atses.map((key) => filtLink(companiesHref(
     }
   );
 }
-__name(companiesIndexHtml, "companiesIndexHtml");
-__name2(companiesIndexHtml, "companiesIndexHtml");
-__name22(companiesIndexHtml, "companiesIndexHtml");
-__name222(companiesIndexHtml, "companiesIndexHtml");
 function companyPageHtml(map, id, rolesFeed) {
   const company = findMapCompany(map, id);
   if (!company) {
@@ -2781,10 +3717,6 @@ function companyPageHtml(map, id, rolesFeed) {
     }
   );
 }
-__name(companyPageHtml, "companyPageHtml");
-__name2(companyPageHtml, "companyPageHtml");
-__name22(companyPageHtml, "companyPageHtml");
-__name222(companyPageHtml, "companyPageHtml");
 function journalDaysAgo(at, asOf) {
   if (!isJournalDay(at) || !isJournalDay(asOf))
     return Number.POSITIVE_INFINITY;
@@ -2794,27 +3726,15 @@ function journalDaysAgo(at, asOf) {
     return Number.POSITIVE_INFINITY;
   return Math.round((b - a) / 864e5);
 }
-__name(journalDaysAgo, "journalDaysAgo");
-__name2(journalDaysAgo, "journalDaysAgo");
-__name22(journalDaysAgo, "journalDaysAgo");
-__name222(journalDaysAgo, "journalDaysAgo");
 function firstSeenThisWeek(company) {
   const n = Number(company?.oldestObservedDays);
   return Number.isFinite(n) && n >= 0 && n <= 7;
 }
-__name(firstSeenThisWeek, "firstSeenThisWeek");
-__name2(firstSeenThisWeek, "firstSeenThisWeek");
-__name22(firstSeenThisWeek, "firstSeenThisWeek");
-__name222(firstSeenThisWeek, "firstSeenThisWeek");
 function weeklyHasMovement(company, asOf) {
   if (!ticketMoveKinds(company, asOf).length)
     return false;
   return firstSeenThisWeek(company);
 }
-__name(weeklyHasMovement, "weeklyHasMovement");
-__name2(weeklyHasMovement, "weeklyHasMovement");
-__name22(weeklyHasMovement, "weeklyHasMovement");
-__name222(weeklyHasMovement, "weeklyHasMovement");
 function lastInWindowMove(company, asOf) {
   const day = isJournalDay(asOf) ? asOf : "";
   for (const ev of journalEventsOf(company)) {
@@ -2826,10 +3746,6 @@ function lastInWindowMove(company, asOf) {
   }
   return null;
 }
-__name(lastInWindowMove, "lastInWindowMove");
-__name2(lastInWindowMove, "lastInWindowMove");
-__name22(lastInWindowMove, "lastInWindowMove");
-__name222(lastInWindowMove, "lastInWindowMove");
 function compareWeeklyMovers(a, b, asOf) {
   const atA = lastInWindowMove(a, asOf)?.at || "";
   const atB = lastInWindowMove(b, asOf)?.at || "";
@@ -2837,10 +3753,6 @@ function compareWeeklyMovers(a, b, asOf) {
     return String(atB).localeCompare(String(atA));
   return String(a.name || "").localeCompare(String(b.name || ""), "en", { sensitivity: "base" });
 }
-__name(compareWeeklyMovers, "compareWeeklyMovers");
-__name2(compareWeeklyMovers, "compareWeeklyMovers");
-__name22(compareWeeklyMovers, "compareWeeklyMovers");
-__name222(compareWeeklyMovers, "compareWeeklyMovers");
 function weeklyMoverRow(row, asOf) {
   const domain = websiteDomain(row.website);
   const site = domain ? `<span class="domain">${escapeHtml(domain)}</span>` : "";
@@ -2855,18 +3767,10 @@ function weeklyMoverRow(row, asOf) {
   const meta = `<span class="meta">${bits.join(" \xB7 ")}</span>`;
   return `<div class="row"><span class="who"><span class="name">${linkedText(companyHref(row.id), row.name || row.id || "Company")}</span>${site}</span>${meta}</div>`;
 }
-__name(weeklyMoverRow, "weeklyMoverRow");
-__name2(weeklyMoverRow, "weeklyMoverRow");
-__name22(weeklyMoverRow, "weeklyMoverRow");
-__name222(weeklyMoverRow, "weeklyMoverRow");
 function weeklyMoversOf(map) {
   const asOf = snapshotDay(map) || LIVE_MAP_DATE;
   return namedCompanies(map).filter(isHiringCompany).filter((row) => weeklyHasMovement(row, asOf)).slice().sort((a, b) => compareWeeklyMovers(a, b, asOf));
 }
-__name(weeklyMoversOf, "weeklyMoversOf");
-__name2(weeklyMoversOf, "weeklyMoversOf");
-__name22(weeklyMoversOf, "weeklyMoversOf");
-__name222(weeklyMoversOf, "weeklyMoversOf");
 function homeWeekRow(row, asOf) {
   const name = row.name || row.id || "Company";
   const moved = ticketMoveKinds(row, asOf);
@@ -2879,10 +3783,6 @@ function homeWeekRow(row, asOf) {
   const rest = bits.length ? ` \xB7 ${bits.join(" \xB7 ")}` : "";
   return `<div class="week-row">${linkedText(companyHref(row.id), name)}${rest}</div>`;
 }
-__name(homeWeekRow, "homeWeekRow");
-__name2(homeWeekRow, "homeWeekRow");
-__name22(homeWeekRow, "homeWeekRow");
-__name222(homeWeekRow, "homeWeekRow");
 function homePacketCompany(map) {
   const mover = weeklyMoversOf(map)[0];
   if (mover && mover.id)
@@ -2890,10 +3790,6 @@ function homePacketCompany(map) {
   const hiring = namedCompanies(map).filter(isHiringCompany).slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "en", { sensitivity: "base" }));
   return hiring[0] && hiring[0].id ? hiring[0] : null;
 }
-__name(homePacketCompany, "homePacketCompany");
-__name2(homePacketCompany, "homePacketCompany");
-__name22(homePacketCompany, "homePacketCompany");
-__name222(homePacketCompany, "homePacketCompany");
 function homeWeekHtml(map) {
   const movers = weeklyMoversOf(map);
   if (!movers.length)
@@ -2903,10 +3799,6 @@ function homeWeekHtml(map) {
   const movedNote = movers.length === 1 ? "1 moved" : `${movers.length} moved`;
   return `<div class="week" aria-label="Snapshot as of ${escapeHtml(asOf)}, observed movement"><div class="week-k">Snapshot ${escapeHtml(asOf)} \xB7 observed movement</div>${top}<div class="week-foot">${escapeHtml(movedNote)} \xB7 Journal day is ours \xB7 A listing is not a claim they are filling it \xB7 Not a recommendation \xB7 <a href="/weekly">Weekly</a></div></div>`;
 }
-__name(homeWeekHtml, "homeWeekHtml");
-__name2(homeWeekHtml, "homeWeekHtml");
-__name22(homeWeekHtml, "homeWeekHtml");
-__name222(homeWeekHtml, "homeWeekHtml");
 function weeklyHtml(map) {
   const asOf = snapshotDay(map) || LIVE_MAP_DATE;
   const named = namedCompanies(map).filter(isHiringCompany);
@@ -2927,10 +3819,6 @@ function weeklyHtml(map) {
     }
   );
 }
-__name(weeklyHtml, "weeklyHtml");
-__name2(weeklyHtml, "weeklyHtml");
-__name22(weeklyHtml, "weeklyHtml");
-__name222(weeklyHtml, "weeklyHtml");
 function packetsHtml(map) {
   const asOf = snapshotDay(map) || LIVE_MAP_DATE;
   const namedAll = namedCompanies(map).slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "en", { sensitivity: "base" }));
@@ -2951,35 +3839,19 @@ function packetsHtml(map) {
     }
   );
 }
-__name(packetsHtml, "packetsHtml");
-__name2(packetsHtml, "packetsHtml");
-__name22(packetsHtml, "packetsHtml");
-__name222(packetsHtml, "packetsHtml");
 function journalObserved7(company) {
   const n = Number(company?.observed7);
   return Number.isFinite(n) ? n : 0;
 }
-__name(journalObserved7, "journalObserved7");
-__name2(journalObserved7, "journalObserved7");
-__name22(journalObserved7, "journalObserved7");
-__name222(journalObserved7, "journalObserved7");
 function journalOldestDays(company) {
   const n = Number(company?.oldestObservedDays);
   return Number.isFinite(n) ? n : Number.POSITIVE_INFINITY;
 }
-__name(journalOldestDays, "journalOldestDays");
-__name2(journalOldestDays, "journalOldestDays");
-__name22(journalOldestDays, "journalOldestDays");
-__name222(journalOldestDays, "journalOldestDays");
 var JOURNAL_KINDS = /* @__PURE__ */ new Set(["opened", "closed", "reopened", "maintained_stale"]);
 var JOURNAL_KIND_ORDER = { opened: 0, reopened: 1, closed: 2, maintained_stale: 3 };
 function isJournalDay(value) {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
-__name(isJournalDay, "isJournalDay");
-__name2(isJournalDay, "isJournalDay");
-__name22(isJournalDay, "isJournalDay");
-__name222(isJournalDay, "isJournalDay");
 function journalEventsOf(company) {
   const rows = Array.isArray(company?.journal) ? company.journal : [];
   const events = [];
@@ -3001,10 +3873,6 @@ function journalEventsOf(company) {
   events.sort((a, b) => String(b.at).localeCompare(String(a.at)) || (JOURNAL_KIND_ORDER[a.kind] ?? 99) - (JOURNAL_KIND_ORDER[b.kind] ?? 99) || String(a.title).localeCompare(String(b.title)));
   return events;
 }
-__name(journalEventsOf, "journalEventsOf");
-__name2(journalEventsOf, "journalEventsOf");
-__name22(journalEventsOf, "journalEventsOf");
-__name222(journalEventsOf, "journalEventsOf");
 function journalBriefTitle(company) {
   const events = journalEventsOf(company);
   for (const ev of events) {
@@ -3023,10 +3891,6 @@ function journalBriefTitle(company) {
   }
   return "";
 }
-__name(journalBriefTitle, "journalBriefTitle");
-__name2(journalBriefTitle, "journalBriefTitle");
-__name22(journalBriefTitle, "journalBriefTitle");
-__name222(journalBriefTitle, "journalBriefTitle");
 function briefRole(company) {
   const fromJournal = journalBriefTitle(company);
   if (fromJournal)
@@ -3044,10 +3908,6 @@ function briefRole(company) {
   }
   return "";
 }
-__name(briefRole, "briefRole");
-__name2(briefRole, "briefRole");
-__name22(briefRole, "briefRole");
-__name222(briefRole, "briefRole");
 function lastOpenedReopened(company) {
   const events = journalEventsOf(company);
   for (const ev of events) {
@@ -3056,10 +3916,6 @@ function lastOpenedReopened(company) {
   }
   return null;
 }
-__name(lastOpenedReopened, "lastOpenedReopened");
-__name2(lastOpenedReopened, "lastOpenedReopened");
-__name22(lastOpenedReopened, "lastOpenedReopened");
-__name222(lastOpenedReopened, "lastOpenedReopened");
 function ticketMoveKinds(company, asOf) {
   const kinds = [];
   const seen = /* @__PURE__ */ new Set();
@@ -3076,28 +3932,16 @@ function ticketMoveKinds(company, asOf) {
   }
   return kinds;
 }
-__name(ticketMoveKinds, "ticketMoveKinds");
-__name2(ticketMoveKinds, "ticketMoveKinds");
-__name22(ticketMoveKinds, "ticketMoveKinds");
-__name222(ticketMoveKinds, "ticketMoveKinds");
 function journalEventLine(ev) {
   if (!ev)
     return "";
   return `${ev.kind} \xB7 ${ev.at}`;
 }
-__name(journalEventLine, "journalEventLine");
-__name2(journalEventLine, "journalEventLine");
-__name22(journalEventLine, "journalEventLine");
-__name222(journalEventLine, "journalEventLine");
 function companyTicketSection(company) {
   const moved = lastOpenedReopened(company);
   const movedHtml = moved ? `<p>${escapeHtml(journalEventLine(moved))}</p>` : "";
   return `<section><h2>Ticket</h2><p>Review-only. A person writes the brief. Observed listings are not the brief.</p>${movedHtml}<p><a href="${escapeHtml(startupBriefHref(company))}">Start a brief</a></p></section>`;
 }
-__name(companyTicketSection, "companyTicketSection");
-__name2(companyTicketSection, "companyTicketSection");
-__name22(companyTicketSection, "companyTicketSection");
-__name222(companyTicketSection, "companyTicketSection");
 function observedAgeLabel(company) {
   const n = Number(company?.oldestObservedDays);
   if (!Number.isFinite(n) || n < 0)
@@ -3108,10 +3952,6 @@ function observedAgeLabel(company) {
     return "1d first seen";
   return `${n}d first seen`;
 }
-__name(observedAgeLabel, "observedAgeLabel");
-__name2(observedAgeLabel, "observedAgeLabel");
-__name22(observedAgeLabel, "observedAgeLabel");
-__name222(observedAgeLabel, "observedAgeLabel");
 function journalClockLabel(company) {
   const bits = [];
   const observed = journalObserved7(company);
@@ -3122,10 +3962,6 @@ function journalClockLabel(company) {
     bits.push(`${oldest}d oldest`);
   return bits.join(" \xB7 ");
 }
-__name(journalClockLabel, "journalClockLabel");
-__name2(journalClockLabel, "journalClockLabel");
-__name22(journalClockLabel, "journalClockLabel");
-__name222(journalClockLabel, "journalClockLabel");
 function journalRowMeta(company) {
   const events = journalEventsOf(company);
   if (events.length) {
@@ -3141,10 +3977,6 @@ function journalRowMeta(company) {
   }
   return journalClockLabel(company);
 }
-__name(journalRowMeta, "journalRowMeta");
-__name2(journalRowMeta, "journalRowMeta");
-__name22(journalRowMeta, "journalRowMeta");
-__name222(journalRowMeta, "journalRowMeta");
 function companyJournalHtml(company) {
   const events = journalEventsOf(company);
   if (events.length) {
@@ -3159,10 +3991,6 @@ function companyJournalHtml(company) {
     return "";
   return `<section><h2>Journal</h2><p>${escapeHtml(clock)}</p><p class="muted">First-seen-in-7-days, then oldest of those. Not opened/closed/reopened \u2014 those clocks are not on this map row.</p></section>`;
 }
-__name(companyJournalHtml, "companyJournalHtml");
-__name2(companyJournalHtml, "companyJournalHtml");
-__name22(companyJournalHtml, "companyJournalHtml");
-__name222(companyJournalHtml, "companyJournalHtml");
 function journalHtml(map) {
   const asOf = snapshotDay(map) || LIVE_MAP_DATE;
   const namedAll = namedCompanies(map).filter((row) => journalEventsOf(row).length > 0).slice().sort((a, b) => {
@@ -3197,10 +4025,6 @@ function journalHtml(map) {
     }
   );
 }
-__name(journalHtml, "journalHtml");
-__name2(journalHtml, "journalHtml");
-__name22(journalHtml, "journalHtml");
-__name222(journalHtml, "journalHtml");
 function peersHtml(map) {
   const asOf = snapshotDay(map) || LIVE_MAP_DATE;
   const namedAll = namedCompanies(map).filter(isHiringCompany).slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "en", { sensitivity: "base" }));
@@ -3263,10 +4087,6 @@ function peersHtml(map) {
     }
   );
 }
-__name(peersHtml, "peersHtml");
-__name2(peersHtml, "peersHtml");
-__name22(peersHtml, "peersHtml");
-__name222(peersHtml, "peersHtml");
 function memoHtml(map) {
   const asOf = snapshotDay(map) || LIVE_MAP_DATE;
   const namedAll = namedCompanies(map).slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "en", { sensitivity: "base" }));
@@ -3293,20 +4113,12 @@ function memoHtml(map) {
     }
   );
 }
-__name(memoHtml, "memoHtml");
-__name2(memoHtml, "memoHtml");
-__name22(memoHtml, "memoHtml");
-__name222(memoHtml, "memoHtml");
 function ticketCompanyFromQuery(query) {
   if (!query)
     return "";
   const raw = typeof query.get === "function" ? query.get("company") : query.company;
   return sanitizeBriefCompanyId(raw);
 }
-__name(ticketCompanyFromQuery, "ticketCompanyFromQuery");
-__name2(ticketCompanyFromQuery, "ticketCompanyFromQuery");
-__name22(ticketCompanyFromQuery, "ticketCompanyFromQuery");
-__name222(ticketCompanyFromQuery, "ticketCompanyFromQuery");
 function oneCompanyTicketHtml(map, company) {
   const asOf = snapshotDay(map) || LIVE_MAP_DATE;
   const name = String(company.name || company.id || "Company");
@@ -3322,10 +4134,6 @@ function oneCompanyTicketHtml(map, company) {
     }
   );
 }
-__name(oneCompanyTicketHtml, "oneCompanyTicketHtml");
-__name2(oneCompanyTicketHtml, "oneCompanyTicketHtml");
-__name22(oneCompanyTicketHtml, "oneCompanyTicketHtml");
-__name222(oneCompanyTicketHtml, "oneCompanyTicketHtml");
 function ticketHtml(map, query) {
   const oneId = ticketCompanyFromQuery(query);
   const one = oneId ? findMapCompany(map, oneId) : null;
@@ -3360,10 +4168,6 @@ function ticketHtml(map, query) {
     }
   );
 }
-__name(ticketHtml, "ticketHtml");
-__name2(ticketHtml, "ticketHtml");
-__name22(ticketHtml, "ticketHtml");
-__name222(ticketHtml, "ticketHtml");
 function htmlResponse(html, status, edge) {
   const headers = applyHtmlSecurity(new Headers());
   headers.set("Content-Type", "text/html; charset=utf-8");
@@ -3371,15 +4175,18 @@ function htmlResponse(html, status, edge) {
   headers.set("X-Demigod-Edge", edge);
   return { html, status, headers };
 }
-__name(htmlResponse, "htmlResponse");
-__name2(htmlResponse, "htmlResponse");
-__name22(htmlResponse, "htmlResponse");
-__name222(htmlResponse, "htmlResponse");
 async function companiesEdge(request, url) {
   const map = await loadCdnJson("sf-startup-map.json").catch(() => null);
   if (isCompanyPath(url.pathname)) {
     const id = companyIdFromPath(url.pathname);
-    const company = findMapCompany(map, id);
+    const company = resolveMapCompany(map, id);
+    if (company?.id && company.id !== id) {
+      const headers = applyHtmlSecurity(new Headers());
+      headers.set("Location", `/c/${encodeURIComponent(company.id)}`);
+      headers.set("Cache-Control", `public, max-age=${CDN_JSON_TTL}`);
+      headers.set("X-Demigod-Edge", "company");
+      return new Response(null, { status: 302, headers });
+    }
     const feed = company ? await loadCdnJson("roles-feed.json").catch(() => null) : null;
     const { html: html2, status: status2, headers: headers2 } = htmlResponse(
       companyPageHtml(map, id, feed),
@@ -3391,10 +4198,6 @@ async function companiesEdge(request, url) {
   const { html, status, headers } = htmlResponse(companiesIndexHtml(map, url.searchParams), 200, "companies");
   return new Response(request.method === "HEAD" ? null : html, { status, headers });
 }
-__name(companiesEdge, "companiesEdge");
-__name2(companiesEdge, "companiesEdge");
-__name22(companiesEdge, "companiesEdge");
-__name222(companiesEdge, "companiesEdge");
 var ROOM_HTML_CACHE = /* @__PURE__ */ new Map();
 function mapRoomEdge(pathname) {
   if (isWeeklyPath(pathname))
@@ -3411,27 +4214,15 @@ function mapRoomEdge(pathname) {
     return "packets";
   return "";
 }
-__name(mapRoomEdge, "mapRoomEdge");
-__name2(mapRoomEdge, "mapRoomEdge");
-__name22(mapRoomEdge, "mapRoomEdge");
-__name222(mapRoomEdge, "mapRoomEdge");
 function rememberRoomHtml(edge, html) {
   ROOM_HTML_CACHE.set(`${edge}:${LIVE_MAP_PIN}`, { html, exp: Date.now() + CDN_JSON_TTL * 1e3 });
 }
-__name(rememberRoomHtml, "rememberRoomHtml");
-__name2(rememberRoomHtml, "rememberRoomHtml");
-__name22(rememberRoomHtml, "rememberRoomHtml");
-__name222(rememberRoomHtml, "rememberRoomHtml");
 function recalledRoomHtml(edge) {
   const hit = ROOM_HTML_CACHE.get(`${edge}:${LIVE_MAP_PIN}`);
   if (!hit || hit.exp <= Date.now() || typeof hit.html !== "string")
     return "";
   return hit.html;
 }
-__name(recalledRoomHtml, "recalledRoomHtml");
-__name2(recalledRoomHtml, "recalledRoomHtml");
-__name22(recalledRoomHtml, "recalledRoomHtml");
-__name222(recalledRoomHtml, "recalledRoomHtml");
 function renderMapRoom(edge, map) {
   if (edge === "weekly")
     return weeklyHtml(map);
@@ -3445,10 +4236,6 @@ function renderMapRoom(edge, map) {
     return ticketHtml(map);
   return packetsHtml(map);
 }
-__name(renderMapRoom, "renderMapRoom");
-__name2(renderMapRoom, "renderMapRoom");
-__name22(renderMapRoom, "renderMapRoom");
-__name222(renderMapRoom, "renderMapRoom");
 async function weeklyPacketsEdge(request, url) {
   const edge = mapRoomEdge(url.pathname) || "packets";
   if (edge === "ticket" && ticketCompanyFromQuery(url.searchParams)) {
@@ -3466,10 +4253,6 @@ async function weeklyPacketsEdge(request, url) {
   const { html, status, headers } = htmlResponse(page, 200, edge);
   return new Response(request.method === "HEAD" ? null : html, { status, headers });
 }
-__name(weeklyPacketsEdge, "weeklyPacketsEdge");
-__name2(weeklyPacketsEdge, "weeklyPacketsEdge");
-__name22(weeklyPacketsEdge, "weeklyPacketsEdge");
-__name222(weeklyPacketsEdge, "weeklyPacketsEdge");
 async function productEdge(request, url, env) {
   const grok = await grokEdge(request, url, env);
   if (grok)
@@ -3507,12 +4290,12 @@ async function productEdge(request, url, env) {
   const wiz = wizardKind(url);
   if (isHirePath(url.pathname) && (request.method === "GET" || request.method === "HEAD")) {
     const dest = new URL("https://www.trydemigod.com/");
-    if (wiz)
-      dest.searchParams.set("wiz", wiz);
+    const kind = wiz || "startup";
+    dest.searchParams.set("wiz", kind);
     applyBriefCompanyQuery(dest, url);
     return new Response(null, {
       status: 308,
-      headers: { Location: dest.href, "Cache-Control": "public, max-age=300", "X-Demigod-Edge": wiz ? "hire-wiz" : "hire-home" }
+      headers: { Location: dest.href, "Cache-Control": "public, max-age=300", "X-Demigod-Edge": wiz ? "hire-wiz" : "hire-startup" }
     });
   }
   if (isHomePath(url.pathname) && !wiz && !url.searchParams.get("p") && (request.method === "GET" || request.method === "HEAD")) {
@@ -3586,10 +4369,6 @@ async function productEdge(request, url, env) {
     headers.set("X-Robots-Tag", "noindex, follow");
   return new Response(html, { status: upstream.status, statusText: upstream.statusText, headers });
 }
-__name(productEdge, "productEdge");
-__name2(productEdge, "productEdge");
-__name22(productEdge, "productEdge");
-__name222(productEdge, "productEdge");
 var HW_COMPANIES = JSON.parse('[{"n":"Astro Mechanica","d":"astromecha.co","s":"Aerospace","w":"Supersonic aircraft engine technology","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:astro-mechanica","al":null},{"n":"Orca Aerospace","d":"orcaaerospace.com","s":"Aerospace","w":"Autonomous eVTOL aircraft","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:orca-aerospace","al":null},{"n":"Pyka","d":"flypyka.com","s":"Aerospace","w":"Autonomous electric cargo and crop aircraft","st":"Growth","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:pyka","al":null},{"n":"Cruise","d":"getcruise.com","s":"Autonomous vehicles","w":"Robotaxis (wound down by GM in 2024)","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/wd:Q42377899","al":true},{"n":"Culture Biosciences","d":"culturebiosciences.com","s":"Biomanufacturing","w":"Cloud-connected bioreactors","st":"Growth","o":2,"a":"Greenhouse","b":"https://www.trydemigod.com/c/yc:culture-biosciences","al":null},{"n":"AirMyne","d":"airmyne.com","s":"Climate","w":"Direct air capture of CO2","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:airmyne","al":null},{"n":"Electric Air","d":"electricair.io","s":"Climate","w":"Home heat pump systems","st":"Early","o":5,"a":"Ashby","b":"https://www.trydemigod.com/c/yc:electric-air-2","al":null},{"n":"Holy Grail","d":"holygrail.ai","s":"Climate","w":"Direct air capture of CO2","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:holy-grail-inc","al":null},{"n":"Treau","d":"treau.cool","s":"Climate","w":"High-efficiency heat pump HVAC (maker of Gradient)","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/wd:Q103522257","al":null},{"n":"Canvas","d":"canvas.inc","s":"Construction robotics","w":"Drywall-finishing robots","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:canvas","al":null},{"n":"Charge Robotics","d":"chargerobotics.com","s":"Construction robotics","w":"Robots for utility-scale solar installation","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:charge-robotics","al":null},{"n":"Earthgrid","d":"earthgrid.io","s":"Construction robotics","w":"Rapid tunnel-boring robots","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/wd:Q115940385","al":null},{"n":"Bellabeat","d":"bellabeat.com","s":"Consumer hardware","w":"Health-tracking wearables and jewelry","st":"Growth","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:bellabeat","al":null},{"n":"Juul","d":"juul.com","s":"Consumer hardware","w":"Vapor products","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/wd:Q21017093","al":null},{"n":"LoveFrom","d":"lovefrom.com","s":"Consumer hardware","w":"Design firm founded by Jony Ive, hardware products","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/wd:Q125142571","al":null},{"n":"PAX Labs","d":"paxvapor.com","s":"Consumer hardware","w":"Cannabis vaporizers","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/wd:Q18158575","al":null},{"n":"Petcube","d":"petcube.com","s":"Consumer hardware","w":"Pet-monitoring cameras","st":"Growth","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:petcube","al":null},{"n":"eero","d":"eero.com","s":"Consumer hardware","w":"Mesh WiFi systems (acquired by Amazon)","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/wd:Q100711695","al":true},{"n":"General Matter","d":"generalmatter.com","s":"Energy","w":"Uranium enrichment for the next generation of nuclear power","st":"","o":132,"a":"Greenhouse","b":"https://www.trydemigod.com/c/wd:Q134369638","al":null},{"n":"Gridware","d":"gridware.io","s":"Energy","w":"Grid-mounted sensors for wildfire and outage detection","st":"Growth","o":22,"a":"Lever","b":"https://www.trydemigod.com/c/yc:gridware","al":null},{"n":"Marathon Fusion","d":"marathonfusion.com","s":"Energy","w":"Fusion power fuel-cycle technology","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/wd:Q138685341","al":null},{"n":"Maritime Fusion","d":"maritimefusion.com","s":"Energy","w":"Compact fusion reactors for maritime applications","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:maritime-fusion","al":null},{"n":"Oklo","d":"oklo.com","s":"Energy","w":"Small modular nuclear fission reactors","st":"","o":72,"a":"Greenhouse","b":"https://www.trydemigod.com/c/hn:oklo.com","al":null},{"n":"Samsara","d":"samsara.com","s":"Industrial IoT","w":"Connected sensors and cameras for fleet and industrial operations","st":"","o":259,"a":"Greenhouse","b":"https://www.trydemigod.com/c/wd:Q108770716","al":null},{"n":"Diamond Foundry","d":"diamondfoundry.com","s":"Manufacturing","w":"Lab-grown diamond production","st":"","o":44,"a":"Lever","b":"https://www.trydemigod.com/c/wd:Q23016777","al":null},{"n":"MycoWorks","d":"mycoworks.com","s":"Manufacturing","w":"Mycelium-based leather alternative, grown in a Bay Area plant","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/wd:Q27150191","al":null},{"n":"3Scan","d":"3scan.com","s":"Medical devices","w":"Automated tissue-section imaging systems","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/wd:Q39060910","al":null},{"n":"Aluna","d":"alunadata.com","s":"Medical devices","w":"Home spirometry for respiratory disease","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:aluna","al":null},{"n":"Ananya Health","d":"ananya.health","s":"Medical devices","w":"Cervical cancer screening device","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:ananya-health","al":null},{"n":"Andromeda Surgical","d":"andromedasurgical.com","s":"Medical devices","w":"Surgical robotics","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:andromeda-surgical","al":null},{"n":"Bodyport","d":"bodyport.com","s":"Medical devices","w":"Cardiac-monitoring scale","st":"Growth","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:bodyport","al":null},{"n":"DeepSight Technology","d":"deepsightinc.applicantpro.com","s":"Medical devices","w":"Ultrasound imaging technology","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/hn:deepsightinc.applicantpro.com","al":null},{"n":"Knox Medical Diagnostics (United States)","d":"knox.co","s":"Medical devices","w":"Diagnostic devices","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/wd:Q43895801","al":null},{"n":"Mission Bio (United States)","d":"missionbio.com","s":"Medical devices","w":"Single-cell DNA analysis instruments","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/wd:Q30267283","al":null},{"n":"Myolex (United States)","d":"myolex.com","s":"Medical devices","w":"Muscle-assessment devices","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/wd:Q50039394","al":null},{"n":"Neuralink","d":"neuralink.com","s":"Medical devices","w":"Brain-computer interface implants","st":"","o":79,"a":"Greenhouse","b":"https://www.trydemigod.com/c/wd:Q29043471","al":null},{"n":"Qardio","d":"getqardio.com","s":"Medical devices","w":"Connected blood-pressure and ECG monitors","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/wd:Q25022018","al":null},{"n":"Qvin","d":"qvin.com","s":"Medical devices","w":"Menstrual-blood diagnostic platform","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:qvin","al":null},{"n":"Zenflow","d":"zenflow.com","s":"Medical devices","w":"Urology medical devices","st":"Growth","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:zenflow","al":null},{"n":"iRhythm (United States)","d":"irhythmtech.com","s":"Medical devices","w":"Wearable cardiac monitoring patches","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/wd:Q30264118","al":null},{"n":"iSono Health","d":"isonohealth.com","s":"Medical devices","w":"Portable automated breast ultrasound","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:isono-health","al":null},{"n":"Andon Labs","d":"andonlabs.com","s":"Robotics","w":"Robot control and teleoperation","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:andon-labs","al":null},{"n":"AutoPallet Robotics","d":"autopallet.bot","s":"Robotics","w":"Robotic palletizing","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:autopallet-robotics","al":null},{"n":"Azalea Robotics Corporation","d":"azalearobotics.com","s":"Robotics","w":"Robotics","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:azalea-robotics-corporation","al":null},{"n":"Bossa Nova Robotics","d":"bossanova.com","s":"Robotics","w":"Retail inventory-scanning robots","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/wd:Q67572764","al":null},{"n":"Cargo Robotics","d":"withcargo.com","s":"Robotics","w":"Robotics","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/hn:withcargo.com","al":null},{"n":"Corvus Robotics","d":"corvus-robotics.com","s":"Robotics","w":"Autonomous warehouse inventory drones","st":"Growth","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:corvus-robotics","al":null},{"n":"Cosmic Robotics","d":"cosmicrobotics.com","s":"Robotics","w":"Robotics","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:cosmic-robotics","al":null},{"n":"DeepAware AI (Robotics Center of Silicon Valley)","d":"roboticscenter.ai","s":"Robotics","w":"Robotics","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:deepaware-ai-robotics-center-of-silicon-valley","al":null},{"n":"Double Robotics","d":"doublerobotics.com","s":"Robotics","w":"Telepresence robots","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:double-robotics","al":null},{"n":"Earendil Robotics","d":"earendil.io","s":"Robotics","w":"Robotics","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:earendil-robotics","al":null},{"n":"Eden Robotics","d":"edenrobotics.ai","s":"Robotics","w":"Robotics","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:eden-robotics","al":null},{"n":"Ember Robotics","d":"emberrobotics.com","s":"Robotics","w":"Robotics","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:ember-robotics","al":null},{"n":"Forge Robotics","d":"forge-robotics.com","s":"Robotics","w":"Robotics","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:forge-robotics","al":null},{"n":"Hebbian Robotics","d":"hebbianrobotics.com","s":"Robotics","w":"Robotics","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:hebbian-robotics","al":null},{"n":"Hermes Robotics","d":"hermes-robotics.com","s":"Robotics","w":"Robotics","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:hermes-robotics","al":null},{"n":"IMPACT Drones","d":"impact-drones.com","s":"Robotics","w":"Drones","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:impact-drones","al":null},{"n":"InLoop Robotics","d":"inloop-robotics.com","s":"Robotics","w":"Robotics","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:inloop-robotics","al":null},{"n":"Lambda Robotics","d":"lambdarobotics.ai","s":"Robotics","w":"Robotics","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:lambda-robotics","al":null},{"n":"Libra Robotics","d":"librabots.com","s":"Robotics","w":"Robotics","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:libra-robotics","al":null},{"n":"Mashgin","d":"mashgin.com","s":"Robotics","w":"AI self-checkout kiosks","st":"Growth","o":15,"a":"Lever","b":"https://www.trydemigod.com/c/yc:mashgin","al":null},{"n":"Most Robotic","d":"mostrobotic.com","s":"Robotics","w":"Robotics","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:most-robotic","al":null},{"n":"Multiply Labs","d":"multiplylabs.com","s":"Robotics","w":"Robotic systems for pharmaceutical manufacturing","st":"Growth","o":7,"a":"Lever","b":"https://www.trydemigod.com/c/yc:multiply-labs","al":null},{"n":"Orangewood Labs","d":"orangewood.co","s":"Robotics","w":"Affordable robotic arms","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:orangewood-labs","al":null},{"n":"Origami Robotics","d":"origami-robotics.com","s":"Robotics","w":"Robotics","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:origami-robotics","al":null},{"n":"Overview","d":"overview.ai","s":"Robotics","w":"Factory cameras and inspection systems","st":"Growth","o":38,"a":"Ashby","b":"https://www.trydemigod.com/c/yc:overview","al":null},{"n":"Pave Robotics","d":"pave-robotics.com","s":"Robotics","w":"Robotics","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:pave-robotics","al":null},{"n":"Polymath Robotics","d":"polymathrobotics.com","s":"Robotics","w":"Autonomy software and systems for industrial vehicles","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:polymath-robotics","al":null},{"n":"Praxis Robotics","d":"praxisrobotics.io","s":"Robotics","w":"Robotics","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:praxis-robotics","al":null},{"n":"Skydio","d":"skydio.com","s":"Robotics","w":"Autonomous drones for defense, public safety, and inspection","st":"","o":131,"a":"Ashby","b":"https://www.trydemigod.com/c/wd:Q97321374","al":null},{"n":"Weave Robotics","d":"weaverobotics.com","s":"Robotics","w":"Robotics","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:weave-robotics","al":null},{"n":"Atom Computing","d":"","s":"Semiconductors","w":"Neutral-atom quantum computers","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/hn%3Ajobs.lever.co%2Fatomcomputing","al":null},{"n":"Ayar Labs (United States)","d":"ayarlabs.com","s":"Semiconductors","w":"Optical interconnect chiplets","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/wd:Q30267578","al":null},{"n":"Cerebras","d":"cerebras.ai","s":"Semiconductors","w":"Wafer-scale AI chips and systems","st":"","o":111,"a":"Ashby","b":"https://www.trydemigod.com/c/wd:Q66604886","al":null},{"n":"Conductor Quantum","d":"conductorquantum.com","s":"Semiconductors","w":"Quantum computing systems","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:conductor-quantum","al":null},{"n":"Inversion Semiconductor","d":"inversionsemi.com","s":"Semiconductors","w":"Chip manufacturing technology","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:inversion-semiconductor","al":null},{"n":"Neuromorphic","d":"neuromorphic.vision","s":"Semiconductors","w":"Neuromorphic computing","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:neuromorphic","al":null},{"n":"Substrate","d":"substrate.cc","s":"Semiconductors","w":"X-ray lithography for advanced chips","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:substrate","al":null},{"n":"Visibl Semiconductors","d":"visiblsemi.com","s":"Semiconductors","w":"Semiconductors","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:visibl-semiconductors","al":null},{"n":"AmberBox Gunshot Detection","d":"amberbox.com","s":"Sensors","w":"Gunshot-detection sensor networks","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:amberbox-gunshot-detection","al":null},{"n":"Enhanced Radar","d":"enhancedradar.com","s":"Sensors","w":"Radar systems","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:enhanced-radar","al":null},{"n":"Focal Systems","d":"focal.systems","s":"Sensors","w":"Retail shelf cameras","st":"Growth","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:focal-systems","al":null},{"n":"Ouster","d":"ouster.com","s":"Sensors","w":"Digital lidar sensors","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/wd:Q97574745","al":null},{"n":"Standard AI","d":"standard.ai","s":"Sensors","w":"Autonomous checkout camera systems","st":"Growth","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:standard-ai","al":null},{"n":"Sunflower","d":"sunflowerclinic.com","s":"Sensors","w":"Home-security drone systems","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:sunflower","al":null},{"n":"VergeSense","d":"vergesense.com","s":"Sensors","w":"Workplace occupancy sensors","st":"Growth","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:vergesense","al":null},{"n":"Zendar","d":"zendar.io","s":"Sensors","w":"High-definition radar for autonomous systems","st":"Growth","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:zendar","al":null},{"n":"Array Labs","d":"arraylabs.io","s":"Space","w":"Radar imaging satellite constellation","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:array-labs","al":null},{"n":"Astranis","d":"astranis.com","s":"Space","w":"Geostationary communications satellites","st":"Growth","o":89,"a":"Greenhouse","b":"https://www.trydemigod.com/c/yc:astranis","al":null},{"n":"AxionOrbital Space","d":"axionorbital.space","s":"Space","w":"Orbital infrastructure","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:axionorbital-space","al":null},{"n":"Cascade Space","d":"cascadespace.com","s":"Space","w":"Spacecraft communications infrastructure","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:cascade-space","al":null},{"n":"General Astronautics","d":"generalastro.com","s":"Space","w":"Spacecraft systems","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:generalastro","al":null},{"n":"Loft Orbital","d":"loftorbital.com","s":"Space","w":"Satellite-as-a-service infrastructure","st":"","o":57,"a":"Lever","b":"https://www.trydemigod.com/c/wd:Q136918026","al":null},{"n":"Planet Labs","d":"planet.com","s":"Space","w":"Earth-imaging satellite constellation","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/wd:Q17085620","al":null},{"n":"SpaceFlow Technologies, Inc.","d":"spaceflow.tech","s":"Space","w":"Space propulsion and fluid systems","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:spaceflow-technologies-inc","al":null},{"n":"Spire Global","d":"spire.com","s":"Space","w":"CubeSat constellation for weather, maritime, and aviation data","st":"","o":38,"a":"Greenhouse","b":"https://www.trydemigod.com/c/wd:Q19877982","al":null},{"n":"Lit Motors","d":"litmotors.com","s":"Transportation","w":"Self-balancing enclosed electric two-wheelers","st":"","o":null,"a":null,"b":"https://www.trydemigod.com/c/wd:Q6647356","al":null},{"n":"Navier AI","d":"navier.ai","s":"Transportation","w":"Electric hydrofoil boats","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:navier-ai","al":null},{"n":"Revoy","d":"revoy.com","s":"Transportation","w":"Electric powertrain add-ons for semi trucks","st":"Early","o":null,"a":null,"b":"https://www.trydemigod.com/c/yc:revoy","al":null}]');
 var HW_GUIDE_SLUGS = ["prototyping", "certification", "contract-manufacturers", "community", "fundraising"];
 var HW_GUIDE_TITLES = {
@@ -3604,12 +4383,10 @@ function hwSupplementRow(c) {
   const hq = escapeHtml(c.hq.replace(/ CA$/, ""));
   return `<div class="row"><span class="name"><a href="https://${escapeHtml(c.d)}">${escapeHtml(c.n)}</a></span> <span class="domain">${escapeHtml(c.d)}</span><p class="meta">${escapeHtml(c.w)} \xB7 ${escapeHtml(c.s)} \xB7 ${hq}${c.sf ? ' \xB7 <span class="quiet">SF</span>' : ""}</p></div>`;
 }
-__name(hwSupplementRow, "hwSupplementRow");
 function hwSupplementSection() {
   const list = [...HW_SUPPLEMENT].sort((a, b) => a.n.localeCompare(b.n));
   return `<h2>Off-board supplement (${list.length})</h2><p class="meta">Major Bay Area hardware companies not on Demigod's companies board, sourced and verified one by one in Sep 2026 (domain, HQ, hiring). HQ city shown per row; SF marks a San Francisco headquarters, the rest are elsewhere in the Bay. Not yet hand-tagged into the directory above.</p><div class="list">${list.map(hwSupplementRow).join("")}</div>`;
 }
-__name(hwSupplementSection, "hwSupplementSection");
 function isHardwarePath(pathname) {
   const path = String(pathname || "").replace(/\/+$/, "") || "/";
   if (path === "/hardware" || path === "/hardware/directory" || path === "/hardware/signals")
@@ -3617,21 +4394,17 @@ function isHardwarePath(pathname) {
   const m = path.match(/^\/hardware\/guides\/([a-z-]+)$/);
   return !!m && HW_GUIDE_SLUGS.includes(m[1]);
 }
-__name(isHardwarePath, "isHardwarePath");
 function hwFooterBlurb() {
   return `<footer class="foot"><p class="honesty">Hardware SF is a project by Demigod, a technical recruiting partner for startups. We place founding and senior engineers at 10% of first-year cash compensation: no retainer, no 25-30% agency fees, and you pay only when your hire starts. Hiring for a hardware team? <a href="/?wiz=startup">Start a brief</a> or email <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>. <a href="/room">Project Room</a>.</p></footer>`;
 }
-__name(hwFooterBlurb, "hwFooterBlurb");
 function hwCorrectionCta() {
   return `<p class="quiet">Missing company or wrong tag? Email <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a> with the company name and what to fix.</p>`;
 }
-__name(hwCorrectionCta, "hwCorrectionCta");
 function hwCompanyRow(c) {
   const open = c.o ? ` \xB7 ${c.o} open role${c.o === 1 ? "" : "s"}` : "";
   const alumni = c.al ? ` \xB7 <span class="quiet">alumni</span>` : "";
   return `<div class="row"><span class="name"><a href="${escapeHtml(c.b)}">${escapeHtml(c.n)}</a></span> <span class="domain">${escapeHtml(c.d)}</span><p class="meta">${escapeHtml(c.w)} \xB7 ${escapeHtml(c.st)}${escapeHtml(open)}${alumni}</p></div>`;
 }
-__name(hwCompanyRow, "hwCompanyRow");
 function hwDirectoryHtml() {
   const bySector = /* @__PURE__ */ new Map();
   for (const c of HW_COMPANIES) {
@@ -3652,7 +4425,6 @@ function hwDirectoryHtml() {
     }
   );
 }
-__name(hwDirectoryHtml, "hwDirectoryHtml");
 function hwSignalsHtml() {
   const hiring = HW_COMPANIES.filter((c) => c.o).sort((a, b) => b.o - a.o || a.n.localeCompare(b.n));
   const rows = hiring.map((c) => {
@@ -3669,7 +4441,6 @@ function hwSignalsHtml() {
     }
   );
 }
-__name(hwSignalsHtml, "hwSignalsHtml");
 function hwHubHtml() {
   const hiring = HW_COMPANIES.filter((c) => c.o).length;
   const guideLinks = HW_GUIDE_SLUGS.map((s) => `<p class="meta"><a href="/hardware/guides/${s}">${escapeHtml(HW_GUIDE_TITLES[s])}</a></p>`).join("");
@@ -3682,7 +4453,6 @@ function hwHubHtml() {
     }
   );
 }
-__name(hwHubHtml, "hwHubHtml");
 var HW_GUIDE_BODIES = {
   prototyping: {
     seoTitle: "Prototyping in SF: Machine Shops, Hackerspaces, and Fast Parts",
@@ -3721,7 +4491,6 @@ function hwGuideHtml(slug) {
     }
   );
 }
-__name(hwGuideHtml, "hwGuideHtml");
 function hardwareEdge(request, url) {
   const path = String(url.pathname || "").replace(/\/+$/, "") || "/";
   if (request.method !== "GET" && request.method !== "HEAD") {
@@ -3752,15 +4521,16 @@ function hardwareEdge(request, url) {
   const { html: out, status, headers } = htmlResponse(html, 200, edge);
   return new Response(request.method === "HEAD" ? null : out, { status, headers });
 }
-__name(hardwareEdge, "hardwareEdge");
-// Staging door only — no production Room custom domain in this tree.
-var PROJECT_ROOM_HREF = "https://project-room-staging.getdasha.workers.dev";
-var COMPUTE_HREF = "https://getdasha.com/compute";
+var PROJECT_ROOM_HREF = "https://room.trydemigod.com";
+var COMPUTE_HREF = "https://www.trydemigod.com/compute";
+var COMPUTE_NETWORK_HREF = "https://www.getdasha.com/compute";
+var COMPUTE_API_BASE = "https://lobby.getdasha.com/compute/api/v1";
+var COMPUTE_SKILL_HREF = "https://www.getdasha.com/compute/skill.md";
 var ROOM_DOOR = "https://www.trydemigod.com/room";
 var ROOM_PUBLIC_WWW = "https://www.getdasha.com/room";
 var ROOM_PUBLIC_LOBBY = "https://lobby.getdasha.com/room";
 var ROOM_SOURCE = "https://github.com/Uuriko/project-room";
-var ROOM_COMPUTE_DOOR = "https://www.getdasha.com/compute";
+var ROOM_COMPUTE_DOOR = "https://www.trydemigod.com/compute";
 var ROOM_DOCS = {
   client: `${ROOM_SOURCE}/blob/main/docs/AGENT-CLIENT.md`,
   plug: `${ROOM_SOURCE}/blob/main/docs/AGENT-PLUG.md`,
@@ -3769,12 +4539,10 @@ var ROOM_DOCS = {
   guestAgent: `${ROOM_SOURCE}/blob/main/docs/GUEST-AGENT-LINKS.md`,
   agentsWant: `${ROOM_SOURCE}/blob/main/docs/AGENTS-WANT.md`
 };
-// Adapted from Uuriko/project-room deploy/agent-discovery.mjs + room-entry.mjs.
-// Demigod serves only this path-family. Do not overwrite Compute's
-// www.getdasha.com/.well-known/agent.json — that card is Compute.
 var ROOM_LLMS_TXT = `# Project Room
 
 Agent-native ledger. Work Items + next actions + receipts. Agents are Members.
+People and agents share conversations; tracking work is optional.
 Not a run factory. Compute stays separate.
 
 origin ${PROJECT_ROOM_HREF}
@@ -3783,12 +4551,15 @@ www ${ROOM_PUBLIC_WWW}
 lobby ${ROOM_PUBLIC_LOBBY}
 healthz ${PROJECT_ROOM_HREF}/api/health
 card ${PROJECT_ROOM_HREF}/.well-known/agent.json
+card-alias ${PROJECT_ROOM_HREF}/.well-known/agent-card.json
 full ${PROJECT_ROOM_HREF}/llms-full.txt
+kits ${PROJECT_ROOM_HREF}/kits.txt
 source ${ROOM_SOURCE}
 compute ${ROOM_COMPUTE_DOOR}
 
-Live bytes are on origin today. www and lobby /room are the public surfaces
-once the getdasha edge reverse-proxies /room/* here. Do not overwrite
+www and lobby /room are the HTML door (browsers). Agents use /room/llms.txt
+(same bytes as this packet). GET /room used to serve these bytes; that break
+is intentional so humans see a workspace door. Do not overwrite
 www.getdasha.com/.well-known/agent.json \u2014 that card is Compute.
 
 ## First call
@@ -3881,22 +4652,73 @@ var ROOM_AGENT_JSON = JSON.stringify({
   docs: ROOM_DOCS,
   capabilities: { remoteMcp: false, oauth: false, autoEnroll: false, guestAgentLinkMint: true }
 }, null, 2) + "\n";
+var ROOM_KITS_TXT = `# Project Room kits
+
+People and agents coordinate here. Not Compute.
+This is a catalog. Not an App Store. No paid apps.
+
+packet  https://www.trydemigod.com/room/llms.txt
+card    https://www.trydemigod.com/room/.well-known/agent.json
+www     https://www.getdasha.com/room/kits
+
+## Join
+curl -sS https://www.trydemigod.com/room/llms.txt
+Then open https://www.trydemigod.com/room and follow Connect.
+`;
 function roomDiscoveryDoc(pathname) {
   const path = String(pathname || "").replace(/\/+$/, "") || "/";
-  if (path === "/room/llms.txt")
+  const lower = path.toLowerCase();
+  const packetPaths = /* @__PURE__ */ new Set([
+    "/room/llms.txt",
+    "/room/llms-full.txt",
+    "/room/skill",
+    "/room/skill.md",
+    "/room/agents",
+    "/room/agents.md",
+    "/room/claude.md",
+    "/room/packet",
+    "/room/readme",
+    "/room/readme.md",
+    "/room/gemini",
+    "/room/cursor",
+    "/room/gemini.md",
+    "/room/cursor.md",
+    "/project-room/llms.txt",
+    "/project-room/llms-full.txt"
+  ]);
+  if (packetPaths.has(lower))
     return { type: "text/plain; charset=utf-8", body: ROOM_LLMS_TXT };
-  if (path === "/room/.well-known/agent.json")
+  const kitsPaths = /* @__PURE__ */ new Set([
+    "/room/kits",
+    "/room/kit",
+    "/room/apps",
+    "/room/tools",
+    "/room/catalog",
+    "/room/store",
+    "/room/kits.txt",
+    "/project-room/kits"
+  ]);
+  if (kitsPaths.has(lower))
+    return { type: "text/plain; charset=utf-8", body: ROOM_KITS_TXT };
+  if (lower === "/room/.well-known/agent.json" || lower === "/room/agent.json")
     return { type: "application/json; charset=utf-8", body: ROOM_AGENT_JSON };
+  if (lower === "/room/health" || lower === "/room/healthz" || lower === "/room/status")
+    return { type: "application/json; charset=utf-8", body: JSON.stringify({ status: "ok", edge: "demigod-room" }) + "\n" };
+  if (lower === "/room/ready")
+    return { type: "application/json; charset=utf-8", body: JSON.stringify({ status: "ready" }) + "\n" };
+  if (lower === "/room/robots.txt" || lower === "/room/robots")
+    return { type: "text/plain; charset=utf-8", body: "# Project Room\nUser-agent: *\nAllow: /room\nAllow: /room/llms.txt\nAllow: /room/kits\nAllow: /room/.well-known/agent.json\n" };
+  if (lower === "/room/sitemap" || lower === "/room/sitemap.txt")
+    return { type: "text/plain; charset=utf-8", body: "https://www.trydemigod.com/room\nhttps://www.trydemigod.com/room/llms.txt\nhttps://www.trydemigod.com/room/kits\nhttps://www.trydemigod.com/room/.well-known/agent.json\nhttps://www.getdasha.com/room\nhttps://lobby.getdasha.com/room\n" };
   return null;
 }
-__name(roomDiscoveryDoc, "roomDiscoveryDoc");
 function roomEntry(request) {
   const url = new URL(request.url);
   if (url.hostname !== "www.trydemigod.com")
     return null;
   const discovery = roomDiscoveryDoc(url.pathname);
   if (discovery) {
-    const headers = {
+    const headers2 = {
       "Content-Type": discovery.type,
       "Cache-Control": "no-store",
       "X-Robots-Tag": "all",
@@ -3906,8 +4728,8 @@ function roomEntry(request) {
       "X-Demigod-Edge": "room-discovery"
     };
     if (!["GET", "HEAD"].includes(request.method))
-      return new Response("Method not allowed", { status: 405, headers: { ...headers, Allow: "GET, HEAD" } });
-    return new Response(request.method === "HEAD" ? null : discovery.body, { status: 200, headers });
+      return new Response("Method not allowed", { status: 405, headers: { ...headers2, Allow: "GET, HEAD" } });
+    return new Response(request.method === "HEAD" ? null : discovery.body, { status: 200, headers: headers2 });
   }
   if (!["/room", "/room/", "/project-room", "/project-room/"].includes(url.pathname))
     return null;
@@ -3922,7 +4744,244 @@ function roomEntry(request) {
     return new Response("Method not allowed", { status: 405, headers: { ...headers, Allow: "GET, HEAD" } });
   return new Response(request.method === "HEAD" ? null : ROOM_ENTRY_HTML, { headers });
 }
-__name(roomEntry, "roomEntry");
+function sanitizeComputeVia(value) {
+  const raw = String(value || "").trim();
+  if (/^[a-zA-Z0-9_-]{1,64}$/.test(raw))
+    return raw;
+  return "demigod";
+}
+function computeNetworkUrl(via, suffix = "") {
+  const v = sanitizeComputeVia(via);
+  const q = `via=${encodeURIComponent(v)}`;
+  if (!suffix)
+    return `${COMPUTE_NETWORK_HREF}?${q}`;
+  if (suffix.startsWith("#"))
+    return `${COMPUTE_NETWORK_HREF}?${q}${suffix}`;
+  if (suffix.startsWith("/")) {
+    const path = `${COMPUTE_NETWORK_HREF}${suffix}`;
+    return path.includes("?") ? `${path}&${q}` : `${path}?${q}`;
+  }
+  return `${COMPUTE_NETWORK_HREF}?${q}`;
+}
+function computeEntryHtml(via) {
+  const open = computeNetworkUrl(via);
+  const ask = computeNetworkUrl(via, "#ask");
+  const provide = computeNetworkUrl(via, "#provide");
+  const pay = computeNetworkUrl(via, "#pay");
+  const skill = computeNetworkUrl(via, "/skill.md");
+  const viaSafe = sanitizeComputeVia(via);
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Demigod Compute \xB7 Demigod</title>
+<meta name="description" content="Demigod Compute \u2014 distributed Mac inference. Same network. Ask, Provide, Pay.">
+<link rel="canonical" href="https://www.trydemigod.com/compute">
+<meta name="theme-color" content="#0B120F">
+<meta property="og:title" content="Demigod Compute">
+<meta property="og:description" content="Distributed Mac inference. Same network. Ask, Provide, Pay.">
+<meta property="og:url" content="https://www.trydemigod.com/compute">
+<style>
+:root{--ink:#0B120F;--bone:#EFE9DD;--clay:#D3A093;--mute:rgba(228,222,210,.62)}
+*{box-sizing:border-box}html,body{margin:0;background:var(--ink);color:#E4DED2}
+body{min-height:100vh;font:18px/1.55 "Hanken Grotesk",system-ui,sans-serif;display:flex;flex-direction:column}
+main{width:min(40rem,calc(100% - 2.5rem));margin:0 auto;padding:18vh 0 3rem;flex:1}
+.brand{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
+h1{font-family:Georgia,"Instrument Serif",serif;font-size:clamp(2.4rem,8vw,3.8rem);line-height:1.05;letter-spacing:-.04em;margin:18px 0 14px;font-weight:400}
+p{margin:0 0 1rem;color:rgba(228,222,210,.82);max-width:32em}
+.open{display:inline-flex;align-items:center;min-height:48px;margin:10px 0 14px;padding:0 22px;background:var(--clay);color:var(--ink);text-decoration:none;font-weight:650;letter-spacing:.02em}
+.open:hover{filter:brightness(1.05)}
+.doors{display:flex;flex-wrap:wrap;gap:.15rem 1.25rem;margin:0 0 1.2rem;font-size:15px}
+.doors a,.aside a,footer a{color:var(--clay);text-decoration:none}
+.doors a:hover,.aside a:hover,footer a:hover{color:#E4DED2}
+.aside{font-size:14px;color:var(--mute);max-width:32em}
+.kit{margin:0 0 1.2rem;padding:14px 16px;border:1px solid rgba(228,222,210,.14);font:13px/1.55 ui-monospace,"JetBrains Mono",monospace;color:rgba(228,222,210,.78);white-space:pre-wrap;max-width:36em}
+footer{width:min(40rem,calc(100% - 2.5rem));margin:0 auto;padding:0 0 2.5rem;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+a:focus-visible{outline:1px solid var(--clay);outline-offset:3px}
+.kit-wrap{position:relative;max-width:36em;margin:0 0 1.2rem}
+.kit-wrap .kit{margin:0;max-width:none}
+.kit-bar{display:flex;justify-content:flex-end;margin:0 0 6px}
+.dg-copy{appearance:none;border:1px solid rgba(228,222,210,.22);background:transparent;color:rgba(228,222,210,.78);font:650 11px/1 "Hanken Grotesk",system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;padding:7px 12px;cursor:pointer}
+.dg-copy:hover{color:#E4DED2;border-color:rgba(228,222,210,.4)}
+.dg-copy:focus-visible{outline:1px solid var(--clay);outline-offset:3px}
+.dg-toast{position:fixed;left:50%;bottom:28px;z-index:40;display:flex;align-items:center;gap:10px;min-width:12rem;max-width:calc(100% - 2rem);padding:12px 18px;background:var(--bone);color:var(--ink);border-radius:999px;font:650 13px/1.2 "Hanken Grotesk",system-ui,sans-serif;letter-spacing:.02em;pointer-events:none;opacity:0;transform:translate(-50%,16px) scale(.97);filter:blur(2px);will-change:transform,opacity,filter;transition:opacity 250ms cubic-bezier(.22,1,.36,1),transform 250ms cubic-bezier(.22,1,.36,1),filter 250ms cubic-bezier(.22,1,.36,1)}
+.dg-toast.is-open{opacity:1;transform:translate(-50%,0) scale(1);filter:blur(0);transition:opacity 350ms cubic-bezier(.22,1,.36,1),transform 350ms cubic-bezier(.22,1,.36,1),filter 350ms cubic-bezier(.22,1,.36,1)}
+@media(prefers-reduced-motion:reduce){.dg-toast{transition:none!important;filter:none!important;transform:translate(-50%,0)!important}.dg-toast:not(.is-open){opacity:0}}
+.dg-copy.is-shake{animation:dg-copy-shake .42s cubic-bezier(.36,.07,.19,.97) both}
+@keyframes dg-copy-shake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(2px)}30%,50%,70%{transform:translateX(-3px)}40%,60%{transform:translateX(3px)}}
+@media(prefers-reduced-motion:reduce){.dg-copy.is-shake{animation:none!important}}
+.dg-thin{margin:0 0 1.1rem;font-size:14px;color:var(--mute);max-width:32em;min-height:1.2em}
+.dg-thin[hidden]{display:none!important}
+.dg-thin a{color:var(--clay);text-decoration:none}
+.dg-thin a:hover{color:#E4DED2}
+.dg-thin.is-chase{color:rgba(228,222,210,.88)}
+.dg-measured{margin:0 0 1.1rem;font-size:13px;color:var(--mute);max-width:32em;min-height:1.1em}
+.dg-measured[hidden]{display:none!important}
+.dg-measured a{color:var(--clay);text-decoration:none}
+.dg-measured a:hover{color:#E4DED2}
+</style></head><body>
+<!-- transitions-demigod-p1:2026-09-12 toast+copy+err-shake; number-pop skipped (no live credits/tok/s on this door) -->
+<!-- provide-when-thin-demigod:2026-09-12 \u2014 quiet enroll chase when providers_online\u22641; parity with dasha Provide-when-thin -->
+<!-- fastest-measured-warm-qwen-demigod:2026-09-12 \u2014 quiet preferAdvertisedCommunityModel / warm-qwen honesty; never invent tok/s -->
+<main>
+  <div class="brand"><a href="/" style="color:inherit;text-decoration:none">Demigod</a></div>
+  <h1>Demigod Compute</h1>
+  <p>Distributed Mac inference. Ask a model. Provide a Mac. Pay when you run.</p>
+  <p>Same network. Demigod name.</p>
+  <a class="open" href="${open}">Open Compute</a>
+  <nav class="doors" aria-label="Doors">
+    <a href="${ask}">Ask</a>
+    <a id="dg-door-provide" href="${provide}" title="Provide a Mac">Provide</a>
+    <a href="${pay}">Pay</a>
+    <a href="${skill}">skill.md</a>
+  </nav>
+  <p class="dg-thin" id="dg-provide-thin" hidden aria-live="polite"></p>
+  <p class="dg-measured" id="dg-fastest-measured" hidden aria-live="polite"></p>
+  <div class="kit-wrap">
+    <div class="kit-bar"><button type="button" class="dg-copy" id="dg-copy-base" data-copy="${COMPUTE_API_BASE}" aria-label="Copy API base URL">Copy base_url</button></div>
+    <pre class="kit" id="dg-kit">base_url ${COMPUTE_API_BASE}
+curl -sS ${COMPUTE_API_BASE.replace("/api/v1", "/api")}/healthz
+curl -sS ${COMPUTE_API_BASE}/models
+skill ${COMPUTE_SKILL_HREF}
+via ${viaSafe}</pre>
+  </div>
+  <p class="aside">Partners: list <a href="https://www.trydemigod.com/compute">trydemigod.com/compute</a>. Attribution via=. Revenue share later.</p>
+  <p class="aside">Project Room is the ledger. Separate. <a href="/room">/room</a></p>
+</main>
+<footer>\xA9 2026 Demigod \xB7 <a href="/">Home</a> \xB7 <a href="/room">Project Room</a> \xB7 <a href="/contact">Contact</a></footer>
+<div class="dg-toast" id="dg-toast" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+<script>
+(function(){
+  var toastEl=document.getElementById("dg-toast");
+  var toastTimer=0;
+  function showToast(msg){
+    if(!toastEl)return;
+    toastEl.textContent=String(msg||"Copied");
+    toastEl.hidden=false;
+    toastEl.classList.remove("is-open");
+    void toastEl.offsetWidth;
+    toastEl.classList.add("is-open");
+    if(toastTimer)clearTimeout(toastTimer);
+    toastTimer=setTimeout(function(){
+      toastEl.classList.remove("is-open");
+      setTimeout(function(){ if(!toastEl.classList.contains("is-open")) toastEl.hidden=true; }, 280);
+    }, 1800);
+  }
+  window.dgShowToast=showToast;
+  function copyText(text){
+    text=String(text||"");
+    if(!text)return Promise.reject(new Error("empty"));
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function(resolve,reject){
+      var ta=document.createElement("textarea");
+      ta.value=text;ta.setAttribute("readonly","");ta.style.position="fixed";ta.style.left="-9999px";
+      document.body.appendChild(ta);ta.select();
+      try{ if(document.execCommand("copy")) resolve(); else reject(new Error("copy")); }
+      catch(e){ reject(e); }
+      finally{ document.body.removeChild(ta); }
+    });
+  }
+  var btn=document.getElementById("dg-copy-base");
+  if(btn){
+    btn.addEventListener("click",function(){
+      var val=btn.getAttribute("data-copy")||"";
+      copyText(val).then(function(){ showToast("Copied base_url"); }).catch(function(){
+        showToast("Copy failed");
+        btn.classList.remove("is-shake");
+        void btn.offsetWidth;
+        btn.classList.add("is-shake");
+        setTimeout(function(){ btn.classList.remove("is-shake"); }, 450);
+      });
+    });
+  }
+  // Provide-when-thin: quiet enroll chase from live providers_online (never invent).
+  var thinEl=document.getElementById("dg-provide-thin");
+  var provideDoor=document.getElementById("dg-door-provide");
+  var provideHref=provideDoor?provideDoor.getAttribute("href"):"${provide}";
+  function paintProvideWhenThin(n){
+    if(!thinEl)return;
+    var count=Number.isFinite(n)?n:null;
+    if(count===null){ thinEl.hidden=true; thinEl.textContent=""; thinEl.classList.remove("is-chase"); if(provideDoor)provideDoor.title="Provide a Mac"; return; }
+    if(count<=1){
+      var label=count===0?"No Mac. Provide.":"One Mac. Provide.";
+      thinEl.innerHTML='<a href="'+provideHref+'">'+label+'</a>';
+      thinEl.hidden=false;
+      thinEl.classList.add("is-chase");
+      if(provideDoor)provideDoor.title=count===0?"No Mac online \xB7 Provide a Mac":"One Mac online \xB7 Provide a Mac";
+    } else {
+      thinEl.hidden=true;
+      thinEl.textContent="";
+      thinEl.classList.remove("is-chase");
+      if(provideDoor)provideDoor.title="Provide a Mac";
+    }
+  }
+  window.paintProvideWhenThin=paintProvideWhenThin;
+  // Quiet fastest-measured / warm-qwen honesty (parity with preferAdvertisedCommunityModel + PROVIDE_SKILL).
+  var measuredEl=document.getElementById("dg-fastest-measured");
+  function paintFastestMeasured(capacity){
+    if(!measuredEl)return;
+    var rows=Array.isArray(capacity)?capacity:[];
+    var best=null;
+    for(var i=0;i<rows.length;i++){
+      var row=rows[i];
+      if(!row||typeof row.model!=="string")continue;
+      if(!(Number(row.measured_providers)>=1))continue;
+      var tps=Number(row.tokens_per_second);
+      if(!Number.isFinite(tps)||tps<=0)continue;
+      if(!best||tps>best.tps)best={model:row.model,tps:tps};
+    }
+    if(!best){ measuredEl.hidden=true; measuredEl.textContent=""; return; }
+    var tpsLabel=best.tps>=10?best.tps.toFixed(0):best.tps.toFixed(1);
+    var warm=best.model.indexOf("27")>=0?"":" \xB7 keep warm (not 27B)";
+    measuredEl.innerHTML='Fastest measured \xB7 <a href="'+provideHref+'">'+best.model+'</a> \xB7 '+tpsLabel+' tok/s'+warm+'.';
+    measuredEl.hidden=false;
+  }
+  window.paintFastestMeasured=paintFastestMeasured;
+  fetch("https://lobby.getdasha.com/compute/api/readyz",{credentials:"omit",cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(j){
+    if(!j||!Number.isInteger(j.providers_online))return;
+    paintProvideWhenThin(j.providers_online);
+  }).catch(function(){ /* fail quiet \u2014 never invent capacity */ });
+  fetch("https://lobby.getdasha.com/compute/api/network",{credentials:"omit",cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(j){
+    if(!j)return;
+    if(Number.isInteger(j.providers_online))paintProvideWhenThin(j.providers_online);
+    paintFastestMeasured(j.capacity);
+  }).catch(function(){ /* fail quiet \u2014 never invent tok/s */ });
+})();
+<\/script>
+</body></html>`;
+}
+function computeEntry(request) {
+  const url = new URL(request.url);
+  if (url.hostname !== "www.trydemigod.com" && url.hostname !== "trydemigod.com")
+    return null;
+  const redirects = {
+    "/demigod-compute": "/compute",
+    "/demigod-compute/": "/compute",
+    "/demigod_compute": "/compute",
+    "/dasha-compute": "/compute",
+    "/dasha-compute/": "/compute"
+  };
+  if (Object.prototype.hasOwnProperty.call(redirects, url.pathname) && ["GET", "HEAD"].includes(request.method)) {
+    const dest = new URL(redirects[url.pathname], url.origin);
+    const via2 = sanitizeComputeVia(url.searchParams.get("via"));
+    dest.searchParams.set("via", via2);
+    return new Response(null, { status: 308, headers: { Location: dest.pathname + dest.search, "Cache-Control": "no-store", "X-Demigod-Edge": "demigod-compute" } });
+  }
+  if (!["/compute", "/compute/"].includes(url.pathname))
+    return null;
+  const via = sanitizeComputeVia(url.searchParams.get("via"));
+  const headers = {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-store",
+    "X-Demigod-Edge": "demigod-compute",
+    "X-Robots-Tag": "all",
+    "Referrer-Policy": "no-referrer",
+    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src https://lobby.getdasha.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+  };
+  if (!["GET", "HEAD"].includes(request.method))
+    return new Response("Method not allowed", { status: 405, headers: { ...headers, Allow: "GET, HEAD" } });
+  return new Response(request.method === "HEAD" ? null : computeEntryHtml(via), { headers });
+}
 var ROOM_ENTRY_HTML = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>Project Room \xB7 Demigod</title>
@@ -3959,14 +5018,14 @@ a:focus-visible{outline:1px solid var(--clay);outline-offset:3px}
     <a href="${PROJECT_ROOM_HREF}#join/">Join</a>
     <a href="#connect">Connect an agent</a>
   </nav>
-  <p class="owner"><a href="/room/llms.txt#join">Owner: Add agent · guest link</a></p>
+  <p class="owner"><a href="/room/llms.txt#join">Owner: Add agent \xB7 guest link</a></p>
   <section class="connect" id="connect" aria-labelledby="connect-title">
     <h2 id="connect-title">Connect</h2>
-    <p><strong>Packet</strong> — paste into your AI. <a href="/room/llms.txt">llms.txt</a></p>
-    <p><strong>Guest link</strong> — owner mints. <a href="/room/llms.txt#join">llms.txt</a></p>
-    <p><strong>Add agent</strong> — enrolled key. <a href="/room/llms.txt">llms.txt</a></p>
+    <p><strong>Packet</strong> \u2014 paste into your AI. <a href="/room/llms.txt">llms.txt</a></p>
+    <p><strong>Guest link</strong> \u2014 owner mints. <a href="/room/llms.txt#join">llms.txt</a></p>
+    <p><strong>Add agent</strong> \u2014 enrolled key. <a href="/room/llms.txt">llms.txt</a></p>
   </section>
-  <p class="aside">Compute is the run factory. Separate. <a href="${COMPUTE_HREF}">getdasha.com/compute</a></p>
+  <p class="aside">Compute is the run factory. Separate. <a href="${COMPUTE_HREF}">Demigod Compute</a></p>
 </main>
 <footer>\xA9 2026 Demigod \xB7 <a href="/">Home</a> \xB7 <a href="/contact">Contact</a> \xB7 <a href="/legal">Privacy</a></footer>
 </body></html>`;
@@ -3985,12 +5044,17 @@ var demigod_html_worker_default = {
         const pretty = await briefJoinRedirect(url);
         if (pretty)
           return pretty;
-        const honesty = leftoverHonesty(url, request.method);
+        const honesty = await motleyHonestyEdge(request, url) || leftoverHonesty(url, request.method);
         if (honesty)
           return honesty;
         const leftover = leftoverRedirect(url);
         if (leftover)
           return leftover;
+      }
+      {
+        const optInApi = await optInApiEdge(request, url, env);
+        if (optInApi)
+          return optInApi;
       }
       if (isFounderAppPath(url.pathname)) {
         return fetch(request);
@@ -4000,6 +5064,11 @@ var demigod_html_worker_default = {
       }
       if ((request.method === "GET" || request.method === "HEAD") && isHardwarePath(url.pathname)) {
         return hardwareEdge(request, url);
+      }
+      {
+        const computeRes = computeEntry(request);
+        if (computeRes)
+          return computeRes;
       }
       {
         const roomRes = roomEntry(request);
@@ -4021,6 +5090,7 @@ var demigod_html_worker_default = {
 };
 export {
   applyBriefCompanyQuery,
+  applyMotleyHomeIa,
   briefCompanyFromUrl,
   briefJoinRedirect,
   briefRole,
@@ -4030,9 +5100,11 @@ export {
   companyJournalHtml,
   companyPageHtml,
   companyPeers,
-  applyMotleyHomeIa,
-  demigodHomeHtml,
+  computeEntry,
+  computeEntryHtml,
+  computeNetworkUrl,
   demigod_html_worker_default as default,
+  demigodHomeHtml,
   escapeJs,
   hideDeadEventsList,
   injectBountiesBoard,
@@ -4043,6 +5115,7 @@ export {
   isJoinPath,
   isJournalPath,
   isMemoPath,
+  isOptInApiPath,
   isPacketsPath,
   isPeersPath,
   isTicketPath,
@@ -4051,31 +5124,33 @@ export {
   journalEventsOf,
   journalHtml,
   journalRowMeta,
-  leftoverHonesty,
   leftoverHonestyDoc,
+  leftoverSameHostLocation,
   leftoverRedirect,
   leftoverRedirectPath,
-  leftoverSameHostLocation,
-  rewriteDeadConversionCtas,
-  roomDiscoveryDoc,
   memoHtml,
   namedBriefHref,
   normalizeBountiesFeed,
+  optInApiEdge,
   packetsHtml,
   paintHireMotley,
   peersHtml,
   rewriteCdnPin,
+  rewriteDeadConversionCtas,
   rewriteSitemap,
   rewriteStaleSnapshotDates,
+  roomDiscoveryDoc,
   sanitizeBriefCompanyId,
   sanitizeBriefCompanyName,
   sanitizeBriefRole,
+  sanitizeComputeVia,
   shieldHomeFirstPaint,
   startupBriefHref,
   stripGoldAccent,
   stripLeftoverSeo,
   stripLeftoverTemplate,
   ticketHtml,
+  validateOptInBody,
   weeklyHtml,
   wizardKind
 };

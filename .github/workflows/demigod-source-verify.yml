@@ -40,3 +40,5 @@ jobs:
         run: node demigod-live-lib.test.mjs
       - name: DIE hosted desk
         run: node --test workers/demigod-die/demigod-die-hosted-worker.test.mjs workers/demigod-die/company-links.test.mjs
+      - name: HTML edge and company identity links
+        run: node --test workers/demigod-html/demigod-html-worker.test.mjs workers/demigod-html/company-slug.test.mjs
