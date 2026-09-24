@@ -39,4 +39,4 @@ jobs:
       - name: Live contract library
         run: node demigod-live-lib.test.mjs
       - name: DIE hosted desk
-        run: node --test workers/demigod-die/demigod-die-hosted-worker.test.mjs
+        run: node --test workers/demigod-die/demigod-die-hosted-worker.test.mjs workers/demigod-die/company-links.test.mjs

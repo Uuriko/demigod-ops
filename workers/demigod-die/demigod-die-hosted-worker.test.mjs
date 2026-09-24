@@ -35,7 +35,7 @@ describe("demigod-die hosted worker", () => {
     assert.doesNotMatch(body, /cand-/i);
     const json = JSON.parse(body);
     assert.equal(json.service, "demigod-die");
-    assert.equal(json.release, "hosted-read-only-h3");
+    assert.equal(json.release, "hosted-read-only-h3.2");
     assert.equal(Object.keys(json).sort().join(","), "ok,release,service");
   });
 
@@ -64,14 +64,14 @@ describe("demigod-die hosted worker", () => {
     assert.doesNotMatch(body, /cand-/i);
   });
 
-  it("H3 role list is named OpenAI plus 20 public movers", async () => {
-    assert.equal(PUBLIC_MOVERS.length, 20);
+  it("H3 role list is named OpenAI plus 26 public identities", async () => {
+    assert.equal(PUBLIC_MOVERS.length, 26);
     const list = roleList();
-    assert.equal(list.total, 21);
-    assert.equal(list.rows.length, 21);
+    assert.equal(list.total, 27);
+    assert.equal(list.rows.length, 27);
     assert.equal(list.rows[0].roleId, "named:wd:Q21708200");
     assert.equal(list.rows[0].companyName, "OpenAI");
-    assert.equal(list.rows.filter((r) => r.source === "public_weekly").length, 20);
+    assert.equal(list.rows.filter((r) => r.source === "public_weekly").length, 26);
     assert.ok(list.rows.every((r) => !JSON.stringify(r).includes("cand-")));
 
     const headers = { "Cf-Access-Jwt-Assertion": shapeJwt() };
@@ -79,7 +79,7 @@ describe("demigod-die hosted worker", () => {
     const body = await textOf(res);
     assert.equal(res.status, 200);
     const json = JSON.parse(body);
-    assert.equal(json.total, 21);
+    assert.equal(json.total, 27);
     assert.doesNotMatch(body, /cand-/);
   });
 });
